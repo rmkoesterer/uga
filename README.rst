@@ -1,7 +1,5 @@
-BU_BiomedicalGenetics
-=====================
-
-`Boston University Biomedical Genetics`_ script repository
+Universal Genome Analyst
+========================
   
 - **Authors**: `Ryan Koesterer`_
 
