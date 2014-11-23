@@ -22,6 +22,7 @@ Features
 Dependencies
 ------------
  To check for these required python modules, type 'pydoc modules' on the commandline and search for them by name in the resulting list 
+ 
  - SGE parallel computing environment
  
  - R 3.1.1
@@ -85,3 +86,8 @@ Suggested additions to ~/.bashrc
  export TEMPDIR=/scratch
  
  export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:PATH_TO_R_LIB
+ 
+Initialize Virtual Environment
+------------------------------
+ 
+ source ~/UGA/env/bin/activate

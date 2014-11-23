@@ -49,14 +49,14 @@ def PrepareListDirs(n, directory):
 def GenerateSubFiles(regionlist, f, dist_mode, n):
 	out_files={}
 	for i in range(n):
-		if dist_mode == 'split-list':
-			of = f.replace('[CHR]',regionlist['chr'][i]) + '.chr' + regionlist['chr'][i] + 'bp' + regionlist['start'][i] + '-' + regionlist['end'][i]
-			out_files[regionlist['chr'][i] + ':' + regionlist['start'][i] + '-' + regionlist['end'][i]] = of
+		if dist_mode in ['region','split-list']:
+			of = f.replace('[CHR]',str(regionlist['chr'][i])) + '.chr' + str(regionlist['chr'][i]) + 'bp' + str(regionlist['start'][i]) + '-' + str(regionlist['end'][i])
+			out_files[str(regionlist['chr'][i]) + ':' + str(regionlist['start'][i]) + '-' + str(regionlist['end'][i])] = of
 		elif dist_mode == 'split-list-n':
 			of = f.replace('[LIST]',str(int(np.floor(i/100.0) + 99*np.floor(i/100.0))) + '-' + str(int(np.floor(i/100.0) + 99*np.floor(i/100.0) + 99))) + '.list' + str(i)
 			out_files[i] = of
 		else:
-			print Error("   ... invalid dist_mode " + dist_mode)
+			print Error("   ... invalid dist_mode: " + dist_mode)
 			return
 	return out_files
 
@@ -81,7 +81,6 @@ def CheckResults(file_dict, out, cpus, complete_string, overwrite):
 		else :
 			print "   ... file " + out + ".regions.rerun already exists (use --overwrite flag to replace the existing file)"
 			return
-	print "   ... checking results"
 	cpus = cpu_count() if cpu_count() < cpus else cpus	
 	n = len(file_dict.keys())
 	if n > 1:
@@ -119,10 +118,10 @@ def CheckResults(file_dict, out, cpus, complete_string, overwrite):
 			reg_rerun_dict[i] = reg_rerun
 			reg_incompletefile_dict[i] = reg_incompletefile
 			reg_missingfile_dict[i] = reg_missingfile
-			print "   ... finished processing " + str(len(joblist)) + " regions on cpu " + str(i+1)
+			print "   ... finished processing on cpu " + str(i+1)
 		joblist = [file_dict.keys()[i:i+int(math.ceil(float(len(file_dict.keys()))/cpus))] for i in range(0,len(file_dict.keys()),int(math.ceil(float(len(file_dict.keys()))/cpus)))]
 		for i in range(len(joblist)):
-			print "   ... submitting " + str(len(joblist[i])) + " result files to check on cpu " + str(i+1)
+			print "   ... submitting " + str(len(joblist[i])) + " result files to verify on cpu " + str(i+1)
 			reg_complete_dict[i] = []
 			reg_rerun_dict[i] = []
 			reg_incompletefile_dict[i] = []
@@ -141,25 +140,26 @@ def CheckResults(file_dict, out, cpus, complete_string, overwrite):
 			reg_rerun.extend(reg_rerun_dict[i])
 			reg_incompletefile.extend(reg_incompletefile_dict[i])
 			reg_missingfile.extend(reg_missingfile_dict[i])
-		print "   ... " + str(len(reg_complete)) + " complete"
+		print "   ... verification results"
+		print "          " + str(len(reg_complete)) + " of " + str(n) + " complete"
 		if len(reg_incompletefile) > 0:
-			print "   ... " + str(len(reg_incompletefile)) + " incomplete"
+			print "          " + str(len(reg_incompletefile)) + " of " + str(n) + " incomplete"
 			f = open(out + '.files.incomplete', 'w')
 			f.write('\n'.join(reg_incompletefile))
 			f.close()
-			print "          written to file " + out + ".files.incomplete"
+			print "             written to file " + out + ".files.incomplete"
 		if len(reg_missingfile) > 0:
-			print "   ... " + str(len(reg_missingfile)) + " files missing"
+			print "          " + str(len(reg_missingfile)) + " of " + str(n) + " files missing"
 			f = open(out + '.files.missing', 'w')
 			f.write('\n'.join(reg_missingfile))
 			f.close()
-			print "          written to file " + out + ".files.missing"
+			print "             written to file " + out + ".files.missing"
 		if len(reg_rerun) > 0:
-			print "   ... " + str(len(reg_rerun)) + " total regions to rerun"
+			print "          " + str(len(reg_rerun)) + " of " + str(n) + " total regions to rerun"
 			f = open(out + '.regions.rerun', 'w')
 			f.write('\n'.join(reg_rerun))
 			f.close()
-			print "          written to file " + out + ".regions.rerun"
+			print "             written to file " + out + ".regions.rerun"
 	else:
 		resfile = file_basename + '.chr' + file_dict.values()[0].split(":")[0] + 'bp' + file_dict.values()[0].split(":")[1].split("-")[0] + '-' + file_dict.values()[0].split(":")[1].split("-")[1]
 		logfile = resfile + ".log"
@@ -170,16 +170,15 @@ def CheckResults(file_dict, out, cpus, complete_string, overwrite):
 				complete = p.communicate()[0]
 				complete = int(complete.strip())
 				if complete == 0:
-					print "   ... analysis complete"
+					print "          analysis complete"
 				else:
-					print "   ... analysis incomplete"
+					print "          analysis incomplete"
 			else:
-				print "   ... analysis incomplete ... no log file found"
+				print "          analysis incomplete ... no log file found"
 		else:
-			print "   ... analysis incomplete ... no out file found"
-	print "   ... file checking complete\n"
+			print "          analysis incomplete ... no out file found"
 
-def CompileResults(regions, out, cpus, overwrite):
+def CompileResults(regions, regionlist, out, cpus, overwrite):
 	print "   ... removing previous compiled results files"
 	if os.path.exists(out + '.gz'):
 		if overwrite:
@@ -199,9 +198,9 @@ def CompileResults(regions, out, cpus, overwrite):
 	pbar = ProgressBar(maxval=len(regions.keys()), widgets = ['   ... processed ', Counter(), ' of ' + str(len(regions.keys())) + ' regions (', Timer(), ')'])
 	i=0
 	pbar.start()
-	for reg in regions.keys():
+	for reg in regionlist['region']:
 		i = i + 1
-		sed = ['awk','{print $0}'] if reg == regions.keys()[0] else ['sed','1d']
+		sed = ['awk','{print $0}'] if i == 1 else ['sed','1d']
 		resfile = regions[reg]
 		resfile = resfile + ".gz"
 		p1 = subprocess.Popen(['zcat',resfile], stdout=subprocess.PIPE)
@@ -220,7 +219,7 @@ def CompileResults(regions, out, cpus, overwrite):
 		p5 = subprocess.Popen(['grep','time elapsed:',regions[reg] + '.log'], stdout=subprocess.PIPE)
 		elap = p5.communicate()[0].strip()
 		p5.wait()
-		p6 = subprocess.Popen(['grep','max memory used:',regions[reg] + '.log'], stdout=subprocess.PIPE)
+		p6 = subprocess.Popen(['grep','memory used:',regions[reg] + '.log'], stdout=subprocess.PIPE)
 		maxmem = p6.communicate()[0].strip()
 		p6.wait()
 		logfile.write('      job ' + str(reg) + '   -   ' + elap + '   ' + maxmem + '\n')

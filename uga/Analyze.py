@@ -42,6 +42,11 @@ def Analyze(out = None,
 			case = 1, 
 			ctrl = 0, 
 			nofail = False):
+	
+	print "   ... arguments"
+	for arg in locals().keys():
+		if not locals()[arg] in [None, False]:
+			print "      {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 
 	assert out, usage(Error("an output file must be specified"))
 	assert data, usage(Error("a data file must be specified"))

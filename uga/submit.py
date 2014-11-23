@@ -8,7 +8,7 @@ import psutil
 import subprocess
 import argparse
 import sys
-from Analyze import *
+from uga.Analyze import Analyze
 from time import strftime, localtime, mktime
 #from memory_profiler import profile, memory_usage
 
@@ -39,7 +39,6 @@ def main(argv):
 	if not 'SGE_TASK_ID' in env_vars.keys():
 		env_vars['SGE_TASK_ID'] = 'None'
 
-	print ""
 	print "start time: " + strftime("%Y-%m-%d %H:%M:%S", start_time)
 	print "compute node: " + env_vars['HOSTNAME']
 	print "current directory: " + env_vars['PWD']
@@ -57,7 +56,6 @@ def main(argv):
 	print 'finish time: ' + strftime("%Y-%m-%d %H:%M:%S", end_time)
 	print 'time elapsed: ' + str(int(((mktime(end_time)-mktime(start_time))/3600)%60)) + ':' + str(int(((mktime(end_time)-mktime(start_time))/60)%60)) + ':' + str((mktime(end_time)-mktime(start_time))%60)
 	print 'memory used: ' + str(mem) + 'MB'
-	print ""
 
 if __name__ == "__main__":
 	main(sys.argv[1:])

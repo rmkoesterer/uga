@@ -15,7 +15,6 @@ from File import *
 from Cfg import *
 from Coordinates import *
 from Process import *
-import submit
 from __init__ import __version__
 
 
@@ -42,12 +41,6 @@ def main(args=None):
 						type=int, 
 						default=1, 
 						help='number of cpus (limited module availability)')
-	parser.add_argument('--verify', 
-						action='store_true', 
-						help='verify results for any split-job process')
-	parser.add_argument('--compile', 
-						action='store', 
-						help='a filename for compiled output')
 
 	parser_split_group1 = parser.add_mutually_exclusive_group()
 	parser_split_group1.add_argument('-r', '--region', 
@@ -195,6 +188,31 @@ def main(args=None):
 
 	efftests_parser = subparsers.add_parser('efftests', help='determine effective number of tests (Li and Ji method)', parents=[parser])
 	efftests_required = efftests_parser.add_argument_group('required arguments')
+	
+	verify_parser = subparsers.add_parser('verify', help='verify output files', parents=[parser])
+	verify_required = verify_parser.add_argument_group('required arguments')
+	verify_required.add_argument('--out', 
+						action='store', 
+						required=True, 
+						help='an output file name (basename only: do not include path)')
+	verify_required.add_argument('--verify-out', 
+						action='store', 
+						required=True, 
+						help='an verification output file name (basename only: including path)')
+	verify_required.add_argument('--complete-string', 
+						action='store', 
+						help='a string indicating completeness in the log file (used only with verify module)')
+
+	compile_parser = subparsers.add_parser('compile', help='compile output files', parents=[parser])
+	compile_required = compile_parser.add_argument_group('required arguments')
+	compile_required.add_argument('--out', 
+						action='store', 
+						required=True, 
+						help='an output file name (basename only: do not include path)')
+	compile_required.add_argument('--compile-out', 
+						action='store', 
+						required=True, 
+						help='a compiled output file name (basename only: including path)')
 
 	args=top_parser.parse_args()
 
@@ -215,21 +233,22 @@ def main(args=None):
 				assert os.path.exists(args.job_list), parser.error("argument --job-list: file does not exist")
 
 	print "   " + " ".join(sys.argv)
+	
+	"""
 	opts=vars(args)
 	maxopt = max([len(a) for a in opts.keys() if not a == 'which'])
 	print "      {0:>{1}}".format('module', maxopt) + ": " + str(args.which)
 	for arg in [a for a in opts.keys() if not a == 'which']:
 		if opts[arg]:
 			print "      {0:>{1}}".format(str(arg), maxopt) + ": " + str(opts[arg])
-
-	##### define script library path #####
-	scripts = os.path.dirname(os.path.abspath(__file__))
+	"""
 
 	##### read cfg file into dictionary #####
 	if args.which == 'me':
 		print "   ... reading configuration from file"
 		config = Cfg(opts['cfg'], opts['which'], opts['vars']).Load()
 
+	"""
 	cmd = ''
 	for x in ['out', 'data', 'samples', 'pheno', 'model', 'fid', 'iid', 'method', 'focus', 'sig', 'region_list', 'region', 'sex', 'male', 'female', 'buffer', 'miss', 'freq', 'rsq', 'hwe', 'case', 'ctrl', 'nofail']:
 		if opts[x]:
@@ -237,31 +256,31 @@ def main(args=None):
 	
 	Interactive('submit.py','\"' + cmd + '\"', opts['out'] + '.log')
 	"""
+	
 	##### define region list #####
 	n = 1
-	if region_list != '':
+	if args.region_list:
 		print "   ... reading list of regions from file ...", 
-		regionlist = Coordinates(region_list).Load()
+		regionlist = Coordinates(args.region_list).Load()
 		print " " + str(len(regionlist.index)) + " regions found"
-		if split:
-			if split_n == '':
+		if args.split or args.split_n:
+			if not args.split_n:
 				n = len(regionlist.index)
 				dist_mode = 'split-list'
 			else:
-				n = split_n
+				n = args.split_n
 				dist_mode = 'split-list-n'
 		else:
 			dist_mode = 'list'
-	if region != '':
-		regionlist = pd.DataFrame({'chr': [re.split(':|-', region)[0]], 'start': [re.split(':|-', region)[1]], 'end': [re.split(':|-', region)[2]], 'region': [region]})
+	if args.region:
+		regionlist = pd.DataFrame({'chr': [re.split(':|-', args.region)[0]], 'start': [re.split(':|-', args.region)[1]], 'end': [re.split(':|-', args.region)[2]], 'region': [args.region]})
 		n = 1
 		dist_mode = 'region'
 	
-		
 	##### get job list from file #####
-	if job_list != '':
+	if args.job_list:
 		jobs = []
-		with open(job_list) as f:
+		with open(args.job_list) as f:
 			lines = (line.rstrip() for line in f)
 			lines = (line for line in lines if line)
 			for line in lines:
@@ -274,61 +293,85 @@ def main(args=None):
 		regionlist_idx = np.array_split(np.array(regionlist.index), n)
 
 	##### define output directory #####
-	directory = os.path.dirname(config['out']) if directory == '' else directory
-	directory = directory + '/' if directory != '' else directory
+	directory = os.path.dirname(args.out) if not args.directory else args.directory
+	directory = directory + '/' if args.directory else directory
 	if n > 100:
 		if dist_mode == 'split-list':
 			directory = directory + 'chr[CHR]/'
 		elif dist_mode == 'split-list-n':
 			directory = directory + 'list[LIST]/'
-	config['out'] = directory + config['out']
+	args.out = directory + args.out
 	
-	out_files = GenerateSubFiles(regionlist = regionlist, f = config['out'], dist_mode = dist_mode, n = split_n)
+	out_files = {}
+	if dist_mode in ['region','split-list','split-list-n']:
+		out_files = GenerateSubFiles(regionlist = regionlist, f = args.out, dist_mode = dist_mode, n = n)
 
-	if check:
-		if module in ['ma', 'ind']:
-			complete_string = '   ... process complete' if complete_string == '' else complete_string
-		elif module == 'me':
-			complete_string = '   ... meta analysis complete' if complete_string == '' else complete_string
+	##### define script library path #####
+	script_path = os.path.dirname(os.path.abspath(__file__))
+	
+	if args.which == 'verify':
+		complete_string = '   ... process complete' if not args.complete_string else args.complete_string
 		if dist_mode in ['split-list', 'split-list-n']:
-			CheckResults(out_files, cfg + '.check', cpus, complete_string, overwrite)
+			CheckResults(out_files, args.verify_out + '.verify', args.cpus, complete_string, args.overwrite)
 		else:
-			usage(Error("--check option available only if both --list and --split or --split-n are used"))
-	elif compile != '':
+			print Error("--check option available only if both --list and --split or --split-n are used")
+			parser.print_help()
+	elif args.which == 'compile':
 		if dist_mode in ['split-list', 'split-list-n']:
-			CompileResults(out_files,  compile, cpus, overwrite)
+			CompileResults(out_files, regionlist, args.compile_out, args.cpus, args.overwrite)
 		else:
-			usage(Error("single file results, nothing to compile"))
+			print Error("single file results, nothing to compile")
+			parser.print_help()
 	else:
-		if module in ['ma', 'ind']:
-			print "   ... preparing output directories"
-			if dist_mode == 'split-list' and n > 100:
-				PrepareChrDirs(regionlist['region'], directory)
-			elif dist_mode == 'split-list-n' and n > 100:
-				PrepareListDirs(n, directory)
-			print "   ... submitting analysis jobs\n" if qsub != '' else "   ... starting analysis\n"
-			joblist = []
-			if job != '':
-				joblist.append(job)
-			elif job_list != '':
-				joblist.extend(jobs)
-			else:
-				joblist.extend(range(n))
-			for i in joblist:
-				config_temp = config.copy()
-				if dist_mode in ['split-list', 'region']:
-					config_temp['out'] = out_files['%d:%d-%d' % (regionlist['chr'][i], regionlist['start'][i], regionlist['end'][i])]
-				if dist_mode == 'split-list-n':
-					#config_temp['out'] = config_temp['out'].replace('[LIST]', str(int(np.floor(i/100.0) + 99*np.floor(i/100.0))) + '-' + str(int(np.floor(i/100.0) + 99*np.floor(i/100.0) + 99))) + '.list' + str(i)
-					config_temp['out'] = out_files[i]
-					rlist = config_temp['out'] + '.regions'
-					regionlist.loc[regionlist_idx[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'reg_id'])
-				if overwrite:
-					RemoveExistingFiles(config_temp['out'], module)
+		if not os.path.exists(args.directory):
+			try:
+				os.mkdir(args.directory)
+			except OSError:
+				print Error("unable to create output directory")
+				parser.print_help()
+		else:
+			if args.which in ['analyze', 'efftests']:
+				print "   ... preparing output directories"
+				if dist_mode == 'split-list' and n > 100:
+					PrepareChrDirs(regionlist['region'], directory)
+				elif dist_mode == 'split-list-n' and n > 100:
+					PrepareListDirs(n, directory)
+				print "   ... submitting analysis jobs\n" if args.qsub else "   ... starting analysis\n"
+				joblist = []
+				if args.job:
+					joblist.append(args.job)
+				elif args.job_list:
+					joblist.extend(jobs)
 				else:
-					CheckExistingFiles(config_temp['out'], module)
-				if qsub != "":
-					cmd_arg = scripts + "/Analysis.py " + ' '.join("--%s %s" % (key, val) if key != 'model' else "--%s '%s'" % (key, val) for (key, val) in config_temp.items())
+					joblist.extend(range(n))
+				for i in joblist:
+					if dist_mode in ['split-list', 'region']:
+						out = out_files['%s:%s-%s' % (str(regionlist['chr'][i]), str(regionlist['start'][i]), str(regionlist['end'][i]))]
+						vars(args)['region'] = '%s:%s-%s' % (str(regionlist['chr'][i]), str(regionlist['start'][i]), str(regionlist['end'][i]))
+						vars(args)['region_list'] = None
+					if dist_mode == 'split-list-n':
+						out = out_files[i]
+						rlist = out + '.regions'
+						regionlist.loc[regionlist_idx[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'reg_id'])
+						vars(args)['region_list'] = rlist
+					if args.overwrite:
+						RemoveExistingFiles(out, args.which)
+					else:
+						CheckExistingFiles(out, args.which)
+					if args.which == 'analyze':
+						cmd = args.which.capitalize() + '(out="' + out + '"'
+						for x in ['data', 'samples', 'pheno', 'model', 'fid', 'iid', 'method', 'focus', 'sig', 'region_list', 'region', 'sex', 'male', 'female', 'buffer', 'miss', 'freq', 'rsq', 'hwe', 'case', 'ctrl', 'nofail']:
+							if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+								if type(vars(args)[x]) is str:
+									cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
+								else:
+									cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+						cmd = cmd + ')'
+					if args.qsub:
+						Qsub('qsub -P ' + args.qsub + ' -N ' + os.path.basename(out).split('.')[0] + ' -o ' + out + '.log ' + script_path + '/submit.py --qsub ' + args.qsub + ' --cmd \'' + cmd + '\'')
+					else:
+						Interactive(script_path + '/submit.py', cmd, out + '.log')
+			"""
 					if dist_mode in ['list', 'split-list-n']:
 						cmd_arg = cmd_arg + " --list " + rlist
 					if dist_mode == 'region':
@@ -373,5 +416,5 @@ def main(args=None):
 	print ''
 
 if __name__ == "__main__":
-	print 'CAFGAP v' + __version__
+	print '\n' + 'Universal Genome Analyst v' + __version__ + '\n'
 	main()
