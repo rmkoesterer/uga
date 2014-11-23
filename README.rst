@@ -16,27 +16,46 @@ Features
    - Cox proportional hazards (coxph)
 - Meta analysis
 - Annotation
-- Plotting
+- Plots
 
 
 Dependencies
 ------------
  To check for these required python modules, type 'pydoc modules' on the commandline and search for them by name in the resulting list 
  - SGE parallel computing environment
-- R 2.15.3
-- python2.7
-easy_install virtualenv --user
-cd into * (some directory where you'd like your virtual environment to live)
-virtualenv * (if currently using 2.7)
+ 
+ - R 3.1.1
+
+ - python2.7.3
+
+ easy_install virtualenv --user
+
+ cd into * (some directory where you'd like your virtual environment to live)
+
+ virtualenv * (if currently using 2.7)
 	virtualenv -p python2.7 * (if not currently using 2.7)
-source */bin/activate
+	
+ source */bin/activate
+ 
 	pip install pytabix
+	
 	pip install rpy2
+	
+	pip install singledispatch
+	
 	pip install multi_key_dict
+	
 	pip install numpy
+	
 	pip install progressbar
+	
 	pip install pandas
+	
 	pip install psutil
+	
+	pip install statsmodels
+	
+	pip install biopython
 	
 - reshape (R package)
 - grDevices (R package)
@@ -60,15 +79,9 @@ Use the following method to install python modules::
  
  export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:PATH_TO_DIR_CONTAINING_libR.so
 
-Additions to ~/.bashrc
+Suggested additions to ~/.bashrc
 ----------------------
-
- module load R/R-2.15.3_gnu-4.4.6
-
- module load tabix/0.2.6
- 
- module load python2.7/Python-2.7.3_gnu446
 
  export TEMPDIR=/scratch
  
- export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/IT/R-2.15.3/lib64/R/lib/
+ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:PATH_TO_R_LIB

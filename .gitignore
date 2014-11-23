@@ -1,0 +1,13 @@
+*.pyc
+
+uga/*.pyc
+
+bin/*
+
+build/*
+
+dist/*
+
+env/*
+
+uga.egg-info/*
