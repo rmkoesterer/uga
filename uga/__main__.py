@@ -17,6 +17,7 @@ from Coordinates import *
 from Process import *
 from __init__ import __version__
 
+print '\n' + 'Universal Genome Analyst v' + __version__ + '\n'
 
 def main(args=None):
 	parser = argparse.ArgumentParser('parent', add_help=False)
@@ -41,6 +42,10 @@ def main(args=None):
 						type=int, 
 						default=1, 
 						help='number of cpus (limited module availability)')
+	parser.add_argument('--mem', 
+						action='store', 
+						default='3', 
+						help='amount of ram memory to request for queued job (in gigabytes)')
 
 	parser_split_group1 = parser.add_mutually_exclusive_group()
 	parser_split_group1.add_argument('-r', '--region', 
@@ -109,7 +114,7 @@ def main(args=None):
 	analyze_required.add_argument('--method', 
 						action='store', 
 						required=True, 
-						choices=['gee_gaussian', 'gee_binomial', 'glm_gaussian', 'glm_binomial', 'lme_gaussian', 'lme_binomial', 'coxph'], 
+						choices=['gee_gaussian', 'gee_binomial', 'glm_gaussian', 'glm_binomial', 'lme_gaussian', 'lme_binomial', 'coxph', 'efftests'], 
 						help='the analysis method')
 	analyze_parser.add_argument('--focus', 
 						action='store', 
@@ -186,9 +191,6 @@ def main(args=None):
 	map_impute_parser = subparsers.add_parser('map-impute', help='map non-empty imputation regions overlapping with file', parents=[parser])
 	map_impute_required = map_impute_parser.add_argument_group('required arguments')
 
-	efftests_parser = subparsers.add_parser('efftests', help='determine effective number of tests (Li and Ji method)', parents=[parser])
-	efftests_required = efftests_parser.add_argument_group('required arguments')
-	
 	verify_parser = subparsers.add_parser('verify', help='verify output files', parents=[parser])
 	verify_required = verify_parser.add_argument_group('required arguments')
 	verify_required.add_argument('--out', 
@@ -329,92 +331,90 @@ def main(args=None):
 			except OSError:
 				print Error("unable to create output directory")
 				parser.print_help()
-		else:
-			if args.which in ['analyze', 'efftests']:
-				print "   ... preparing output directories"
-				if dist_mode == 'split-list' and n > 100:
-					PrepareChrDirs(regionlist['region'], directory)
-				elif dist_mode == 'split-list-n' and n > 100:
-					PrepareListDirs(n, directory)
-				print "   ... submitting analysis jobs\n" if args.qsub else "   ... starting analysis\n"
-				joblist = []
-				if args.job:
-					joblist.append(args.job)
-				elif args.job_list:
-					joblist.extend(jobs)
-				else:
-					joblist.extend(range(n))
-				for i in joblist:
-					if dist_mode in ['split-list', 'region']:
-						out = out_files['%s:%s-%s' % (str(regionlist['chr'][i]), str(regionlist['start'][i]), str(regionlist['end'][i]))]
-						vars(args)['region'] = '%s:%s-%s' % (str(regionlist['chr'][i]), str(regionlist['start'][i]), str(regionlist['end'][i]))
-						vars(args)['region_list'] = None
-					if dist_mode == 'split-list-n':
-						out = out_files[i]
-						rlist = out + '.regions'
-						regionlist.loc[regionlist_idx[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'reg_id'])
-						vars(args)['region_list'] = rlist
-					if args.overwrite:
-						RemoveExistingFiles(out, args.which)
-					else:
-						CheckExistingFiles(out, args.which)
-					if args.which == 'analyze':
-						cmd = args.which.capitalize() + '(out="' + out + '"'
-						for x in ['data', 'samples', 'pheno', 'model', 'fid', 'iid', 'method', 'focus', 'sig', 'region_list', 'region', 'sex', 'male', 'female', 'buffer', 'miss', 'freq', 'rsq', 'hwe', 'case', 'ctrl', 'nofail']:
-							if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-								if type(vars(args)[x]) is str:
-									cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
-								else:
-									cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-						cmd = cmd + ')'
-					if args.qsub:
-						Qsub('qsub -P ' + args.qsub + ' -N ' + os.path.basename(out).split('.')[0] + ' -o ' + out + '.log ' + script_path + '/submit.py --qsub ' + args.qsub + ' --cmd \'' + cmd + '\'')
-					else:
-						Interactive(script_path + '/submit.py', cmd, out + '.log')
-			"""
-					if dist_mode in ['list', 'split-list-n']:
-						cmd_arg = cmd_arg + " --list " + rlist
-					if dist_mode == 'region':
-						cmd_arg = cmd_arg + " --region " + regionlist['region'][i]
-					cmd="qsub -P " + qsub + " -l mem_free=1g -N " + cfg.split("/")[-1].replace('.', '_') + " -o " + config_temp['out'] + ".log" + " " + scripts + "/Submit.sh \"" + cmd_arg + "\""
-					Qsub(cmd)
-				else:
-					cmd = scripts + "/Submit.sh"
-					cmd_arg = scripts + "/Analysis.py " + ' '.join("--%s %s" % (key, val) if key != 'model' else "--%s \"%s\"" % (key, val) for (key, val) in config_temp.items())
-					if dist_mode in ['list', 'split-list-n']:
-						cmd_arg = cmd_arg + " --list " + rlist
-					if dist_mode == 'region':
-						cmd_arg = cmd_arg + " --region " + regionlist['region'][i]
-					Interactive(cmd, cmd_arg, config_temp['out'] + '.log')
-		elif module == 'me':
+		if args.which == 'analyze':
 			print "   ... preparing output directories"
-			if dist_mode in ['split-full', 'split-list']:
-				PrepareDirs(regionlist['region'], directory)
-			print "   ... submitting meta analysis jobs\n" if qsub != '' else "   ... starting meta analysis\n"
-			for i in range(n):
-				config_temp = config.copy()
+			if dist_mode == 'split-list' and n > 100:
+				PrepareChrDirs(regionlist['region'], directory)
+			elif dist_mode == 'split-list-n' and n > 100:
+				PrepareListDirs(n, directory)
+			print "   ... submitting analysis jobs\n" if args.qsub else "   ... starting analysis\n"
+			joblist = []
+			if args.job:
+				joblist.append(args.job)
+			elif args.job_list:
+				joblist.extend(jobs)
+			else:
+				joblist.extend(range(n))
+			for i in joblist:
 				if dist_mode in ['split-list', 'region']:
-					config_temp['out'] = config_temp['out'].replace('[CHR]', regionlist['chr'][i]) + '.chr' + regionlist['chr'][i] + 'bp' + regionlist['start'][i] + '-' + regionlist['end'][i]
-				if overwrite:
-					RemoveExistingFiles(config_temp['out'], module)
+					out = out_files['%s:%s-%s' % (str(regionlist['chr'][i]), str(regionlist['start'][i]), str(regionlist['end'][i]))]
+					vars(args)['region'] = '%s:%s-%s' % (str(regionlist['chr'][i]), str(regionlist['start'][i]), str(regionlist['end'][i]))
+					vars(args)['region_list'] = None
+				if dist_mode == 'split-list-n':
+					out = out_files[i]
+					rlist = out + '.regions'
+					regionlist.loc[regionlist_idx[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'reg_id'])
+					vars(args)['region_list'] = rlist
+				if args.overwrite:
+					RemoveExistingFiles(out, args.which)
 				else:
-					CheckExistingFiles(config_temp['out'], module)
-				cmd_arg = scripts + "/Meta.py --cfg " + cfg
-				if dist_mode == 'list':
-					cmd_arg = cmd_arg + " --list " + list
+					CheckExistingFiles(out, args.which)
+				if args.which == 'analyze':
+					cmd = args.which.capitalize() + '(out="' + out + '"'
+					for x in ['data', 'samples', 'pheno', 'model', 'fid', 'iid', 'method', 'focus', 'sig', 'region_list', 'region', 'sex', 'male', 'female', 'buffer', 'miss', 'freq', 'rsq', 'hwe', 'case', 'ctrl', 'nofail']:
+						if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+							if type(vars(args)[x]) is str:
+								cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
+							else:
+								cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+					cmd = cmd + ',mem=' + args.mem + ')'
+				if args.qsub:
+					Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + args.mem + 'g -N ' + os.path.basename(out).split('.')[0] + ' -o ' + out + '.log ' + script_path + '/submit.py --qsub ' + args.qsub + ' --cmd \'' + cmd + '\'')
+				else:
+					Interactive(os.environ['UGA_BIN'] + '/submit.py', cmd, out + '.log')
+		"""
+				if dist_mode in ['list', 'split-list-n']:
+					cmd_arg = cmd_arg + " --list " + rlist
 				if dist_mode == 'region':
 					cmd_arg = cmd_arg + " --region " + regionlist['region'][i]
-				cmd_arg = cmd_arg + " --directory " + directory if directory != '' else cmd_arg
-				cmd_arg = cmd_arg + " --vars " + vars if vars != '' else cmd_arg
-				if qsub != "":
-					cmd="qsub -P " + qsub + " -l mem_free=1g -N " + cfg.split("/")[-1].replace('.', '_') + " -o " + config_temp['out'] + ".log" + " " + scripts + "/Submit.sh \"" + cmd_arg + "\""
-					Qsub(cmd)
-				else:
-					cmd = scripts + "/Submit.sh"
-					Interactive(cmd, cmd_arg, config_temp['out'] + '.log')
+				cmd="qsub -P " + qsub + " -l mem_free=1g -N " + cfg.split("/")[-1].replace('.', '_') + " -o " + config_temp['out'] + ".log" + " " + scripts + "/Submit.sh \"" + cmd_arg + "\""
+				Qsub(cmd)
+			else:
+				cmd = scripts + "/Submit.sh"
+				cmd_arg = scripts + "/Analysis.py " + ' '.join("--%s %s" % (key, val) if key != 'model' else "--%s \"%s\"" % (key, val) for (key, val) in config_temp.items())
+				if dist_mode in ['list', 'split-list-n']:
+					cmd_arg = cmd_arg + " --list " + rlist
+				if dist_mode == 'region':
+					cmd_arg = cmd_arg + " --region " + regionlist['region'][i]
+				Interactive(cmd, cmd_arg, config_temp['out'] + '.log')
+	elif module == 'me':
+		print "   ... preparing output directories"
+		if dist_mode in ['split-full', 'split-list']:
+			PrepareDirs(regionlist['region'], directory)
+		print "   ... submitting meta analysis jobs\n" if qsub != '' else "   ... starting meta analysis\n"
+		for i in range(n):
+			config_temp = config.copy()
+			if dist_mode in ['split-list', 'region']:
+				config_temp['out'] = config_temp['out'].replace('[CHR]', regionlist['chr'][i]) + '.chr' + regionlist['chr'][i] + 'bp' + regionlist['start'][i] + '-' + regionlist['end'][i]
+			if overwrite:
+				RemoveExistingFiles(config_temp['out'], module)
+			else:
+				CheckExistingFiles(config_temp['out'], module)
+			cmd_arg = scripts + "/Meta.py --cfg " + cfg
+			if dist_mode == 'list':
+				cmd_arg = cmd_arg + " --list " + list
+			if dist_mode == 'region':
+				cmd_arg = cmd_arg + " --region " + regionlist['region'][i]
+			cmd_arg = cmd_arg + " --directory " + directory if directory != '' else cmd_arg
+			cmd_arg = cmd_arg + " --vars " + vars if vars != '' else cmd_arg
+			if qsub != "":
+				cmd="qsub -P " + qsub + " -l mem_free=1g -N " + cfg.split("/")[-1].replace('.', '_') + " -o " + config_temp['out'] + ".log" + " " + scripts + "/Submit.sh \"" + cmd_arg + "\""
+				Qsub(cmd)
+			else:
+				cmd = scripts + "/Submit.sh"
+				Interactive(cmd, cmd_arg, config_temp['out'] + '.log')
 	"""
 	print ''
 
 if __name__ == "__main__":
-	print '\n' + 'Universal Genome Analyst v' + __version__ + '\n'
 	main()

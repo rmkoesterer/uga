@@ -14,7 +14,7 @@ from time import strftime, localtime, mktime
 
 
 #@profile
-def main(argv):
+def main(args=None):
 	parser = argparse.ArgumentParser('submit.py')
 	parser.add_argument('--qsub', 
 						action='store', 
@@ -58,4 +58,4 @@ def main(argv):
 	print 'memory used: ' + str(mem) + 'MB'
 
 if __name__ == "__main__":
-	main(sys.argv[1:])
+	main()

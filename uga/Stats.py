@@ -209,17 +209,23 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
 	return marker_info
 
-def CalcIndepTests(marker_info, model_df):
+def CalcEffTests(marker_info, model_df, mem):
 	cols = marker_info['marker_unique'][marker_info['filter'] == 0]
 	tot_tests = len(cols)
-	if len(cols) > 1:
-		markers = model_df[cols]
-		markers_cor = markers.corr()
-		markers_cor_eigvals = np.linalg.eigvalsh(markers_cor)
-		markers_cor_eigvalsnew = [x if x > 0 else 0 for x in markers_cor_eigvals]
-		n_indep = sum([1 if x else 0 for x in markers_cor_eigvals>1]+(markers_cor_eigvalsnew-np.floor(markers_cor_eigvalsnew)))
-	elif len(cols) == 1:
-		n_indep = 1
+	status = 0
+	if (len(cols) * len(cols)) / 100000000.0 <= mem:
+		if len(cols) > 1:
+			markers = model_df[cols]
+			markers_cor = markers.corr()
+			markers_cor_eigvals = np.linalg.eigvalsh(markers_cor)
+			markers_cor_eigvalsnew = [x if x > 0 else 0 for x in markers_cor_eigvals]
+			n_eff = sum([1 if x else 0 for x in markers_cor_eigvals>1]+(markers_cor_eigvalsnew-np.floor(markers_cor_eigvalsnew)))
+		elif len(cols) == 1:
+			n_eff = 1
+		else:
+			n_eff = 0
+		status = 1
 	else:
-		n_indep = 0
-	return ('%.5g' % n_indep, '%d' % tot_tests)
+		n_eff = float('NaN')
+		status = -1
+	return ('%.5g' % n_eff, '%d' % tot_tests, '%d' % status)

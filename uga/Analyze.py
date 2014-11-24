@@ -41,6 +41,7 @@ def Analyze(out = None,
 			hwe = None, 
 			case = 1, 
 			ctrl = 0, 
+			mem = 3, 
 			nofail = False):
 	
 	print "   ... arguments"
@@ -113,7 +114,7 @@ def Analyze(out = None,
 			print "          sex column %s not found" % sex
 			usage(Error("sex column missing from phenotype file"))
 
-	vars_df = vars_df[list(set([fid,iid,sex] + list([a for a in model_vars_dict.keys() if a != 'marker'])))]
+	vars_df = vars_df[list(set([a for a in [fid,iid,sex] if a] + list([a for a in model_vars_dict.keys() if a != 'marker'])))]
 	
 	nmale = len(vars_df[sex][vars_df[sex] == male]) if sex and male and female else 'NA'
 	nfemale = len(vars_df[sex][vars_df[sex] == female]) if sex and male and female else 'NA'
@@ -196,8 +197,8 @@ def Analyze(out = None,
 	sig = int(sig) if sig else sig
 	buffer = int(buffer) if buffer else buffer
 
-	##### RESET BUFFER TO MATCH NUMBER OF MARKERS IF CALC INDEP TESTS #####
-	if method == 'indep_tests':
+	##### RESET BUFFER TO MATCH NUMBER OF MARKERS IF CALC EFF TESTS #####
+	if method == 'efftests':
 		buffer = marker_list['n'].max()
 	vars_df.sort([fid],inplace = True)
 	vars_df[fid] = pd.Categorical.from_array(vars_df[fid]).codes.astype(np.int64)
@@ -272,21 +273,22 @@ def Analyze(out = None,
 					results = marker_info.apply(lambda row: CalcLME(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
 				elif method == 'coxph':
 					results = marker_info.apply(lambda row: CalcCoxPH(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
-				elif method == 'indep_tests':
-					n_indep, tot_tests = CalcIndepTests(marker_info=marker_info, model_df=model_df)
-					results = pd.DataFrame({'chr': [marker_list['chr'][r]], 'start': [marker_list['start'][r]], 'end': [marker_list['end'][r]], 'reg_id': [marker_list['reg_id'][r]], 'n_total': [tot_tests], 'n_indep': [n_indep]})[['chr','start','end','reg_id','n_total','n_indep']]
+				elif method == 'efftests':
+					n_eff, tot_tests, status = CalcEffTests(marker_info=marker_info, model_df=model_df, mem=mem)
+					results = pd.DataFrame({'chr': [marker_list['chr'][r]], 'start': [marker_list['start'][r]], 'end': [marker_list['end'][r]], 'reg_id': [marker_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','reg_id','n_total','n_eff','status']]
 				results.fillna('NA', inplace=True)
 				if nofail:
 					results = results[results['status'] > 0]
 				if 'reg_id' in marker_list.columns:
 					results['reg_id'] = marker_list['reg_id'][r]
-				results.drop('marker_unique',axis=1,inplace=True)
+				if 'marker_unique' in results.columns.values:
+					results.drop('marker_unique',axis=1,inplace=True)
 				if not written:
 					bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in results.columns.values.tolist()]) + '\n')
 					bgzfile.flush()
 					written = True
 				results.to_csv(bgzfile, header=False, sep='\t', index=False)
-				pr = '   ... processed ' + str(min(i*buffer,marker_list['n'].sum())) + ' of ' + str(marker_list['n'].sum()) + ' markers' if method != 'indep_tests' else '   ... processed ' + str(marker_list['n'][r]) + ' markers from region ' + str(r+1) + ' of ' + str(len(marker_list.index))
+				pr = '   ... processed ' + str(min(i*buffer,marker_list['n'].sum())) + ' of ' + str(marker_list['n'].sum()) + ' markers' if method != 'efftests' else '   ... processed ' + str(marker_list['n'][r]) + ' markers from region ' + str(r+1) + ' of ' + str(len(marker_list.index))
 				print pr
 	bgzfile.close()
 	print "   ... mapping results file"

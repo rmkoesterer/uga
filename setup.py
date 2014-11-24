@@ -67,7 +67,7 @@ setup(
            'uga = uga.__main__:main',
            ],
        },
-	#scripts=['uga/uga'],
+	#scripts=['uga/'],
     packages=['uga'],
     #include_package_data=True,
     platforms='any',

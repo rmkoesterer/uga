@@ -2,8 +2,6 @@
 
 uga/*.pyc
 
-bin/*
-
 build/*
 
 dist/*
