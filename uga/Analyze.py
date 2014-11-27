@@ -16,6 +16,8 @@ import re
 from itertools import islice
 from Bio import bgzf
 
+import psutil
+
 pd.options.mode.chained_assignment = None
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
 
@@ -198,18 +200,15 @@ def Analyze(out = None,
 	buffer = int(buffer) if buffer else buffer
 
 	##### RESET BUFFER TO MATCH NUMBER OF MARKERS IF CALC EFF TESTS #####
-	if method == 'efftests':
-		buffer = marker_list['n'].max()
+	#if method == 'efftests':
+	#	buffer = marker_list['n'].max()
 	vars_df.sort([fid],inplace = True)
 	vars_df[fid] = pd.Categorical.from_array(vars_df[fid]).codes.astype(np.int64)
 	
 	print "   ... starting marker analysis"
 	written = False
-	k = 0
-	markers_noalt = 0
 	bgzfile = bgzf.BgzfWriter(out + '.gz', 'wb')
 	tb = tabix.open(data)
-	i=0
 	for r in range(len(marker_list.index)):
 		reg = marker_list['region'][r]
 		chr = reg.split(':')[0]
@@ -218,12 +217,12 @@ def Analyze(out = None,
 		except:
 			pass
 		else:
+			i = 0
 			while True:
 				i = i + 1
 				chunk=list(islice(records, buffer))
 				if not chunk:
 					break
-				k = 0
 				chunkdf = pd.DataFrame(chunk)
 				marker_info = chunkdf.ix[:,:4]
 				marker_info.columns = ['chr','pos','marker','a1','a2']
@@ -265,17 +264,49 @@ def Analyze(out = None,
 				marker_info['samples'] = str(samples) + '/' + str(samples_unique) + '/' + str(clusters) + '/' + str(cases) + '/' + str(ctrls)
 				markercols = [col for col in model_df.columns if 'chr' in col]
 				model_df[markercols] = model_df[markercols].astype(float)
-				if method.split('_')[0] == 'gee':
-					results = marker_info.apply(lambda row: CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
-				elif method.split('_')[0] == 'glm':
-					results = marker_info.apply(lambda row: CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
-				elif method.split('_')[0] == 'lme':
-					results = marker_info.apply(lambda row: CalcLME(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
-				elif method == 'coxph':
-					results = marker_info.apply(lambda row: CalcCoxPH(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
-				elif method == 'efftests':
-					n_eff, tot_tests, status = CalcEffTests(marker_info=marker_info, model_df=model_df, mem=mem)
-					results = pd.DataFrame({'chr': [marker_list['chr'][r]], 'start': [marker_list['start'][r]], 'end': [marker_list['end'][r]], 'reg_id': [marker_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','reg_id','n_total','n_eff','status']]
+				if method.split('_')[0] in ['gee','glm','lme','coxph']:
+					if method.split('_')[0] == 'gee':
+						results = marker_info.apply(lambda row: CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
+					elif method.split('_')[0] == 'glm':
+						results = marker_info.apply(lambda row: CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
+					elif method.split('_')[0] == 'lme':
+						results = marker_info.apply(lambda row: CalcLME(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
+					elif method == 'coxph':
+						results = marker_info.apply(lambda row: CalcCoxPH(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
+					results.fillna('NA', inplace=True)
+					if nofail:
+						results = results[results['status'] > 0]
+					if 'reg_id' in marker_list.columns:
+						results['reg_id'] = marker_list['reg_id'][r]
+					if 'marker_unique' in results.columns.values:
+						results.drop('marker_unique',axis=1,inplace=True)
+					if not written:
+						bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in results.columns.values.tolist()]) + '\n')
+						bgzfile.flush()
+						written = True
+					results.to_csv(bgzfile, header=False, sep='\t', index=False)
+				else:
+					if method == 'efftests':
+						if i == 1:
+							reg_model_df = model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1)
+							reg_marker_info = marker_info[marker_info['filter'] == 0]
+						else:
+							reg_model_df = pd.merge(reg_model_df,model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1),on=[iid],how='left',copy=False)
+							reg_marker_info = reg_marker_info.append(marker_info[marker_info['filter'] == 0],ignore_index=True)
+				print '   ... processed ' + str(min(i*buffer,marker_list['n'][r])) + ' of ' + str(marker_list['n'][r]) + ' markers from region ' + str(r+1) + ' of ' + str(len(marker_list.index))
+			if method == 'efftests':
+				tot_tests = reg_marker_info.shape[0]
+				if tot_tests > 0:
+					if (tot_tests * tot_tests) / 100000000.0 <= mem:
+						n_eff = CalcEffTests(model_df=reg_model_df[reg_marker_info['marker_unique']], mem=mem)
+						status = 0
+					else:
+						n_eff = float('nan')
+						status = 2
+				else:
+					n_eff, tot_tests, status = (0, 0, 1)
+				#results = pd.DataFrame({'chr': [marker_list['chr'][r]], 'start': [marker_list['start'][r]], 'end': [marker_list['end'][r]], 'reg_id': [marker_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','reg_id','n_total','n_eff','status']]
+				results = pd.DataFrame({'chr': [marker_list['chr'][r]], 'start': [marker_list['start'][r]], 'end': [marker_list['end'][r]], 'reg_id': [marker_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff]})[['chr','start','end','reg_id','n_total','n_eff']]
 				results.fillna('NA', inplace=True)
 				if nofail:
 					results = results[results['status'] > 0]
@@ -288,8 +319,7 @@ def Analyze(out = None,
 					bgzfile.flush()
 					written = True
 				results.to_csv(bgzfile, header=False, sep='\t', index=False)
-				pr = '   ... processed ' + str(min(i*buffer,marker_list['n'].sum())) + ' of ' + str(marker_list['n'].sum()) + ' markers' if method != 'efftests' else '   ... processed ' + str(marker_list['n'][r]) + ' markers from region ' + str(r+1) + ' of ' + str(len(marker_list.index))
-				print pr
+				print '   ... processed effective tests calculation for region ' + str(r+1) + ' of ' + str(len(marker_list.index))
 	bgzfile.close()
 	print "   ... mapping results file"
 	cmd = 'tabix -b 2 -e 2 ' + out + '.gz'

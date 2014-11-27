@@ -2,6 +2,7 @@ from progressbar import ProgressBar, Counter, Timer
 import sys
 import os
 import subprocess
+from collections import OrderedDict
 import numpy as np
 from multiprocessing import Process, Manager, cpu_count
 import math
@@ -47,7 +48,7 @@ def PrepareListDirs(n, directory):
 			continue
 			
 def GenerateSubFiles(regionlist, f, dist_mode, n):
-	out_files={}
+	out_files=OrderedDict()
 	for i in range(n):
 		if dist_mode in ['region','split-list']:
 			of = f.replace('[CHR]',str(regionlist['chr'][i])) + '.chr' + str(regionlist['chr'][i]) + 'bp' + str(regionlist['start'][i]) + '-' + str(regionlist['end'][i])
@@ -178,7 +179,7 @@ def CheckResults(file_dict, out, cpus, complete_string, overwrite):
 		else:
 			print "          analysis incomplete ... no out file found"
 
-def CompileResults(regions, regionlist, out, cpus, overwrite):
+def CompileResults(out_files, out, overwrite):
 	print "   ... removing previous compiled results files"
 	if os.path.exists(out + '.gz'):
 		if overwrite:
@@ -195,13 +196,13 @@ def CompileResults(regions, regionlist, out, cpus, overwrite):
 	print "   ... compiling results"
 	bgzfile = bgzf.BgzfWriter(out + '.gz', 'wb')
 	logfile = file(out + '.log', 'w')
-	pbar = ProgressBar(maxval=len(regions.keys()), widgets = ['   ... processed ', Counter(), ' of ' + str(len(regions.keys())) + ' regions (', Timer(), ')'])
+	pbar = ProgressBar(maxval=len(out_files.keys()), widgets = ['   ... processed ', Counter(), ' of ' + str(len(out_files.keys())) + ' regions (', Timer(), ')'])
 	i=0
 	pbar.start()
-	for reg in regionlist['region']:
+	for reg in out_files.keys():
 		i = i + 1
 		sed = ['awk','{print $0}'] if i == 1 else ['sed','1d']
-		resfile = regions[reg]
+		resfile = out_files[reg]
 		resfile = resfile + ".gz"
 		p1 = subprocess.Popen(['zcat',resfile], stdout=subprocess.PIPE)
 		p2 = subprocess.Popen(sed, stdin=p1.stdout, stdout=subprocess.PIPE)
@@ -209,17 +210,17 @@ def CompileResults(regions, regionlist, out, cpus, overwrite):
 		p1.wait()
 		p2.wait()
 		if i == 1:
-			p3 = subprocess.Popen(['cat',regions[reg] + '.log'], stdout=subprocess.PIPE)
+			p3 = subprocess.Popen(['cat',out_files[reg] + '.log'], stdout=subprocess.PIPE)
 			p4 = subprocess.Popen(['awk','{print \"      \"$0}'], stdin=p3.stdout, stdout=subprocess.PIPE)
-			logfile.write('Sample log file from ' + regions[reg] + '.log\n\n')
+			logfile.write('Sample log file from ' + out_files[reg] + '.log\n\n')
 			logfile.write(p4.communicate()[0])
 			p3.wait()
 			p4.wait()
 			logfile.write('\nElapsed time and max memory used for each job in list\n\n')
-		p5 = subprocess.Popen(['grep','time elapsed:',regions[reg] + '.log'], stdout=subprocess.PIPE)
+		p5 = subprocess.Popen(['grep','time elapsed:',out_files[reg] + '.log'], stdout=subprocess.PIPE)
 		elap = p5.communicate()[0].strip()
 		p5.wait()
-		p6 = subprocess.Popen(['grep','memory used:',regions[reg] + '.log'], stdout=subprocess.PIPE)
+		p6 = subprocess.Popen(['grep','memory used:',out_files[reg] + '.log'], stdout=subprocess.PIPE)
 		maxmem = p6.communicate()[0].strip()
 		p6.wait()
 		logfile.write('      job ' + str(reg) + '   -   ' + elap + '   ' + maxmem + '\n')
@@ -234,4 +235,3 @@ def CompileResults(regions, regionlist, out, cpus, overwrite):
 	p = subprocess.Popen(cmd, shell=True)
 	p.wait()
 	print "   ... file compilation complete\n"
-			

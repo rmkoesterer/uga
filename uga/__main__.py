@@ -234,7 +234,7 @@ def main(args=None):
 			if args.job_list:
 				assert os.path.exists(args.job_list), parser.error("argument --job-list: file does not exist")
 
-	print "   " + " ".join(sys.argv)
+	print "   " + " ".join(sys.argv) + '\n'
 	
 	"""
 	opts=vars(args)
@@ -309,7 +309,7 @@ def main(args=None):
 		out_files = GenerateSubFiles(regionlist = regionlist, f = args.out, dist_mode = dist_mode, n = n)
 
 	##### define script library path #####
-	script_path = os.path.dirname(os.path.abspath(__file__))
+	script_path = '/'.join(sys.argv[0].split('/')[:-1])
 	
 	if args.which == 'verify':
 		complete_string = '   ... process complete' if not args.complete_string else args.complete_string
@@ -319,8 +319,8 @@ def main(args=None):
 			print Error("--check option available only if both --list and --split or --split-n are used")
 			parser.print_help()
 	elif args.which == 'compile':
-		if dist_mode in ['split-list', 'split-list-n']:
-			CompileResults(out_files, regionlist, args.compile_out, args.cpus, args.overwrite)
+		if dist_mode in ['split-list', 'split-list-n'] and len(out_files.keys()) > 1:
+			CompileResults(out_files, args.compile_out, args.overwrite)
 		else:
 			print Error("single file results, nothing to compile")
 			parser.print_help()
@@ -355,6 +355,8 @@ def main(args=None):
 					rlist = out + '.regions'
 					regionlist.loc[regionlist_idx[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'reg_id'])
 					vars(args)['region_list'] = rlist
+				else:
+					out = args.out
 				if args.overwrite:
 					RemoveExistingFiles(out, args.which)
 				else:
@@ -369,9 +371,9 @@ def main(args=None):
 								cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 					cmd = cmd + ',mem=' + args.mem + ')'
 				if args.qsub:
-					Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + args.mem + 'g -N ' + os.path.basename(out).split('.')[0] + ' -o ' + out + '.log ' + script_path + '/submit.py --qsub ' + args.qsub + ' --cmd \'' + cmd + '\'')
+					Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + args.mem + 'g -N ' + os.path.basename(out).split('.')[0] + ' -o ' + out + '.log ' + script_path + '/../../bin/submit.py --qsub ' + args.qsub + ' --cmd \'' + cmd + '\'')
 				else:
-					Interactive(os.environ['UGA_BIN'] + '/submit.py', cmd, out + '.log')
+					Interactive(script_path + '/../../bin/submit.py', cmd, out + '.log')
 		"""
 				if dist_mode in ['list', 'split-list-n']:
 					cmd_arg = cmd_arg + " --list " + rlist
