@@ -1,11 +1,7 @@
 *.pyc
-
-uga/*.pyc
-
 build/*
-
 dist/*
-
+doc/*
 env/*
-
+uga/*.pyc
 uga.egg-info/*

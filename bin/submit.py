@@ -9,8 +9,11 @@ import subprocess
 import argparse
 import sys
 from uga.Analyze import Analyze
-from time import strftime, localtime, mktime
+from uga.Meta import Meta
+from time import strftime, localtime, time, gmtime
 #from memory_profiler import profile, memory_usage
+
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
 
 
 #@profile
@@ -27,19 +30,20 @@ def main(args=None):
 
 	args=parser.parse_args()
 
-	start_time = localtime()
+	start_time = (localtime(), time())
 	env_vars = os.environ.copy()
 	local=False
+
 	env_vars['PROJ_ID'] = 'None' if not args.qsub else args.qsub
 	if not 'REQNAME' in env_vars.keys():
 		local=True
-		env_vars['REQNAME'] = env_vars['HOSTNAME'] + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time)
+		env_vars['REQNAME'] = env_vars['HOSTNAME'] + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time[0])
 	if not 'JOB_ID' in env_vars.keys():
 		env_vars['JOB_ID'] = '1'
 	if not 'SGE_TASK_ID' in env_vars.keys():
 		env_vars['SGE_TASK_ID'] = 'None'
 
-	print "start time: " + strftime("%Y-%m-%d %H:%M:%S", start_time)
+	print "start time: " + strftime("%Y-%m-%d %H:%M:%S", start_time[0])
 	print "compute node: " + env_vars['HOSTNAME']
 	print "current directory: " + env_vars['PWD']
 	print "current group/project id: " + env_vars['PROJ_ID']
@@ -50,12 +54,12 @@ def main(args=None):
 	##### FUNCTION TO RUN #####
 	eval(args.cmd)
 	
-	end_time = localtime()
+	end_time = (localtime(), time())
 	process = psutil.Process(os.getpid())
 	mem = process.get_memory_info()[0] / float(2 ** 20)
-	print 'finish time: ' + strftime("%Y-%m-%d %H:%M:%S", end_time)
-	print 'time elapsed: ' + str(int(((mktime(end_time)-mktime(start_time))/3600)%60)) + ':' + str(int(((mktime(end_time)-mktime(start_time))/60)%60)) + ':' + str((mktime(end_time)-mktime(start_time))%60)
-	print 'memory used: ' + str(mem) + 'MB'
+	print 'finish time: ' + strftime("%Y-%m-%d %H:%M:%S", end_time[0])
+	print 'time elapsed: ' + strftime('%H:%M:%S', gmtime(end_time[1] - start_time[1]))
+	print 'memory used: ' + str('%.2f' % mem) + ' MB'
 
 if __name__ == "__main__":
 	main()

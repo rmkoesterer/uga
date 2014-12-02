@@ -20,19 +20,7 @@ class Cfg(object):
 		return "%s is a configuration file for module %s with variables %s" % (self.filename, self.module, self.vars)
 		
 	def Load(self):
-		if self.module in ['ma','ind']:
-			config = {}
-			with open(self.filename) as f:
-				lines = (line.rstrip() for line in f)
-				lines = (line for line in lines if line)
-				for line in lines:
-					for k in self.vars.keys():
-						line = line.replace('[' + k + ']', self.vars[k])
-					(key, val) = line.split()
-					config[key] = val
-			return config
-			
-		if self.module == 'me':
+		if self.module == 'meta':
 			config = {'out': None, 'sig': 5, 'data_info': {}, 'meta_info': {}, 'meta_order': [], 'file_order': []}
 			config_temp = {'filters': []}
 			with open(self.filename) as f:
@@ -64,7 +52,7 @@ class Cfg(object):
 						config_temp[key] = val
 			return config
 		
-		if self.module == 'an':
+		if self.module == 'annot':
 			config = {'gc': {}}
 			with open(self.filename) as f:
 				lines = (line.rstrip() for line in f)

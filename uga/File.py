@@ -8,7 +8,7 @@ from multiprocessing import Process, Manager, cpu_count
 import math
 from Bio import bgzf
 import tabix
-from Messages import Error as Error
+from Messages import Error
 
 def RemoveExistingFiles(file, module):
 	for f in [file, file + '.log', file + '.gz', file + '.gz.tbi']:

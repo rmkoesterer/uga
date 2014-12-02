@@ -1,22 +1,12 @@
-import pandas as pd
-import numpy as np
-import rpy2.robjects as ro
-from rpy2.robjects.packages import importr
-import statsmodels.api as sm
-import pandas.rpy.common as py2r
-import math
-from scipy.stats import norm
+#import pandas as pd
+#import numpy as np
+#import rpy2.robjects as ro
+#from rpy2.robjects.packages import importr
+#import statsmodels.api as sm
+#import pandas.rpy.common as py2r
+#import math
+#from scipy.stats import norm
 
-
-#rsuppress = ro.r('suppressMessages')
-rtry = ro.r('try')
-rsummary = ro.r('summary')
-rclass = ro.r('class')
-geepack = importr('geepack')
-#rgee = importr('gee')
-rlme4 = importr('lme4')
-rglm = ro.r('glm')
-survival = importr('survival')
 
 def GenerateFilterCode(marker_info, miss = None, freq = None, rsq = None, hwe = None):
 	filter = 0

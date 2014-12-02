@@ -5,21 +5,19 @@ import subprocess
 import gzip
 import tabix
 import math
+import numpy as np
 import pandas as pd
+pd.options.mode.chained_assignment = None
 from rpy2.robjects.packages import importr
 import pandas.rpy.common as py2r
-from Messages import *
-from MarkerCalc import *
-from Stats import *
-from Coordinates import *
 import re
 from itertools import islice
 from Bio import bgzf
-
 import psutil
-
-pd.options.mode.chained_assignment = None
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+from MarkerCalc import *
+from Messages import Error
+from Stats import *
+from Coordinates import *
 
 def Analyze(out = None, 
 			data = None, 
@@ -51,21 +49,37 @@ def Analyze(out = None,
 		if not locals()[arg] in [None, False]:
 			print "      {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 
-	assert out, usage(Error("an output file must be specified"))
-	assert data, usage(Error("a data file must be specified"))
-	assert samples, usage(Error("a sample file must be specified"))
-	assert pheno, usage(Error("a phenotype file must be specified"))
-	assert model, usage(Error("a model must be specified"))
-	assert fid, usage(Error("a family ID column must be specified"))
-	assert iid, usage(Error("an individual ID column must be specified"))
-	assert method, usage(Error("an analysis method must be specified"))
+	assert out, Error("an output file must be specified")
+	assert data, Error("a data file must be specified")
+	assert samples, Error("a sample file must be specified")
+	assert pheno, Error("a phenotype file must be specified")
+	assert model, Error("a model must be specified")
+	assert fid, Error("a family ID column must be specified")
+	assert iid, Error("an individual ID column must be specified")
+	assert method, Error("an analysis method must be specified")
 	
 	fxn = method.split('_')[1] if method in ["gee_gaussian","gee_binomial","glm_gaussian","glm_binomial","lme_gaussian","lme_binomial"] else ''
 	
-	if method in ["gee_gaussian","gee_binomial"]: geepack = importr('geepack')
-	if method in ["lme_gaussian","lme_binomial"]: lme4 = importr('lme4')
-	if method == "coxph": coxph = importr('survival')
-	
+	##### import R packages #####
+	if method in ["gee_gaussian","gee_binomial"]: 
+		try:
+			geepack = importr('geepack')
+		except RRuntimeError:
+			print Error("unable to import R package 'geepack'")
+			return
+	if method in ["lme_gaussian","lme_binomial"]:
+		try:
+			lme4 = importr('lme4')
+		except RRuntimeError:
+			print Error("unable to import R package 'lme4'")
+			return
+	if method == "coxph":
+		try:
+			coxph = importr('survival')
+		except RRuntimeError:
+			print Error("unable to import R package 'survival''")
+			return
+
 	if focus: focus = focus.split(',')
 	
 	##### READ model VARIABLES FROM FILE #####
@@ -88,7 +102,8 @@ def Analyze(out = None,
 				if mtype == '':
 					mtype = 'independent'
 				else:
-					usage(Error("a column in the phenotype file is defined in the model as both an independent and dependent variable"))			
+					print Error("a column in the phenotype file is defined in the model as both an independent and dependent variable")
+					return
 		if mtype != '':
 			if x[x.find('FID')-18:x.find('FID')] == 'as.numeric(factor(':
 				model_vars_dict[x] = {'class': 'numericfactor', 'type': mtype}
@@ -107,14 +122,16 @@ def Analyze(out = None,
 			print "          %s variable %s skipped" % (model_vars_dict[x]['type'], x)
 		else:
 			print "          %s variable %s not found" % (model_vars_dict[x]['type'], x)
-			usage(Error("model variable missing from phenotype file"))
+			print Error("model variable missing from phenotype file")
+			return
 	
 	if sex:
 		if sex in list(vars_df.columns):
 			print "          sex column %s found" % sex
 		else:
 			print "          sex column %s not found" % sex
-			usage(Error("sex column missing from phenotype file"))
+			print Error("sex column missing from phenotype file")
+			return
 
 	vars_df = vars_df[list(set([a for a in [fid,iid,sex] if a] + list([a for a in model_vars_dict.keys() if a != 'marker'])))]
 	
@@ -131,7 +148,8 @@ def Analyze(out = None,
 		if model_vars_dict[i]['class'] == 'factor':
 			vars_df[i] = pd.Categorical.from_array(vars_df[i]).labels
 	if len(vars_df.index) == 0:
-		usage(Error("no data left for analysis"))
+		print Error("no data left for analysis")
+		return
 		
 	##### DETERMINE MODEL STATS TO BE EXTRACTED #####
 	if not focus:
@@ -154,7 +172,8 @@ def Analyze(out = None,
 		for line in lines:
 			sample_ids.append(line)
 	if len(vars_df[vars_df[iid].isin(sample_ids)]) == 0:
-		usage(Error("phenotype file and data file contain no common samples"))
+		print Error("phenotype file and data file contain no common samples")
+		return
 	
 	print "   ... generating unrelated sample list"
 	unrelated_ids = vars_df.drop_duplicates(subset=[fid])[iid]
@@ -305,8 +324,7 @@ def Analyze(out = None,
 						status = 2
 				else:
 					n_eff, tot_tests, status = (0, 0, 1)
-				#results = pd.DataFrame({'chr': [marker_list['chr'][r]], 'start': [marker_list['start'][r]], 'end': [marker_list['end'][r]], 'reg_id': [marker_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','reg_id','n_total','n_eff','status']]
-				results = pd.DataFrame({'chr': [marker_list['chr'][r]], 'start': [marker_list['start'][r]], 'end': [marker_list['end'][r]], 'reg_id': [marker_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff]})[['chr','start','end','reg_id','n_total','n_eff']]
+				results = pd.DataFrame({'chr': [marker_list['chr'][r]], 'start': [marker_list['start'][r]], 'end': [marker_list['end'][r]], 'reg_id': [marker_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','reg_id','n_total','n_eff','status']]
 				results.fillna('NA', inplace=True)
 				if nofail:
 					results = results[results['status'] > 0]
