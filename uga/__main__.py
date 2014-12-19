@@ -18,9 +18,9 @@ from Parse import *
 from __init__ import __version__
 
 def main(args=None):
-	parser = Args(__version__)
+	parser = Args()
 	parser.AddAll()
-	args=parser.Initiate()
+	args=parser.Parse()
 
 	##### read cfg file into dictionary #####
 	if args.which == 'meta':
@@ -31,23 +31,30 @@ def main(args=None):
 	##### define region list #####
 	n = 1
 	dist_mode = 'full'
+	print "   ... generating list of genomic regions ...", 
 	if args.region_list:
-		print "   ... reading list of regions from file ...", 
-		regionlist = Coordinates(args.region_list).Load()
-		print " " + str(len(regionlist.index)) + " regions found"
+		region_df = Coordinates(args.region_list).Load()
 		if args.split or args.split_n:
-			if not args.split_n:
-				n = len(regionlist.index)
+			if not args.split_n or args.split_n > len(region_df.index):
+				n = len(region_df.index)
 				dist_mode = 'split-list'
 			else:
 				n = args.split_n
 				dist_mode = 'split-list-n'
 		else:
 			dist_mode = 'list'
-	if args.region:
-		regionlist = pd.DataFrame({'chr': [re.split(':|-', args.region)[0]], 'start': [re.split(':|-', args.region)[1]], 'end': [re.split(':|-', args.region)[2]], 'region': [args.region]})
+	elif args.region:
+		if len(args.region.split(':')) > 1:
+			region_df = pd.DataFrame({'chr': [re.split(':|-', args.region)[0]], 'start': [re.split(':|-', args.region)[1]], 'end': [re.split(':|-', args.region)[2]], 'region': [args.region]})
+			dist_mode = 'region'
+		else:
+			region_df = pd.DataFrame({'chr': [args.region],'start': ['NA'],'end': ['NA'],'region': [args.region]})
+			dist_mode = 'chr'
 		n = 1
-		dist_mode = 'region'
+	else:
+		region_df = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
+		n = 1
+	print " " + str(len(region_df.index)) + " regions found"
 	
 	##### get job list from file #####
 	if args.job_list:
@@ -59,12 +66,7 @@ def main(args=None):
 				jobs.append(int(line))
 		print "   ... " + str(len(jobs)) + " jobs read from job list file"
 
-	if dist_mode == 'split-list':
-		regionlist_idx = regionlist.index
-	if dist_mode == 'split-list-n':
-		regionlist_idx = np.array_split(np.array(regionlist.index), n)
-
-	##### define output directory #####
+	##### define output directory and update out file name #####
 	directory = os.path.dirname(args.out) if not args.directory else args.directory
 	directory = directory + '/' if args.directory else directory
 	if n > 100:
@@ -72,11 +74,13 @@ def main(args=None):
 			directory = directory + 'chr[CHR]/'
 		elif dist_mode == 'split-list-n':
 			directory = directory + 'list[LIST]/'
-	args.out = directory + args.out
+	if 'out' in vars(args).keys():
+		args.out = directory + args.out
 	
+	##### generate out file names for split jobs or chr/region specific jobs #####
 	out_files = {}
-	if dist_mode in ['region','split-list','split-list-n']:
-		out_files = GenerateSubFiles(regionlist = regionlist, f = args.out, dist_mode = dist_mode, n = n)
+	if dist_mode in ['chr','region','split-list','split-list-n']:
+		out_files = GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
 
 	##### define script library path #####
 	script_path = '/'.join(sys.argv[0].split('/')[:-1])
@@ -94,7 +98,7 @@ def main(args=None):
 		else:
 			print Error("single file results, nothing to compile")
 			parser.print_help()
-	else:
+	elif args.which in ['model','meta']:
 		if not os.path.exists(args.directory):
 			try:
 				os.mkdir(args.directory)
@@ -103,35 +107,38 @@ def main(args=None):
 				parser.print_help()
 		print "   ... preparing output directories"
 		if dist_mode == 'split-list' and n > 100:
-			PrepareChrDirs(regionlist['region'], directory)
+			PrepareChrDirs(region_df['region'], directory)
 		elif dist_mode == 'split-list-n' and n > 100:
 			PrepareListDirs(n, directory)
 		print "   ... submitting analysis jobs\n" if args.qsub else "   ... starting analysis\n"
 		joblist = []
-		if args.job:
+		if not args.job is None:
 			joblist.append(args.job)
-		elif args.job_list:
+		elif not args.job_list is None:
 			joblist.extend(jobs)
 		else:
 			joblist.extend(range(n))
 		name = '.'.join(os.path.basename(args.out).split('.')[:-1]) if not args.name else args.name
 		for i in joblist:
 			if dist_mode in ['split-list', 'region']:
-				out = out_files['%s:%s-%s' % (str(regionlist['chr'][i]), str(regionlist['start'][i]), str(regionlist['end'][i]))]
-				vars(args)['region'] = '%s:%s-%s' % (str(regionlist['chr'][i]), str(regionlist['start'][i]), str(regionlist['end'][i]))
-				vars(args)['region_list'] = None
+				out = out_files['%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))]
+				if n > 1:
+					vars(args)['region'] = '%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))
+					vars(args)['region_list'] = None
 			elif dist_mode == 'split-list-n':
 				out = out_files[i]
 				rlist = out + '.regions'
-				regionlist.loc[regionlist_idx[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'reg_id'])
+				region_df.loc[np.array_split(np.array(region_df.index), n)[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'reg_id'])
 				vars(args)['region_list'] = rlist
+			elif dist_mode == 'chr':
+				out = out_files['%s' % (str(region_df['chr'][i]))]
 			else:
 				out = args.out
 			if args.overwrite:
 				RemoveExistingFiles(out, args.which)
 			else:
 				CheckExistingFiles(out, args.which)
-			if args.which == 'analyze':
+			if args.which == 'model':
 				cmd = args.which.capitalize() + '(out="' + out + '"'
 				for x in ['data', 'samples', 'pheno', 'model', 'fid', 'iid', 'method', 'focus', 'sig', 'region_list', 'region', 'sex', 'male', 'female', 'buffer', 'miss', 'freq', 'rsq', 'hwe', 'case', 'ctrl', 'nofail']:
 					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
@@ -151,51 +158,11 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ',mem=' + str(args.mem) + ')'
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + script_path + '/../../bin/submit.py --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + script_path + '/../../bin/submit.py --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
 			else:
 				Interactive(script_path + '/../../bin/submit.py', cmd, out + '.log')
-		"""
-				if dist_mode in ['list', 'split-list-n']:
-					cmd_arg = cmd_arg + " --list " + rlist
-				if dist_mode == 'region':
-					cmd_arg = cmd_arg + " --region " + regionlist['region'][i]
-				cmd="qsub -P " + qsub + " -l mem_free=1g -N " + cfg.split("/")[-1].replace('.', '_') + " -o " + config_temp['out'] + ".log" + " " + scripts + "/Submit.sh \"" + cmd_arg + "\""
-				Qsub(cmd)
-			else:
-				cmd = scripts + "/Submit.sh"
-				cmd_arg = scripts + "/Analysis.py " + ' '.join("--%s %s" % (key, val) if key != 'model' else "--%s \"%s\"" % (key, val) for (key, val) in config_temp.items())
-				if dist_mode in ['list', 'split-list-n']:
-					cmd_arg = cmd_arg + " --list " + rlist
-				if dist_mode == 'region':
-					cmd_arg = cmd_arg + " --region " + regionlist['region'][i]
-				Interactive(cmd, cmd_arg, config_temp['out'] + '.log')
-	elif module == 'me':
-		print "   ... preparing output directories"
-		if dist_mode in ['split-full', 'split-list']:
-			PrepareDirs(regionlist['region'], directory)
-		print "   ... submitting meta analysis jobs\n" if qsub != '' else "   ... starting meta analysis\n"
-		for i in range(n):
-			config_temp = config.copy()
-			if dist_mode in ['split-list', 'region']:
-				config_temp['out'] = config_temp['out'].replace('[CHR]', regionlist['chr'][i]) + '.chr' + regionlist['chr'][i] + 'bp' + regionlist['start'][i] + '-' + regionlist['end'][i]
-			if overwrite:
-				RemoveExistingFiles(config_temp['out'], module)
-			else:
-				CheckExistingFiles(config_temp['out'], module)
-			cmd_arg = scripts + "/Meta.py --cfg " + cfg
-			if dist_mode == 'list':
-				cmd_arg = cmd_arg + " --list " + list
-			if dist_mode == 'region':
-				cmd_arg = cmd_arg + " --region " + regionlist['region'][i]
-			cmd_arg = cmd_arg + " --directory " + directory if directory != '' else cmd_arg
-			cmd_arg = cmd_arg + " --vars " + vars if vars != '' else cmd_arg
-			if qsub != "":
-				cmd="qsub -P " + qsub + " -l mem_free=1g -N " + cfg.split("/")[-1].replace('.', '_') + " -o " + config_temp['out'] + ".log" + " " + scripts + "/Submit.sh \"" + cmd_arg + "\""
-				Qsub(cmd)
-			else:
-				cmd = scripts + "/Submit.sh"
-				Interactive(cmd, cmd_arg, config_temp['out'] + '.log')
-	"""
+	else:
+		print Error(args.which + " module currently inactive")
 	print ''
 
 if __name__ == "__main__":

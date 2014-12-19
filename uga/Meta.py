@@ -6,6 +6,7 @@ import math
 import gzip
 import time
 import pandas as pd
+import numpy as np
 pd.options.mode.chained_assignment = None
 import re
 from MarkerCalc import Complement
@@ -93,6 +94,7 @@ def Meta(cfg=None,
 			effect = None if not 'effect' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['effect'])
 			stderr = None if not 'stderr' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['stderr'])
 			freq = None if not 'freq' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['freq'])
+			rsq = None if not 'rsq' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['rsq'])
 			o_r = None if not 'or' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['or'])
 			z = None if not 'z' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['z'])
 			p = None if not 'p' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['p'])
@@ -135,13 +137,15 @@ def Meta(cfg=None,
 							f = f.replace(f.split()[0],str(record[col]))
 						else:
 							f = f.replace(f.split()[0],'"' + str(record[col]) + '"')
-						if eval('"' + str(record[col]) + '" == \'nan\' or not ' + f):
+						if eval('"' + str(record[col]) + '" == \'nan\' or "' + str(record[col]) + '" == \'NA\' or not ' + f):
 							filtered = 1
 					out_vals = {tag + '.filtered': filtered}
 					if weight:
 						out_vals[tag + '.weight'] = weight
 					if freq:
 						out_vals[tag + '.freq'] = float(record[freq]) if record[freq] != "NA" else float('nan')
+					if rsq:
+						out_vals[tag + '.rsq'] = float(record[rsq]) if record[rsq] != "NA" else float('nan')
 					if effect:
 						out_vals[tag + '.effect'] = float(record[effect]) if record[effect] != "NA" else float('nan')
 					if stderr:
@@ -172,21 +176,20 @@ def Meta(cfg=None,
 		for suffix in ['freq','effect','stderr','or','z','p','weight','filtered']:
 			if tag + '.' + suffix in output_df.columns.values:
 				output_df[tag + '.' + suffix] = output_df[tag + '.' + suffix].convert_objects(convert_numeric=True)
-
 	##### apply genomic control #####
-	if method in ['sample_size','stderr']:
+	if method in ['sample_size','stderr','efftest']:
 		for tag in cfg['file_order']:
 			if 'gc' in cfg['data_info'][tag].keys():
 				if 'effect' in cfg['data_info'][tag].keys():
-					output_df[tag + '.effect'] = output_df[tag + '.effect'].apply(lambda x: '%.5f' % (float(x) / math.sqrt(float(cfg['data_info'][tag]['gc']))) if not math.isnan(x) else x)
+					output_df[tag + '.effect'] = output_df[tag + '.effect'] / math.sqrt(float(cfg['data_info'][tag]['gc']))
 				if 'stderr' in cfg['data_info'][tag].keys():
-					output_df[tag + '.stderr'] = output_df[tag + '.stderr'].apply(lambda x: '%.5f' % (float(x) / math.sqrt(float(cfg['data_info'][tag]['gc']))) if not math.isnan(x) else x)
+					output_df[tag + '.stderr'] = output_df[tag + '.stderr'] / math.sqrt(float(cfg['data_info'][tag]['gc']))
 				if 'or' in cfg['data_info'][tag].keys():
-					output_df[tag + '.or'] = output_df[tag + '.or'].apply(lambda x: '%.5f' % (math.exp(math.log(float(x)) / math.sqrt(float(cfg['data_info'][tag]['gc'])))) if not math.isnan(x) else x)
+					output_df[tag + '.or'] = np.exp(np.log(output_df[tag + '.or']) / math.sqrt(float(cfg['data_info'][tag]['gc'])))
 				if 'z' in cfg['data_info'][tag].keys():
-					output_df[tag + '.z'] = output_df[tag + '.z'].apply(lambda x: '%.5f' % (float(x) / math.sqrt(float(cfg['data_info'][tag]['gc']))) if not math.isnan(x) else x)
+					output_df[tag + '.z'] = output_df[tag + '.z'] / math.sqrt(float(cfg['data_info'][tag]['gc']))
 				if 'p' in cfg['data_info'][tag].keys():
-					output_df[tag + '.p'] = output_df[[tag + '.effect',tag + '.stderr']].apply(lambda x: '%.2e' % (2 * scipy.norm.cdf(-1 * abs(float(x[0]) / float(x[1])))) if not math.isnan(x[0]) and not math.isnan(x[1]) else x, axis=1)
+					output_df[tag + '.p'] = 2 * scipy.norm.cdf(-1 * np.abs(output_df[tag + '.effect']) / output_df[tag + '.stderr'])
 	output_df['chr'] = output_df['chr'].astype(int)
 	output_df['pos'] = output_df['pos'].astype(int)
 	
@@ -202,7 +205,8 @@ def Meta(cfg=None,
 			for r in range(len(marker_list.index)):
 				if marker_list['reg_id'][r] in list(efftests['reg_id']):
 					output_df[tag + '.n_eff'][(output_df['chr'] == marker_list['chr'][r]) & (output_df['pos'] >= marker_list['start'][r]) & (output_df['chr'] <= marker_list['end'][r])] = efftests['n_eff'][efftests['reg_id'] == marker_list['reg_id'][r]].values[0]
-			output_df[tag + '.p_eff'] = output_df.apply(lambda x: x[tag + '.p'] * x[tag + '.n_eff'] if not math.isnan(x[tag + '.p']) and not math.isnan(x[tag + '.n_eff']) else float('nan'),axis=1)
+			output_df[tag + '.p_eff'] = output_df[tag + '.p'] * output_df[tag + '.n_eff']
+			output_df[tag + '.p_eff'] = output_df.apply(lambda x: 0.9999999999 if x[tag + '.p_eff'] >= 1 else x[tag + '.p_eff'],axis=1)
 	
 	#output_df['marker_unique'] = output_df['chr'].astype(str) + "_" + output_df['pos'].astype(str) + "_" + output_df['marker'].astype(str) + "_" + output_df['a1'].astype(str) + "_" + output_df['a2'].astype(str)
 	#header.append('marker_unique')
@@ -233,17 +237,36 @@ def Meta(cfg=None,
 		header.append(meta + '.p')
 		header.append(meta + '.dir')
 		header.append(meta + '.n')
+		
+	#for x in output_df.keys():
+	#	print str(x) + " : " + str(output_df[x][output_df['marker'] == "rs17030788"])
+	#print output_df[output_df['marker'] == "rs17030788"]
+	
 
 	if method == 'efftest':
 		out_efftest_df = marker_list.copy()
 		header = ['chr','start','end','reg_id']
+		for tag in cfg['file_order']:
+			out_efftest_df[tag + '.min_snp'] = float('nan')
+			out_efftest_df[tag + '.min_pos'] = float('nan')
+			out_efftest_df[tag + '.min_p'] = float('nan')
+			for r in range(len(out_efftest_df.index)):
+				min_idx = output_df[(output_df['chr'] == out_efftest_df['chr'][r]) & (output_df['pos'] >= out_efftest_df['start'][r]) & (output_df['pos'] <= out_efftest_df['end'][r]) & (output_df[tag + '.filtered'] != 1)][tag + '.p_eff'].argmin() if len(output_df[(output_df['chr'] == out_efftest_df['chr'][r]) & (output_df['pos'] >= out_efftest_df['start'][r]) & (output_df['pos'] <= out_efftest_df['end'][r]) & (output_df[tag + '.filtered'] != 1)].index) > 0 else float('nan')
+				out_efftest_df[tag + '.min_snp'][r] = output_df['marker'][min_idx] if min_idx in output_df.index else float('nan')
+				out_efftest_df[tag + '.min_pos'][r] = output_df['pos'][min_idx] if min_idx in output_df.index else float('nan')
+				out_efftest_df[tag + '.min_p'][r] = output_df[tag + '.p'][min_idx] if min_idx in output_df.index else float('nan')
+			header.append(tag + '.min_snp')
+			header.append(tag + '.min_pos')
+			header.append(tag + '.min_p')
+			out_efftest_df[tag + '.min_pos'] = out_efftest_df[tag + '.min_pos'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
+			out_efftest_df[tag + '.min_p'] = out_efftest_df[tag + '.min_p'].map(lambda x: '%.2e' % x if not math.isnan(x) else x)
 		for meta in cfg['meta_order']:
 			out_efftest_df[meta + '.min_snp'] = float('nan')
 			out_efftest_df[meta + '.min_pos'] = float('nan')
 			out_efftest_df[meta + '.min_dir'] = float('nan')
 			out_efftest_df[meta + '.min_p'] = float('nan')
 			for r in range(len(out_efftest_df.index)):
-				min_idx = output_df[(output_df['chr'] == out_efftest_df['chr'][r]) & (output_df['pos'] >= out_efftest_df['start'][r]) & (output_df['pos'] <= out_efftest_df['end'][r])][meta + '.p'].argmin() if len(output_df[(output_df['chr'] == out_efftest_df['chr'][r]) & (output_df['pos'] >= out_efftest_df['start'][r]) & (output_df['pos'] <= out_efftest_df['end'][r])].index) > 0 else float('nan')
+				min_idx = output_df[(output_df['chr'] == out_efftest_df['chr'][r]) & (output_df['pos'] >= out_efftest_df['start'][r]) & (output_df['pos'] <= out_efftest_df['end'][r]) & (output_df[tag + '.filtered'] != 1)][meta + '.p'].argmin() if len(output_df[(output_df['chr'] == out_efftest_df['chr'][r]) & (output_df['pos'] >= out_efftest_df['start'][r]) & (output_df['pos'] <= out_efftest_df['end'][r]) & (output_df[tag + '.filtered'] != 1)].index) > 0 else float('nan')
 				out_efftest_df[meta + '.min_snp'][r] = output_df['marker'][min_idx] if min_idx in output_df.index else float('nan')
 				out_efftest_df[meta + '.min_pos'][r] = output_df['pos'][min_idx] if min_idx in output_df.index else float('nan')
 				out_efftest_df[meta + '.min_dir'][r] = output_df[meta + '.dir'][min_idx] if min_idx in output_df.index else float('nan')
@@ -259,6 +282,8 @@ def Meta(cfg=None,
 		out_efftest_df.rename(columns=lambda x: x.replace('chr','#chr'),inplace=True)
 		out_efftest_df.to_csv(bgzfile, header=True, index=False, sep="\t")
 	else:
+		print header
+		print output_df.columns.values
 		output_df = output_df[header]	
 		output_df.fillna('NA',inplace=True)
 		#write_header = True if r == 0 else False
@@ -310,4 +335,4 @@ def Meta(cfg=None,
 	time.sleep(1)
 	p.wait()
 	
-	print '   ... meta analysis complete'
+	print '   ... process complete'

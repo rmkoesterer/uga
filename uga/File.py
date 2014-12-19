@@ -47,15 +47,18 @@ def PrepareListDirs(n, directory):
 		except OSError:
 			continue
 			
-def GenerateSubFiles(regionlist, f, dist_mode, n):
+def GenerateSubFiles(region_df, f, dist_mode, n):
 	out_files=OrderedDict()
 	for i in range(n):
 		if dist_mode in ['region','split-list']:
-			of = f.replace('[CHR]',str(regionlist['chr'][i])) + '.chr' + str(regionlist['chr'][i]) + 'bp' + str(regionlist['start'][i]) + '-' + str(regionlist['end'][i])
-			out_files[str(regionlist['chr'][i]) + ':' + str(regionlist['start'][i]) + '-' + str(regionlist['end'][i])] = of
+			of = f.replace('[CHR]',str(region_df['chr'][i])) + '.chr' + str(region_df['chr'][i]) + 'bp' + str(region_df['start'][i]) + '-' + str(region_df['end'][i])
+			out_files[str(region_df['chr'][i]) + ':' + str(region_df['start'][i]) + '-' + str(region_df['end'][i])] = of
 		elif dist_mode == 'split-list-n':
 			of = f.replace('[LIST]',str(int(np.floor(i/100.0) + 99*np.floor(i/100.0))) + '-' + str(int(np.floor(i/100.0) + 99*np.floor(i/100.0) + 99))) + '.list' + str(i)
 			out_files[i] = of
+		elif dist_mode == 'chr':
+			of = f + '.chr' + str(region_df['chr'][i])
+			out_files[str(region_df['chr'][i])] = of
 		else:
 			print Error("   ... invalid dist_mode: " + dist_mode)
 			return

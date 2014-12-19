@@ -8,8 +8,9 @@ import psutil
 import subprocess
 import argparse
 import sys
-from uga.Analyze import Analyze
+from uga.Model import Model
 from uga.Meta import Meta
+from uga.Process import kill_all
 from time import strftime, localtime, time, gmtime
 #from memory_profiler import profile, memory_usage
 
@@ -22,6 +23,9 @@ def main(args=None):
 	parser.add_argument('--qsub', 
 						action='store', 
 						help='a group/project id for cluster group identification')
+	parser.add_argument('--internal', 
+						action='store_true', 
+						help='job is internal to uga')
 	parser_required = parser.add_argument_group('required arguments')
 	parser_required.add_argument('--cmd', 
 						action='store',
@@ -52,8 +56,19 @@ def main(args=None):
 	print "task index number: " + env_vars['SGE_TASK_ID']
 
 	##### FUNCTION TO RUN #####
-	eval(args.cmd)
-	
+	if args.internal:
+		eval(args.cmd)
+	else:
+		try:
+			p = subprocess.Popen(args.cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+			for line in iter(p.stdout.readline, ''):
+				sys.stdout.write(line)
+			p.wait()
+		except KeyboardInterrupt:
+			kill_all(p.pid)
+			print "\n   ... process terminated\n"
+			sys.exit(1)
+
 	end_time = (localtime(), time())
 	process = psutil.Process(os.getpid())
 	mem = process.get_memory_info()[0] / float(2 ** 20)

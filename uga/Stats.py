@@ -1,12 +1,20 @@
-#import pandas as pd
-#import numpy as np
-#import rpy2.robjects as ro
-#from rpy2.robjects.packages import importr
-#import statsmodels.api as sm
-#import pandas.rpy.common as py2r
-#import math
-#from scipy.stats import norm
+import pandas as pd
+import numpy as np
+import rpy2.robjects as ro
+from rpy2.robjects.packages import importr
+import statsmodels.api as sm
+import pandas.rpy.common as py2r
+import math
+from scipy.stats import norm
 
+geepack = importr('geepack')
+lme4 = importr('lme4')
+survival = importr('survival')
+
+rtry = ro.r('try')
+rsummary = ro.r('summary')
+rclass = ro.r('class')
+rglm = ro.r('glm')
 
 def GenerateFilterCode(marker_info, miss = None, freq = None, rsq = None, hwe = None):
 	filter = 0
@@ -41,7 +49,7 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	notes = 'NA'
 	status = 0
 	valid = False
-	if fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(model_df['marker']).labels) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var]))):
+	if fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(model_df['marker']).codes) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var]))):
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
@@ -84,7 +92,7 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	notes = 'NA'
 	status = 0
 	valid = False
-	if fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(model_df['marker']).labels) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var]))):
+	if fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(model_df['marker']).codes) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var]))):
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
@@ -122,12 +130,12 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	notes = 'NA'
 	status = 0
 	valid = False
-	if fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(model_df['marker']).labels) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var]))):
+	if fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(model_df['marker']).codes) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var]))):
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
 			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))])
-			model_out=rtry(rsummary(rlme4.glmer(ro.r(model),data=rmodel_df,REML=ro.r('FALSE'),family=fxn)),silent=ro.r('TRUE'))
+			model_out=rtry(rsummary(lme4.glmer(ro.r(model),data=rmodel_df,REML=ro.r('FALSE'),family=fxn)),silent=ro.r('TRUE'))
 			if 'try-error' in rclass(model_out):
 				status = -4
 			else:

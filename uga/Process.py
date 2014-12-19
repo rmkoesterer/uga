@@ -14,7 +14,7 @@ def Qsub(command):
 def Interactive(submit, cmd, log_file):
 	try:
 		log = open(log_file, 'w')
-		p = subprocess.Popen([submit, '--cmd', cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+		p = subprocess.Popen([submit,'--internal','--cmd', cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		for line in iter(p.stdout.readline, ''):
 			sys.stdout.write(line)
 			log.write(line)

@@ -19,7 +19,7 @@ from Messages import Error
 from Stats import *
 from Coordinates import *
 
-def Analyze(out = None, 
+def Model(out = None, 
 			data = None, 
 			samples = None, 
 			pheno = None, 
@@ -61,7 +61,7 @@ def Analyze(out = None,
 	fxn = method.split('_')[1] if method in ["gee_gaussian","gee_binomial","glm_gaussian","glm_binomial","lme_gaussian","lme_binomial"] else ''
 	
 	##### import R packages #####
-	if method in ["gee_gaussian","gee_binomial"]: 
+	if method in ["gee_gaussian","gee_binomial"]:
 		try:
 			geepack = importr('geepack')
 		except RRuntimeError:
@@ -138,6 +138,9 @@ def Analyze(out = None,
 	nmale = len(vars_df[sex][vars_df[sex] == male]) if sex and male and female else 'NA'
 	nfemale = len(vars_df[sex][vars_df[sex] == female]) if sex and male and female else 'NA'
 	
+	vars_df[fid] = vars_df[fid].astype(str)
+	vars_df[iid] = vars_df[iid].astype(str)
+	
 	##### EXTRACT CASE/CTRL IF BINOMIAL fxn #####
 	for x in model_vars_dict.keys():
 		if model_vars_dict[x]['type'] == 'dependent' and fxn == 'binomial':
@@ -146,7 +149,7 @@ def Analyze(out = None,
 	vars_df.dropna(inplace = True)
 	for i in model_vars_dict.keys():
 		if model_vars_dict[i]['class'] == 'factor':
-			vars_df[i] = pd.Categorical.from_array(vars_df[i]).labels
+			vars_df[i] = pd.Categorical.from_array(vars_df[i]).codes
 	if len(vars_df.index) == 0:
 		print Error("no data left for analysis")
 		return
@@ -159,7 +162,7 @@ def Analyze(out = None,
 				if x.find('factor(') != -1:
 					focus.append(x + str(max(vars_df[re.sub('factor\(|\)','',x)])))
 				elif x.find('*') != -1:
-					focus.append(':'.join(sorted(x.split('*'))))
+					focus.append('*'.join(sorted(x.split('*'))))
 				else:
 					focus.append(x)
 	
@@ -188,8 +191,8 @@ def Analyze(out = None,
 	print "          " + str(samples) + " total observations"
 	print "          " + str(samples_unique) + " unique samples"
 	print "          " + str(clusters) + " clusters"
-	print "          " + str(cases) + " cases"
-	print "          " + str(ctrls) + " controls"
+	print "          " + str(cases) + " case"
+	print "          " + str(ctrls) + " control"
 	print "          " + str(nmale) + " male"
 	print "          " + str(nfemale) + " female"
 	
@@ -197,30 +200,39 @@ def Analyze(out = None,
 	if region_list:
 		print "   ... reading list of regions from file"
 		marker_list = Coordinates(region_list).Load()
-	if region:
-		marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
+	elif region:
+		if len(region.split(':')) > 1:
+			marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
+		else:
+			marker_list = pd.DataFrame({'chr': [region],'start': ['NA'],'end': ['NA'],'region': [region]})
+	else:
+		marker_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
 	marker_list['n'] = 0
+	tb = tabix.open(data)
 	for i in range(len(marker_list.index)):
-		tb = tabix.open(data)
 		try:
 			records = tb.querys(marker_list['region'][i])
 		except:
 			pass
 		else:
 			for record in records:
-				marker_list['n'][i] = marker_list['n'][i] + 1
+				if marker_list['start'][i] != 'NA':
+					marker_list['n'][i] = marker_list['n'][i] + 1
+				else:
+					marker_list['n'][i] = 1
+					break
+	marker_list = marker_list[marker_list['n'] > 0].reset_index(drop=True)
+	
 	if marker_list['n'].sum() == 0:
 		print Error("no markers found")
 		return()
 	else:
-		print "          " + str(marker_list['n'].sum()) + " markers in " + str(len(marker_list.index)) + " regions"
+		print "          " + str(len(marker_list.index)) + " non-empty regions"
 
 	sig = int(sig) if sig else sig
 	buffer = int(buffer) if buffer else buffer
 
 	##### RESET BUFFER TO MATCH NUMBER OF MARKERS IF CALC EFF TESTS #####
-	#if method == 'efftests':
-	#	buffer = marker_list['n'].max()
 	vars_df.sort([fid],inplace = True)
 	vars_df[fid] = pd.Categorical.from_array(vars_df[fid]).codes.astype(np.int64)
 	
@@ -312,7 +324,9 @@ def Analyze(out = None,
 						else:
 							reg_model_df = pd.merge(reg_model_df,model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1),on=[iid],how='left',copy=False)
 							reg_marker_info = reg_marker_info.append(marker_info[marker_info['filter'] == 0],ignore_index=True)
-				print '   ... processed ' + str(min(i*buffer,marker_list['n'][r])) + ' of ' + str(marker_list['n'][r]) + ' markers from region ' + str(r+1) + ' of ' + str(len(marker_list.index))
+				cur_markers = str(min(i*buffer,marker_list['n'][r])) if marker_list['start'][r] != 'NA' else str(i*buffer)
+				tot_markers = str(marker_list['n'][r]) if marker_list['start'][r] != 'NA' else '> 0'
+				print '   ... processed ' + cur_markers + ' of ' + tot_markers + ' markers from region ' + str(r+1) + ' of ' + str(len(marker_list.index))
 			if method == 'efftests':
 				tot_tests = reg_marker_info.shape[0]
 				if tot_tests > 0:

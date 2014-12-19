@@ -1,14 +1,18 @@
 import argparse
 import os
 import sys
+from __init__ import __version__
 
 class Args(object):
 
-	def __init__(self, version):
-		self.parser = argparse.ArgumentParser('parent', add_help=False)
+	def __init__(self):
+		self.parser = argparse.ArgumentParser(add_help=False)
+		self.top_parser = argparse.ArgumentParser(parents=[self.parser])
+		self.subparsers = self.top_parser.add_subparsers(title='modules', dest='which')
+		
 		self.parser.add_argument('--version', 
 						action='version', 
-						version='Universal Genome Analyst: %(prog)s v' + version, 
+						version='Universal Genome Analyst: %(prog)s v' + __version__, 
 						help='display version information and exit')
 		self.parser.add_argument('-o', '--overwrite', 
 							action='store_true', 
@@ -49,10 +53,6 @@ class Args(object):
 							action='store', 
 							type=int, 
 							help='split region list into n separate jobs (requires --region-list)')
-		parser_split_group2.add_argument('--chr', 
-							action='store', 
-							type=int, 
-							help='chromosome number (1-26)')
 		parser_split_group2.add_argument('--split-chr', 
 							action='store_true', 
 							help='split by chromosome (will generate up to 26 separate jobs depending on chromosome coverage)')
@@ -64,12 +64,10 @@ class Args(object):
 		parser_split_group3.add_argument('--job-list', 
 							action='store', 
 							help='a filename for a list of job numbers (requires --split-n)')
-		self.top_parser = argparse.ArgumentParser(parents=[self.parser])
-		self.subparsers = self.top_parser.add_subparsers(title='modules', dest='which')
-
+		
 	def AddModel(self):
-		model_parser = self.subparsers.add_parser('model', help='marker and gene-based models', parents=[self.parser])
-		model_required = model_parser.add_argument_group('required arguments')
+		self.model_parser = self.subparsers.add_parser('model', help='marker and gene-based models', parents=[self.parser])
+		model_required = self.model_parser.add_argument_group('required arguments')
 		model_required.add_argument('--data', 
 							action='store', 
 							required=True, 
@@ -103,97 +101,97 @@ class Args(object):
 							required=True, 
 							choices=['gee_gaussian', 'gee_binomial', 'glm_gaussian', 'glm_binomial', 'lme_gaussian', 'lme_binomial', 'coxph', 'efftests'], 
 							help='the analysis method')
-		model_parser.add_argument('--focus', 
+		self.model_parser.add_argument('--focus', 
 							action='store', 
 							help='a comma separated list of variables for which stats will be output (default: marker)')
-		model_parser.add_argument('--sig', 
+		self.model_parser.add_argument('--sig', 
 							action='store', 
 							type=int, 
 							default=5, 
 							help='significant digits to include in output (default: 5)')
-		model_parser.add_argument('--sex', 
+		self.model_parser.add_argument('--sex', 
 							action='store', 
-							help='name of the column containing male/female status (requires MALE_CODE and female)')
-		model_parser.add_argument('--male', 
+							help='name of the column containing male/female status (requires --male and --female)')
+		self.model_parser.add_argument('--male', 
 							action='store', 
 							type=int, 
 							default=1, 
-							help='the code for a male in sex (requires --sex and --female)')
-		model_parser.add_argument('--female', 
+							help='the code for a male in sex (default: 1; requires --sex and --female)')
+		self.model_parser.add_argument('--female', 
 							action='store', 
 							type=int, 
 							default=2, 
-							help='the code for a male in sex (requires --sex and --female)')
-		model_parser.add_argument('--buffer', 
+							help='the code for a male in sex (default: 2; requires --sex and --male)')
+		self.model_parser.add_argument('--buffer', 
 							action='store', 
 							type=int, 
 							default=100, 
 							help='a value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
-		model_parser.add_argument('--miss', 
+		self.model_parser.add_argument('--miss', 
 							action='store', 
 							type=float, 
 							help='a threshold value for missingness')
-		model_parser.add_argument('--freq', 
+		self.model_parser.add_argument('--freq', 
 							action='store', 
 							type=float, 
 							help='a threshold value for allele frequency')
-		model_parser.add_argument('--rsq', 
+		self.model_parser.add_argument('--rsq', 
 							action='store', 
 							type=float, 
 							help='a threshold value for r-squared (imputation quality)')
-		model_parser.add_argument('--hwe', 
+		self.model_parser.add_argument('--hwe', 
 							action='store', 
 							type=float, 
 							help='a threshold value for Hardy Weinberg p-value')
-		model_parser.add_argument('--case', 
+		self.model_parser.add_argument('--case', 
 							action='store', 
 							type=int, 
 							default=1, 
-							help='the code for a case in the dependent variable column (requires ctrl; binomial fxn family only; default: 1)')
-		model_parser.add_argument('--ctrl', 
+							help='the code for a case in the dependent variable column (requires --ctrl; binomial fxn family only; default: 1)')
+		self.model_parser.add_argument('--ctrl', 
 							action='store', 
 							type=int, 
 							default=0, 
-							help='the code for a control in the dependent variable column (requires case; binomial fxn family only; default: 0)')
-		model_parser.add_argument('--nofail', 
+							help='the code for a control in the dependent variable column (requires --case; binomial fxn family only; default: 0)')
+		self.model_parser.add_argument('--nofail', 
 							action='store_true', 
 							help='exclude filtered/failed analyses from results')
 
 	def AddMeta(self):
-		meta_parser = self.subparsers.add_parser('meta', help='meta-analysis', parents=[self.parser])
-		meta_required = meta_parser.add_argument_group('required arguments')	
+		self.meta_parser = self.subparsers.add_parser('meta', help='meta-analysis', parents=[self.parser])
+		meta_required = self.meta_parser.add_argument_group('required arguments')	
 		meta_required.add_argument('-c', '--cfg', 
 							action='store', 
 							required=True, 
 							help='a configuration file name')
-		meta_parser.add_argument('-v', '--vars', 
+		self.meta_parser.add_argument('-v', '--vars', 
 							action='append', 
 							help='a declaration of the form A=B, C=D, E=F, ... to replace [A] with B, [C] with D, [E] with F, ... in any line of the cfg file')	
-		meta_parser.add_argument('--method', 
+		self.meta_parser.add_argument('--method', 
 							action='store', 
 							default='sample_size', 
 							choices=['sample_size', 'stderr', 'efftest'], 
 							help='the meta-analysis method')
 
 	def AddAnnot(self):
-		annot_parser = self.subparsers.add_parser('annot', help='annotation', parents=[self.parser])
-		annot_required = annot_parser.add_argument_group('required arguments')
+		self.annot_parser = self.subparsers.add_parser('annot', help='annotation (inactive)', parents=[self.parser])
+		annot_required = self.annot_parser.add_argument_group('required arguments')
 
 	def AddPlot(self):
-		plot_parser = self.subparsers.add_parser('plot', help='plot generation', parents=[self.parser])
-		plot_required = plot_parser.add_argument_group('required arguments')
+		self.plot_parser = self.subparsers.add_parser('plot', help='plot generation (inactive)', parents=[self.parser])
+		plot_required = self.plot_parser.add_argument_group('required arguments')
 
 	def AddMap(self):
-		map_parser = self.subparsers.add_parser('map', help='map non-empty regions in a file', parents=[self.parser])
-		map_required = map_parser.add_argument_group('required arguments')
+		self.map_parser = self.subparsers.add_parser('map', help='map non-empty regions in a file (inactive)', parents=[self.parser])
+		map_required = self.map_parser.add_argument_group('required arguments')
 
 	def AddMapImpute(self):
-		map_impute_parser = self.subparsers.add_parser('map-impute', help='map non-empty imputation regions overlapping with file', parents=[self.parser])
-		map_impute_required = map_impute_parser.add_argument_group('required arguments')
+		self.map_impute_parser = self.subparsers.add_parser('map-impute', help='map non-empty regions in a file overlapping imputation reference file (inactive)', parents=[self.parser])
+		map_impute_required = self.map_impute_parser.add_argument_group('required arguments')
 
 	def AddVerify(self):
-		verify_parser = self.subparsers.add_parser('verify', help='verify output files', parents=[self.parser])
-		verify_required = verify_parser.add_argument_group('required arguments')
+		self.verify_parser = self.subparsers.add_parser('verify', help='verify output files', parents=[self.parser])
+		verify_required = self.verify_parser.add_argument_group('required arguments')
 		verify_required.add_argument('--out', 
 							action='store', 
 							required=True, 
@@ -207,8 +205,8 @@ class Args(object):
 							help='a string indicating completeness in the log file (used only with verify module)')
 
 	def AddCompile(self):
-		compile_parser = self.subparsers.add_parser('compile', help='compile output files', parents=[self.parser])
-		compile_required = compile_parser.add_argument_group('required arguments')
+		self.compile_parser = self.subparsers.add_parser('compile', help='compile output files', parents=[self.parser])
+		compile_required = self.compile_parser.add_argument_group('required arguments')
 		compile_required.add_argument('--out', 
 							action='store', 
 							required=True, 
@@ -229,16 +227,12 @@ class Args(object):
 		self.AddCompile()
 
 	def Parse(self):
-		return self.top_parser.parse_args()
-
-	def Initiate(self):
-		args=self.Parse()
+		args=self.top_parser.parse_args()
 		if args.region:
 			assert not args.split, self.top_parser.error("argument -s/--split: not allowed with argument --region")
 			assert not args.split_n, self.top_parser.error("argument -n/--split-n: not allowed with argument --region")
 			assert not args.job, self.top_parser.error("argument -j/--job: not allowed with argument --region")
 			assert not args.job_list, self.top_parser.error("argument --job-list: not allowed with argument --region")
-			assert not args.chr, self.top_parser.error("argument --chr: not allowed with argument --region")
 			assert not args.split_chr, self.top_parser.error("argument --split-chr: not allowed with argument --region")
 		if args.region_list:
 			assert os.path.exists(args.region_list), self.top_parser.error("argument --region-list: file does not exist")
@@ -248,6 +242,10 @@ class Args(object):
 			if args.split_n:
 				if args.job_list:
 					assert os.path.exists(args.job_list), self.top_parser.error("argument --job-list: file does not exist")
+		if args.which == 'meta' and not args.region and not args.region_list:
+			self.top_parser.error("missing argument: --region or --region-list required in module meta")
+		if args.which == 'meta' and args.method == 'efftest' and not args.region_list:
+			self.top_parser.error("missing argument: --region-list required in module meta with --method efftest")
 		print "   " + " ".join(sys.argv)
 		return args
 	
