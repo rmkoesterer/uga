@@ -41,8 +41,7 @@ def Meta(cfg=None,
 		cfg['data_info'][tag]['header'] = cfg['data_info'][tag]['header'].strip()
 		cfg['data_info'][tag]['header'] = cfg['data_info'][tag]['header'].split()		
 
-	print "   ... starting meta analysis"
-	written = False
+	##### initialize out file #####
 	bgzfile = bgzf.BgzfWriter(cfg['out'] + '.gz', 'wb')
 	
 	output = {}
@@ -53,9 +52,9 @@ def Meta(cfg=None,
 				out_cols.append(tag + '.' + x)
 	out_cols.append(tag + '.filtered')
 	
-	##### DETERMINE MARKERS TO BE ANALYZED #####
+	##### determine markers to be analyzed #####
+	print "   ... generating region list"
 	if region_list:
-		print "   ... reading list of regions from file"
 		marker_list = Coordinates(region_list).Load()
 	if region:
 		marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
@@ -90,7 +89,7 @@ def Meta(cfg=None,
 			marker = cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['marker'])
 			a1 = cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['a1'])
 			a2 = cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['a2'])
-			weight = None if not 'weight' in cfg['data_info'][tag] else int(cfg['data_info'][tag]['weight'])
+			n = None if not 'n' in cfg['data_info'][tag] else int(cfg['data_info'][tag]['n'])
 			effect = None if not 'effect' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['effect'])
 			stderr = None if not 'stderr' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['stderr'])
 			freq = None if not 'freq' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['freq'])
@@ -140,8 +139,10 @@ def Meta(cfg=None,
 						if eval('"' + str(record[col]) + '" == \'nan\' or "' + str(record[col]) + '" == \'NA\' or not ' + f):
 							filtered = 1
 					out_vals = {tag + '.filtered': filtered}
-					if weight:
-						out_vals[tag + '.weight'] = weight
+					if n:
+						out_vals[tag + '.n'] = n
+					else:
+						out_vals[tag + '.n'] = float('nan')
 					if freq:
 						out_vals[tag + '.freq'] = float(record[freq]) if record[freq] != "NA" else float('nan')
 					if rsq:
@@ -173,13 +174,15 @@ def Meta(cfg=None,
 	output_df['a2'] = output_df['ref'].apply(lambda x: x.split(delim)[4])
 
 	for tag in cfg['file_order']:
-		for suffix in ['freq','effect','stderr','or','z','p','weight','filtered']:
+		for suffix in ['freq','effect','stderr','or','z','p','n','filtered']:
 			if tag + '.' + suffix in output_df.columns.values:
 				output_df[tag + '.' + suffix] = output_df[tag + '.' + suffix].convert_objects(convert_numeric=True)
+	
 	##### apply genomic control #####
 	if method in ['sample_size','stderr','efftest']:
 		for tag in cfg['file_order']:
 			if 'gc' in cfg['data_info'][tag].keys():
+				print "   ... applying genomic control correction for cohort " + tag
 				if 'effect' in cfg['data_info'][tag].keys():
 					output_df[tag + '.effect'] = output_df[tag + '.effect'] / math.sqrt(float(cfg['data_info'][tag]['gc']))
 				if 'stderr' in cfg['data_info'][tag].keys():
@@ -207,42 +210,83 @@ def Meta(cfg=None,
 					output_df[tag + '.n_eff'][(output_df['chr'] == marker_list['chr'][r]) & (output_df['pos'] >= marker_list['start'][r]) & (output_df['chr'] <= marker_list['end'][r])] = efftests['n_eff'][efftests['reg_id'] == marker_list['reg_id'][r]].values[0]
 			output_df[tag + '.p_eff'] = output_df[tag + '.p'] * output_df[tag + '.n_eff']
 			output_df[tag + '.p_eff'] = output_df.apply(lambda x: 0.9999999999 if x[tag + '.p_eff'] >= 1 else x[tag + '.p_eff'],axis=1)
-	
-	#output_df['marker_unique'] = output_df['chr'].astype(str) + "_" + output_df['pos'].astype(str) + "_" + output_df['marker'].astype(str) + "_" + output_df['a1'].astype(str) + "_" + output_df['a2'].astype(str)
-	#header.append('marker_unique')
+
+	##### meta analysis #####
 	for meta in cfg['meta_order']:
-		if method == 'efftest':
+		print "   ... running meta analysis for cohorts " + meta
+		if method in ['efftest','sample_size']:
+			p_ext = '.p' if method == 'sample_size' else '.p_eff'
 			output_df[meta + '.dir'] = ''
 			for tag in cfg['meta_info'][meta]:
-				output_df[tag + '.filtered'] = output_df.apply(lambda x: 1 if math.isnan(x[tag + '.p_eff']) or x[tag + '.p_eff'] > 1 or x[tag + '.p_eff'] <= 0 else x[tag + '.filtered'],axis=1)
+				output_df[tag + '.filtered'] = output_df.apply(lambda x: 1 if math.isnan(x[tag + p_ext]) or x[tag + p_ext] > 1 or x[tag + p_ext] <= 0 else x[tag + '.filtered'],axis=1)
 				filter_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.filtered')][0]
-				N_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.weight')][0]
-				P_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.p_eff')][0]
+				N_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
+				P_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith(p_ext)][0]
 				Eff_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
 				output_df[meta + '.' + tag + '.dir'] = output_df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
 				output_df[meta + '.' + tag + '.zi'] = output_df.apply(lambda x: (-1 * scipy.norm.ppf(1 - (x[P_idx]/2)) if x[Eff_idx] < 0 else scipy.norm.ppf(1 - (x[P_idx]/2))) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-				output_df[meta + '.' + tag + '.weight'] = output_df.apply(lambda x: x[tag + '.weight'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-				output_df[meta + '.' + tag + '.wi'] = output_df.apply(lambda x: math.sqrt(x[meta + '.' + tag + '.weight']) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				output_df[meta + '.' + tag + '.n'] = output_df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				output_df[meta + '.' + tag + '.wi'] = output_df.apply(lambda x: math.sqrt(x[meta + '.' + tag + '.n']) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
 				output_df[meta + '.' + tag + '.ziwi'] = output_df.apply(lambda x: x[meta + '.' + tag + '.zi'] * x[meta + '.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
 				output_df[meta + '.dir'] = output_df[meta + '.dir'] + output_df[meta + '.' + tag + '.dir']
-			N_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.weight')]
+			N_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
 			Wi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
 			ZiWi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.ziwi')]
-			#DIR_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.dir')]
 			output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum(),axis=1)
-			#output_df[meta + '.dir'] = output_df.apply(lambda x: ''.join(x[DIR_all]),axis=1)
 			output_df[meta + '.z'] = output_df.apply(lambda x: x[ZiWi_idx_all].sum()/math.sqrt(x[N_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-			output_df[meta + '.p'] = output_df.apply(lambda x: 2 * scipy.norm.cdf(-1 * abs(float(x[meta + '.z']))) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+		else:
+			output_df[meta + '.dir'] = ''
+			for tag in cfg['meta_info'][meta]:
+				output_df[tag + '.filtered'] = output_df.apply(lambda x: 1 if math.isnan(x[tag + '.p']) or x[tag + '.p'] > 1 or x[tag + '.p'] <= 0 else x[tag + '.filtered'],axis=1)
+				filter_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.filtered')][0]
+				N_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
+				P_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
+				Eff_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
+				StdErr_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.stderr')][0]
+				output_df[meta + '.' + tag + '.dir'] = output_df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
+				output_df[meta + '.' + tag + '.n'] = output_df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				output_df[meta + '.' + tag + '.wi'] = output_df.apply(lambda x: 1/(x[StdErr_idx]**2) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				output_df[meta + '.' + tag + '.biwi'] = output_df.apply(lambda x: x[Eff_idx] * x[meta + '.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				output_df[meta + '.dir'] = output_df[meta + '.dir'] + output_df[meta + '.' + tag + '.dir']
+			N_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
+			Wi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
+			BiWi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.biwi')]
+			output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum(),axis=1)
+			output_df[meta + '.stderr'] = output_df.apply(lambda x: math.sqrt(1/(x[Wi_idx_all].sum())) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+			output_df[meta + '.effect'] = output_df.apply(lambda x: (x[BiWi_idx_all].sum())/(x[Wi_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+			output_df[meta + '.z'] = output_df.apply(lambda x: x[meta + '.effect']/x[meta + '.stderr'] if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+			header.append(meta + '.effect')
+			header.append(meta + '.stderr')
+		output_df[meta + '.p'] = output_df.apply(lambda x: 2 * scipy.norm.cdf(-1 * abs(float(x[meta + '.z']))) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+		output_df[meta + '.dir'] = output_df.apply(lambda x: x[meta + '.dir'] if not math.isnan(x[meta + '.p']) else float('nan'), axis=1)
+		output_df[meta + '.effect'] = output_df[meta + '.effect'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
+		output_df[meta + '.stderr'] = output_df[meta + '.stderr'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
+		output_df[meta + '.z'] = output_df[meta + '.z'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
+		output_df[meta + '.p'] = output_df[meta + '.p'].map(lambda x: '%.2e' % x if not math.isnan(x) else x)
 		header.append(meta + '.z')
 		header.append(meta + '.p')
 		header.append(meta + '.dir')
 		header.append(meta + '.n')
 		
-	#for x in output_df.keys():
-	#	print str(x) + " : " + str(output_df[x][output_df['marker'] == "rs17030788"])
-	#print output_df[output_df['marker'] == "rs17030788"]
-	
+	##### format output to significant digits #####
+	for tag in cfg['file_order']:
+		if 'effect' in cfg['data_info'][tag].keys():
+			output_df[tag + '.effect'] = output_df[tag + '.effect'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
+		if 'stderr' in cfg['data_info'][tag].keys():
+			output_df[tag + '.stderr'] = output_df[tag + '.stderr'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
+		if 'or' in cfg['data_info'][tag].keys():
+			output_df[tag + '.or'] = output_df[tag + '.or'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
+		if 'z' in cfg['data_info'][tag].keys():
+			output_df[tag + '.z'] = output_df[tag + '.z'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
+		if 'p' in cfg['data_info'][tag].keys():
+			output_df[tag + '.p'] = output_df[tag + '.p'].map(lambda x: '%.2e' % x if not math.isnan(x) else x)
+		if 'n' in cfg['data_info'][tag].keys():
+			output_df[tag + '.n'] = output_df[tag + '.n'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
+		output_df[tag + '.filtered'] = output_df[tag + '.filtered'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
+	if meta + '.n' in list(output_df.columns.values):
+		output_df[meta + '.n'] = output_df[meta + '.n'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
 
+	##### extract efftest corrected top p values #####
 	if method == 'efftest':
 		out_efftest_df = marker_list.copy()
 		header = ['chr','start','end','reg_id']
@@ -282,53 +326,11 @@ def Meta(cfg=None,
 		out_efftest_df.rename(columns=lambda x: x.replace('chr','#chr'),inplace=True)
 		out_efftest_df.to_csv(bgzfile, header=True, index=False, sep="\t")
 	else:
-		print header
-		print output_df.columns.values
 		output_df = output_df[header]	
 		output_df.fillna('NA',inplace=True)
-		#write_header = True if r == 0 else False
-		#output_df.to_csv(bgzfile, header=write_header, index=False, sep="\t")
 		output_df.to_csv(bgzfile, header=True, index=False, sep="\t")
 	bgzfile.close()
-	"""
-				marker.data$zi<-NA
-				marker.data$wi<-NA
-				marker.data$zi_wi<-NA
-				marker.data$bi_wi<-NA
-				marker.data$fi_wi<-NA
-				marker.data$zi[marker.data$keep == 1] <- ifelse(exp(as.numeric(marker.data$beta[marker.data$keep == 1])) > 1, qnorm(as.numeric(marker.data$p[marker.data$keep == 1])/2,lower.tail=FALSE), -qnorm(as.numeric(marker.data$p[marker.data$keep == 1])/2,lower.tail=FALSE))
-				marker.data$wi[marker.data$keep == 1] <- ifelse(! is.na(marker.data$lambda[marker.data$keep == 1]) & as.numeric(marker.data$lambda[marker.data$keep == 1]) > 1, ifelse(marker.data$method[marker.data$keep == 1] == "SampleSize", sqrt(as.numeric(marker.data$samples[marker.data$keep == 1]))/as.numeric(marker.data$lambda[marker.data$keep == 1]), (1/(as.numeric(marker.data$stderr[marker.data$keep == 1]))^2)/as.numeric(marker.data$lambda[marker.data$keep == 1])), ifelse(marker.data$method[marker.data$keep == 1] == "SampleSize", sqrt(as.numeric(marker.data$samples[marker.data$keep == 1])), 1/(as.numeric(marker.data$stderr[marker.data$keep == 1]))^2))
-				marker.data$zi_wi[marker.data$keep == 1]<-as.numeric(marker.data$zi[marker.data$keep == 1])*as.numeric(marker.data$wi[marker.data$keep == 1])
-				marker.data$bi_wi[marker.data$keep == 1]<-as.numeric(marker.data$beta[marker.data$keep == 1])*as.numeric(marker.data$wi[marker.data$keep == 1])
-				marker.data$fi_wi[marker.data$keep == 1]<-as.numeric(marker.data$freq[marker.data$keep == 1])*as.numeric(marker.data$wi[marker.data$keep == 1])
-				dist.out$freq<-sum(marker.data$fi_wi[marker.data$keep == 1])/sum(marker.data$wi[marker.data$keep == 1]) 
-				dist.out$samples<-sum(marker.data$samples[marker.data$keep == 1])
-				dist.out$cases<-ifelse(length(marker.data$cases[marker.data$keep == 1]) == length(marker.data$cases[marker.data$keep == 1 & ! is.na(marker.data$cases)]), sum(marker.data$cases[marker.data$keep == 1]), NA)
-				dist.out$ctrls<-ifelse(length(marker.data$ctrls[marker.data$keep == 1]) == length(marker.data$ctrls[marker.data$keep == 1 & ! is.na(marker.data$ctrls)]), sum(marker.data$ctrls[marker.data$keep == 1]), NA)
-				dist.out$stderr<-ifelse(method == "SampleSize", NA, sqrt(1/(sum(marker.data$wi[marker.data$keep == 1]))))
-				dist.out$beta<-ifelse(method == "SampleSize", NA, sum(marker.data$bi_wi[marker.data$keep == 1])/sum(marker.data$wi[marker.data$keep == 1]))
-				dist.out$zscore<-ifelse(method == "SampleSize", formatC(sum(marker.data$zi_wi[marker.data$keep == 1])/sqrt(sum((marker.data$wi[marker.data$keep == 1])^2)),format="g",digits=sig.digits), formatC(dist.out$beta/dist.out$stderr,format="g",digits=sig.digits))
-				dist.out$p<-ifelse(method == "SampleSize",formatC(2*pnorm(-abs(sum(marker.data$zi_wi[marker.data$keep == 1])/sqrt(sum((marker.data$wi[marker.data$keep == 1])^2)))),format="e",digits=sig.digits-1), formatC(2*pnorm(-abs(dist.out$beta/dist.out$stderr)),format="e",digits=sig.digits-1))
-				dist.out$dir<-paste(marker.data$dir.keep[marker.data$tag %in% sets], collapse="")
-				dist.out$hetchisq<-ifelse(method == "SampleSize", NA, sum(marker.data$wi[marker.data$keep == 1]*(marker.data$beta[marker.data$keep == 1])^2)-(((sum(marker.data$beta[marker.data$keep == 1]*marker.data$wi[marker.data$keep == 1]))^2)/sum(marker.data$wi[marker.data$keep == 1])))
-				dist.out$hetdf<-ifelse(method == "SampleSize", NA, length(marker.data$keep[marker.data$keep == 1])-1)
-				dist.out$hetisq<-ifelse(method == "SampleSize", NA, ifelse(dist.out$hetchisq > dist.out$hetdf, ((dist.out$hetchisq-dist.out$hetdf)/dist.out$hetchisq)*100, 0))
-				dist.out$hetp<-ifelse(method == "SampleSize", NA, pchisq(dist.out$hetchisq,df=dist.out$hetdf,lower.tail=FALSE))
 
-		print "   ... writing final results to out file"
-		bgzfile = bgzf.BgzfWriter(cfg['out'] + '.gz', 'wb')
-		bgzfile.write("#chr" + "\t" + "chr.pos" + "\t" + "marker" + "\t" + "a1" + "\t" + "a2" + "\t" + "\t".join(out_cols) + "\n")
-		for i, row in out_order_df.iterrows():
-			k = str(row[0]) + delim + str(row[1]) + delim + delim.join([str(a) for a in row[2:] if not a is None])
-			for s in out_cols:
-				if not s in output[k].keys():
-					if "filtered" in s:
-						output[k][s] = 1
-					else:
-						output[k][s] = "NA"
-			bgzfile.write(k.split(delim)[0] + "\t" + k.split(delim)[1] + "\t" + delim.join(k.split(delim)[2:(len(k.split(delim))-2)]) + "\t" + k.split(delim)[len(k.split(delim))-2] + "\t" + k.split(delim)[len(k.split(delim))-1] + "\t" + "\t".join([str(output[k][j]) for j in out_cols]) + "\n")
-	bgzfile.close()
-	"""
 	print "   ... mapping results file"
 	cmd = 'tabix -b 2 -e 3 ' + cfg['out'] + '.gz'
 	p = subprocess.Popen(cmd, shell=True)

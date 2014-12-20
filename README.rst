@@ -27,7 +27,7 @@ Dependencies
  
  - R 3.1.1
 
- - python2.7.3
+ - python2.7
 
  easy_install virtualenv --user
 

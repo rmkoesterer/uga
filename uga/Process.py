@@ -11,15 +11,18 @@ def Qsub(command):
 		print "\n   ... process terminated\n"
 		sys.exit(1)
 
-def Interactive(submit, cmd, log_file):
+def Interactive(submit, cmd, log_file = None):
 	try:
-		log = open(log_file, 'w')
 		p = subprocess.Popen([submit,'--internal','--cmd', cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+		if log_file:
+			log = open(log_file, 'w')
 		for line in iter(p.stdout.readline, ''):
 			sys.stdout.write(line)
-			log.write(line)
+			if log_file:	
+				log.write(line)
 		p.wait()
-		log.close()
+		if log_file:
+			log.close()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
 		print "\n   ... process terminated\n"

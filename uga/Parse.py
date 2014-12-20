@@ -182,8 +182,30 @@ class Args(object):
 		plot_required = self.plot_parser.add_argument_group('required arguments')
 
 	def AddMap(self):
-		self.map_parser = self.subparsers.add_parser('map', help='map non-empty regions in a file (inactive)', parents=[self.parser])
+		self.map_parser = self.subparsers.add_parser('map', help='map non-empty regions in a file', parents=[self.parser])
 		map_required = self.map_parser.add_argument_group('required arguments')
+		map_required.add_argument('--file', 
+							action='store', 
+							required=True, 
+							help='a file name')
+		map_required.add_argument('--out', 
+							action='store', 
+							required=True, 
+							help='an output file name (basename only: do not include path)')
+		map_split_group1 = self.map_parser.add_mutually_exclusive_group()
+		map_split_group1.add_argument('--mb', 
+							action='store', 
+							help='region size in megabases')
+		map_split_group1.add_argument('--kb', 
+							action='store', 
+							help='region size in kilobases')
+		map_split_group1.add_argument('--b', 
+							action='store', 
+							help='region size in kilobases')
+		self.map_parser.add_argument('--cpu', 
+							action='store', 
+							default=1, 
+							help='number of cpu cores to use (default: 1)')
 
 	def AddMapImpute(self):
 		self.map_impute_parser = self.subparsers.add_parser('map-impute', help='map non-empty regions in a file overlapping imputation reference file (inactive)', parents=[self.parser])

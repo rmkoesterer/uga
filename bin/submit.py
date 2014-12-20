@@ -10,6 +10,7 @@ import argparse
 import sys
 from uga.Model import Model
 from uga.Meta import Meta
+from uga.Map import Map
 from uga.Process import kill_all
 from time import strftime, localtime, time, gmtime
 #from memory_profiler import profile, memory_usage
