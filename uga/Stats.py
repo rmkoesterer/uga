@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
-import statsmodels.api as sm
+#import statsmodels.api as sm
 import pandas.rpy.common as py2r
 import math
 from scipy.stats import norm
