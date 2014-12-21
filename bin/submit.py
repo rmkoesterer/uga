@@ -11,6 +11,7 @@ import sys
 from uga.Model import Model
 from uga.Meta import Meta
 from uga.Map import Map
+from uga.Plot import Plot
 from uga.Process import kill_all
 from time import strftime, localtime, time, gmtime
 #from memory_profiler import profile, memory_usage
@@ -42,19 +43,25 @@ def main(args=None):
 	env_vars['PROJ_ID'] = 'None' if not args.qsub else args.qsub
 	if not 'REQNAME' in env_vars.keys():
 		local=True
-		env_vars['REQNAME'] = env_vars['HOSTNAME'] + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time[0])
+		env_vars['REQNAME'] = env_vars['HOSTNAME'] + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time[0]) if 'HOSTNAME' in env_vars.keys() else strftime('%Y_%m_%d_%H_%M_%S', start_time[0])
 	if not 'JOB_ID' in env_vars.keys():
 		env_vars['JOB_ID'] = '1'
 	if not 'SGE_TASK_ID' in env_vars.keys():
 		env_vars['SGE_TASK_ID'] = 'None'
 
 	print "start time: " + strftime("%Y-%m-%d %H:%M:%S", start_time[0])
-	print "compute node: " + env_vars['HOSTNAME']
-	print "current directory: " + env_vars['PWD']
-	print "current group/project id: " + env_vars['PROJ_ID']
-	print "job id: " + env_vars['JOB_ID']
-	print "job name: " + env_vars['REQNAME']
-	print "task index number: " + env_vars['SGE_TASK_ID']
+	if 'HOSTNAME' in env_vars.keys():
+		print "compute node: " + env_vars['HOSTNAME']
+	if 'PWD' in env_vars.keys():
+		print "current directory: " + env_vars['PWD']
+	if 'PROJ_ID' in env_vars.keys():
+		print "current group/project id: " + env_vars['PROJ_ID']
+	if 'JOB_ID' in env_vars.keys():
+		print "job id: " + env_vars['JOB_ID']
+	if 'REQNAME' in env_vars.keys():
+		print "job name: " + env_vars['REQNAME']
+	if 'SGE_TASK_ID' in env_vars.keys():
+		print "task index number: " + env_vars['SGE_TASK_ID']
 
 	##### FUNCTION TO RUN #####
 	if args.internal:

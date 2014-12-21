@@ -11,19 +11,39 @@ import tabix
 from Messages import Error
 
 def RemoveExistingFiles(file, module):
-	for f in [file, file + '.log', file + '.gz', file + '.gz.tbi']:
+	for f in [file, file + '.log']:
 		try:
 			os.remove(f)
 		except OSError:
 			continue
+	if module in['model','meta']:
+		for f in [file + '.gz', file + '.gz.tbi']:
+			try:
+				os.remove(f)
+			except OSError:
+				continue
+	if module == 'plot':
+		for f in [file + '.qq.tiff', file + '.mht.tiff',file + '.qq.eps', file + '.mht.eps',file + '.qq.pdf', file + '.mht.pdf']:
+			try:
+				os.remove(f)
+			except OSError:
+				continue
 				
 def CheckExistingFiles(file, module):
-	for f in [file, file + '.log', file + '.gz', file + '.gz.tbi']:
+	for f in [file, file + '.log']:
 		if os.path.exists(f):
 			print Error("1 or more output files already exists (use --overwrite flag to replace)")
 			sys.exit()
-		else:
-			pass
+	if module in['model','meta']:
+		for f in [file + '.gz', file + '.gz.tbi']:
+			if os.path.exists(f):
+				print Error("1 or more output files already exists (use --overwrite flag to replace)")
+				sys.exit()
+	if module == 'plot':
+		for f in [file + '.qq.tiff', file + '.mht.tiff',file + '.qq.eps', file + '.mht.eps',file + '.qq.pdf', file + '.mht.pdf']:
+			if os.path.exists(f):
+				print Error("1 or more output files already exists (use --overwrite flag to replace)")
+				sys.exit()
 
 def PrepareChrDirs(regions, directory):
 	try:

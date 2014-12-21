@@ -18,9 +18,8 @@ from Parse import *
 from __init__ import __version__
 
 def main(args=None):
-	parser = Args()
-	parser.AddAll()
-	args=parser.Parse()
+	parser=Parser()
+	args=Parse(parser)
 
 	##### read cfg file into dictionary #####
 	if args.which == 'meta':
@@ -140,11 +139,11 @@ def main(args=None):
 			else:
 				CheckExistingFiles(out, args.which)
 			if args.which == 'model':
-				cmd = args.which.capitalize() + '(out="' + out + '"'
+				cmd = args.which.capitalize() + '(out=\'' + out + '\''
 				for x in ['data', 'samples', 'pheno', 'model', 'fid', 'iid', 'method', 'focus', 'sig', 'region_list', 'region', 'sex', 'male', 'female', 'buffer', 'miss', 'freq', 'rsq', 'hwe', 'case', 'ctrl', 'nofail']:
 					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 						if type(vars(args)[x]) is str:
-							cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
+							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 						else:
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ',mem=' + str(args.mem) + ')'
@@ -176,6 +175,24 @@ def main(args=None):
 					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 		cmd = cmd + ')'
 		Interactive(script_path + '/../../bin/submit.py', cmd)
+	elif args.which == 'plot':
+		if args.overwrite:
+			RemoveExistingFiles(args.out, args.which)
+		else:
+			CheckExistingFiles(args.out, args.which)
+		name = '.'.join(os.path.basename(args.out).split('.')[:-1]) if not args.name else args.name
+		cmd = args.which.capitalize() + '(data="' + args.data + '"'
+		for x in ['out','ext','qq','manhattan','chr','pos','p','rsq','freq','hwe','rsq_thresh','freq_thresh','hwe_thresh']:
+			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+				if type(vars(args)[x]) is str:
+					cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
+				else:
+					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+		cmd = cmd + ')'
+		if args.qsub:
+			Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + args.out + '.log ' + script_path + '/../../bin/submit.py --internal --qsub ' + args.qsub + ' --cmd \'' + cmd + '\'')
+		else:
+			Interactive(script_path + '/../../bin/submit.py', cmd, args.out + '.log')
 	else:
 		print Error(args.which + " module currently inactive")
 	print ''

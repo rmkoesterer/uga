@@ -9,85 +9,74 @@ Universal Genome Analyst
 Features
 --------
 
-- Marker Analysis (implementation in R)
+- Marker Analysis (R packages)
    - generalized linear models (glm)
    - linear mixed effects models (lme)   
    - generalized estimating equations (geeglm)
    - Cox proportional hazards (coxph)
+- Gene Based Analysis
+   - Li and Ji gene based test (top snp in each gene corrected for number of effective tests)
 - Meta analysis
-- Annotation
-- Plots
 
 
 Dependencies
 ------------
- To check for these required python modules, type 'pydoc modules' on the commandline and search for them by name in the resulting list 
- 
- - SGE parallel computing environment
+
+ - SGE or similar parallel computing environment
  
  - R 3.1.1
 
  - python2.7
+	
+ - reshape (R package)
 
+ - grDevices (R package)
+
+ - gtools (R package)
+
+ - geepack (R package)
+
+ - lme4 (R package)
+
+ - survival (R package)
+
+Installation
+------------
+ 
  easy_install virtualenv --user
 
- cd into * (some directory where you'd like your virtual environment to live)
+ cd into \* (some directory where you'd like your virtual environment to live)
 
- virtualenv * (if currently using 2.7)
-	virtualenv -p python2.7 * (if not currently using 2.7)
-	
- source */bin/activate
- 
-	pip install pytabix
-	
-	pip install rpy2
-	
-	pip install singledispatch
-	
-	pip install multi_key_dict
-	
-	pip install numpy
-	
-	pip install progressbar
-	
-	pip install pandas
-	
-	pip install psutil
-	
-	pip install statsmodels
-	
-	pip install biopython
-	
-- reshape (R package)
-- grDevices (R package)
-- gtools (R package)
-- geepack (R package)
-- lme4 (R package)
-- survival (R package)
+ virtualenv -p python2.7 \*
 
-Use the following command to display library links for your virtual python environment
-ldd */bin/python
-make sure the value, X, in the line 'libpython2.7.so.1.0 ==> X' is added to LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:X
+ source \*/bin/activate
 
-Python module installation
---------------------------
+ pip install -r requirements.txt
 
-Use the following method to install python modules::
+ python setup.py install
 
- python2.7 PATH_TO_MODULE/setup.py install --user
- 
+Hints
+-----
+
+If you receive an error regarding libR.so, use the following command to find it's location
+
  find /usr -name libR.so
  
- export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:PATH_TO_DIR_CONTAINING_libR.so
+Use the following command to display library links for your virtual python environment
 
+ ldd \*/bin/python
+
+make sure the value, X, in the line 'libpython2.7.so.1.0 ==> X' is added to LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:X in your bashrc
+ 
 Suggested additions to ~/.bashrc
-----------------------
+--------------------------------
+
+Add these to your bashrc file
+ 
+ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:X
+ 
+where X is the path to the directory containing libR.so (see above)
 
  export TEMPDIR=/scratch
  
  export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:PATH_TO_R_LIB
- 
-Initialize Virtual Environment
-------------------------------
- 
- source ~/UGA/env/bin/activate

@@ -71,14 +71,14 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
 			xt = x.replace('*',':')
-			marker_info[x + '.beta'] = '%.5g' % (coef.loc[xt,'Estimate'])
+			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 			marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std.err'])
 			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate']))
 			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err'])
 			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err'])))
 	else:
 		for x in focus:
-			marker_info[x + '.beta'] = float('NaN')
+			marker_info[x + '.effect'] = float('NaN')
 			marker_info[x + '.stderr'] = float('NaN')
 			marker_info[x + '.or'] = float('NaN')
 			marker_info[x + '.z'] = float('NaN')
@@ -109,14 +109,14 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
 			xt = x.replace('*',':')
-			marker_info[x + '.beta'] = '%.5g' % (coef.loc[xt,'Estimate'])
+			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 			marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
 			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate']))
 			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error'])
 			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error'])))
 	else:
 		for x in focus:
-			marker_info[x + '.beta'] = float('NaN')
+			marker_info[x + '.effect'] = float('NaN')
 			marker_info[x + '.stderr'] = float('NaN')
 			marker_info[x + '.or'] = float('NaN')
 			marker_info[x + '.z'] = float('NaN')
@@ -147,14 +147,14 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
 			xt = x.replace('*',':')
-			marker_info[x + '.beta'] = '%.5g' % (coef.loc[xt,'Estimate'])
+			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 			marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
 			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate']))
 			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error'])
 			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error'])))
 	else:
 		for x in focus:
-			marker_info[x + '.beta'] = float('NaN')
+			marker_info[x + '.effect'] = float('NaN')
 			marker_info[x + '.stderr'] = float('NaN')
 			marker_info[x + '.or'] = float('NaN')
 			marker_info[x + '.z'] = float('NaN')
@@ -184,7 +184,7 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 		for x in focus:
 			xt = x.replace('*',':')
 			marker_info[x + '.n'] = '%d' % (np.array(model_out.rx('n')[0])[0])
-			marker_info[x + '.beta'] = '%.5g' % (coef.loc[xt,'coef'])
+			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'coef'])
 			marker_info[x + '.or'] = '%.5g' % (coef.loc[xt,'exp(coef)'])
 			marker_info[x + '.ci_lower'] = '%.5g' % (conf_int.loc[xt,'lower .95'])
 			marker_info[x + '.ci_upper'] = '%.5g' % (conf_int.loc[xt,'upper .95'])
@@ -195,7 +195,7 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 	else:
 		for x in focus:
 			marker_info[x + '.n'] = float('NaN')
-			marker_info[x + '.beta'] = float('NaN')
+			marker_info[x + '.effect'] = float('NaN')
 			marker_info[x + '.or'] = float('NaN')
 			marker_info[x + '.ci_lower'] = float('NaN')
 			marker_info[x + '.ci_upper'] = float('NaN')
