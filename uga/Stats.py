@@ -1,3 +1,4 @@
+#import pickle
 import pandas as pd
 import numpy as np
 import rpy2.robjects as ro
@@ -53,7 +54,7 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
-			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))], strings_as_factors=False)
+			rmodel_df = py2r.convert_to_r_dataframe(model_df.dropna()[list(set(model_vars_dict.keys() + [iid,fid]))], strings_as_factors=False)
 			model_out=rtry(rsummary(geepack.geeglm(ro.r(model),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr='exchangeable')),silent=ro.r('TRUE'))
 			if 'try-error' in rclass(model_out):
 				model_out=rtry(rsummary(geepack.geeglm(ro.r(model),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr='independence')),silent=ro.r('TRUE'))
@@ -73,9 +74,9 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 			xt = x.replace('*',':')
 			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 			marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std.err'])
-			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate']))
-			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err'])
-			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err'])))
+			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
+			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 	else:
 		for x in focus:
 			marker_info[x + '.effect'] = float('NaN')
@@ -96,7 +97,7 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
-			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))])
+			rmodel_df = py2r.convert_to_r_dataframe(model_df.dropna()[list(set(model_vars_dict.keys() + [iid,fid]))])
 			model_out=rtry(rsummary(rglm(ro.r(model),data=rmodel_df,family=fxn)),silent=ro.r('TRUE'))
 			if 'try-error' in rclass(model_out):
 				status = -4
@@ -111,9 +112,9 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 			xt = x.replace('*',':')
 			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 			marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
-			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate']))
-			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error'])
-			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error'])))
+			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
+			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 	else:
 		for x in focus:
 			marker_info[x + '.effect'] = float('NaN')
@@ -134,8 +135,13 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
-			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))])
-			model_out=rtry(rsummary(lme4.glmer(ro.r(model),data=rmodel_df,REML=ro.r('FALSE'),family=fxn)),silent=ro.r('TRUE'))
+			rmodel_df = py2r.convert_to_r_dataframe(model_df.dropna()[list(set(model_vars_dict.keys() + [iid,fid]))])
+			for x in model_vars_dict.keys():
+				if model_vars_dict[x]['class'] in ['factor','random']:
+					rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])
+					rmodel_df=ro.r.cbind(rmodel_df,ugaConvert=ro.r('factor')(rmodel_df.rx2(x + '_ugaFactored')))
+					rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
+			model_out=rtry(rsummary(lme4.glmer(ro.r(model),data=ro.r.subset(rmodel_df,rmodel_df.rx('marker').ro != "NA"),REML=ro.r('FALSE'),family=fxn)),silent=ro.r('TRUE'))
 			if 'try-error' in rclass(model_out):
 				status = -4
 			else:
@@ -149,9 +155,9 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 			xt = x.replace('*',':')
 			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 			marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
-			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate']))
-			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error'])
-			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error'])))
+			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
+			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 	else:
 		for x in focus:
 			marker_info[x + '.effect'] = float('NaN')
@@ -169,7 +175,12 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 	status = 0
 	valid = False
 	if marker_info['filter'] == 0:
-		rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))])
+		rmodel_df = py2r.convert_to_r_dataframe(model_df.dropna()[list(set(model_vars_dict.keys() + [iid,fid]))])
+		for x in model_vars_dict.keys():
+			if model_vars_dict[x]['class'] == 'cluster':
+				rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])
+				rmodel_df=ro.r.cbind(rmodel_df,ugaConvert=ro.r('factor')(rmodel_df.rx2(x + '_ugaFactored')))
+				rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
 		model_out=rtry(rsummary(survival.coxph(ro.r(model),data=rmodel_df,control=ro.r('coxph.control(iter.max = 100)'))),silent=ro.r('TRUE'))
 		if 'try-error' in rclass(model_out):
 			status = -4

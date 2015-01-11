@@ -76,7 +76,7 @@ def Parser():
 	model_required.add_argument('--samples', 
 						action='store', 
 						required=True, 
-						help='a sample file (single column list of IDs in order of data)')
+						help='a sample file (single column list of IDs in same order as --data file)')
 	model_required.add_argument('--pheno', 
 						action='store', 
 						required=True, 
@@ -113,12 +113,12 @@ def Parser():
 						action='store', 
 						type=int, 
 						default=1, 
-						help='the code for a male in sex (default: 1; requires --sex and --female)')
+						help='the code for a male(default: 1; requires --sex and --female)')
 	model_parser.add_argument('--female', 
 						action='store', 
 						type=int, 
 						default=2, 
-						help='the code for a male in sex (default: 2; requires --sex and --male)')
+						help='the code for a female(default: 2; requires --sex and --male)')
 	model_parser.add_argument('--buffer', 
 						action='store', 
 						type=int, 
@@ -184,13 +184,13 @@ def Parser():
 						help='an output file name (basename only: do not include path)')
 	plot_parser.add_argument('--chr', 
 						action='store', 
-						help='a column name for chromosome (default: chr')
+						help='a column name for chromosome (default: chr)')
 	plot_parser.add_argument('--pos', 
 						action='store', 
-						help='a column name for position (default: pos')
+						help='a column name for position (default: pos)')
 	plot_parser.add_argument('--p', 
 						action='store', 
-						help='a column name for p-value (default: p')
+						help='a column name for p-value (default: p)')
 	plot_parser.add_argument('--qq', 
 						action='store_true', 
 						help='print qq plot')
@@ -199,13 +199,13 @@ def Parser():
 						help='print manhattan plot')
 	plot_parser.add_argument('--rsq', 
 						action='store', 
-						help='a column name for imputation quality (default: rsq')
+						help='a column name for imputation quality (default: rsq)')
 	plot_parser.add_argument('--freq', 
 						action='store', 
-						help='a column name for allele frequency (default: freq')
+						help='a column name for allele frequency (default: freq)')
 	plot_parser.add_argument('--hwe', 
 						action='store', 
-						help='a column name for Hardy Weinberg p-value (default: hwe')
+						help='a column name for Hardy Weinberg p-value (default: hwe)')
 	plot_parser.add_argument('--rsq-thresh', 
 						action='store', 
 						type=float, 

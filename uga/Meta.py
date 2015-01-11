@@ -60,19 +60,18 @@ def Meta(cfg=None,
 		marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
 	marker_list['n'] = 0
 	for i in range(len(marker_list.index)):
-		tb = tabix.open(cfg['data_info'][cfg['data_info'].keys()[0]]['process_file'])
-		try:
-			records = tb.querys(marker_list['region'][i])
-		except:
-			pass
-		else:
-			for record in records:
+		for key in cfg['data_info'].keys():
+			tb = tabix.open(cfg['data_info'][key]['process_file'])
+			try:
+				records = tb.querys(marker_list['region'][i])
+			except:
+				pass
+			else:
 				marker_list['n'][i] = marker_list['n'][i] + 1
+				break
 	if marker_list['n'].sum() == 0:
 		print Error("no markers found")
 		return()
-	else:
-		print "          " + str(marker_list['n'].sum()) + " markers in " + str(len(marker_list.index)) + " regions"
 
 	cfg['sig'] = int(cfg['sig']) if 'sig' in cfg.keys() else 5
 
@@ -164,7 +163,19 @@ def Meta(cfg=None,
 				print "          merged cohort " + tag + " : " + str(len(output.keys())) + " markers"
 	output_df = pd.DataFrame(output).transpose()
 	header=['chr','pos','a1','a2','marker']
-	header.extend(output_df.columns.values)
+	for tag in cfg['file_order']:
+		n = None if not 'n' in cfg['data_info'][tag] else int(cfg['data_info'][tag]['n'])
+		effect = None if not 'effect' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['effect'])
+		stderr = None if not 'stderr' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['stderr'])
+		freq = None if not 'freq' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['freq'])
+		rsq = None if not 'rsq' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['rsq'])
+		o_r = None if not 'or' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['or'])
+		z = None if not 'z' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['z'])
+		p = None if not 'p' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['p'])
+		for suffix in ['freq','effect','stderr','or','z','p','n','filtered']:
+			if not tag + '.' + suffix in output_df.columns.values:
+				output_df[tag + '.' + suffix] = float('nan')
+			header.append(tag + '.' + suffix)
 
 	output_df['ref'] = output_df.index
 	output_df['chr'] = output_df['ref'].apply(lambda x: x.split(delim)[0]).astype(int)
@@ -172,12 +183,12 @@ def Meta(cfg=None,
 	output_df['marker'] = output_df['ref'].apply(lambda x: x.split(delim)[2])
 	output_df['a1'] = output_df['ref'].apply(lambda x: x.split(delim)[3])
 	output_df['a2'] = output_df['ref'].apply(lambda x: x.split(delim)[4])
-
+	
 	for tag in cfg['file_order']:
 		for suffix in ['freq','effect','stderr','or','z','p','n','filtered']:
 			if tag + '.' + suffix in output_df.columns.values:
 				output_df[tag + '.' + suffix] = output_df[tag + '.' + suffix].convert_objects(convert_numeric=True)
-	
+
 	##### apply genomic control #####
 	if method in ['sample_size','stderr','efftest']:
 		for tag in cfg['file_order']:
@@ -328,6 +339,8 @@ def Meta(cfg=None,
 	else:
 		output_df = output_df[header]	
 		output_df.fillna('NA',inplace=True)
+		output_df.sort(['chr','pos'],inplace=True)
+		output_df.rename(columns=lambda x: x.replace('chr','#chr'),inplace=True)
 		output_df.to_csv(bgzfile, header=True, index=False, sep="\t")
 	bgzfile.close()
 

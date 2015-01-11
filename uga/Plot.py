@@ -39,7 +39,7 @@ def Plot(data, out, qq = False, manhattan = False, color = True, ext = 'tiff', c
 		chunk = chunk[chunk[p] != 0]
 		if len(chunk) > 0:
 			pvals = pvals.append(chunk)
-		print "   ... loaded " + str(i*100000) + " lines: " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
+		print "   ... loaded " + str(i*1000000) + " lines: " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
 
 	##### filter data #####
 	if rsq and rsq_thresh:

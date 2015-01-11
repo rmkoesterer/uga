@@ -87,7 +87,7 @@ def Model(out = None,
 	model_vars_dict = {}
 	dependent = re.split('\\~',model)[0]
 	independent = re.split('\\~',model)[1]
-	vars_df = pd.read_table(pheno)
+	vars_df = pd.read_table(pheno,sep='\t',dtype='str')
 	for x in list(vars_df.columns) + ['marker','marker1','marker2','marker.interact']:
 		mtype = ''
 		if dependent.find(x) != -1:
@@ -105,12 +105,14 @@ def Model(out = None,
 					print Error("a column in the phenotype file is defined in the model as both an independent and dependent variable")
 					return
 		if mtype != '':
-			if x[x.find('FID')-18:x.find('FID')] == 'as.numeric(factor(':
-				model_vars_dict[x] = {'class': 'numericfactor', 'type': mtype}
-			elif x[x.find('A1_SEX')-7:x.find('A1_SEX')] == 'factor(':
+			if model[model.find(x)-7:model.find(x)] == 'factor(':
 				model_vars_dict[x] = {'class': 'factor', 'type': mtype}
-			elif x[x.find('FID')-15:x.find('FID')] == 'ordered(factor(':
+			elif model[model.find(x)-15:model.find(x)] == 'ordered(factor(':
 				model_vars_dict[x] = {'class': 'orderedfactor', 'type': mtype}
+			elif model[model.find(x)-3:model.find(x)] == '(1|':
+				model_vars_dict[x] = {'class': 'random', 'type': mtype}
+			elif model[model.find(x)-8:model.find(x)] == 'cluster(':
+				model_vars_dict[x] = {'class': 'cluster', 'type': mtype}
 			else:
 				model_vars_dict[x] = {'class': 'numeric', 'type': mtype}
 	print "   ... analysis model: %s" % model
@@ -147,9 +149,9 @@ def Model(out = None,
 			vars_df = vars_df[vars_df[x].isin([int(case),int(ctrl)])]
 			vars_df[x] = vars_df[x].map({int(ctrl): 0, int(case): 1})
 	vars_df.dropna(inplace = True)
-	for i in model_vars_dict.keys():
-		if model_vars_dict[i]['class'] == 'factor':
-			vars_df[i] = pd.Categorical.from_array(vars_df[i]).codes
+	#for i in model_vars_dict.keys():
+	#	if model_vars_dict[i]['class'] in ['factor','random']:
+	#		vars_df[i] = pd.Categorical.from_array(vars_df[i]).codes.astype(np.int64)
 	if len(vars_df.index) == 0:
 		print Error("no data left for analysis")
 		return
@@ -178,12 +180,9 @@ def Model(out = None,
 		print Error("phenotype file and data file contain no common samples")
 		return
 	
-	print "   ... generating unrelated sample list"
-	unrelated_ids = vars_df.drop_duplicates(subset=[fid])[iid]
-	
 	samples = len(vars_df.index)
 	samples_unique = len(vars_df.drop_duplicates(subset=[iid]).index)
-	clusters = len(unrelated_ids)
+	clusters = len(vars_df.drop_duplicates(subset=[fid]).index.values)
 	dep_var = [key for key in model_vars_dict if model_vars_dict[key]['type'] == 'dependent']
 	cases = len(vars_df[dep_var[0]][vars_df[dep_var[0]].isin([1])]) if fxn == 'binomial' else 'NA'
 	ctrls = len(vars_df[dep_var[0]][vars_df[dep_var[0]].isin([0])]) if fxn == 'binomial' else 'NA'
@@ -232,10 +231,6 @@ def Model(out = None,
 	sig = int(sig) if sig else sig
 	buffer = int(buffer) if buffer else buffer
 
-	##### RESET BUFFER TO MATCH NUMBER OF MARKERS IF CALC EFF TESTS #####
-	vars_df.sort([fid],inplace = True)
-	vars_df[fid] = pd.Categorical.from_array(vars_df[fid]).codes.astype(np.int64)
-	
 	print "   ... starting marker analysis"
 	written = False
 	bgzfile = bgzf.BgzfWriter(out + '.gz', 'wb')
@@ -257,13 +252,14 @@ def Model(out = None,
 				chunkdf = pd.DataFrame(chunk)
 				marker_info = chunkdf.ix[:,:4]
 				marker_info.columns = ['chr','pos','marker','a1','a2']
-				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '.'  + marker_info['marker'].replace(':','.').astype(str) + '.'  + marker_info['a1'].astype(str) + '.'  + marker_info['a2'].astype(str)
+				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '.'  + marker_info['marker'].astype(str) + '.'  + marker_info['a1'].astype(str) + '.'  + marker_info['a2'].astype(str)
 				marker_info.index = marker_info['marker_unique']
 				marker_data = chunkdf.ix[:,5:].transpose()
+				marker_data = marker_data.convert_objects(convert_numeric=True)
 				marker_data.columns = marker_info['marker_unique']
-				marker_data['IID'] = sample_ids
+				marker_data[iid] = sample_ids
 				model_df = pd.merge(vars_df, marker_data, on = [iid], how='left').sort([fid])
-				marker_info['callrate']=model_df.drop_duplicates(subset=[iid])[marker_info['marker_unique']].apply(lambda col: CalcCallrate(col), 0)
+				marker_info['callrate']=marker_data.drop_duplicates(subset=[iid])[marker_info['marker_unique']].apply(lambda col: CalcCallrate(col), 0)
 				if sex and male and female:
 					male_idx = model_df[model_df[sex].isin([male])].index.values
 					female_idx = model_df[model_df[sex].isin([female])].index.values
@@ -271,32 +267,41 @@ def Model(out = None,
 					male_idx = None
 					female_idx = None
 				marker_info['freq']=model_df.drop_duplicates(subset=[iid])[marker_info['marker_unique']].apply(lambda col: CalcFreq(marker=col, chr = chr, male_idx = male_idx, female_idx = female_idx))
-				marker_info['freq.unrel']=model_df.drop_duplicates(subset=[iid])[model_df[iid].isin(unrelated_ids)][marker_info['marker_unique']].apply(lambda col: CalcFreq(marker=col, chr = chr, male_idx = male_idx, female_idx = female_idx))
+				unrelated_ids = model_df.drop_duplicates(subset=[fid]).index.values
+				marker_info['freq.unrel']=model_df.drop_duplicates(subset=[iid]).loc[unrelated_ids][marker_info['marker_unique']].apply(lambda col: CalcFreq(marker=col, chr = chr, male_idx = male_idx, female_idx = female_idx))
 				if fxn == 'binomial':
 					marker_info['freq.ctrl']=model_df.drop_duplicates(subset=[iid])[model_df[dep_var[0]] == 0][marker_info['marker_unique']].apply(lambda col: CalcFreq(marker=col, chr = chr, male_idx = male_idx, female_idx = female_idx))
 					marker_info['freq.case']=model_df.drop_duplicates(subset=[iid])[model_df[dep_var[0]] == 1][marker_info['marker_unique']].apply(lambda col: CalcFreq(marker=col, chr = chr, male_idx = male_idx, female_idx = female_idx))
-					marker_info['freq.unrel.ctrl']=model_df.drop_duplicates(subset=[iid])[(model_df[iid].isin(unrelated_ids)) & (model_df[dep_var[0]] == 0)][marker_info['marker_unique']].apply(lambda col: CalcFreq(marker=col, chr = chr, male_idx = male_idx, female_idx = female_idx))
-					marker_info['freq.unrel.case']=model_df.drop_duplicates(subset=[iid])[(model_df[iid].isin(unrelated_ids)) & (model_df[dep_var[0]] == 1)][marker_info['marker_unique']].apply(lambda col: CalcFreq(marker=col, chr = chr, male_idx = male_idx, female_idx = female_idx))
+					marker_info['freq.unrel.ctrl']=model_df.drop_duplicates(subset=[iid]).loc[unrelated_ids][model_df[dep_var[0]] == 0][marker_info['marker_unique']].apply(lambda col: CalcFreq(marker=col, chr = chr, male_idx = male_idx, female_idx = female_idx))
+					marker_info['freq.unrel.case']=model_df.drop_duplicates(subset=[iid]).loc[unrelated_ids][model_df[dep_var[0]] == 1][marker_info['marker_unique']].apply(lambda col: CalcFreq(marker=col, chr = chr, male_idx = male_idx, female_idx = female_idx))
 				marker_info['rsq']=model_df.drop_duplicates(subset=[iid])[marker_info['marker_unique']].apply(lambda col: CalcRsq(col), 0)
-				marker_info['rsq.unrel']=model_df.drop_duplicates(subset=[iid])[model_df[iid].isin(unrelated_ids)][marker_info['marker_unique']].apply(lambda col: CalcRsq(col), 0)
+				marker_info['rsq.unrel']=model_df.drop_duplicates(subset=[iid]).loc[unrelated_ids][marker_info['marker_unique']].apply(lambda col: CalcRsq(col), 0)
 				if fxn == 'binomial':
 					marker_info['rsq.ctrl']=model_df.drop_duplicates(subset=[iid])[model_df[dep_var[0]] == 0][marker_info['marker_unique']].apply(lambda col: CalcRsq(col), 0)
 					marker_info['rsq.case']=model_df.drop_duplicates(subset=[iid])[model_df[dep_var[0]] == 1][marker_info['marker_unique']].apply(lambda col: CalcRsq(col), 0)
-					marker_info['rsq.unrel.ctrl']=model_df.drop_duplicates(subset=[iid])[(model_df[iid].isin(unrelated_ids)) & (model_df[dep_var[0]] == 0)][marker_info['marker_unique']].apply(lambda col: CalcRsq(col), 0)
-					marker_info['rsq.unrel.case']=model_df.drop_duplicates(subset=[iid])[(model_df[iid].isin(unrelated_ids)) & (model_df[dep_var[0]] == 1)][marker_info['marker_unique']].apply(lambda col: CalcRsq(col), 0)
+					marker_info['rsq.unrel.ctrl']=model_df.drop_duplicates(subset=[iid]).loc[unrelated_ids][model_df[dep_var[0]] == 0][marker_info['marker_unique']].apply(lambda col: CalcRsq(col), 0)
+					marker_info['rsq.unrel.case']=model_df.drop_duplicates(subset=[iid]).loc[unrelated_ids][model_df[dep_var[0]] == 1][marker_info['marker_unique']].apply(lambda col: CalcRsq(col), 0)
 				marker_info['hwe']=model_df.drop_duplicates(subset=[iid])[marker_info['marker_unique']].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
-				marker_info['hwe.unrel']=model_df.drop_duplicates(subset=[iid])[model_df[iid].isin(unrelated_ids)][marker_info['marker_unique']].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
+				marker_info['hwe.unrel']=model_df.drop_duplicates(subset=[iid]).loc[unrelated_ids][marker_info['marker_unique']].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
 				if fxn == 'binomial':
 					marker_info['hwe.ctrl']=model_df.drop_duplicates(subset=[iid])[model_df[dep_var[0]] == 0][marker_info['marker_unique']].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
 					marker_info['hwe.case']=model_df.drop_duplicates(subset=[iid])[model_df[dep_var[0]] == 1][marker_info['marker_unique']].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
-					marker_info['hwe.unrel.ctrl']=model_df.drop_duplicates(subset=[iid])[(model_df[iid].isin(unrelated_ids)) & (model_df[dep_var[0]] == 0)][marker_info['marker_unique']].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
-					marker_info['hwe.unrel.case']=model_df.drop_duplicates(subset=[iid])[(model_df[iid].isin(unrelated_ids)) & (model_df[dep_var[0]] == 1)][marker_info['marker_unique']].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
+					marker_info['hwe.unrel.ctrl']=model_df.drop_duplicates(subset=[iid]).loc[unrelated_ids][model_df[dep_var[0]] == 0][marker_info['marker_unique']].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
+					marker_info['hwe.unrel.case']=model_df.drop_duplicates(subset=[iid]).loc[unrelated_ids][model_df[dep_var[0]] == 1][marker_info['marker_unique']].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
 				marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, miss=miss, freq=freq, rsq=rsq, hwe=hwe), 1)
 				marker_info['samples'] = str(samples) + '/' + str(samples_unique) + '/' + str(clusters) + '/' + str(cases) + '/' + str(ctrls)
 				markercols = [col for col in model_df.columns if 'chr' in col]
 				model_df[markercols] = model_df[markercols].astype(float)
+				for x in model_vars_dict.keys():
+					if model_vars_dict[x]['class'] == 'factor':
+						model_df[x] = pd.Categorical.from_array(model_df[x]).codes.astype(np.int64)
+				for x in [a for a in model_vars_dict.keys() if a != 'marker']:
+					if model_vars_dict[x]['class'] not in ['factor','random','cluster']:
+						model_df[x] = model_df[x].astype(float)
 				if method.split('_')[0] in ['gee','glm','lme','coxph']:
 					if method.split('_')[0] == 'gee':
+						model_df[fid] = pd.Categorical.from_array(model_df[fid]).codes.astype(np.int64)
+						model_df.sort([fid],inplace = True)
 						results = marker_info.apply(lambda row: CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
 					elif method.split('_')[0] == 'glm':
 						results = marker_info.apply(lambda row: CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)

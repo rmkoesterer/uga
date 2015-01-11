@@ -118,7 +118,7 @@ def main(args=None):
 			joblist.extend(jobs)
 		else:
 			joblist.extend(range(n))
-		name = '.'.join(os.path.basename(args.out).split('.')[:-1]) if not args.name else args.name
+		name = args.which + '.' + os.path.basename(args.out) if not args.name else args.name
 		for i in joblist:
 			if dist_mode in ['split-list', 'region']:
 				out = out_files['%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))]
@@ -180,7 +180,7 @@ def main(args=None):
 			RemoveExistingFiles(args.out, args.which)
 		else:
 			CheckExistingFiles(args.out, args.which)
-		name = '.'.join(os.path.basename(args.out).split('.')[:-1]) if not args.name else args.name
+		name = args.which + '.' + os.path.basename(args.out) if not args.name else args.name
 		cmd = args.which.capitalize() + '(data="' + args.data + '"'
 		for x in ['out','ext','qq','manhattan','chr','pos','p','rsq','freq','hwe','rsq_thresh','freq_thresh','hwe_thresh']:
 			if x in vars(args).keys() and not vars(args)[x] in [False,None]:

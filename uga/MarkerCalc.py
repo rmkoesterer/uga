@@ -36,7 +36,7 @@ def CalcCallrate(x):
 	xlen = len(x)
 	x = x.dropna().astype(float)
 	if len(x) > 0:
-		return float('%.5g' % (len(x)/xlen))
+		return float('%.5g' % (len(x)/float(xlen)))
 	else:
 		return float('NaN')
 
