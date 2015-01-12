@@ -150,6 +150,11 @@ def Parser():
 						type=int, 
 						default=0, 
 						help='the code for a control in the dependent variable column (requires --case; binomial fxn family only; default: 0)')
+	model_parser.add_argument('--format', 
+						action='store', 
+						default='oxford', 
+						choices=['oxford', 'dos1','dos2'], 
+						help='the format of the data file, either oxford (3 genotype probabilities), dos1 (single allele dosage with oxford order), dos2 (single allele dosage with [chr pos markername a1 a2] format) (default: oxford)')
 	model_parser.add_argument('--nofail', 
 						action='store_true', 
 						help='exclude filtered/failed analyses from results')

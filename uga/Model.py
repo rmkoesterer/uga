@@ -41,6 +41,7 @@ def Model(out = None,
 			hwe = None, 
 			case = 1, 
 			ctrl = 0, 
+			format = 'oxford', 
 			mem = 3, 
 			nofail = False):
 	
@@ -251,12 +252,14 @@ def Model(out = None,
 					break
 				chunkdf = pd.DataFrame(chunk)
 				marker_info = chunkdf.ix[:,:4]
-				marker_info.columns = ['chr','pos','marker','a1','a2']
+				marker_info.columns = ['chr','pos','marker','a1','a2'] if format == 'dos2' else ['chr','marker','pos','a1','a2']
 				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '.'  + marker_info['marker'].astype(str) + '.'  + marker_info['a1'].astype(str) + '.'  + marker_info['a2'].astype(str)
 				marker_info.index = marker_info['marker_unique']
 				marker_data = chunkdf.ix[:,5:].transpose()
 				marker_data = marker_data.convert_objects(convert_numeric=True)
 				marker_data.columns = marker_info['marker_unique']
+				if format == 'oxford':
+					marker_data = marker_data.apply(lambda col: pd.Series(np.array(ConvertDosage(list(col))).astype(np.float64)),0)
 				marker_data[iid] = sample_ids
 				model_df = pd.merge(vars_df, marker_data, on = [iid], how='left').sort([fid])
 				marker_info['callrate']=marker_data.drop_duplicates(subset=[iid])[marker_info['marker_unique']].apply(lambda col: CalcCallrate(col), 0)

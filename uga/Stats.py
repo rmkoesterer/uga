@@ -54,7 +54,7 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
-			rmodel_df = py2r.convert_to_r_dataframe(model_df.dropna()[list(set(model_vars_dict.keys() + [iid,fid]))], strings_as_factors=False)
+			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(), strings_as_factors=False)
 			model_out=rtry(rsummary(geepack.geeglm(ro.r(model),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr='exchangeable')),silent=ro.r('TRUE'))
 			if 'try-error' in rclass(model_out):
 				model_out=rtry(rsummary(geepack.geeglm(ro.r(model),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr='independence')),silent=ro.r('TRUE'))
@@ -97,7 +97,7 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
-			rmodel_df = py2r.convert_to_r_dataframe(model_df.dropna()[list(set(model_vars_dict.keys() + [iid,fid]))])
+			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(), strings_as_factors=False)
 			model_out=rtry(rsummary(rglm(ro.r(model),data=rmodel_df,family=fxn)),silent=ro.r('TRUE'))
 			if 'try-error' in rclass(model_out):
 				status = -4
@@ -135,7 +135,7 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
-			rmodel_df = py2r.convert_to_r_dataframe(model_df.dropna()[list(set(model_vars_dict.keys() + [iid,fid]))])
+			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(),strings_as_factors=False)
 			for x in model_vars_dict.keys():
 				if model_vars_dict[x]['class'] in ['factor','random']:
 					rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])
@@ -175,7 +175,7 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 	status = 0
 	valid = False
 	if marker_info['filter'] == 0:
-		rmodel_df = py2r.convert_to_r_dataframe(model_df.dropna()[list(set(model_vars_dict.keys() + [iid,fid]))])
+		rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(), strings_as_factors=False)
 		for x in model_vars_dict.keys():
 			if model_vars_dict[x]['class'] == 'cluster':
 				rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])

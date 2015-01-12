@@ -32,6 +32,10 @@ def Complement(x):
 		comp.append(c)
 	return ''.join(comp)
 	
+def ConvertDosage(x):
+	a=zip(x[0::3],x[1::3],x[2::3])
+	return [2*t[0] + 1*t[1] if t[0] > 0 or t[1] > 0 or t[2] > 0 else float('nan') for t in a]
+	
 def CalcCallrate(x):
 	xlen = len(x)
 	x = x.dropna().astype(float)
