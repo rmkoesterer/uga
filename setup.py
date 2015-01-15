@@ -22,24 +22,12 @@ else:
 
 long_description = read('README.rst')
 
-class PyTest(TestCommand):
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-        self.test_args = ['--strict', '--verbose', '--tb=long', 'tests']
-        self.test_suite = True
-
-    def run_tests(self):
-        import pytest
-        errno = pytest.main(self.test_args)
-        sys.exit(errno)
-
 setup(
     name='uga',
     version=verstr,
     url='',
     license='The MIT License: http://www.opensource.org/licenses/mit-license.php',
     author='Ryan Koesterer',
-    tests_require=['pytest'],
 	install_requires=['singledispatch==3.4.0.3', 
 						'rpy2==2.5.2', 
 						'multi-key-dict==2.0.1', 
@@ -50,7 +38,6 @@ setup(
 						'pytabix==0.1', 
 						'scipy==0.14.0', 
 						'biopython==1.64'], 
-    cmdclass={'test': PyTest},
     author_email='rmkoesterer@gmail.com',
     description='Universal Genome Analyst',
     long_description=long_description,
@@ -71,8 +58,5 @@ setup(
         'Operating System :: Unix',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Software Development :: Libraries :: Application Frameworks',
-        ],
-    extras_require={
-        'testing': ['pytest'],
-      }
+        ]
 )
