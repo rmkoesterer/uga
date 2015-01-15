@@ -1,7 +1,0 @@
-\select@language {english}
-\contentsline {chapter}{\numberline {1}Modules}{3}{chapter.1}
-\contentsline {section}{\numberline {1.1}Analysis}{3}{section.1.1}
-\contentsline {section}{\numberline {1.2}Meta-Analysis}{4}{section.1.2}
-\contentsline {section}{\numberline {1.3}Annotation}{5}{section.1.3}
-\contentsline {section}{\numberline {1.4}Plots}{6}{section.1.4}
-\contentsline {chapter}{\numberline {2}Index and Search}{7}{chapter.2}

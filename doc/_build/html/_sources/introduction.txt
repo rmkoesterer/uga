@@ -1,6 +1,0 @@
-Introduction
-------------
-
-.. argparse
-   :ref: uga.__main__.main
-   :prog: uga
