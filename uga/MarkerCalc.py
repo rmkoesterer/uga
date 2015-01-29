@@ -42,7 +42,7 @@ def CalcCallrate(x):
 	if len(x) > 0:
 		return float('%.5g' % (len(x)/float(xlen)))
 	else:
-		return float('NaN')
+		return 0.0
 
 def CalcFreq(marker, chr, male_idx = None, female_idx = None):
 	marker = marker.dropna().astype(float)

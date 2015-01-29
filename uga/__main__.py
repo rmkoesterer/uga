@@ -69,7 +69,7 @@ def main(args=None):
 		##### define output directory and update out file name #####
 		directory = os.path.dirname(args.out) if not args.directory else args.directory
 		directory = directory + '/' if args.directory else directory
-		if n > 100:
+		if n > 1:
 			if dist_mode == 'split-list':
 				directory = directory + 'chr[CHR]/'
 			elif dist_mode == 'split-list-n':
@@ -106,9 +106,9 @@ def main(args=None):
 				print Error("unable to create output directory")
 				parser.print_help()
 		print "   ... preparing output directories"
-		if dist_mode == 'split-list' and n > 100:
+		if dist_mode == 'split-list' and n > 1:
 			PrepareChrDirs(region_df['region'], directory)
-		elif dist_mode == 'split-list-n' and n > 100:
+		elif dist_mode == 'split-list-n' and n > 1:
 			PrepareListDirs(n, directory)
 		print "   ... submitting analysis jobs\n" if args.qsub else "   ... starting analysis\n"
 		joblist = []
@@ -140,8 +140,8 @@ def main(args=None):
 				CheckExistingFiles(out, args.which)
 			if args.which == 'model':
 				cmd = args.which.capitalize() + '(out=\'' + out + '\''
-				for x in ['data', 'samples', 'pheno', 'model', 'fid', 'iid', 'method', 'focus', 'sig', 'region_list', 'region', 'sex', 'male', 'female', 'buffer', 'miss', 'freq', 'rsq', 'hwe', 'case', 'ctrl', 'format', 'nofail']:
-					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+				for x in ['data', 'samples', 'pheno', 'model', 'fid', 'iid', 'method', 'focus', 'sig', 'region_list', 'region', 'region_id', 'sex', 'male', 'female', 'buffer', 'miss', 'freq', 'rsq', 'hwe', 'case', 'ctrl', 'format', 'nofail', 'pedigree']:
+					if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
 						if type(vars(args)[x]) is str:
 							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 						else:
@@ -158,9 +158,9 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ',mem=' + str(args.mem) + ')'
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + script_path + '/../../bin/submit.py --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + script_path + '/../../uga/bin/submit.py --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
 			else:
-				Interactive(script_path + '/../../bin/submit.py', cmd, out + '.log')
+				Interactive(script_path + '/../../uga/bin/submit.py', cmd, out + '.log')
 	elif args.which == 'map':
 		if args.overwrite:
 			RemoveExistingFiles(args.out, args.which)
@@ -174,7 +174,7 @@ def main(args=None):
 				else:
 					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 		cmd = cmd + ')'
-		Interactive(script_path + '/../../bin/submit.py', cmd)
+		Interactive(script_path + '/../../uga/bin/submit.py', cmd)
 	elif args.which == 'plot':
 		if args.overwrite:
 			RemoveExistingFiles(args.out, args.which)
@@ -190,9 +190,9 @@ def main(args=None):
 					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 		cmd = cmd + ')'
 		if args.qsub:
-			Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + args.out + '.log ' + script_path + '/../../bin/submit.py --internal --qsub ' + args.qsub + ' --cmd \'' + cmd + '\'')
+			Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + args.out + '.log ' + script_path + '/../../uga/bin/submit.py --internal --qsub ' + args.qsub + ' --cmd \'' + cmd + '\'')
 		else:
-			Interactive(script_path + '/../../bin/submit.py', cmd, args.out + '.log')
+			Interactive(script_path + '/../../uga/bin/submit.py', cmd, args.out + '.log')
 	else:
 		print Error(args.which + " module currently inactive")
 	print ''

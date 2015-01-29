@@ -63,6 +63,19 @@ Description: Universal Genome Analyst
         
          python setup.py install
         
+        # 
+        cd uga-2015.01a
+        mkdir env
+        module load python_modules/virtualenv
+        virtualenv -p python env
+        source env/bin/activate
+        cp ../uga-2015.01/* .
+        cp -r ../uga-2015.01/uga .
+        cp -r ../uga-2015.01/bin .
+        pip install -r requirements.txt
+        python setup.py install
+        #
+        
         Hints
         -----
         

@@ -35,6 +35,12 @@ def Parser():
 						type=int, 
 						default=3, 
 						help='amount of ram memory to request for queued job (in gigabytes)')
+	parser.add_argument('--region-id', 
+						action='store', 
+						help='a region id (for use with --region option)')
+	parser.add_argument('--pedigree', 
+						action='store', 
+						help='a pedigree filename (for use with --method famskat_o)')
 
 	parser_split_group1 = parser.add_mutually_exclusive_group()
 	parser_split_group1.add_argument('-r', '--region', 
@@ -96,7 +102,7 @@ def Parser():
 	model_required.add_argument('--method', 
 						action='store', 
 						required=True, 
-						choices=['gee_gaussian', 'gee_binomial', 'glm_gaussian', 'glm_binomial', 'lme_gaussian', 'lme_binomial', 'coxph', 'efftests'], 
+						choices=['gee_gaussian', 'gee_binomial', 'glm_gaussian', 'glm_binomial', 'lme_gaussian', 'lme_binomial', 'coxph', 'efftests','skat_o','famskat_o'], 
 						help='the analysis method')
 	model_parser.add_argument('--focus', 
 						action='store', 

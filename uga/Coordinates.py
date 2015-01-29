@@ -13,7 +13,14 @@ class Coordinates(object):
 		
 	def Load(self):
 		with open(self.filename) as f:
-			regions = pd.read_table(f, header=None, names=['region','reg_id'])
+			regions = pd.read_table(f, header=None)
+		if regions.shape[1] == 2:
+			regions.columns=['region','reg_id']
+		elif regions.shape[1] == 1:
+			regions.columns=['region']
+		else:
+			print Error("too many columns in region list")
+			return
 		regions['chr'] = regions['region'].apply(lambda row: int(row.split(':')[0]),1)
 		regions['start'] = regions['region'].apply(lambda row: int(row.split(':')[1].split('-')[0]),1)
 		regions['end'] = regions['region'].apply(lambda row: int(row.split(':')[1].split('-')[1]),1)

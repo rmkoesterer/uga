@@ -13,7 +13,21 @@ rhist = ro.r('hist')
 grdevices = importr('grDevices')
 rgrid = importr('grid')
 
-def Plot(data, out, qq = False, manhattan = False, color = True, ext = 'tiff', chr = '#chr', pos = 'pos', p = 'marker.p', rsq = None, freq = None, hwe = None, rsq_thresh = None, freq_thresh = None, hwe_thresh = None):
+def Plot(data, 
+			out, 
+			qq = False, 
+			manhattan = False, 
+			color = True, 
+			ext = 'tiff', 
+			chr = '#chr', 
+			pos = 'pos', 
+			p = 'marker.p', 
+			rsq = None, 
+			freq = None, 
+			hwe = None, 
+			rsq_thresh = None, 
+			freq_thresh = None, 
+			hwe_thresh = None):
 
 	print "   ... arguments"
 	for arg in locals().keys():
