@@ -345,7 +345,7 @@ def Meta(cfg=None,
 	bgzfile.close()
 
 	print "   ... mapping results file"
-	cmd = 'tabix -b 2 -e 3 ' + cfg['out'] + '.gz'
+	cmd = 'tabix -b 2 -e 3 ' + cfg['out'] + '.gz' if method == 'efftest' else 'tabix -b 2 -e 2 ' + cfg['out'] + '.gz'
 	p = subprocess.Popen(cmd, shell=True)
 	time.sleep(1)
 	p.wait()

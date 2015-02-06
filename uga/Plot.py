@@ -7,6 +7,7 @@ from scipy.stats import chi2
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 import rpy2.robjects.lib.ggplot2 as ggplot2
+import re
 
 rplot = ro.r('plot')
 rhist = ro.r('hist')
@@ -19,28 +20,34 @@ def Plot(data,
 			manhattan = False, 
 			color = True, 
 			ext = 'tiff', 
+			sig = 0.000000054, 
+			calc_sig = False, 
 			chr = '#chr', 
 			pos = 'pos', 
 			p = 'marker.p', 
-			rsq = None, 
-			freq = None, 
-			hwe = None, 
+			rsq = 'rsq', 
+			freq = 'freq', 
+			hwe = 'hwe', 
+			meta_dir = 'meta.dir', 
 			rsq_thresh = None, 
 			freq_thresh = None, 
-			hwe_thresh = None):
+			hwe_thresh = None, 
+			df_thresh = None):
 
-	print "   ... arguments"
+	print "   ... generating plots"
 	for arg in locals().keys():
 		if not locals()[arg] in [None, False]:
 			print "      {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 
 	fcols = [chr,pos,p]
-	if rsq:
+	if rsq and rsq_thresh:
 		fcols.append(rsq)
-	if freq:
+	if freq and freq_thresh:
 		fcols.append(freq)
-	if hwe:
+	if hwe and hwe_thresh:
 		fcols.append(hwe)
+	if meta_dir and df_thresh:
+		fcols.append(meta_dir)
 	
 	##### read data from file #####
 	pvals = pd.DataFrame(columns=fcols)
@@ -65,11 +72,20 @@ def Plot(data,
 	if hwe and hwe_thresh:
 		print "   ... filtering data for Hardy Weinberg p-value"
 		pvals = pvals[pvals[hwe] > hwe_thresh]
+	def count_df(x):
+		return len(re.findall('\\+|-',x))
+	if meta_dir and df_thresh:
+		print "   ... filtering data for degrees of freedom"
+		pvals = pvals[pvals[meta_dir].apply(count_df) >= int(df_thresh) + 1]
 	print "   ... " + str(len(pvals)) + " markers left after filtering"
+	
+	if calc_sig:
+		sig = 0.05/len(pvals)
+		print "   ... significance level set to " + str(sig)
 	
 	print "   ... calculating genomic inflation factor"
 	l=np.median(chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/0.455
-	print "   ... lambda = " + str(l)
+	print "   ... genomic inflation = " + str(l)
 	
 	a = -1 * np.log10(ro.r('ppoints(' + str(len(pvals.index)) + ')'))
 	a.sort()
@@ -128,7 +144,7 @@ def Plot(data,
 				ticks.append(df['gpos'][df[chr] == chrs[i]].iloc[(int(math.floor(len(df['gpos'][df[chr] == chrs[i]]))/2)) + 1])
 				df['colours'][df[chr] == chrs[i]] = colours[int(chrs[i])]
 		df['logp'] = -1 * np.log10(df[p])
-		maxy=int(max(np.ceil(-1 * np.log10(0.000000054)),np.ceil(df['logp'].max())))
+		maxy=int(max(np.ceil(-1 * np.log10(sig)),np.ceil(df['logp'].max())))
 		if maxy > 20:
 			y_breaks = range(0,maxy,by=5)
 			y_labels = range(0,maxy,by=5)
@@ -147,8 +163,8 @@ def Plot(data,
 			gp = ggplot2.ggplot(rdf)
 			pp = gp + \
 					ggplot2.aes_string(x='gpos',y='logp') + \
+					ggplot2.geom_hline(yintercept = -1 * np.log10(sig),colour="#B8860B", linetype=5, size = 0.25) + \
 					ggplot2.geom_point(size=1.5) + \
-					ggplot2.geom_hline(yintercept = -1 * np.log10(0.000000054),colour="#B8860B") + \
 					ggplot2.scale_x_continuous(ro.r('expression(Chromosome)')) + \
 					ggplot2.scale_y_continuous(ro.r('expression(-log[10](italic(p)))'),limits=ro.r('c(0,' + str(maxy) + ')')) + \
 					ggplot2.theme_bw(base_size = 8) + \
@@ -158,8 +174,8 @@ def Plot(data,
 			gp = ggplot2.ggplot(rdf)
 			pp = gp + \
 					ggplot2.aes_string(x='gpos',y='logp',colour='colours') + \
+					ggplot2.geom_hline(yintercept = -1 * np.log10(sig),colour="#B8860B", linetype=5, size = 0.25) + \
 					ggplot2.geom_point(size=1.5) + \
-					ggplot2.geom_hline(yintercept = -1 * np.log10(0.000000054),colour="#B8860B") + \
 					ggplot2.scale_colour_manual(values=ro.StrVector(colours)) + \
 					ggplot2.scale_x_continuous(ro.r('expression(Chromosome)'),breaks=ro.FloatVector(ticks),labels=ro.FloatVector(chrs)) + \
 					ggplot2.scale_y_continuous(ro.r('expression(-log[10](italic(p)))'),limits=ro.r('c(0,' + str(maxy) + ')')) + \
@@ -167,6 +183,5 @@ def Plot(data,
 					ggplot2.theme(**{'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=8), 'axis.text': ggplot2.element_text(size=6), 'legend.position': 'none'})
 			pp.plot()
 		grdevices.dev_off()
-	
 	"   ... process complete"
 					

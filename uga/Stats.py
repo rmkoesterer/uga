@@ -83,11 +83,18 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
 			xt = x.replace('*',':')
-			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
-			marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std.err'])
-			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
-			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			if xt in coef.index.values:
+				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
+				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std.err'])
+				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
+				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+				marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			else:
+				marker_info[x + '.effect'] = float('NaN')
+				marker_info[x + '.stderr'] = float('NaN')
+				marker_info[x + '.or'] = float('NaN')
+				marker_info[x + '.z'] = float('NaN')
+				marker_info[x + '.p'] = float('NaN')
 	else:
 		for x in focus:
 			marker_info[x + '.effect'] = float('NaN')
@@ -130,11 +137,18 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
 			xt = x.replace('*',':')
-			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
-			marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
-			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
-			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			if xt in coef.index.values:
+				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
+				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
+				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
+				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+				marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			else:
+				marker_info[x + '.effect'] = float('NaN')
+				marker_info[x + '.stderr'] = float('NaN')
+				marker_info[x + '.or'] = float('NaN')
+				marker_info[x + '.z'] = float('NaN')
+				marker_info[x + '.p'] = float('NaN')
 	else:
 		for x in focus:
 			marker_info[x + '.effect'] = float('NaN')
@@ -177,11 +191,18 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
 			xt = x.replace('*',':')
-			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
-			marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
-			marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
-			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-			marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			if xt in coef.index.values:
+				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
+				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
+				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
+				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+				marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			else:
+				marker_info[x + '.effect'] = float('NaN')
+				marker_info[x + '.stderr'] = float('NaN')
+				marker_info[x + '.or'] = float('NaN')
+				marker_info[x + '.z'] = float('NaN')
+				marker_info[x + '.p'] = float('NaN')
 	else:
 		for x in focus:
 			marker_info[x + '.effect'] = float('NaN')
@@ -198,9 +219,11 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
 	notes = 'NA'
 	status = 0
+	n = 0
 	valid = False
 	if marker_info['filter'] == 0:
 		rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(), strings_as_factors=False)
+		rmodel_df = ro.r.subset(rmodel_df,rmodel_df.rx('marker').ro != "NA")
 		for x in model_vars_dict.keys():
 			if model_vars_dict[x]['class'] == 'cluster':
 				rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])
@@ -219,14 +242,24 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 		conf_int = py2r.convert_robj(model_out.rx('conf.int'))['conf.int']
 		for x in focus:
 			xt = x.replace('*',':')
-			marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'coef'])
-			marker_info[x + '.or'] = '%.5g' % (coef.loc[xt,'exp(coef)'])
-			marker_info[x + '.ci_lower'] = '%.5g' % (conf_int.loc[xt,'lower .95'])
-			marker_info[x + '.ci_upper'] = '%.5g' % (conf_int.loc[xt,'upper .95'])
-			marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'se(coef)'])
-			marker_info[x + '.robust_stderr'] = '%.5g' % (coef.loc[xt,'robust se'])
-			marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'z'])
-			marker_info[x + '.p'] = '%.2e' % (coef.loc[xt,'Pr(>|z|)'])
+			if xt in coef.index.values:
+				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'coef'])
+				marker_info[x + '.or'] = '%.5g' % (coef.loc[xt,'exp(coef)'])
+				marker_info[x + '.ci_lower'] = '%.5g' % (conf_int.loc[xt,'lower .95'])
+				marker_info[x + '.ci_upper'] = '%.5g' % (conf_int.loc[xt,'upper .95'])
+				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'se(coef)'])
+				marker_info[x + '.robust_stderr'] = '%.5g' % (coef.loc[xt,'robust se'])
+				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'z'])
+				marker_info[x + '.p'] = '%.2e' % (coef.loc[xt,'Pr(>|z|)'])
+			else:
+				marker_info[x + '.effect'] = float('NaN')
+				marker_info[x + '.or'] = float('NaN')
+				marker_info[x + '.ci_lower'] = float('NaN')
+				marker_info[x + '.ci_upper'] = float('NaN')
+				marker_info[x + '.stderr'] = float('NaN')
+				marker_info[x + '.robust_stderr'] = float('NaN')
+				marker_info[x + '.z'] = float('NaN')
+				marker_info[x + '.p'] = float('NaN')
 		marker_info['n'] = '%d' % (np.array(model_out.rx('n')[0])[0])
 	else:
 		for x in focus:

@@ -12,6 +12,7 @@ import numpy as np
 from Messages import *
 from File import *
 from Cfg import *
+from Plot import *
 from Coordinates import *
 from Process import *
 from Parse import *
@@ -28,7 +29,7 @@ def main(args=None):
 		args.out = config['out']
 
 	##### define region list #####
-	if args.which in ['model','meta','verify','compile']:
+	if args.which in ['model','meta','summary']:
 		n = 1
 		dist_mode = 'full'
 		print "   ... generating list of genomic regions ...", 
@@ -85,26 +86,73 @@ def main(args=None):
 	##### define script library path #####
 	script_path = '/'.join(sys.argv[0].split('/')[:-1])
 	
-	if args.which == 'verify':
-		complete_string = '   ... process complete' if not args.complete_string else args.complete_string
-		if dist_mode in ['split-list', 'split-list-n']:
-			CheckResults(out_files, args.verify_out + '.verify', args.cpus, complete_string, args.overwrite)
-		else:
-			print Error("--check option available only if both --list and --split or --split-n are used")
-			parser.print_help()
-	elif args.which == 'compile':
-		if dist_mode in ['split-list', 'split-list-n'] and len(out_files.keys()) > 1:
-			CompileResults(out_files, args.compile_out, args.overwrite)
-		else:
-			print Error("single file results, nothing to compile")
-			parser.print_help()
+	if args.which == 'summary':
+		summary_out = os.path.basename(args.out) if not args.out_rename else args.out_rename
+		if args.verify:
+			complete_string = '   ... process complete' if not args.complete_string else args.complete_string
+			print "   ... scanning for previous check results files"
+			if os.path.exists(summary_out + '.verify' + '.files.incomplete'):
+				if args.overwrite:
+					os.remove(summary_out + '.verify' + '.files.incomplete')
+				else:
+					print Error("file " + summary_out + '.verify' + ".files.incomplete already exists (use --overwrite flag to replace the existing file)")
+					sys.exit()
+			if os.path.exists(summary_out + '.verify' + '.files.missing'):
+				if args.overwrite:
+					os.remove(summary_out + '.verify' + '.files.missing')
+				else:
+					print Error("file " + summary_out + '.verify' + ".files.missing already exists (use --overwrite flag to replace the existing file)")
+					sys.exit()
+			if os.path.exists(summary_out + '.verify' + '.regions.rerun'):
+				if args.overwrite:
+					os.remove(summary_out + '.verify' + '.regions.rerun')
+				else:
+					print Error("file " + summary_out + '.verify' + ".regions.rerun already exists (use --overwrite flag to replace the existing file)")
+					sys.exit()
+		if args.compile:
+			print "   ... scanning for previous compiled results files"
+			if os.path.exists(summary_out + '.gz'):
+				if args.overwrite:
+					os.remove(summary_out + '.gz')
+				else:
+					print Error("file " + summary_out + ".gz already exists (use --overwrite flag to replace the existing file)")
+					sys.exit()
+			if os.path.exists(summary_out + '.gz.tbi'):
+				if args.overwrite:
+					os.remove(summary_out + '.gz.tbi')
+				else:
+					print Error("file " + summary_out + ".gz.tbi already exists (use --overwrite flag to replace the existing file)")
+					sys.exit()
+		if args.qq or args.manhattan:
+			if args.overwrite:
+				RemoveExistingFiles(summary_out, 'plot')
+			else:
+				CheckExistingFiles(summary_out, 'plot')
+		if dist_mode in ['split-list', 'split-list-n'] and args.verify:
+			if not CheckResults(out_files, summary_out + '.verify', args.cpu, complete_string, args.overwrite):
+				print Error("results could not be verified")
+				sys.exit()
+		if dist_mode in ['split-list', 'split-list-n'] and len(out_files.keys()) > 1 and args.compile:
+			if not CompileResults(out_files, summary_out, args.overwrite):
+				print Error("results could not be compiled")
+				sys.exit()
+		if args.qq or args.manhattan:
+			cmd = 'Plot(data="' + summary_out + '.gz",out="' + summary_out + '"'
+			for x in ['ext','qq','manhattan','chr','pos','p','rsq','freq','hwe','meta_dir','rsq_thresh','freq_thresh','hwe_thresh','df_thresh','sig','calc_sig']:
+				if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+					if type(vars(args)[x]) is str:
+						cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
+					else:
+						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+			cmd = cmd + ')'
+			eval(cmd)
 	elif args.which in ['model','meta']:
 		if not os.path.exists(args.directory):
 			try:
 				os.mkdir(args.directory)
 			except OSError:
 				print Error("unable to create output directory")
-				parser.print_help()
+				sys.exit()
 		print "   ... preparing output directories"
 		if dist_mode == 'split-list' and n > 1:
 			PrepareChrDirs(region_df['region'], directory)
@@ -175,24 +223,6 @@ def main(args=None):
 					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 		cmd = cmd + ')'
 		Interactive(script_path + '/../../uga/bin/submit.py', cmd)
-	elif args.which == 'plot':
-		if args.overwrite:
-			RemoveExistingFiles(args.out, args.which)
-		else:
-			CheckExistingFiles(args.out, args.which)
-		name = args.which + '.' + os.path.basename(args.out) if not args.name else args.name
-		cmd = args.which.capitalize() + '(data="' + args.data + '"'
-		for x in ['out','ext','qq','manhattan','chr','pos','p','rsq','freq','hwe','rsq_thresh','freq_thresh','hwe_thresh']:
-			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-				if type(vars(args)[x]) is str:
-					cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
-				else:
-					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-		cmd = cmd + ')'
-		if args.qsub:
-			Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + args.out + '.log ' + script_path + '/../../uga/bin/submit.py --internal --qsub ' + args.qsub + ' --cmd \'' + cmd + '\'')
-		else:
-			Interactive(script_path + '/../../uga/bin/submit.py', cmd, args.out + '.log')
 	else:
 		print Error(args.which + " module currently inactive")
 	print ''
