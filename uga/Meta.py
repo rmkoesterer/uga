@@ -56,8 +56,10 @@ def Meta(cfg=None,
 	print "   ... generating region list"
 	if region_list:
 		marker_list = Coordinates(region_list).Load()
-	if region:
+	elif region:
 		marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
+	else:
+		marker_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
 	marker_list['n'] = 0
 	for i in range(len(marker_list.index)):
 		for key in cfg['data_info'].keys():
@@ -194,12 +196,8 @@ def Meta(cfg=None,
 		for tag in cfg['file_order']:
 			if 'gc' in cfg['data_info'][tag].keys():
 				print "   ... applying genomic control correction for cohort " + tag
-				if 'effect' in cfg['data_info'][tag].keys():
-					output_df[tag + '.effect'] = output_df[tag + '.effect'] / math.sqrt(float(cfg['data_info'][tag]['gc']))
 				if 'stderr' in cfg['data_info'][tag].keys():
-					output_df[tag + '.stderr'] = output_df[tag + '.stderr'] / math.sqrt(float(cfg['data_info'][tag]['gc']))
-				if 'or' in cfg['data_info'][tag].keys():
-					output_df[tag + '.or'] = np.exp(np.log(output_df[tag + '.or']) / math.sqrt(float(cfg['data_info'][tag]['gc'])))
+					output_df[tag + '.stderr'] = output_df[tag + '.stderr'] * math.sqrt(float(cfg['data_info'][tag]['gc']))
 				if 'z' in cfg['data_info'][tag].keys():
 					output_df[tag + '.z'] = output_df[tag + '.z'] / math.sqrt(float(cfg['data_info'][tag]['gc']))
 				if 'p' in cfg['data_info'][tag].keys():
@@ -245,6 +243,8 @@ def Meta(cfg=None,
 			ZiWi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.ziwi')]
 			output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum(),axis=1)
 			output_df[meta + '.z'] = output_df.apply(lambda x: x[ZiWi_idx_all].sum()/math.sqrt(x[N_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+			output_df[meta + '.stderr'] = output_df.apply(lambda x: float('nan'), axis=1)
+			output_df[meta + '.effect'] = output_df.apply(lambda x: float('nan'), axis=1)
 		else:
 			output_df[meta + '.dir'] = ''
 			for tag in cfg['meta_info'][meta]:

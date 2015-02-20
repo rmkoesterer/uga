@@ -56,7 +56,7 @@ def main(args=None):
 			region_df = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
 			n = 1
 		print " " + str(len(region_df.index)) + " regions found"
-		
+
 		##### get job list from file #####
 		if args.job_list:
 			jobs = []
@@ -84,8 +84,8 @@ def main(args=None):
 			out_files = GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
 
 	##### define script library path #####
-	script_path = '/'.join(sys.argv[0].split('/')[:-1])
-	
+	script_path = os.environ['UGA_BIN']
+
 	if args.which == 'summary':
 		summary_out = os.path.basename(args.out) if not args.out_rename else args.out_rename
 		if args.verify:
@@ -138,14 +138,14 @@ def main(args=None):
 				sys.exit()
 		if args.qq or args.manhattan:
 			cmd = 'Plot(data="' + summary_out + '.gz",out="' + summary_out + '"'
-			for x in ['ext','qq','manhattan','chr','pos','p','rsq','freq','hwe','meta_dir','rsq_thresh','freq_thresh','hwe_thresh','df_thresh','sig','calc_sig']:
+			for x in ['ext','qq','manhattan','gc','chr','pos','p','rsq','freq','hwe','meta_dir','rsq_thresh','freq_thresh','hwe_thresh','df_thresh','sig','calc_sig']:
 				if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 					if type(vars(args)[x]) is str:
 						cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
 					else:
 						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 			cmd = cmd + ')'
-			eval(cmd)
+			Interactive(script_path + '/uga_submit.py', cmd, summary_out + '.plot.log')
 	elif args.which in ['model','meta']:
 		if not os.path.exists(args.directory):
 			try:
@@ -206,23 +206,23 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ',mem=' + str(args.mem) + ')'
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + script_path + '/../../uga/bin/submit.py --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + script_path + '/uga_submit.py --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
 			else:
-				Interactive(script_path + '/../../uga/bin/submit.py', cmd, out + '.log')
+				Interactive(script_path + '/uga_submit.py', cmd, out + '.log')
 	elif args.which == 'map':
 		if args.overwrite:
 			RemoveExistingFiles(args.out, args.which)
 		else:
 			CheckExistingFiles(args.out, args.which)
 		cmd = args.which.capitalize() + '(file="' + args.file + '"'
-		for x in ['out', 'cpu', 'b', 'kb', 'mb']:
+		for x in ['out', 'cpu', 'b', 'kb', 'mb','format','n']:
 			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 				if type(vars(args)[x]) is str:
 					cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
 				else:
 					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 		cmd = cmd + ')'
-		Interactive(script_path + '/../../uga/bin/submit.py', cmd)
+		Interactive(script_path + '/uga_submit.py', cmd)
 	else:
 		print Error(args.which + " module currently inactive")
 	print ''

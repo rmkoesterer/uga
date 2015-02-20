@@ -24,57 +24,53 @@ def Parser():
 	parser.add_argument('-d', '--directory', 
 						action='store', 
 						default=os.getcwd(), 
-						help='an output directory path')
-	parser.add_argument('--cpu', 
-						action='store', 
-						type=int, 
-						default=1, 
-						help='number of cpus (limited module availability; default: 1)')
+						help='an output directory path (default: current working directory)')
 	parser.add_argument('--mem', 
 						action='store', 
 						type=int, 
 						default=3, 
-						help='amount of ram memory to request for queued job (in gigabytes)')
+						help='amount of ram memory to request for queued job in GB (default: MEM=3')
 	parser.add_argument('--region-id', 
 						action='store', 
-						help='a region id (for use with --region option)')
-	parser.add_argument('--pedigree', 
+						help='add region id to results (for use with --region option)')
+	parser.add_argument('--format', 
 						action='store', 
-						help='a pedigree filename (for use with --method famskat_o)')
-
+						default='oxford', 
+						choices=['oxford', 'dos1','dos2','plink'], 
+						help='the format of the data file, either oxford (3 genotype probabilities), dos1 (single allele dosage with columns [chr markername pos a1 a2]), dos2 (single allele dosage with columns [chr pos markername a1 a2]), or Plink binary (default: oxford)')
 	parser_split_group1 = parser.add_mutually_exclusive_group()
 	parser_split_group1.add_argument('-r', '--region', 
 						action='store', 
-						help='a region specified in tabix format (ie. 1:10583-1010582).')
+						help='a region specified in Tabix format (ie. 1:10583-1010582).')
 	parser_split_group1.add_argument('--region-list', 
 						action='store', 
 						help='a filename for a list of tabix format regions')
 	parser_split_group2 = parser.add_mutually_exclusive_group()
 	parser_split_group2.add_argument('-s', '--split', 
 						action='store_true', 
-						help='split region list entirely into separate jobs (requires --region-list)')
+						help='split region list into 1 job for each line in file (requires --region-list)')
 	parser_split_group2.add_argument('-n', '--split-n', 
 						action='store', 
 						type=int, 
-						help='split region list into n separate jobs (requires --region-list)')
+						help='split region list into SPLIT_N jobs (requires --region-list)')
 	parser_split_group2.add_argument('--split-chr', 
 						action='store_true', 
-						help='split by chromosome (will generate up to 26 separate jobs depending on chromosome coverage)')
+						help='split jobs into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
 	parser_split_group3 = parser.add_mutually_exclusive_group()
 	parser_split_group3.add_argument('-j', '--job', 
 						action='store', 
 						type=int, 
 						help='run a particular job number (requires --split-n)')
 	parser_split_group3.add_argument('--job-list', 
-								action='store', 
-								help='a filename for a list of job numbers (requires --split-n)')
+						action='store', 
+						help='a filename for a list of job numbers (requires --split-n)')
 
-	model_parser = subparsers.add_parser('model', help='marker and gene-based models', parents=[parser])
+	model_parser = subparsers.add_parser('model', help='marker and locus-based statistical modeling', parents=[parser])
 	model_required = model_parser.add_argument_group('required arguments')
 	model_required.add_argument('--data', 
 						action='store', 
 						required=True, 
-						help='a genomic data file')
+						help='a genotype data file (see --format for compatible file types)')
 	model_required.add_argument('--out', 
 						action='store', 
 						required=True, 
@@ -82,7 +78,7 @@ def Parser():
 	model_required.add_argument('--pheno', 
 						action='store', 
 						required=True, 
-						help='a tab delimited phenotype file')
+						help='a phenotype file (see documentation for required formatting)')
 	model_required.add_argument('--fid', 
 						action='store', 
 						required=True, 
@@ -90,27 +86,27 @@ def Parser():
 	model_required.add_argument('--iid', 
 						action='store', 
 						required=True, 
-						help='the column name with sample ID')
+						help='the column name with sample ID (The IDs in this column must match the --samples file)')
 	model_required.add_argument('--model', 
 						action='store', 
 						required=True, 
-						help='a model string in the format "phenotype~age+factor(sex)+pc1+pc2+pc3+marker"')
+						help='a model string in the format "phenotype~age+factor(sex)+pc1+pc2+pc3+marker" (see documentation)')
 	model_required.add_argument('--method', 
 						action='store', 
 						required=True, 
 						choices = ["gee_gaussian","gee_binomial","glm_gaussian","glm_binomial","lme_gaussian","lme_binomial","coxph","efftests","skat_o","famskat_o"], 
-						help='an analysis method')
+						help='an analysis method identifier (see documentation  for descriptions)')
 	model_parser.add_argument('--samples', 
 						action='store', 
-						help='a sample file (single column list of IDs in same order as --data file, only for format != plink)')
+						help='a sample file (single column list of IDs in same order as --data file, only required if format != plink)')
 	model_parser.add_argument('--focus', 
 						action='store', 
-						help='a comma separated list of variables for which stats will be output (default: marker)')
+						help='a comma separated list of variables for which stats will be reported (default: report all stats)')
 	model_parser.add_argument('--sig', 
 						action='store', 
 						type=int, 
 						default=5, 
-						help='significant digits to include in output (default: 5)')
+						help='significant digits reported for float type stats (default: SIG=5)')
 	model_parser.add_argument('--sex', 
 						action='store', 
 						help='name of the column containing male/female status (requires --male and --female)')
@@ -118,58 +114,56 @@ def Parser():
 						action='store', 
 						type=int, 
 						default=1, 
-						help='the code for a male(default: 1; requires --sex and --female)')
+						help='the code for male (default: MALE=1; requires --sex and --female)')
 	model_parser.add_argument('--female', 
 						action='store', 
 						type=int, 
 						default=2, 
-						help='the code for a female(default: 2; requires --sex and --male)')
+						help='the code for female (default: FEMALE=2; requires --sex and --male)')
 	model_parser.add_argument('--buffer', 
 						action='store', 
 						type=int, 
 						default=100, 
-						help='a value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
+						help='a value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: BUFFER=100)')
 	model_parser.add_argument('--miss', 
 						action='store', 
 						type=float, 
-						help='a threshold value for missingness')
+						help='a threshold value for missingness (ie. MISS=0.95 allows for up to 5%% missingness')
 	model_parser.add_argument('--freq', 
 						action='store', 
 						type=float, 
-						help='a threshold value for allele frequency')
+						help='a threshold value for allele frequency (ie. FREQ=0.03 filters out markers with MAF < 0.03')
 	model_parser.add_argument('--rsq', 
 						action='store', 
 						type=float, 
-						help='a threshold value for r-squared (imputation quality)')
+						help='a threshold value for imputation quality (ie. RSQ=0.8 filters out markers with r-squared < 0.8)')
 	model_parser.add_argument('--hwe', 
 						action='store', 
 						type=float, 
-						help='a threshold value for Hardy Weinberg p-value')
+						help='a threshold value for Hardy Weinberg p-value (ie. HWE=1e-6 filters out markers with Hardy Weinberg p-value < 1e-6')
 	model_parser.add_argument('--case', 
 						action='store', 
 						type=int, 
 						default=1, 
-						help='the code for a case in the dependent variable column (requires --ctrl; binomial fxn family only; default: 1)')
+						help='the code for case in the dependent variable column (requires --ctrl; binomial fxn family only; default: CASE=1)')
 	model_parser.add_argument('--ctrl', 
 						action='store', 
 						type=int, 
 						default=0, 
-						help='the code for a control in the dependent variable column (requires --case; binomial fxn family only; default: 0)')
-	model_parser.add_argument('--format', 
-						action='store', 
-						default='oxford', 
-						choices=['oxford', 'dos1','dos2','plink'], 
-						help='the format of the data file, either oxford (3 genotype probabilities), dos1 (single allele dosage with oxford order), dos2 (single allele dosage with [chr pos markername a1 a2] format), or Plink binary (default: oxford)')
+						help='the code for control in the dependent variable column (requires --case; binomial fxn family only; default: CTRL=0)')
 	model_parser.add_argument('--nofail', 
 						action='store_true', 
-						help='exclude filtered/failed analyses from results')
+						help='exclude filtered/failed analyses from results (if not set, full results are reported with filtered marker stats set to NA')
+	model_parser.add_argument('--kinship', 
+						action='store', 
+						help='a file containing the matrix of kinship coefficients')
 
 	meta_parser = subparsers.add_parser('meta', help='meta-analysis', parents=[parser])
 	meta_required = meta_parser.add_argument_group('required arguments')	
 	meta_required.add_argument('-c', '--cfg', 
 						action='store', 
 						required=True, 
-						help='a configuration file name')
+						help='a configuration file name (see documentation)')
 	meta_parser.add_argument('-v', '--vars', 
 						action='append', 
 						help='a declaration of the form A=B, C=D, E=F, ... to replace [A] with B, [C] with D, [E] with F, ... in any line of the cfg file')	
@@ -179,15 +173,12 @@ def Parser():
 						choices=['sample_size', 'stderr', 'efftest'], 
 						help='the meta-analysis method (default: sample_size)')
 
-	annot_parser = subparsers.add_parser('annot', help='annotation (inactive)', parents=[parser])
-	annot_required = annot_parser.add_argument_group('required arguments')
-
-	map_parser = subparsers.add_parser('map', help='map non-empty regions in a file', parents=[parser])
+	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype data files', parents=[parser])
 	map_required = map_parser.add_argument_group('required arguments')
 	map_required.add_argument('--file', 
 						action='store', 
 						required=True, 
-						help='a file name')
+						help='a genotype file name (see --format for compatible file types)')
 	map_required.add_argument('--out', 
 						action='store', 
 						required=True, 
@@ -195,32 +186,37 @@ def Parser():
 	map_split_group1 = map_parser.add_mutually_exclusive_group()
 	map_split_group1.add_argument('--mb', 
 						action='store', 
-						help='region size in megabases')
+						help='region size (megabase)')
 	map_split_group1.add_argument('--kb', 
 						action='store', 
-						help='region size in kilobases')
+						help='region size (kilobase)')
 	map_split_group1.add_argument('--b', 
 						action='store', 
-						help='region size in kilobases')
+						help='region size (base)')
+	map_split_group1.add_argument('--n', 
+						action='store', 
+						help='number of markers to be included in each region')
+	map_parser.add_argument('--cpu', 
+						action='store', 
+						type=int, 
+						default=1, 
+						help='number of cpus (default: 1)')
 
-	map_impute_parser = subparsers.add_parser('map-impute', help='map non-empty regions in a file overlapping imputation reference file (inactive)', parents=[parser])
-	map_impute_required = map_impute_parser.add_argument_group('required arguments')
-
-	summary_parser = subparsers.add_parser('summary', help='verify, compile and/or plot results files', parents=[parser])
+	summary_parser = subparsers.add_parser('summary', help='verify, compile, filter and/or plot results files', parents=[parser])
 	summary_required = summary_parser.add_argument_group('required arguments')
 	summary_required.add_argument('--out', 
 						action='store', 
 						required=True, 
-						help='results filename (basename only: do not include path)')
+						help='filename of existing results (basename only: do not include path)')
 	summary_parser.add_argument('--out-rename', 
 						action='store', 
 						help='a name for compiled summary files (basename only: do not include path)')
 	summary_parser.add_argument('--complete-string', 
 						action='store', 
-						help='a string indicating completeness in the result log file')
+						help='a string indicating completeness in the result log file (default: COMPLETE_STRING=\'   ... process complete\')')
 	summary_parser.add_argument('--verify', 
 						action='store_true', 
-						help='verify results')
+						help='verify results before compiling')
 	summary_parser.add_argument('--compile', 
 						action='store_true', 
 						help='compile results')
@@ -230,55 +226,58 @@ def Parser():
 	summary_parser.add_argument('--manhattan', 
 						action='store_true', 
 						help='print manhattan plot')
+	summary_parser.add_argument('--gc', 
+						action='store_true', 
+						help='print plots with genomic inflation corrected p-values')
 	summary_parser.add_argument('--chr', 
 						action='store', 
-						help='a column name for chromosome (default: chr)')
+						help='column name for chromosome (default: CHR=chr)')
 	summary_parser.add_argument('--pos', 
 						action='store', 
-						help='a column name for position (default: pos)')
+						help='column name for position (default: POS=pos)')
 	summary_parser.add_argument('--p', 
 						action='store', 
-						help='a column name for p-value (default: p)')
+						help='column name for p-value (default: P=p)')
 	summary_parser.add_argument('--rsq', 
 						action='store', 
-						help='a column name for imputation quality (default: rsq)')
+						help='column name for imputation quality (default: RSQ=rsq)')
 	summary_parser.add_argument('--freq', 
 						action='store', 
-						help='a column name for allele frequency (default: freq)')
+						help='column name for allele frequency (default: FREQ=freq)')
 	summary_parser.add_argument('--hwe', 
 						action='store', 
-						help='a column name for Hardy Weinberg p-value (default: hwe)')
+						help='column name for Hardy Weinberg p-value (default: HWE=hwe)')
 	summary_parser.add_argument('--meta-dir', 
 						action='store', 
-						help='a column name meta analysis direction (default: meta.dir)')
+						help='column name meta analysis direction (default: META_DIR=meta.dir)')
 	summary_parser.add_argument('--rsq-thresh', 
 						action='store', 
 						type=float, 
-						help='a threshold for imputation quality (requires --rsq)')
+						help='threshold for imputation quality (ie. RSQ_THRESH=0.8 filters out markers with r-squared < 0.8; requires --rsq)')
 	summary_parser.add_argument('--freq-thresh', 
 						action='store', 
 						type=float, 
-						help='a threshold for allele frequency (requires --freq)')
+						help='threshold for allele frequency (ie. FREQ_THRESH=0.03 filters out markers with MAF < 0.03; requires --freq)')
 	summary_parser.add_argument('--hwe-thresh', 
 						action='store', 
 						type=float, 
-						help='a threshold for Hardy Weinberg p-value (requires --hwe)')
+						help='threshold for Hardy Weinberg p-value (ie. HWE_THRESH=1e-6 filters out markers with Hardy Weinberg p-value < 1e-6; requires --hwe)')
 	summary_parser.add_argument('--df-thresh', 
 						action='store', 
 						type=int, 
-						help='a threshold for meta analysis degrees of freedom (requires --meta-dir)')
+						help='threshold for meta analysis degrees of freedom (ie. DF_THRESH=4 filters out markers less than 5 datasets included in the meta analysis; requires --meta-dir)')
 	summary_parser.add_argument('--sig', 
 						action='store', 
 						type=float, 
-						help='a significance level for filtered results')
+						help='significant digits reported for float type stats (default: SIG=5)')
 	summary_parser.add_argument('--calc-sig', 
 						action='store_true', 
-						help='calculate significance level from number of filtered markers (0.05 / n)')
+						help='calculate significance level from number of filtered markers reported (0.05 / n)')
 	summary_parser.add_argument('--ext', 
 						action='store', 
 						default='tiff', 
 						choices=['tiff','eps','pdf'], 
-						help='a file type extension')
+						help='file type extension for plot files')
 
 	
 	return top_parser
@@ -299,10 +298,10 @@ def Parse(top_parser):
 		if args.split_n:
 			if args.job_list:
 				assert os.path.exists(args.job_list), top_parser.error("argument --job-list: file does not exist")
-	if args.which == 'meta' and not args.region and not args.region_list:
-		top_parser.error("missing argument: --region or --region-list required in module meta")
 	if args.which == 'meta' and args.method == 'efftest' and not args.region_list:
 		top_parser.error("missing argument: --region-list required in module meta with --method efftest")
+	if args.which == 'map' and not (args.b or args.kb or args.mb or args.n):
+		top_parser.error("missing argument: --b, --kb, --mb, or --n required in module map")
 	print ''
 	print 'Universal Genome Analyst v' + __version__
 	print ''

@@ -1,6 +1,7 @@
 #import pickle
 import pandas as pd
 import numpy as np
+import re
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 #import statsmodels.api as sm
@@ -54,7 +55,9 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	status = 0
 	n = 0
 	valid = False
-	if fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(model_df['marker']).codes) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var]))):
+	if model.find('*') != -1:
+		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[1]]			
+	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().stack().value_counts()[1] != model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().shape[0]):
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
@@ -113,7 +116,9 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	status = 0
 	n = 0
 	valid = False
-	if fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(model_df['marker']).codes) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var]))):
+	if model.find('*') != -1:
+		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.find('*') != -1][0].split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.find('*') != -1][0].split('*')[1]]			
+	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter']))]].corr().stack().value_counts()[1] > model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter']))]].corr().shape[0]):
 		status = -3
 	else:
 		if marker_info['filter'] == 0:
@@ -167,7 +172,9 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	status = 0
 	n = 0
 	valid = False
-	if fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(model_df['marker']).codes) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var]))):
+	if model.find('*') != -1:
+		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.find('*') != -1][0].split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.find('*') != -1][0].split('*')[1]]			
+	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter']))]].corr().stack().value_counts()[1] > model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter']))]].corr().shape[0]):
 		status = -3
 	else:
 		if marker_info['filter'] == 0:

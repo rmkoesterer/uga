@@ -3,7 +3,7 @@ pd.options.mode.chained_assignment = None
 import numpy as np
 import math
 from Messages import Error
-from scipy.stats import chi2
+import scipy.stats as scipy
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 import rpy2.robjects.lib.ggplot2 as ggplot2
@@ -22,6 +22,7 @@ def Plot(data,
 			ext = 'tiff', 
 			sig = 0.000000054, 
 			calc_sig = False, 
+			gc = False, 
 			chr = '#chr', 
 			pos = 'pos', 
 			p = 'marker.p', 
@@ -84,9 +85,9 @@ def Plot(data,
 		print "   ... significance level set to " + str(sig)
 	
 	print "   ... calculating genomic inflation factor"
-	l=np.median(chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/0.455
+	l=np.median(scipy.chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/0.455
 	print "   ... genomic inflation = " + str(l)
-	
+
 	a = -1 * np.log10(ro.r('ppoints(' + str(len(pvals.index)) + ')'))
 	a.sort()
 	b = -1 * np.log10(pvals[p])
@@ -116,6 +117,43 @@ def Plot(data,
 		pp.plot()
 		grdevices.dev_off()
 	
+	if gc:
+		print "   ... adjusting p-values for genomic inflation"
+		pvals[p]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*pvals[p]) / math.sqrt(l)))
+	
+		print "   ... calculating genomic inflation after genomic control correction"
+		l=np.median(scipy.chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/0.455
+		print "   ... post correction genomic inflation = " + str(l)	
+
+		a = -1 * np.log10(ro.r('ppoints(' + str(len(pvals.index)) + ')'))
+		a.sort()
+		b = -1 * np.log10(pvals[p])
+		b.sort()
+
+		df = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(b)})
+		dftext = ro.DataFrame({'x': a[-1] * 0.10, 'y': b.irow(-1) * 0.80, 'lab': 'lambda==' + str(l)})
+
+		if qq:
+			print "   ... generating qq plot for genomic inflation corrected p-values"
+			if ext == 'tiff':
+				grdevices.tiff(out + '.gc.qq.' + ext,width=4,height=4,units="in",bg="white",compression="lzw",res=300)
+			elif ext == 'eps':
+				grdevices.postscript(out + '.gc.qq.' + ext,width=4,height=4,bg="white",horizontal=False)
+			else:
+				grdevices.pdf(out + '.qq.' + ext,width=4,height=4,bg="white")
+			gp = ggplot2.ggplot(df)
+			pp = gp + \
+					ggplot2.aes_string(x='a',y='b') + \
+					ggplot2.geom_point(size=1.5) + \
+					ggplot2.geom_abline(intercept=0, linetype=2)	 + \
+					ggplot2.scale_x_continuous(ro.r('expression(Expected~~-log[10](italic(p)))')) + \
+					ggplot2.scale_y_continuous(ro.r('expression(Observed~~-log[10](italic(p)))')) + \
+					ggplot2.theme_bw(base_size = 8) + \
+					ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext, colour="black", size = 2, parse=ro.r('TRUE')) + \
+					ggplot2.theme(**{'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=8), 'axis.text': ggplot2.element_text(size=6)})
+			pp.plot()
+			grdevices.dev_off()
+
 	if manhattan:
 		print "   ... ordering by genomic position for manhattan plot"
 		df = pvals[[chr,pos,p]].reset_index(drop=True)
@@ -146,8 +184,8 @@ def Plot(data,
 		df['logp'] = -1 * np.log10(df[p])
 		maxy=int(max(np.ceil(-1 * np.log10(sig)),np.ceil(df['logp'].max())))
 		if maxy > 20:
-			y_breaks = range(0,maxy,by=5)
-			y_labels = range(0,maxy,by=5)
+			y_breaks = range(0,maxy,5)
+			y_labels = range(0,maxy,5)
 		else:
 			y_breaks = range(0,maxy)
 			y_labels = range(0,maxy)

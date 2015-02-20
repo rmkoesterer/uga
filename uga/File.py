@@ -12,19 +12,19 @@ from Messages import Error
 import signal
 
 def RemoveExistingFiles(file, module):
-	for f in [file, file + '.log']:
-		try:
-			os.remove(f)
-		except OSError:
-			continue
 	if module in['model','meta']:
+		for f in [file, file + '.log']:
+			try:
+				os.remove(f)
+			except OSError:
+				continue
 		for f in [file + '.gz', file + '.gz.tbi']:
 			try:
 				os.remove(f)
 			except OSError:
 				continue
 	if module == 'plot':
-		for f in [file + '.qq.tiff', file + '.mht.tiff',file + '.qq.eps', file + '.mht.eps',file + '.qq.pdf', file + '.mht.pdf']:
+		for f in [file + '.qq.tiff', file + '.gc.qq.tiff', file + '.mht.tiff',file + '.qq.eps', file + '.gc.qq.eps', file + '.mht.eps',file + '.qq.pdf', file + '.mht.pdf']:
 			try:
 				os.remove(f)
 			except OSError:

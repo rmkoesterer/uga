@@ -18,7 +18,6 @@ from time import strftime, localtime, time, gmtime
 
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
 
-
 #@profile
 def main(args=None):
 	parser = argparse.ArgumentParser('submit.py')
