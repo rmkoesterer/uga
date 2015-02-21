@@ -1,8 +1,9 @@
 Universal Genome Analyst
 ========================
   
-- **Authors**: `Ryan Koesterer`_
-- `Universal Genome Analyst Documentation`_
+- **Author**: `Ryan Koesterer`_
+
+`Documentation`_
 
 .. _`Ryan Koesterer`: koesterr@bu.edu
-.. _`Universal Genome Analyst Documentation`: http://rmkoesterer.github.io/uga-doc/
+.. _`Documentation`: http://rmkoesterer.github.io/uga-doc/
