@@ -29,6 +29,12 @@ def RemoveExistingFiles(file, module):
 				os.remove(f)
 			except OSError:
 				continue
+	if module == 'map':
+		for f in [file, file + '.log']:
+			try:
+				os.remove(f)
+			except OSError:
+				continue
 				
 def CheckExistingFiles(file, module):
 	for f in [file, file + '.log']:
@@ -44,6 +50,11 @@ def CheckExistingFiles(file, module):
 		for f in [file + '.qq.tiff', file + '.mht.tiff',file + '.qq.eps', file + '.mht.eps',file + '.qq.pdf', file + '.mht.pdf']:
 			if os.path.exists(f):
 				print Error("1 or more plot files already exists (use --overwrite flag to replace)")
+				sys.exit()
+	if module == 'map':
+		for f in [file, file + '.log']:
+			if os.path.exists(f):
+				print Error("output files already exist (use --overwrite flag to replace)")
 				sys.exit()
 
 def PrepareChrDirs(regions, directory):

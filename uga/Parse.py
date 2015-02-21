@@ -8,62 +8,10 @@ def Parser():
 	top_parser = argparse.ArgumentParser(parents=[parser])
 	subparsers = top_parser.add_subparsers(title='modules', dest='which')
 
-	parser.add_argument('--version', 
+	top_parser.add_argument('--version', 
 						action='version', 
 						version='Universal Genome Analyst: %(prog)s v' + __version__, 
 						help='display version information and exit')
-	parser.add_argument('-o', '--overwrite', 
-						action='store_true', 
-						help='overwrite existing output files')
-	parser.add_argument('-q', '--qsub', 
-						action='store', 
-						help='a group ID under which to submit jobs to the queue')
-	parser.add_argument('--name', 
-						action='store', 
-						help='a job name (only used with --qsub; if not set, --out basename will be used')
-	parser.add_argument('-d', '--directory', 
-						action='store', 
-						default=os.getcwd(), 
-						help='an output directory path (default: current working directory)')
-	parser.add_argument('--mem', 
-						action='store', 
-						type=int, 
-						default=3, 
-						help='amount of ram memory to request for queued job in GB (default: MEM=3')
-	parser.add_argument('--region-id', 
-						action='store', 
-						help='add region id to results (for use with --region option)')
-	parser.add_argument('--format', 
-						action='store', 
-						default='oxford', 
-						choices=['oxford', 'dos1','dos2','plink'], 
-						help='the format of the data file, either oxford (3 genotype probabilities), dos1 (single allele dosage with columns [chr markername pos a1 a2]), dos2 (single allele dosage with columns [chr pos markername a1 a2]), or Plink binary (default: oxford)')
-	parser_split_group1 = parser.add_mutually_exclusive_group()
-	parser_split_group1.add_argument('-r', '--region', 
-						action='store', 
-						help='a region specified in Tabix format (ie. 1:10583-1010582).')
-	parser_split_group1.add_argument('--region-list', 
-						action='store', 
-						help='a filename for a list of tabix format regions')
-	parser_split_group2 = parser.add_mutually_exclusive_group()
-	parser_split_group2.add_argument('-s', '--split', 
-						action='store_true', 
-						help='split region list into 1 job for each line in file (requires --region-list)')
-	parser_split_group2.add_argument('-n', '--split-n', 
-						action='store', 
-						type=int, 
-						help='split region list into SPLIT_N jobs (requires --region-list)')
-	parser_split_group2.add_argument('--split-chr', 
-						action='store_true', 
-						help='split jobs into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	parser_split_group3 = parser.add_mutually_exclusive_group()
-	parser_split_group3.add_argument('-j', '--job', 
-						action='store', 
-						type=int, 
-						help='run a particular job number (requires --split-n)')
-	parser_split_group3.add_argument('--job-list', 
-						action='store', 
-						help='a filename for a list of job numbers (requires --split-n)')
 
 	model_parser = subparsers.add_parser('model', help='marker and locus-based statistical modeling', parents=[parser])
 	model_required = model_parser.add_argument_group('required arguments')
@@ -157,6 +105,58 @@ def Parser():
 	model_parser.add_argument('--kinship', 
 						action='store', 
 						help='a file containing the matrix of kinship coefficients')
+	model_parser.add_argument('--format', 
+						action='store', 
+						default='oxford', 
+						choices=['oxford', 'dos1','dos2','plink'], 
+						help='the format of the data file, either oxford (3 genotype probabilities), dos1 (single allele dosage with columns [chr markername pos a1 a2]), dos2 (single allele dosage with columns [chr pos markername a1 a2]), or Plink binary (default: oxford)')
+	model_parser.add_argument('-o', '--overwrite', 
+						action='store_true', 
+						help='overwrite existing output files')
+	model_parser.add_argument('-q', '--qsub', 
+						action='store', 
+						help='a group ID under which to submit jobs to the queue')
+	model_parser.add_argument('--name', 
+						action='store', 
+						help='a job name (only used with --qsub; if not set, --out basename will be used')
+	model_parser.add_argument('-d', '--directory', 
+						action='store', 
+						default=os.getcwd(), 
+						help='an output directory path (default: current working directory)')
+	model_parser.add_argument('--mem', 
+						action='store', 
+						type=int, 
+						default=3, 
+						help='amount of ram memory to request for queued job in GB (default: MEM=3')
+	model_parser.add_argument('--region-id', 
+						action='store', 
+						help='add region id to results (for use with --region option)')
+	model_parser_split_group1 = model_parser.add_mutually_exclusive_group()
+	model_parser_split_group1.add_argument('-r', '--region', 
+						action='store', 
+						help='a region specified in Tabix format (ie. 1:10583-1010582).')
+	model_parser_split_group1.add_argument('--region-list', 
+						action='store', 
+						help='a filename for a list of tabix format regions')
+	model_parser_split_group2 = model_parser.add_mutually_exclusive_group()
+	model_parser_split_group2.add_argument('-s', '--split', 
+						action='store_true', 
+						help='split region list into 1 job for each line in file (requires --region-list)')
+	model_parser_split_group2.add_argument('-n', '--split-n', 
+						action='store', 
+						type=int, 
+						help='split region list into SPLIT_N jobs (requires --region-list)')
+	model_parser_split_group2.add_argument('--split-chr', 
+						action='store_true', 
+						help='split jobs into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
+	model_parser_split_group3 = model_parser.add_mutually_exclusive_group()
+	model_parser_split_group3.add_argument('-j', '--job', 
+						action='store', 
+						type=int, 
+						help='run a particular job number (requires --split-n)')
+	model_parser_split_group3.add_argument('--job-list', 
+						action='store', 
+						help='a filename for a list of job numbers (requires --split-n)')
 
 	meta_parser = subparsers.add_parser('meta', help='meta-analysis', parents=[parser])
 	meta_required = meta_parser.add_argument_group('required arguments')	
@@ -172,17 +172,85 @@ def Parser():
 						default='sample_size', 
 						choices=['sample_size', 'stderr', 'efftest'], 
 						help='the meta-analysis method (default: sample_size)')
+	meta_parser.add_argument('-o', '--overwrite', 
+						action='store_true', 
+						help='overwrite existing output files')
+	meta_parser.add_argument('-q', '--qsub', 
+						action='store', 
+						help='a group ID under which to submit jobs to the queue')
+	meta_parser.add_argument('--name', 
+						action='store', 
+						help='a job name (only used with --qsub; if not set, --out basename will be used')
+	meta_parser.add_argument('-d', '--directory', 
+						action='store', 
+						default=os.getcwd(), 
+						help='an output directory path (default: current working directory)')
+	meta_parser.add_argument('--mem', 
+						action='store', 
+						type=int, 
+						default=3, 
+						help='amount of ram memory to request for queued job in GB (default: MEM=3')
+	meta_parser.add_argument('--region-id', 
+						action='store', 
+						help='add region id to results (for use with --region option)')
+	meta_parser_split_group1 = meta_parser.add_mutually_exclusive_group()
+	meta_parser_split_group1.add_argument('-r', '--region', 
+						action='store', 
+						help='a region specified in Tabix format (ie. 1:10583-1010582).')
+	meta_parser_split_group1.add_argument('--region-list', 
+						action='store', 
+						help='a filename for a list of tabix format regions')
+	meta_parser_split_group2 = meta_parser.add_mutually_exclusive_group()
+	meta_parser_split_group2.add_argument('-s', '--split', 
+						action='store_true', 
+						help='split region list into 1 job for each line in file (requires --region-list)')
+	meta_parser_split_group2.add_argument('-n', '--split-n', 
+						action='store', 
+						type=int, 
+						help='split region list into SPLIT_N jobs (requires --region-list)')
+	meta_parser_split_group2.add_argument('--split-chr', 
+						action='store_true', 
+						help='split jobs into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
+	meta_parser_split_group3 = meta_parser.add_mutually_exclusive_group()
+	meta_parser_split_group3.add_argument('-j', '--job', 
+						action='store', 
+						type=int, 
+						help='run a particular job number (requires --split-n)')
+	meta_parser_split_group3.add_argument('--job-list', 
+						action='store', 
+						help='a filename for a list of job numbers (requires --split-n)')
 
 	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype data files', parents=[parser])
 	map_required = map_parser.add_argument_group('required arguments')
-	map_required.add_argument('--file', 
+	map_required.add_argument('-f','--file', 
 						action='store', 
 						required=True, 
 						help='a genotype file name (see --format for compatible file types)')
 	map_required.add_argument('--out', 
 						action='store', 
 						required=True, 
-						help='an output file name (basename only: do not include path)')
+						help='an output file name')
+	map_parser.add_argument('-c','--chr', 
+						action='store', 
+						type=int,  
+						help='chromosome number from 1-26')
+	map_parser.add_argument('--format', 
+						action='store', 
+						default='oxford', 
+						choices=['oxford', 'dos1','dos2','plink'], 
+						help='the format of the data file, either oxford (3 genotype probabilities), dos1 (single allele dosage with columns [chr markername pos a1 a2]), dos2 (single allele dosage with columns [chr pos markername a1 a2]), or Plink binary (default: oxford)')
+	map_parser.add_argument('-o', '--overwrite', 
+						action='store_true', 
+						help='overwrite existing out file')
+	map_parser.add_argument('-q', '--qsub', 
+						action='store', 
+						help='a group ID under which to submit jobs to the queue')
+	map_parser.add_argument('--name', 
+						action='store', 
+						help='a job name (only used with --qsub; if not set, --out basename will be used')
+	map_parser.add_argument('--split-chr', 
+						action='store_true', 
+						help='split jobs into 26 chromosomes')
 	map_split_group1 = map_parser.add_mutually_exclusive_group()
 	map_split_group1.add_argument('--mb', 
 						action='store', 
@@ -196,11 +264,6 @@ def Parser():
 	map_split_group1.add_argument('--n', 
 						action='store', 
 						help='number of markers to be included in each region')
-	map_parser.add_argument('--cpu', 
-						action='store', 
-						type=int, 
-						default=1, 
-						help='number of cpus (default: 1)')
 
 	summary_parser = subparsers.add_parser('summary', help='verify, compile, filter and/or plot results files', parents=[parser])
 	summary_required = summary_parser.add_argument_group('required arguments')
@@ -278,26 +341,30 @@ def Parser():
 						default='tiff', 
 						choices=['tiff','eps','pdf'], 
 						help='file type extension for plot files')
+	summary_parser.add_argument('-o', '--overwrite', 
+						action='store_true', 
+						help='overwrite existing output files')
 
-	
 	return top_parser
-
+	
 def Parse(top_parser):
 	args=top_parser.parse_args()
-	if args.region:
-		assert not args.split, top_parser.error("argument -s/--split: not allowed with argument --region")
-		assert not args.split_n, top_parser.error("argument -n/--split-n: not allowed with argument --region")
-		assert not args.job, top_parser.error("argument -j/--job: not allowed with argument --region")
-		assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument --region")
-		assert not args.split_chr, top_parser.error("argument --split-chr: not allowed with argument --region")
-	if args.region_list:
-		assert os.path.exists(args.region_list), top_parser.error("argument --region-list: file does not exist")
-		if args.split:
-			assert not args.job, top_parser.error("argument --job: not allowed with argument -s/--split")
-			assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument -s/--split")
-		if args.split_n:
-			if args.job_list:
-				assert os.path.exists(args.job_list), top_parser.error("argument --job-list: file does not exist")
+	print args
+	if args.which in ['model','meta']:
+		if args.region:
+			assert not args.split, top_parser.error("argument -s/--split: not allowed with argument --region")
+			assert not args.split_n, top_parser.error("argument -n/--split-n: not allowed with argument --region")
+			assert not args.job, top_parser.error("argument -j/--job: not allowed with argument --region")
+			assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument --region")
+			assert not args.split_chr, top_parser.error("argument --split-chr: not allowed with argument --region")
+		if args.region_list:
+			assert os.path.exists(args.region_list), top_parser.error("argument --region-list: file does not exist")
+			if args.split:
+				assert not args.job, top_parser.error("argument --job: not allowed with argument -s/--split")
+				assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument -s/--split")
+			if args.split_n:
+				if args.job_list:
+					assert os.path.exists(args.job_list), top_parser.error("argument --job-list: file does not exist")
 	if args.which == 'meta' and args.method == 'efftest' and not args.region_list:
 		top_parser.error("missing argument: --region-list required in module meta with --method efftest")
 	if args.which == 'map' and not (args.b or args.kb or args.mb or args.n):

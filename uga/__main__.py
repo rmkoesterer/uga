@@ -210,21 +210,45 @@ def main(args=None):
 			else:
 				Interactive(script_path + '/uga_submit.py', cmd, out + '.log')
 	elif args.which == 'map':
-		if args.overwrite:
-			RemoveExistingFiles(args.out, args.which)
-		else:
-			CheckExistingFiles(args.out, args.which)
-		cmd = args.which.capitalize() + '(file="' + args.file + '"'
-		for x in ['out', 'cpu', 'b', 'kb', 'mb','format','n']:
-			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-				if type(vars(args)[x]) is str:
-					cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
+		if args.split_chr:
+			for i in range(26):
+				cmd = args.which.capitalize() + '(file=\'' + args.file + '\',out=\'' + args.out + '.chr' + str(i+1) + '\',chr=' + str(i+1)
+				for x in ['b','kb','mb','format','n']:
+					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+						if type(vars(args)[x]) is str:
+							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
+						else:
+							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+				cmd = cmd + ')'
+				if args.overwrite:
+					RemoveExistingFiles(args.out + '.chr' + str(i+1), args.which)
 				else:
-					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-		cmd = cmd + ')'
-		Interactive(script_path + '/uga_submit.py', cmd)
+					CheckExistingFiles(args.out + '.chr' + str(i+1), args.which)
+				name = args.which + '.' + os.path.basename(args.out + '.chr' + str(i+1)) if not args.name else args.name
+				if args.qsub:
+					Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + script_path + '/uga_submit.py --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+				else:
+					Interactive(script_path + '/uga_submit.py', cmd)
+		else:
+			cmd = args.which.capitalize() + '(file=\'' + args.file + '\''
+			for x in ['out', 'b', 'kb', 'mb','format','n','chr']:
+				if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+					if type(vars(args)[x]) is str:
+						cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
+					else:
+						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+			cmd = cmd + ')'
+			if args.overwrite:
+				RemoveExistingFiles(args.out, args.which)
+			else:
+				CheckExistingFiles(args.out, args.which)
+			name = args.which + '.' + os.path.basename(args.out) if not args.name else args.name
+			if args.qsub:
+				Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + script_path + '/uga_submit.py --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+			else:
+				Interactive(script_path + '/uga_submit.py', cmd)
 	else:
-		print Error(args.which + " module currently inactive")
+		print Error(args.which + " not a module")
 	print ''
 
 if __name__ == "__main__":
