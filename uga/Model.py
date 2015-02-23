@@ -22,7 +22,10 @@ from plinkio import plinkfile
 import collections
 
 def Model(out = None, 
-			data = None, 
+			oxford = None, 
+			dos1 = None, 
+			dos2 = None, 
+			plink = None, 
 			samples = None, 
 			pheno = None, 
 			model = None, 
@@ -45,7 +48,6 @@ def Model(out = None,
 			hwe = None, 
 			case = 1, 
 			ctrl = 0, 
-			format = 'oxford', 
 			mem = 3, 
 			nofail = False):
 
@@ -55,8 +57,8 @@ def Model(out = None,
 			print "      {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 
 	assert out, Error("an output file must be specified")
-	assert data, Error("a data file must be specified")
-	assert samples or format == 'plink', Error("a sample file must be specified, unless format=plink")
+	assert not oxford is None or not dos1 is None or not dos2 is None or not plink is None, Error("a genotype data file must be specified")
+	assert samples or not plink is None, Error("a sample file must be specified if not Plink format")
 	assert pheno, Error("a phenotype file must be specified")
 	assert model, Error("a model must be specified")
 	assert fid, Error("a family ID column must be specified")
@@ -150,9 +152,9 @@ def Model(out = None,
 					focus.append(x)
 
 	##### LOAD PLINK BINARY ITERATORS, ELSE LOAD SAMPLE LIST FILE #####
-	if format == 'plink':
+	if not plink is None:
 		print "   ... reading Plink binary files"
-		plink_bed_it = plinkfile.open(data)
+		plink_bed_it = plinkfile.open(plink)
 		plink_sample_it = plink_bed_it.get_samples()
 		plink_locus_it = plink_bed_it.get_loci()
 		sample_ids = [x.iid for x in plink_sample_it]
@@ -211,7 +213,7 @@ def Model(out = None,
 	marker_list['n'] = 0
 	
 	##### DETERMINE NONEMPTY REGIONS #####
-	if format == 'plink':
+	if not plink is None:
 		for i in range(len(marker_list.index)):
 			if marker_list['start'][i] != 'NA':
 				marker_list['n'][i] = len([c for c in plink_locus_it if c.chromosome == int(marker_list['chr'][i]) and c.bp_position >= int(marker_list['start'][i]) and c.bp_position <= int(marker_list['end'][i])])
@@ -242,7 +244,7 @@ def Model(out = None,
 	sig = int(sig) if sig else sig
 	buffer = int(buffer) if buffer else buffer
 
-	##### START ANALYIS #####
+	##### START ANALYSIS #####
 	print "   ... starting analysis"
 	written = False
 	bgzfile = bgzf.BgzfWriter(out + '.gz', 'wb')
@@ -250,7 +252,7 @@ def Model(out = None,
 		reg = marker_list['region'][r]
 		chr = reg.split(':')[0]
 		i = 0
-		if format == 'plink':
+		if not plink is None:
 			if reg == chr:
 				try:
 					records = (x for x in plink_locus_it if x.chromosome == int(chr))
@@ -271,7 +273,7 @@ def Model(out = None,
 			chunk=list(islice(records, buffer))
 			if not chunk:
 				break
-			if format == 'plink':
+			if not plink is None:
 				marker_info=collections.OrderedDict()
 				marker_info['chr'] = collections.OrderedDict()
 				marker_info['pos'] = collections.OrderedDict()
@@ -302,14 +304,14 @@ def Model(out = None,
 			else:
 				chunkdf = pd.DataFrame(chunk)
 				marker_info = chunkdf.ix[:,:4]
-				marker_info.columns = ['chr','pos','marker','a1','a2'] if format == 'dos2' else ['chr','marker','pos','a1','a2']
+				marker_info.columns = ['chr','pos','marker','a1','a2'] if dos2 else ['chr','marker','pos','a1','a2']
 				marker_info = marker_info[['chr','pos','marker','a1','a2']]
 				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '.'  + marker_info['marker'].astype(str) + '.'  + marker_info['a1'].astype(str) + '.'  + marker_info['a2'].astype(str)
 				marker_info.index = marker_info['marker_unique']
 				marker_data = chunkdf.ix[:,5:].transpose()
 				marker_data = marker_data.convert_objects(convert_numeric=True)
 				marker_data.columns = marker_info['marker_unique']
-				if format == 'oxford':
+				if not oxford is None:
 					marker_data = marker_data.apply(lambda col: pd.Series(np.array(ConvertDosage(list(col))).astype(np.float64)),0)
 				marker_data[iid] = sample_ids
 			model_df = pd.merge(vars_df, marker_data, on = [iid], how='left').sort([fid])

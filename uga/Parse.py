@@ -15,10 +15,6 @@ def Parser():
 
 	model_parser = subparsers.add_parser('model', help='marker and locus-based statistical modeling', parents=[parser])
 	model_required = model_parser.add_argument_group('required arguments')
-	model_required.add_argument('--data', 
-						action='store', 
-						required=True, 
-						help='a genotype data file (see --format for compatible file types)')
 	model_required.add_argument('--out', 
 						action='store', 
 						required=True, 
@@ -105,11 +101,6 @@ def Parser():
 	model_parser.add_argument('--kinship', 
 						action='store', 
 						help='a file containing the matrix of kinship coefficients')
-	model_parser.add_argument('--format', 
-						action='store', 
-						default='oxford', 
-						choices=['oxford', 'dos1','dos2','plink'], 
-						help='the format of the data file, either oxford (3 genotype probabilities), dos1 (single allele dosage with columns [chr markername pos a1 a2]), dos2 (single allele dosage with columns [chr pos markername a1 a2]), or Plink binary (default: oxford)')
 	model_parser.add_argument('-o', '--overwrite', 
 						action='store_true', 
 						help='overwrite existing output files')
@@ -157,6 +148,19 @@ def Parser():
 	model_parser_split_group3.add_argument('--job-list', 
 						action='store', 
 						help='a filename for a list of job numbers (requires --split-n)')
+	model_parser_split_group4 = model_parser.add_mutually_exclusive_group()
+	model_parser_split_group4.add_argument('--oxford', 
+						action='store', 
+						help='an Oxford format genotype data file')
+	model_parser_split_group4.add_argument('--dos1', 
+						action='store', 
+						help='a dos1 format genotype data file (see documentation)')
+	model_parser_split_group4.add_argument('--dos2', 
+						action='store', 
+						help='a dos2 format genotype data file (see documentation)')
+	model_parser_split_group4.add_argument('--plink', 
+						action='store', 
+						help='a Plink binary format genotype data file (without extension)')					
 
 	meta_parser = subparsers.add_parser('meta', help='meta-analysis', parents=[parser])
 	meta_required = meta_parser.add_argument_group('required arguments')	
@@ -222,10 +226,6 @@ def Parser():
 
 	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype data files', parents=[parser])
 	map_required = map_parser.add_argument_group('required arguments')
-	map_required.add_argument('-f','--file', 
-						action='store', 
-						required=True, 
-						help='a genotype file name (see --format for compatible file types)')
 	map_required.add_argument('--out', 
 						action='store', 
 						required=True, 
@@ -234,11 +234,6 @@ def Parser():
 						action='store', 
 						type=int,  
 						help='chromosome number from 1-26')
-	map_parser.add_argument('--format', 
-						action='store', 
-						default='oxford', 
-						choices=['oxford', 'dos1','dos2','plink'], 
-						help='the format of the data file, either oxford (3 genotype probabilities), dos1 (single allele dosage with columns [chr markername pos a1 a2]), dos2 (single allele dosage with columns [chr pos markername a1 a2]), or Plink binary (default: oxford)')
 	map_parser.add_argument('-o', '--overwrite', 
 						action='store_true', 
 						help='overwrite existing out file')
@@ -264,6 +259,19 @@ def Parser():
 	map_split_group1.add_argument('--n', 
 						action='store', 
 						help='number of markers to be included in each region')
+	map_split_group2 = map_parser.add_mutually_exclusive_group()
+	map_split_group2.add_argument('--oxford', 
+						action='store', 
+						help='an Oxford format genotype data file')
+	map_split_group2.add_argument('--dos1', 
+						action='store', 
+						help='a dos1 format genotype data file (see documentation)')
+	map_split_group2.add_argument('--dos2', 
+						action='store', 
+						help='a dos2 format genotype data file (see documentation)')
+	map_split_group2.add_argument('--plink', 
+						action='store', 
+						help='a Plink binary format genotype data file (without extension)')					
 
 	summary_parser = subparsers.add_parser('summary', help='verify, compile, filter and/or plot results files', parents=[parser])
 	summary_required = summary_parser.add_argument_group('required arguments')

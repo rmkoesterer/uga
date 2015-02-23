@@ -188,7 +188,7 @@ def main(args=None):
 				CheckExistingFiles(out, args.which)
 			if args.which == 'model':
 				cmd = args.which.capitalize() + '(out=\'' + out + '\''
-				for x in ['data', 'samples', 'pheno', 'model', 'fid', 'iid', 'method', 'focus', 'sig', 'region_list', 'region', 'region_id', 'sex', 'male', 'female', 'buffer', 'miss', 'freq', 'rsq', 'hwe', 'case', 'ctrl', 'format', 'nofail', 'pedigree']:
+				for x in ['oxford','dos1','dos2','plink','samples','pheno','model','fid','iid','method','focus','sig','region_list','region','region_id','sex','male','female','buffer','miss','freq','rsq','hwe','case','ctrl','nofail','pedigree']:
 					if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
 						if type(vars(args)[x]) is str:
 							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
@@ -212,8 +212,8 @@ def main(args=None):
 	elif args.which == 'map':
 		if args.split_chr:
 			for i in range(26):
-				cmd = args.which.capitalize() + '(file=\'' + args.file + '\',out=\'' + args.out + '.chr' + str(i+1) + '\',chr=' + str(i+1)
-				for x in ['b','kb','mb','format','n']:
+				cmd = args.which.capitalize() + '(out=\'' + args.out + '.chr' + str(i+1) + '\',chr=' + str(i+1)
+				for x in ['oxford','dos1','dos2','plink','b','kb','mb','n']:
 					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 						if type(vars(args)[x]) is str:
 							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
@@ -230,8 +230,8 @@ def main(args=None):
 				else:
 					Interactive(script_path + '/uga_submit.py', cmd)
 		else:
-			cmd = args.which.capitalize() + '(file=\'' + args.file + '\''
-			for x in ['out', 'b', 'kb', 'mb','format','n','chr']:
+			cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
+			for x in ['oxford','dos1','dos2','plink','b','kb','mb','n','chr']:
 				if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 					if type(vars(args)[x]) is str:
 						cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''

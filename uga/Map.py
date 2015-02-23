@@ -8,7 +8,10 @@ from multiprocessing import Process, Manager, cpu_count
 from plinkio import plinkfile
 from itertools import islice
 
-def Map(file, out, format, chr = None, mb = None, kb = None, b = None, n = None):
+def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, chr = None, mb = None, kb = None, b = None, n = None):
+
+	assert not oxford is None or not dos1 is None or not dos2 is None or not plink is None, Error("a genotype data file must be specified")
+	assert not b is None or not kb is None or not mb is None or not n is None, Error("a region size or number of markers must be specified")
 
 	s = int(b) if b else None
 	s = int(kb) * 1000 if kb else s
@@ -17,11 +20,10 @@ def Map(file, out, format, chr = None, mb = None, kb = None, b = None, n = None)
 	if not n is None:
 		n = int(n)
 	
-	if not int(chr) in range(1,27):
-		print Error("chromosome " + str(chr) + " is an invalid choice")
-		return
-
 	if not chr is None:
+		if not int(chr) in range(1,27):
+			print Error("chromosome " + str(chr) + " is an invalid choice")
+			return
 		chrs = [int(chr)]
 	else:
 		chrs = range(1,27)
@@ -30,10 +32,10 @@ def Map(file, out, format, chr = None, mb = None, kb = None, b = None, n = None)
 	#cpus = cpu_count() if cpu_count() < int(cpu) else int(cpu)
 	
 	##### map bim file #####
-	if format == 'plink':
+	if not plink is None:
 		total = 0
 		print "   ... mapping Plink format bim file"
-		bim=pd.read_table(file + '.bim',header=None,names=['chr','marker','x','pos','a1','a2'])
+		bim=pd.read_table(plink + '.bim',header=None,names=['chr','marker','x','pos','a1','a2'])
 		with open(out, "w") as fout:
 			for i in chrs:
 				if i in bim['chr'].values:
@@ -53,6 +55,12 @@ def Map(file, out, format, chr = None, mb = None, kb = None, b = None, n = None)
 						total += len(chr_write['reg'])
 					print "   ... processed chromosome " + str(i)
 	else:
+		if not oxford is None:
+			file = oxford
+		elif not dos1 is None:
+			file = dos1
+		else:
+			file = dos2
 		total = 0
 		tb = tabix.open(file)
 		with open(out, "w") as fout:
