@@ -14,10 +14,10 @@ import re
 from itertools import islice
 from Bio import bgzf
 import psutil
-from MarkerCalc import *
+from MarkerCalc import Complement,ConvertDosage,CalcCallrate,CalcFreq,CalcRsq,CalcHWE
 from Messages import Error
-from Stats import *
-from Coordinates import *
+from Stats import GenerateFilterCode,CalcGEE,CalcGLM,CalcLME,CalcCoxPH,CalcEffTests,CalcFamSkatO,CalcFamSkat
+from Coordinates import Coordinates
 from plinkio import plinkfile
 import collections
 

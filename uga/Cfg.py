@@ -51,19 +51,3 @@ class Cfg(object):
 					else:
 						config_temp[key] = val
 			return config
-		
-		if self.module == 'annot':
-			config = {'gc': {}}
-			with open(self.filename) as f:
-				lines = (line.rstrip() for line in f)
-				lines = (line for line in lines if line)
-				for line in lines:
-					for k in self.vars.keys():
-						line = line.replace('[' + k + ']', self.vars[k])
-					key = str(line.split()[0])
-					val = " ".join(line.split()[1:])
-					if key == 'gc':
-						config['gc'][val.split('=')[0]] = val.split('=')[1]
-					else:
-						config[key] = val
-			return config

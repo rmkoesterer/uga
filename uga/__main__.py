@@ -9,13 +9,14 @@ import time
 import subprocess
 import os.path
 import numpy as np
-from Messages import *
-from File import *
-from Cfg import *
-from Plot import *
-from Coordinates import *
-from Process import *
-from Parse import *
+import pandas as pd
+import re
+from Messages import Error
+from File import RemoveExistingFiles,CheckExistingFiles,PrepareChrDirs,PrepareListDirs,GenerateSubFiles,CheckResults,CompileResults
+from Cfg import Cfg
+from Coordinates import Coordinates
+from Process import Qsub,Interactive
+from Parse import Parse,Parser
 from __init__ import __version__
 
 def main(args=None):
@@ -137,6 +138,7 @@ def main(args=None):
 				print Error("results could not be compiled")
 				sys.exit()
 		if args.qq or args.manhattan:
+			from Plot import Plot
 			cmd = 'Plot(data="' + summary_out + '.gz",out="' + summary_out + '"'
 			for x in ['ext','qq','manhattan','gc','chr','pos','p','rsq','freq','hwe','meta_dir','rsq_thresh','freq_thresh','hwe_thresh','df_thresh','sig','calc_sig']:
 				if x in vars(args).keys() and not vars(args)[x] in [False,None]:
@@ -145,7 +147,7 @@ def main(args=None):
 					else:
 						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 			cmd = cmd + ')'
-			Interactive(script_path + '/uga_submit.py', cmd, summary_out + '.plot.log')
+			Interactive('quga', cmd, summary_out + '.plot.log')
 	elif args.which in ['model','meta']:
 		if not os.path.exists(args.directory):
 			try:
@@ -188,7 +190,7 @@ def main(args=None):
 				CheckExistingFiles(out, args.which)
 			if args.which == 'model':
 				cmd = args.which.capitalize() + '(out=\'' + out + '\''
-				for x in ['oxford','dos1','dos2','plink','samples','pheno','model','fid','iid','method','focus','sig','region_list','region','region_id','sex','male','female','buffer','miss','freq','rsq','hwe','case','ctrl','nofail','pedigree']:
+				for x in ['oxford','dos1','dos2','plink','samples','pheno','model','fid','iid','method','focus','sig','region_list','region','region_id','sex','male','female','buffer','miss','freq','rsq','hwe','case','ctrl','nofail','kinship']:
 					if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
 						if type(vars(args)[x]) is str:
 							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
@@ -206,9 +208,9 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ',mem=' + str(args.mem) + ')'
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + script_path + '/uga_submit.py --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + 'quga --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
 			else:
-				Interactive(script_path + '/uga_submit.py', cmd, out + '.log')
+				Interactive('quga', cmd, out + '.log')
 	elif args.which == 'map':
 		if args.split_chr:
 			for i in range(26):
@@ -226,9 +228,9 @@ def main(args=None):
 					CheckExistingFiles(args.out + '.chr' + str(i+1), args.which)
 				name = args.which + '.' + os.path.basename(args.out + '.chr' + str(i+1)) if not args.name else args.name
 				if args.qsub:
-					Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + script_path + '/uga_submit.py --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+					Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + 'quga --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
 				else:
-					Interactive(script_path + '/uga_submit.py', cmd)
+					Interactive('quga', cmd)
 		else:
 			cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
 			for x in ['oxford','dos1','dos2','plink','b','kb','mb','n','chr']:
@@ -244,9 +246,9 @@ def main(args=None):
 				CheckExistingFiles(args.out, args.which)
 			name = args.which + '.' + os.path.basename(args.out) if not args.name else args.name
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + script_path + '/uga_submit.py --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + 'quga --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
 			else:
-				Interactive(script_path + '/uga_submit.py', cmd)
+				Interactive('quga', cmd)
 	else:
 		print Error(args.which + " not a module")
 	print ''

@@ -44,6 +44,7 @@ setup(
     entry_points={
        'console_scripts': [
            'uga = uga.__main__:main',
+		   'quga = uga.QUga:main',
            ],
        },
     packages=['uga'],

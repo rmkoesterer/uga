@@ -9,9 +9,11 @@ uga/MarkerCalc.py
 uga/Messages.py
 uga/Meta.py
 uga/Model.py
+uga/ModelFile.py
 uga/Parse.py
 uga/Plot.py
 uga/Process.py
+uga/QUga.py
 uga/Stats.py
 uga/__init__.py
 uga/__main__.py

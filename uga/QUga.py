@@ -8,11 +8,11 @@ import psutil
 import subprocess
 import argparse
 import sys
-from uga.Model import Model
-from uga.Meta import Meta
-from uga.Map import Map
-from uga.Plot import Plot
-from uga.Process import kill_all
+from Model import Model
+from Meta import Meta
+from Map import Map
+from Plot import Plot
+from Process import kill_all
 from time import strftime, localtime, time, gmtime
 #from memory_profiler import profile, memory_usage
 
@@ -20,7 +20,7 @@ sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
 
 #@profile
 def main(args=None):
-	parser = argparse.ArgumentParser('submit.py')
+	parser = argparse.ArgumentParser('quga')
 	parser.add_argument('--qsub', 
 						action='store', 
 						help='a group/project id for cluster group identification')

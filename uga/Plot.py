@@ -1,5 +1,4 @@
 import pandas as pd
-pd.options.mode.chained_assignment = None
 import numpy as np
 import math
 from Messages import Error
@@ -9,6 +8,7 @@ from rpy2.robjects.packages import importr
 import rpy2.robjects.lib.ggplot2 as ggplot2
 import re
 
+pd.options.mode.chained_assignment = None
 rplot = ro.r('plot')
 rhist = ro.r('hist')
 grdevices = importr('grDevices')
