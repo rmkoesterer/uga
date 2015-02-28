@@ -150,3 +150,8 @@ def CalcHWE(marker, chr = None, female_idx = None):
 			return float('NaN')
 	else:
 		return float('NaN')
+
+def CallToDos(call):
+	c = call.split(':')[0]
+	c = 'NaN' if not c in ['0/0','0/1','1/1','1/0'] else c
+	return float(c.replace('0/0','2').replace('0/1','1').replace('1/1','0').replace('1/0','1'))

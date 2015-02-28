@@ -22,7 +22,7 @@ def Meta(cfg=None,
 			method=None, 
 			mem=3):
 
-	print "   ... arguments"
+	print "   ... active options ..."
 	for arg in locals().keys():
 		if not locals()[arg] in [None, False]:
 			print "      {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])

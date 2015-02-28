@@ -25,7 +25,7 @@ def main(args=None):
 
 	##### read cfg file into dictionary #####
 	if args.which == 'meta':
-		print "   ... reading configuration from file"
+		print "reading configuration from file"
 		config = Cfg(args.cfg, args.which, args.vars).Load()
 		args.out = config['out']
 
@@ -33,7 +33,7 @@ def main(args=None):
 	if args.which in ['model','meta','summary']:
 		n = 1
 		dist_mode = 'full'
-		print "   ... generating list of genomic regions ...", 
+		print "generating list of genomic regions ...", 
 		if args.region_list:
 			region_df = Coordinates(args.region_list).Load()
 			if args.split or args.split_n:
@@ -66,7 +66,7 @@ def main(args=None):
 				lines = (line for line in lines if line)
 				for line in lines:
 					jobs.append(int(line))
-			print "   ... " + str(len(jobs)) + " jobs read from job list file"
+			print "" + str(len(jobs)) + " jobs read from job list file"
 
 		##### define output directory and update out file name #####
 		directory = os.path.dirname(args.out) if not args.directory else args.directory
@@ -90,8 +90,8 @@ def main(args=None):
 	if args.which == 'summary':
 		summary_out = os.path.basename(args.out) if not args.out_rename else args.out_rename
 		if args.verify:
-			complete_string = '   ... process complete' if not args.complete_string else args.complete_string
-			print "   ... scanning for previous check results files"
+			complete_string = 'process complete' if not args.complete_string else args.complete_string
+			print "scanning for previous check results files"
 			if os.path.exists(summary_out + '.verify' + '.files.incomplete'):
 				if args.overwrite:
 					os.remove(summary_out + '.verify' + '.files.incomplete')
@@ -111,7 +111,7 @@ def main(args=None):
 					print Error("file " + summary_out + '.verify' + ".regions.rerun already exists (use --overwrite flag to replace the existing file)")
 					sys.exit()
 		if args.compile:
-			print "   ... scanning for previous compiled results files"
+			print "scanning for previous compiled results files"
 			if os.path.exists(summary_out + '.gz'):
 				if args.overwrite:
 					os.remove(summary_out + '.gz')
@@ -155,12 +155,13 @@ def main(args=None):
 			except OSError:
 				print Error("unable to create output directory")
 				sys.exit()
-		print "   ... preparing output directories"
+		print "preparing output directories"
 		if dist_mode == 'split-list' and n > 1:
 			PrepareChrDirs(region_df['region'], directory)
 		elif dist_mode == 'split-list-n' and n > 1:
 			PrepareListDirs(n, directory)
-		print "   ... submitting analysis jobs\n" if args.qsub else "   ... starting analysis\n"
+		if args.qsub:
+			print "submitting jobs\n"
 		joblist = []
 		if not args.job is None:
 			joblist.append(args.job)
@@ -190,9 +191,11 @@ def main(args=None):
 				CheckExistingFiles(out, args.which)
 			if args.which == 'model':
 				cmd = args.which.capitalize() + '(out=\'' + out + '\''
-				for x in ['oxford','dos1','dos2','plink','samples','pheno','model','fid','iid','method','focus','sig','region_list','region','region_id','sex','male','female','buffer','miss','freq','rsq','hwe','case','ctrl','nofail','kinship']:
+				for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','model','fid','iid','method','focus','sig','region_list','region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','kinship','delimiter']:
 					if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
-						if type(vars(args)[x]) is str:
+						if x in ['oxford','dos1','dos2','plink','vcf']:
+							cmd = cmd + ',data=\'' + str(vars(args)[x]) + '\',format=\'' + x + '\''
+						elif type(vars(args)[x]) is str:
 							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 						else:
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
@@ -208,14 +211,14 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ',mem=' + str(args.mem) + ')'
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + 'quga --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + 'quga --internal --cmd \"' + cmd + '\"')
 			else:
 				Interactive('quga', cmd, out + '.log')
 	elif args.which == 'map':
 		if args.split_chr:
 			for i in range(26):
 				cmd = args.which.capitalize() + '(out=\'' + args.out + '.chr' + str(i+1) + '\',chr=' + str(i+1)
-				for x in ['oxford','dos1','dos2','plink','b','kb','mb','n']:
+				for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n']:
 					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 						if type(vars(args)[x]) is str:
 							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
@@ -228,12 +231,12 @@ def main(args=None):
 					CheckExistingFiles(args.out + '.chr' + str(i+1), args.which)
 				name = args.which + '.' + os.path.basename(args.out + '.chr' + str(i+1)) if not args.name else args.name
 				if args.qsub:
-					Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + 'quga --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+					Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + 'quga --internal --cmd \"' + cmd + '\"')
 				else:
 					Interactive('quga', cmd)
 		else:
 			cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
-			for x in ['oxford','dos1','dos2','plink','b','kb','mb','n','chr']:
+			for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr']:
 				if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 					if type(vars(args)[x]) is str:
 						cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
@@ -246,7 +249,7 @@ def main(args=None):
 				CheckExistingFiles(args.out, args.which)
 			name = args.which + '.' + os.path.basename(args.out) if not args.name else args.name
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + 'quga --internal --qsub ' + args.qsub + ' --cmd \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + 'quga --internal --cmd \"' + cmd + '\"')
 			else:
 				Interactive('quga', cmd)
 	else:

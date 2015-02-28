@@ -11,6 +11,9 @@ def Banner():
 
 def Error(m):
 	return "\n   *** Error: " + m + "\n"
+
+def Highlight(m):
+	return "\n   ... " + m + "\n"
 	
 def Bold(m):
 	return "\033[1m" + m + "\033[0m"

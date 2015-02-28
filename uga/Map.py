@@ -6,11 +6,14 @@ import numpy as np
 from Messages import Error
 from multiprocessing import Process, Manager, cpu_count
 from plinkio import plinkfile
-from itertools import islice
+from itertools import islice,groupby
+from operator import attrgetter
+import pysam
+import vcf as VCF
 
-def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, chr = None, mb = None, kb = None, b = None, n = None):
+def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, chr = None, mb = None, kb = None, b = None, n = None):
 
-	assert not oxford is None or not dos1 is None or not dos2 is None or not plink is None, Error("a genotype data file must be specified")
+	assert not oxford is None or not dos1 is None or not dos2 is None or not plink is None or not vcf is None, Error("a genotype data file must be specified")
 	assert not b is None or not kb is None or not mb is None or not n is None, Error("a region size or number of markers must be specified")
 
 	s = int(b) if b else None
@@ -30,6 +33,9 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, chr = None, 
 	
 	##### start multiprocessing jobs #####
 	#cpus = cpu_count() if cpu_count() < int(cpu) else int(cpu)
+	
+	def chunk(seq, size):
+		return [seq[pos:pos + size] for pos in xrange(0, len(seq), size)]
 	
 	##### map bim file #####
 	if not plink is None:
@@ -53,6 +59,53 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, chr = None, 
 						chr_write['reg']=chr_write.apply(lambda a: str(a['chr']) + ':' + str(a['start']) + '-' + str(a['end']-1),axis=1)
 						chr_write['reg'].to_csv(fout,header=False,index=False,mode='a')
 						total += len(chr_write['reg'])
+					print "   ... processed chromosome " + str(i)
+	elif not vcf is None:
+		total = 0
+		with open(out, "w") as fout:
+			for i in chrs:	
+				if not s is None:
+					v=VCF.Reader(filename=vcf)
+					starts = range(1,300000000,s)
+					regions = []
+					for rp in starts:
+						regions.append(str(rp) + "-" + str(rp+s-1)) 
+					for reg in regions:
+						try:
+							records = v.fetch(str(i),int(reg.split('-')[0]),int(reg.split('-')[1]))
+						except:
+							pass
+						else:
+							for record in records:
+								if record.POS >= int(reg.split('-')[0]) and record.POS <= int(reg.split('-')[1]):
+									total += 1
+									fout.write(str(i) + ':' + reg + '\n')
+									break
+					print "   ... processed chromosome " + str(i)
+				else:
+					tb = tabix.open(vcf)
+					try:
+						records = tb.querys(str(i))
+					except:
+						pass
+					else:
+						last=0
+						j=0
+						while True:
+							j += 1
+							if j == 1:
+								for record in islice(records, 0,n):
+									pass
+								total += 1
+								fout.write(str(i) + ':1-' + str(record[1]) + '\n')
+								last = int(record[1])
+							else:
+								chunk=tuple(islice(records, n - 1,n))
+								if not chunk:
+									break
+								total += 1
+								fout.write(str(i) + ':' + str(last+1) + '-' + str(chunk[0][1]) + '\n')
+								last = int(chunk[0][1])
 					print "   ... processed chromosome " + str(i)
 	else:
 		if not oxford is None:
@@ -81,15 +134,29 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, chr = None, 
 								fout.write(reg + '\n')
 								break
 				else:
-					records = tb.querys(str(i))
-					last=0
-					while True:
-						chunk=tuple(islice(records, n - 1,n))
-						if not chunk:
-							break
-						total += 1
-						fout.write(str(i) + ':' + str(last+1) + '-' + str(chunk[0][1]) + '\n')
-						last = int(chunk[0][1])
+					try:
+						records = tb.querys(str(i))
+					except:
+						pass
+					else:
+						last=0
+						j=0
+						while True:
+							j += 1
+							if j == 1:
+								for record in islice(records, 0,n):
+									pass
+								total += 1
+								fout.write(str(i) + ':1-' + str(record[1]) + '\n')
+								last = int(record[2]) if not oxford is None or not dos1 is None else int(record[1])
+							else:
+								chunk=tuple(islice(records, n - 1,n))
+								if not chunk:
+									break
+								total += 1
+								end = int(chunk[0][2]) if not oxford is None or not dos1 is None else int(chunk[0][1])
+								fout.write(str(i) + ':' + str(last+1) + '-' + str(end) + '\n')
+								last = end
 				print "   ... processed chromosome " + str(i)
 	"""
 	else:

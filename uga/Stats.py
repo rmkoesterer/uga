@@ -49,7 +49,7 @@ def GenerateFilterCode(marker_info, miss = None, freq = None, rsq = None, hwe = 
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
 	return marker_info"""
 
-def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var):
+def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, corstr = 'exchangeable'):
 	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
 	notes = 'NA'
 	status = 0
@@ -69,7 +69,7 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 					rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])
 					rmodel_df=ro.r.cbind(rmodel_df,ugaConvert=ro.r('factor')(rmodel_df.rx2(x + '_ugaFactored')))
 					rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
-			model_out=rtry(rsummary(geepack.geeglm(ro.r(model),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr='exchangeable')),silent=ro.r('TRUE'))
+			model_out=rtry(rsummary(geepack.geeglm(ro.r(model),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr=corstr)),silent=ro.r('TRUE'))
 			if 'try-error' in rclass(model_out):
 				model_out=rtry(rsummary(geepack.geeglm(ro.r(model),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr='independence')),silent=ro.r('TRUE'))
 				if 'try-error' in rclass(model_out):

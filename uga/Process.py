@@ -1,6 +1,7 @@
 import psutil
 import subprocess
 import sys
+from Messages import Highlight
 
 def Qsub(command):
 	try:
@@ -8,7 +9,7 @@ def Qsub(command):
 		p.wait()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
-		print "\n   ... process terminated\n"
+		print Highlight("terminated by user")
 		sys.exit(1)
 
 def Interactive(submit, cmd, log_file = None):
@@ -25,7 +26,7 @@ def Interactive(submit, cmd, log_file = None):
 			log.close()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
-		print "\n   ... process terminated\n"
+		print Highlight("terminated by user")
 		sys.exit(1)
 
 def kill_all(pid):

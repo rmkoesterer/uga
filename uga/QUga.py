@@ -4,7 +4,9 @@
 #$ -V
 
 import os
+import pwd
 import psutil
+import resource
 import subprocess
 import argparse
 import sys
@@ -14,16 +16,11 @@ from Map import Map
 from Plot import Plot
 from Process import kill_all
 from time import strftime, localtime, time, gmtime
-#from memory_profiler import profile, memory_usage
 
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
 
-#@profile
 def main(args=None):
 	parser = argparse.ArgumentParser('quga')
-	parser.add_argument('--qsub', 
-						action='store', 
-						help='a group/project id for cluster group identification')
 	parser.add_argument('--internal', 
 						action='store_true', 
 						help='job is internal to uga')
@@ -39,7 +36,9 @@ def main(args=None):
 	env_vars = os.environ.copy()
 	local=False
 
-	env_vars['PROJ_ID'] = 'None' if not args.qsub else args.qsub
+	user_name=pwd.getpwuid(os.getuid()).pw_name
+	group_name=subprocess.check_output(['id','-ng']).rstrip()
+
 	if not 'REQNAME' in env_vars.keys():
 		local=True
 		env_vars['REQNAME'] = env_vars['HOSTNAME'] + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time[0]) if 'HOSTNAME' in env_vars.keys() else strftime('%Y_%m_%d_%H_%M_%S', start_time[0])
@@ -53,8 +52,8 @@ def main(args=None):
 		print "compute node: " + env_vars['HOSTNAME']
 	if 'PWD' in env_vars.keys():
 		print "current directory: " + env_vars['PWD']
-	if 'PROJ_ID' in env_vars.keys():
-		print "current group/project id: " + env_vars['PROJ_ID']
+	print "user name: " + user_name
+	print "group id: " + group_name
 	if 'JOB_ID' in env_vars.keys():
 		print "job id: " + env_vars['JOB_ID']
 	if 'REQNAME' in env_vars.keys():
@@ -78,7 +77,8 @@ def main(args=None):
 
 	end_time = (localtime(), time())
 	process = psutil.Process(os.getpid())
-	mem = process.get_memory_info()[0] / float(2 ** 20)
+	#mem = process.get_memory_info()[0] / float(2 ** 20)
+	mem=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000.0
 	print 'finish time: ' + strftime("%Y-%m-%d %H:%M:%S", end_time[0])
 	print 'time elapsed: ' + strftime('%H:%M:%S', gmtime(end_time[1] - start_time[1]))
 	print 'memory used: ' + str('%.2f' % mem) + ' MB'

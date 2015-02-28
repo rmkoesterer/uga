@@ -1,10 +1,12 @@
 import pandas as pd
+import re
+from Messages import Error
 
-def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None)
+def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,delimiter='\t'):
 	model_vars_dict = {}
 	dependent = re.split('\\~',model)[0]
 	independent = re.split('\\~',model)[1]
-	vars_df = pd.read_table(pheno,sep='\t',dtype='str')
+	vars_df = pd.read_table(pheno,sep=delimiter,dtype='str')
 	for x in [a for a in list(set(re.split('Surv\(|,|\)|~|\+|cluster\(|\(1\||\*|factor\(',model))) if a != '']:
 		mtype = ''
 		if dependent.find(x) != -1:
@@ -32,23 +34,22 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None)
 				model_vars_dict[x] = {'class': 'cluster', 'type': mtype}
 			else:
 				model_vars_dict[x] = {'class': 'numeric', 'type': mtype}
-	print "   ... analysis model: %s" % model
 
 	for x in model_vars_dict.keys():
 		if x in list(vars_df.columns):
-			print "          %s variable %s found" % (model_vars_dict[x]['type'], x)
+			print "   %s variable %s found" % (model_vars_dict[x]['type'], x)
 		elif x in ['marker','marker1','marker2','marker.interact']:
-			print "          %s variable %s skipped" % (model_vars_dict[x]['type'], x)
+			print "   %s variable %s skipped" % (model_vars_dict[x]['type'], x)
 		else:
-			print "          %s variable %s not found" % (model_vars_dict[x]['type'], x)
+			print "   %s variable %s not found" % (model_vars_dict[x]['type'], x)
 			print Error("model variable missing from phenotype file")
 			return
 	
 	if sex:
 		if sex in list(vars_df.columns):
-			print "          sex column %s found" % sex
+			print "   sex column %s found" % sex
 		else:
-			print "          sex column %s not found" % sex
+			print "   sex column %s not found" % sex
 			print Error("sex column missing from phenotype file")
 			return
 

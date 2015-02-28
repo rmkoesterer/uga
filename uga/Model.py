@@ -7,25 +7,29 @@ import tabix
 import math
 import numpy as np
 import pandas as pd
-pd.options.mode.chained_assignment = None
 from rpy2.robjects.packages import importr
 import pandas.rpy.common as py2r
 import re
-from itertools import islice
+from itertools import islice,takewhile
 from Bio import bgzf
 import psutil
-from MarkerCalc import Complement,ConvertDosage,CalcCallrate,CalcFreq,CalcRsq,CalcHWE
+from MarkerCalc import Complement,ConvertDosage,CalcCallrate,CalcFreq,CalcRsq,CalcHWE,CallToDos
 from Messages import Error
 from Stats import GenerateFilterCode,CalcGEE,CalcGLM,CalcLME,CalcCoxPH,CalcEffTests,CalcFamSkatO,CalcFamSkat
 from Coordinates import Coordinates
+from Pheno import ExtractModelVars
 from plinkio import plinkfile
 import collections
+import pysam
+import vcf as VCF
+from memory_profiler import profile, memory_usage
 
+pd.options.mode.chained_assignment = None
+
+@profile
 def Model(out = None, 
-			oxford = None, 
-			dos1 = None, 
-			dos2 = None, 
-			plink = None, 
+			data = None, 
+			format = 'oxford', 
 			samples = None, 
 			pheno = None, 
 			model = None, 
@@ -49,96 +53,40 @@ def Model(out = None,
 			case = 1, 
 			ctrl = 0, 
 			mem = 3, 
+			corstr = 'exchangeable', 
+			delimiter = 'tab', 
 			nofail = False):
 
-	print "   ... arguments"
+	print "model options ..."
 	for arg in locals().keys():
 		if not str(locals()[arg]) in ['None','False']:
-			print "      {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
+			print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 
 	assert out, Error("an output file must be specified")
-	assert not oxford is None or not dos1 is None or not dos2 is None or not plink is None, Error("a genotype data file must be specified")
-	assert samples or not plink is None, Error("a sample file must be specified if not Plink format")
+	assert data, Error("a genotype data file must be specified")
+	assert samples or format == 'plink' or format == 'vcf', Error("a sample file must be specified if not Plink format")
 	assert pheno, Error("a phenotype file must be specified")
 	assert model, Error("a model must be specified")
 	assert fid, Error("a family ID column must be specified")
 	assert iid, Error("an individual ID column must be specified")
 	assert method, Error("an analysis method must be specified")
 	
-	fxn = method.split('_')[1] if method in ["gee_gaussian","gee_binomial","glm_gaussian","glm_binomial","lme_gaussian","lme_binomial"] else ''
-
-	if focus: focus = focus.split(',')
+	if delimiter == 'tab':
+		delimiter = '\t'
+	elif delimiter == 'space':
+		delimiter = ' '
+	else:
+		delimiter = ','
 	
 	##### READ model VARIABLES FROM FILE #####
-	print "   ... extracting model variables and removing missing/invalid samples"
-	model_vars_dict = {}
-	dependent = re.split('\\~',model)[0]
-	independent = re.split('\\~',model)[1]
-	vars_df = pd.read_table(pheno,sep='\t',dtype='str')
-	for x in [a for a in list(set(re.split('Surv\(|,|\)|~|\+|cluster\(|\(1\||\*|factor\(',model))) if a != '']:
-		mtype = ''
-		if dependent.find(x) != -1:
-			pre = dependent.split(x)[0] if dependent.split(x)[0] != '' else '.'
-			post = dependent.split(x)[1] if dependent.split(x)[1] != '' else '.'
-			if not pre[-1].isalpha() and not post[0].isalpha():
-				mtype = 'dependent'
-		if independent.find(x) != -1:
-			pre = independent.split(x)[0] if independent.split(x)[0] != '' else '.'
-			post = independent.split(x)[1] if independent.split(x)[1] != '' else '.'
-			if not pre[-1].isalpha() and not post[0].isalpha():
-				if mtype == '':
-					mtype = 'independent'
-				else:
-					print Error("a column in the phenotype file is defined in the model as both an independent and dependent variable")
-					return
-		if mtype != '':
-			if model[model.find(x)-7:model.find(x)] == 'factor(':
-				model_vars_dict[x] = {'class': 'factor', 'type': mtype}
-			elif model[model.find(x)-15:model.find(x)] == 'ordered(factor(':
-				model_vars_dict[x] = {'class': 'orderedfactor', 'type': mtype}
-			elif model[model.find(x)-3:model.find(x)] == '(1|':
-				model_vars_dict[x] = {'class': 'random', 'type': mtype}
-			elif model[model.find(x)-8:model.find(x)] == 'cluster(':
-				model_vars_dict[x] = {'class': 'cluster', 'type': mtype}
-			else:
-				model_vars_dict[x] = {'class': 'numeric', 'type': mtype}
-	print "   ... analysis model: %s" % model
+	print "extracting model variables and removing missing/invalid samples ..."
+	fxn = method.split('_')[1] if method in ["gee_gaussian","gee_binomial","glm_gaussian","glm_binomial","lme_gaussian","lme_binomial"] else None
+	vars_df, model_vars_dict = ExtractModelVars(pheno,model,fid,iid,fxn=fxn,sex=sex,delimiter=delimiter)
 
-	for x in model_vars_dict.keys():
-		if x in list(vars_df.columns):
-			print "          %s variable %s found" % (model_vars_dict[x]['type'], x)
-		elif x in ['marker','marker1','marker2','marker.interact']:
-			print "          %s variable %s skipped" % (model_vars_dict[x]['type'], x)
-		else:
-			print "          %s variable %s not found" % (model_vars_dict[x]['type'], x)
-			print Error("model variable missing from phenotype file")
-			return
-	
-	if sex:
-		if sex in list(vars_df.columns):
-			print "          sex column %s found" % sex
-		else:
-			print "          sex column %s not found" % sex
-			print Error("sex column missing from phenotype file")
-			return
-
-	vars_df = vars_df[list(set([a for a in [fid,iid,sex] if a] + list([a for a in model_vars_dict.keys() if a != 'marker'])))]
-	
-	vars_df[fid] = vars_df[fid].astype(str)
-	vars_df[iid] = vars_df[iid].astype(str)
-	
-	##### EXTRACT CASE/CTRL IF BINOMIAL fxn #####
-	for x in model_vars_dict.keys():
-		if model_vars_dict[x]['type'] == 'dependent' and fxn == 'binomial':
-			vars_df = vars_df[vars_df[x].isin([str(case),str(ctrl)])]
-			vars_df[x] = vars_df[x].map({str(ctrl): '0', str(case): '1'})
-	vars_df.dropna(inplace = True)
-	if len(vars_df.index) == 0:
-		print Error("no data left for analysis")
-		return
-		
 	##### DETERMINE MODEL STATS TO BE EXTRACTED #####
-	if not focus:
+	if focus: 
+		focus = focus.split(',')
+	else:
 		focus = ['(Intercept)'] if method.split('_')[0] in ['gee','glm','lme'] else []
 		for x in re.sub("\+|\~|\-",",",model.split('~')[1]).split(','):
 			if not x[0] == '(' and x.find('cluster(') == -1:
@@ -151,15 +99,21 @@ def Model(out = None,
 				else:
 					focus.append(x)
 
-	##### LOAD PLINK BINARY ITERATORS, ELSE LOAD SAMPLE LIST FILE #####
-	if not plink is None:
-		print "   ... reading Plink binary files"
-		plink_bed_it = plinkfile.open(plink)
+	##### LOAD ITERATORS, ELSE LOAD SAMPLE LIST FILE #####
+	if format == 'plink':
+		print "reading Plink binary files"
+		plink_bed_it = plinkfile.open(data)
 		plink_sample_it = plink_bed_it.get_samples()
 		plink_locus_it = plink_bed_it.get_loci()
 		sample_ids = [x.iid for x in plink_sample_it]
+	elif format == 'vcf':
+		print "reading vcf file"
+		tb = tabix.open(data)
+		v=VCF.Reader(filename=data)
+		record=v.next()
+		sample_ids = [a.sample for a in record.samples]
 	else:
-		print "   ... reading data and sample list"
+		print "reading data and sample files"
 		tb = tabix.open(data)
 		sample_ids = []
 		open_func = gzip.open if samples[-3:] == '.gz' else open
@@ -171,9 +125,11 @@ def Model(out = None,
 	if len(vars_df[vars_df[iid].isin(sample_ids)]) == 0:
 		print Error("phenotype file and data file contain no common samples")
 		return
+	
+	##### REDUCE PHENO DATA TO GENOTYPE IDs #####
+	vars_df = vars_df[vars_df[iid].isin(sample_ids)]
 
 	##### CREATE SUMMARY FOR DATA TO BE ANALYZED #####
-	vars_df = vars_df[vars_df[iid].isin(sample_ids)]
 	samples = len(vars_df.index)
 	vars_df_nodup = vars_df.drop_duplicates(subset=[iid])
 	samples_unique = len(vars_df_nodup.index)
@@ -183,24 +139,24 @@ def Model(out = None,
 	ctrls = len(vars_df_nodup[dep_var[0]][vars_df_nodup[dep_var[0]].isin(['0'])]) if fxn == 'binomial' else 'NA'
 	nmale = len(vars_df_nodup[vars_df_nodup[sex].isin([str(male)])].index.values) if not sex is None and not male is None and not female is None else 'NA'
 	nfemale = len(vars_df_nodup[vars_df_nodup[sex].isin([str(female)])].index.values) if not sex is None and not male is None and not female is None else 'NA'
-	print "   ... data summary"
-	print "          " + str(samples) + " total observations"
-	print "          " + str(samples_unique) + " unique samples"
-	print "          " + str(clusters) + " clusters"
-	print "          " + str(cases) + " case"
-	print "          " + str(ctrls) + " control"
-	print "          " + str(nmale) + " male"
-	print "          " + str(nfemale) + " female"
+	print "data summary ..."
+	print "   " + str(samples) + " total observations"
+	print "   " + str(samples_unique) + " unique samples"
+	print "   " + str(clusters) + " clusters"
+	print "   " + str(cases) + " case"
+	print "   " + str(ctrls) + " control"
+	print "   " + str(nmale) + " male"
+	print "   " + str(nfemale) + " female"
 	
 	##### READ PEDIGREE FROM FILE FOR FAMILY BASED SKAT TEST #####
 	if pedigree:
-		print "   ... extracting pedigree from file"
+		print "extracting pedigree from file"
 		pedigree = pd.read_table(pedigree,sep='\t',dtype='str',header=None, names=['FID','IID','PAT','MAT'])
 		pedigree = pedigree[pedigree['IID'].isin(list(vars_df[iid].values))]
 
 	##### GENERATE REGION LIST #####
 	if region_list:
-		print "   ... reading list of regions from file"
+		print "reading list of regions from file"
 		marker_list = Coordinates(region_list).Load()
 	elif region:
 		if len(region.split(':')) > 1:
@@ -213,7 +169,7 @@ def Model(out = None,
 	marker_list['n'] = 0
 	
 	##### DETERMINE NONEMPTY REGIONS #####
-	if not plink is None:
+	if format == 'plink':
 		for i in range(len(marker_list.index)):
 			if marker_list['start'][i] != 'NA':
 				marker_list['n'][i] = len([c for c in plink_locus_it if c.chromosome == int(marker_list['chr'][i]) and c.bp_position >= int(marker_list['start'][i]) and c.bp_position <= int(marker_list['end'][i])])
@@ -238,21 +194,21 @@ def Model(out = None,
 		print Error("no markers found")
 		return()
 	else:
-		print "          " + str(len(marker_list.index)) + " non-empty regions"
+		print "   " + str(len(marker_list.index)) + " non-empty regions"
 
 	##### SET BUFFER AND SIG DIGITS #####
 	sig = int(sig) if sig else sig
 	buffer = int(buffer) if buffer else buffer
 
 	##### START ANALYSIS #####
-	print "   ... starting analysis"
+	print "modelling data ..."
 	written = False
 	bgzfile = bgzf.BgzfWriter(out + '.gz', 'wb')
 	for r in range(len(marker_list.index)):
 		reg = marker_list['region'][r]
 		chr = reg.split(':')[0]
 		i = 0
-		if not plink is None:
+		if format == 'plink':
 			if reg == chr:
 				try:
 					records = (x for x in plink_locus_it if x.chromosome == int(chr))
@@ -273,7 +229,7 @@ def Model(out = None,
 			chunk=list(islice(records, buffer))
 			if not chunk:
 				break
-			if not plink is None:
+			if format == 'plink':
 				marker_info=collections.OrderedDict()
 				marker_info['chr'] = collections.OrderedDict()
 				marker_info['pos'] = collections.OrderedDict()
@@ -304,15 +260,21 @@ def Model(out = None,
 			else:
 				chunkdf = pd.DataFrame(chunk)
 				marker_info = chunkdf.ix[:,:4]
-				marker_info.columns = ['chr','pos','marker','a1','a2'] if dos2 else ['chr','marker','pos','a1','a2']
+				marker_info.replace('.','NA',inplace=True)
+				marker_info.columns = ['chr','pos','marker','a1','a2'] if format in ['dos2','vcf'] else ['chr','marker','pos','a1','a2']
 				marker_info = marker_info[['chr','pos','marker','a1','a2']]
 				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '.'  + marker_info['marker'].astype(str) + '.'  + marker_info['a1'].astype(str) + '.'  + marker_info['a2'].astype(str)
 				marker_info.index = marker_info['marker_unique']
-				marker_data = chunkdf.ix[:,5:].transpose()
+				if format == 'vcf':
+					marker_data = chunkdf.ix[:,9:].transpose()
+					marker_data=marker_data.applymap(CallToDos)
+				elif format == 'oxford':
+					marker_data = chunkdf.ix[:,5:].transpose()
+					marker_data = marker_data.apply(lambda col: pd.Series(np.array(ConvertDosage(list(col))).astype(np.float64)),0)
+				else:
+					marker_data = chunkdf.ix[:,5:].transpose()
 				marker_data = marker_data.convert_objects(convert_numeric=True)
 				marker_data.columns = marker_info['marker_unique']
-				if not oxford is None:
-					marker_data = marker_data.apply(lambda col: pd.Series(np.array(ConvertDosage(list(col))).astype(np.float64)),0)
 				marker_data[iid] = sample_ids
 			model_df = pd.merge(vars_df, marker_data, on = [iid], how='left').sort([fid])
 			model_df_nodup=model_df.drop_duplicates(subset=[iid]).reset_index(drop=True)
@@ -359,7 +321,7 @@ def Model(out = None,
 				if method.split('_')[0] == 'gee':
 					model_df[fid] = pd.Categorical.from_array(model_df[fid]).codes.astype(np.int64)
 					model_df.sort([fid],inplace = True)
-					results = marker_info.apply(lambda row: CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
+					results = marker_info.apply(lambda row: CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var, corstr=corstr), 1)
 				elif method.split('_')[0] == 'glm':
 					results = marker_info.apply(lambda row: CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=model_vars_dict, model=model, iid=iid, fid=fid, method=method, fxn=fxn, focus=focus, dep_var=dep_var), 1)
 				elif method.split('_')[0] == 'lme':
@@ -388,7 +350,7 @@ def Model(out = None,
 						reg_marker_info = reg_marker_info.append(marker_info[marker_info['filter'] == 0],ignore_index=True)
 			cur_markers = str(min(i*buffer,marker_list['n'][r])) if marker_list['start'][r] != 'NA' else str(i*buffer)
 			tot_markers = str(marker_list['n'][r]) if marker_list['start'][r] != 'NA' else '> 0'
-			print '   ... processed ' + cur_markers + ' of ' + tot_markers + ' markers from region ' + str(r+1) + ' of ' + str(len(marker_list.index))
+			print '   processed ' + cur_markers + ' of ' + tot_markers + ' markers from region ' + str(r+1) + ' of ' + str(len(marker_list.index))
 		if method == 'efftests':
 			tot_tests = reg_marker_info.shape[0]
 			if tot_tests > 0:
@@ -413,7 +375,7 @@ def Model(out = None,
 				bgzfile.flush()
 				written = True
 			results.to_csv(bgzfile, header=False, sep='\t', index=False)
-			print '   ... processed effective tests calculation for region ' + str(r+1) + ' of ' + str(len(marker_list.index))
+			print '   processed effective tests calculation for region ' + str(r+1) + ' of ' + str(len(marker_list.index))
 		elif method == 'famskat_o':
 			nmarkers = reg_marker_info.shape[0]
 			if nmarkers > 0:
@@ -432,8 +394,8 @@ def Model(out = None,
 					written = True
 				results.to_csv(bgzfile, header=False, sep='\t', index=False)
 	bgzfile.close()
-	print "   ... mapping results file"
+	print "mapping results file"
 	cmd = 'tabix -b 2 -e 2 ' + out + '.gz'
 	p = subprocess.Popen(cmd, shell=True)
 	p.wait()	
-	print "   ... process complete"
+	print "process complete"
