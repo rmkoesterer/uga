@@ -28,6 +28,10 @@ def main(args=None):
 		print "reading configuration from file"
 		config = Cfg(args.cfg, args.which, args.vars).Load()
 		args.out = config['out']
+	elif  args.which == 'model' and not args.cfg is None:
+		print "reading configuration from file"
+		config = Cfg(args.cfg, args.which).Load()
+		args.out = config['out']
 
 	##### define region list #####
 	if args.which in ['model','meta','summary']:
@@ -187,29 +191,46 @@ def main(args=None):
 				out = args.out
 			if args.overwrite:
 				RemoveExistingFiles(out, args.which)
+				if not args.cfg is None and args.which == 'model':
+					for k in config['data_info'].keys():
+						RemoveExistingFiles(out + '.' + k, args.which)
 			else:
 				CheckExistingFiles(out, args.which)
+				if not args.cfg is None and args.which == 'model':
+					for k in config['data_info'].keys():
+						CheckExistingFiles(out + '.' + k, args.which)
 			if args.which == 'model':
-				cmd = args.which.capitalize() + '(out=\'' + out + '\''
-				for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','model','fid','iid','method','focus','sig','region_list','region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','kinship','delimiter']:
-					if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
-						if x in ['oxford','dos1','dos2','plink','vcf']:
-							cmd = cmd + ',data=\'' + str(vars(args)[x]) + '\',format=\'' + x + '\''
-						elif type(vars(args)[x]) is str:
-							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
-						else:
-							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-				cmd = cmd + ',mem=' + str(args.mem) + ')'
+				if not args.cfg is None:
+					config['out'] = out
+					cmd = args.which.capitalize() + '(cfg=' + str(config)
+					for x in ['region_list', 'region', 'region_id']:
+						if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+							if type(vars(args)[x]) is str:
+								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
+							else:
+								cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+					cmd = cmd + ',mem=' + str(args.mem) + ')'
+				else:
+					cmd = args.which.capitalize() + '(out=\'' + out + '\''
+					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','model','fid','iid','method','focus','sig','region_list','region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','pedigree','delimiter']:
+						if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
+							if x in ['oxford','dos1','dos2','plink','vcf']:
+								cmd = cmd + ',data=[\'' + str(vars(args)[x]) + '\'],format=[\'' + x + '\']'
+							elif type(vars(args)[x]) is str:
+								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
+							else:
+								cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+					cmd = cmd + ',mem=' + str(args.mem) + ')'
 			elif args.which == 'meta':
 				config['out'] = out
 				cmd = args.which.capitalize() + '(cfg=' + str(config)
-				for x in ['region_list', 'region', 'method']:
+				for x in ['region_list', 'region']:
 					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 						if type(vars(args)[x]) is str:
 							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 						else:
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-				cmd = cmd + ',mem=' + str(args.mem) + ')'
+				cmd = cmd + ')'
 			if args.qsub:
 				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + 'quga --internal --cmd \"' + cmd + '\"')
 			else:

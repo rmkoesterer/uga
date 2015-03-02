@@ -17,38 +17,43 @@ def Parser():
 	model_required = model_parser.add_argument_group('required arguments')
 	model_required.add_argument('--out', 
 						action='store', 
-						required=True, 
 						help='output file name (basename only: do not include path)')
 	model_required.add_argument('--pheno', 
+						nargs=1, 
 						action='store', 
-						required=True, 
 						help='phenotype file (see documentation for required formatting)')
 	model_required.add_argument('--fid', 
+						nargs=1, 
 						action='store', 
-						required=True, 
 						help='column name with family ID')
 	model_required.add_argument('--iid', 
 						action='store', 
-						required=True, 
+						nargs=1, 
 						help='column name with sample ID (The IDs in this column must match the --samples file)')
 	model_required.add_argument('--model', 
 						action='store', 
-						required=True, 
+						nargs=1, 
 						help='model string in the format "phenotype~age+factor(sex)+pc1+pc2+pc3+marker" (see documentation)')
 	model_required.add_argument('--method', 
 						action='store', 
-						required=True, 
+						nargs=1, 
 						choices = ["gee_gaussian","gee_binomial","glm_gaussian","glm_binomial","lme_gaussian","lme_binomial","coxph","efftests","skat_o","famskat_o"], 
 						help='analysis method identifier (see documentation  for descriptions)')
+	model_parser.add_argument('--cfg', 
+						action='store', 
+						help='configuration file name (see documentation)')
 	model_parser.add_argument('--delimiter', 
 						action='store', 
+						nargs=1, 
 						choices=['tab','space','comma'], 
 						help='phenotype file delimiter (default: tab)')
 	model_parser.add_argument('--samples', 
 						action='store', 
+						nargs=1, 
 						help='sample file (single column list of IDs in same order as --data file, only required if format != plink)')
 	model_parser.add_argument('--focus', 
 						action='store', 
+						nargs=1, 
 						help='comma separated list of variables for which stats will be reported (default: report all stats)')
 	model_parser.add_argument('--sig', 
 						action='store', 
@@ -57,13 +62,16 @@ def Parser():
 						help='significant digits reported for float type stats (default: SIG=5)')
 	model_parser.add_argument('--sex', 
 						action='store', 
+						nargs=1, 
 						help='name of the column containing male/female status (requires --male and --female)')
 	model_parser.add_argument('--male', 
 						action='store', 
+						nargs=1, 
 						type=int, 
 						default=1, 
 						help='code for male (default: MALE=1; requires --sex and --female)')
 	model_parser.add_argument('--female', 
+						nargs=1, 
 						action='store', 
 						type=int, 
 						default=2, 
@@ -90,25 +98,30 @@ def Parser():
 						type=float, 
 						help='threshold value for Hardy Weinberg p-value (ie. HWE=1e-6 filters out markers with Hardy Weinberg p-value < 1e-6')
 	model_parser.add_argument('--case', 
+						nargs=1, 
 						action='store', 
 						type=int, 
-						default=1, 
+						default=[1], 
 						help='code for case in the dependent variable column (requires --ctrl; binomial fxn family only; default: CASE=1)')
 	model_parser.add_argument('--ctrl', 
+						nargs=1, 
 						action='store', 
 						type=int, 
-						default=0, 
+						default=[0], 
 						help='code for control in the dependent variable column (requires --case; binomial fxn family only; default: CTRL=0)')
 	model_parser.add_argument('--corstr', 
+						nargs=1, 
 						action='store', 
 						choices=['exchangeable','independence','ar1','unstructured'], 
+						default='exchangeable', 
 						help='correlation structure for gee analyses (default: exchangeable)')
 	model_parser.add_argument('--nofail', 
 						action='store_true', 
 						help='exclude filtered/failed analyses from results (if not set, full results are reported with filtered marker stats set to NA')
-	model_parser.add_argument('--kinship', 
+	model_parser.add_argument('--pedigree', 
+						nargs=1, 
 						action='store', 
-						help='file containing the matrix of kinship coefficients')
+						help='pedigree file')
 	model_parser.add_argument('-o', '--overwrite', 
 						action='store_true', 
 						help='overwrite existing output files')
@@ -390,6 +403,8 @@ def Parse(top_parser):
 		top_parser.error("missing argument: --region-list required in module meta with --method efftest")
 	if args.which == 'map' and not (args.b or args.kb or args.mb or args.n):
 		top_parser.error("missing argument: --b, --kb, --mb, or --n required in module map")
+	if args.which == 'model' and args.cfg is None and (args.out is None or args.pheno is None or args.fid is None or args.iid is None or args.model is None or args.method is None):
+		top_parser.error("missing argument: --out, --pheno, --fid, --iid, --model and --method required in module model without --cfg")
 	print ''
 	print 'Universal Genome Analyst v' + __version__
 	print ''

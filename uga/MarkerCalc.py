@@ -5,6 +5,7 @@ def Complement(x):
 		letters = "NA"
 	comp = []
 	for l in letters:
+		
 		if l == 'T': 
 			c = 'A'
 		elif l == 'A':
@@ -31,7 +32,20 @@ def Complement(x):
 			c = 'X'
 		comp.append(c)
 	return ''.join(comp)
-	
+
+def ListCompatibleMarkers(chr,pos,a1,a2,delim):
+	markers = []
+	markers.append(chr + delim + pos + delim + a1 + delim + a2)
+	markers.append(chr + delim + pos + delim + Complement(a1) + delim + Complement(a2))
+	markers.append(chr + delim + pos + delim + Complement(a2) + delim + Complement(a1))
+	markers.append(chr + delim + pos + delim + a2 + delim + a1)
+	for alt in a2.split(','):
+		markers.append(chr + delim + pos + delim + a1 + delim + alt)
+		markers.append(chr + delim + pos + delim + Complement(a1) + delim + Complement(alt))
+		markers.append(chr + delim + pos + delim + Complement(alt) + delim + Complement(a1))
+		markers.append(chr + delim + pos + delim + alt + delim + a1)
+	return list(set(markers))
+
 def ConvertDosage(x):
 	a=zip(x[0::3],x[1::3],x[2::3])
 	return [2*t[0] + 1*t[1] if t[0] > 0 or t[1] > 0 or t[2] > 0 else float('nan') for t in a]

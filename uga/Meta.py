@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 pd.options.mode.chained_assignment = None
 import re
-from MarkerCalc import Complement
+from MarkerCalc import Complement,ListCompatibleMarkers
 from Coordinates import Coordinates
 from Messages import Error
 from multi_key_dict import multi_key_dict
@@ -18,9 +18,7 @@ import scipy.stats as scipy
 
 def Meta(cfg=None, 
 			region=None, 
-			region_list=None, 
-			method=None, 
-			mem=3):
+			region_list=None):
 
 	print "   ... active options ..."
 	for arg in locals().keys():
@@ -28,7 +26,6 @@ def Meta(cfg=None,
 			print "      {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 
 	assert cfg, Error("no configuration file specified")
-	assert method, Error("no meta-analysis method specified")
 
 	##### get headers from process files #####
 	for tag in cfg['data_info'].keys():
@@ -108,18 +105,27 @@ def Meta(cfg=None,
 				for record in records:
 					filtered = 0
 					records_count[tag] = records_count[tag] + 1
-					if ref.has_key(record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]):
-						if not record[marker] in ref[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]]:
-							ref[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]].append(record[marker])
-							ref[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]] = list(set(ref[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]]))
+					record_markers = ListCompatibleMarkers(record[chr],record[pos],record[a1],record[a2],delim)
+					if len([r for r in record_markers if ref.has_key(r)]) > 0:
+						temp_ref = ref[[r for r in record_markers if ref.has_key(r)][1]]
+						temp_alleles = ref_alleles[[r for r in record_markers if ref_alleles.has_key(r)][1]]
+						temp_alleles[1] = ','.join(list(set(','.join([b.split('><')[3] for b in record_markers if b.split('><')[2] == temp_alleles[0]]).split(','))))
+						del ref[[r for r in record_markers if ref.has_key(r)][1]]
+						del ref_alleles[[r for r in record_markers if ref_alleles.has_key(r)][1]]
+						if not record[marker] in temp_ref:
+							temp_ref.append(record[marker])
+							temp_ref = list(set(temp_ref))
+						ref[tuple(record_markers)] = temp_ref
+						ref_alleles[tuple(record_markers)] = temp_alleles
 					else:
-						ref[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2], record[chr] + delim + record[pos] + delim + Complement(record[a1]) + delim + Complement(record[a2]),record[chr] + delim + record[pos] + delim + Complement(record[a2]) + delim + Complement(record[a1]),record[chr] + delim + record[pos] + delim + record[a2] + delim + record[a1]] = [record[marker]]
-						ref_alleles[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2], record[chr] + delim + record[pos] + delim + Complement(record[a1]) + delim + Complement(record[a2]),record[chr] + delim + record[pos] + delim + Complement(record[a2]) + delim + Complement(record[a1]),record[chr] + delim + record[pos] + delim + record[a2] + delim + record[a1]] = [record[a1],record[a2]]
+						ref[record_markers] = [record[marker]]
+						ref_alleles[record_markers] = [record[a1],record[a2]]
 					refmarker = filter(lambda x:'rs' in x, ref[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]])
 					if len(refmarker) > 0:
 						refmarker = refmarker[0]
 					else:
 						refmarker = ref[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]][0]
+					keymarkers = ref[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]]
 					refa1 = ref_alleles[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]][0]
 					refa2 = ref_alleles[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]][1]
 					if (refa1 + refa2 == Complement(record[a2]) + Complement(record[a1]) or refa1 + refa2 == record[a2] + record[a1]) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
@@ -158,11 +164,19 @@ def Meta(cfg=None,
 						out_vals[tag + '.z'] = float(record[z]) if record[z] != "NA" else float('nan')
 					if p:
 						out_vals[tag + '.p'] = float(record[p]) if record[p] != "NA" else float('nan')
-					if not record[chr] + delim + record[pos] + delim + refmarker + delim + refa1 + delim + refa2 in output.keys():
-						output[record[chr] + delim + record[pos] + delim + refmarker + delim + refa1 + delim + refa2] = dict(out_vals)
-					else:
-						output[record[chr] + delim + record[pos] + delim + refmarker + delim + refa1 + delim + refa2].update(dict(out_vals))
+					for keymarker in keymarkers:
+						if record[chr] + delim + record[pos] + delim + keymarker + delim + refa1 + delim + refa2 in output.keys():
+							output[record[chr] + delim + record[pos] + delim + refmarker + delim + refa1 + delim + refa2]=output.pop(record[chr] + delim + record[pos] + delim + keymarker + delim + refa1 + delim + refa2)
+							output[record[chr] + delim + record[pos] + delim + refmarker + delim + refa1 + delim + refa2].update(dict(out_vals))
+						elif len(refa2.split(',')) > 1:
+							for alt in refa2.split(','):
+								if record[chr] + delim + record[pos] + delim + keymarker + delim + refa1 + delim + alt in output.keys():
+									output[record[chr] + delim + record[pos] + delim + refmarker + delim + refa1 + delim + refa2]=output.pop(record[chr] + delim + record[pos] + delim + keymarker + delim + refa1 + delim + alt)
+									output[record[chr] + delim + record[pos] + delim + refmarker + delim + refa1 + delim + refa2].update(dict(out_vals))
+						else:
+							output[record[chr] + delim + record[pos] + delim + refmarker + delim + refa1 + delim + refa2] = dict(out_vals)
 				print "          merged cohort " + tag + " : " + str(len(output.keys())) + " markers"
+
 	output_df = pd.DataFrame(output).transpose()
 	header=['chr','pos','a1','a2','marker']
 	for tag in cfg['file_order']:
@@ -192,7 +206,7 @@ def Meta(cfg=None,
 				output_df[tag + '.' + suffix] = output_df[tag + '.' + suffix].convert_objects(convert_numeric=True)
 
 	##### apply genomic control #####
-	if method in ['sample_size','stderr','efftest']:
+	if cfg['method'] in ['sample_size','stderr','efftest']:
 		for tag in cfg['file_order']:
 			if 'gc' in cfg['data_info'][tag].keys():
 				print "   ... applying genomic control correction for cohort " + tag
@@ -206,7 +220,7 @@ def Meta(cfg=None,
 	output_df['pos'] = output_df['pos'].astype(int)
 	
 	##### apply efftest correction #####
-	if method == 'efftest':
+	if cfg['method'] == 'efftest':
 		for tag in cfg['file_order']:
 			print "   ... applying efftest correction for " + tag
 			with gzip.open(cfg['data_info'][tag]['efftest_file']) as f:
@@ -223,8 +237,8 @@ def Meta(cfg=None,
 	##### meta analysis #####
 	for meta in cfg['meta_order']:
 		print "   ... running meta analysis for cohorts " + meta
-		if method in ['efftest','sample_size']:
-			p_ext = '.p' if method == 'sample_size' else '.p_eff'
+		if cfg['method'] in ['efftest','sample_size']:
+			p_ext = '.p' if cfg['method'] == 'sample_size' else '.p_eff'
 			output_df[meta + '.dir'] = ''
 			for tag in cfg['meta_info'][meta]:
 				output_df[tag + '.filtered'] = output_df.apply(lambda x: 1 if math.isnan(x[tag + p_ext]) or x[tag + p_ext] > 1 or x[tag + p_ext] <= 0 else x[tag + '.filtered'],axis=1)
@@ -294,11 +308,12 @@ def Meta(cfg=None,
 		if 'n' in cfg['data_info'][tag].keys():
 			output_df[tag + '.n'] = output_df[tag + '.n'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
 		output_df[tag + '.filtered'] = output_df[tag + '.filtered'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
-	if meta + '.n' in list(output_df.columns.values):
-		output_df[meta + '.n'] = output_df[meta + '.n'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
+	for meta in cfg['meta_order']:
+		if meta + '.n' in list(output_df.columns.values):
+			output_df[meta + '.n'] = output_df[meta + '.n'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
 
 	##### extract efftest corrected top p values #####
-	if method == 'efftest':
+	if cfg['method'] == 'efftest':
 		out_efftest_df = marker_list.copy()
 		header = ['chr','start','end','reg_id']
 		for tag in cfg['file_order']:
@@ -345,7 +360,7 @@ def Meta(cfg=None,
 	bgzfile.close()
 
 	print "   ... mapping results file"
-	cmd = 'tabix -b 2 -e 3 ' + cfg['out'] + '.gz' if method == 'efftest' else 'tabix -b 2 -e 2 ' + cfg['out'] + '.gz'
+	cmd = 'tabix -b 2 -e 3 ' + cfg['out'] + '.gz' if cfg['method'] == 'efftest' else 'tabix -b 2 -e 2 ' + cfg['out'] + '.gz'
 	p = subprocess.Popen(cmd, shell=True)
 	time.sleep(1)
 	p.wait()

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import re
 from Messages import Error
@@ -68,4 +69,26 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,delimiter='\t'):
 		print Error("no data left for analysis")
 		return
 	return vars_df, model_vars_dict
-	
+
+def GetDelimiter(delimiter):
+	if delimiter == 'tab':
+		delimiter = '\t'
+	elif delimiter == 'space':
+		delimiter = ' '
+	else:
+		delimiter = ','
+	return delimiter
+
+def GetFocus(method,model,vars_df):
+	focus = ['(Intercept)'] if method.split('_')[0] in ['gee','glm','lme'] else []
+	for x in re.sub("\+|\~|\-",",",model.split('~')[1]).split(','):
+		if not x[0] == '(' and x.find('cluster(') == -1:
+			if x.find('factor(') != -1:
+				for v in vars_df[re.sub('factor\(|\)','',x)].unique().astype(np.int64) - min(vars_df[re.sub('factor\(|\)','',x)].unique().astype(np.int64)):
+					if v != min(vars_df[re.sub('factor\(|\)','',x)].unique().astype(np.int64) - min(vars_df[re.sub('factor\(|\)','',x)].unique().astype(np.int64))):
+						focus.append(x + str(v))
+			elif x.find('*') != -1:
+				focus.append('*'.join(sorted(x.split('*'))))
+			else:
+				focus.append(x)
+	return focus

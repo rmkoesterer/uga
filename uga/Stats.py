@@ -23,13 +23,13 @@ base=py2r.importr('base')
 
 def GenerateFilterCode(marker_info, miss = None, freq = None, rsq = None, hwe = None):
 	filter = 0
-	if (not miss is None and not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) < miss) or (not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) == 0) or (math.isnan(marker_info['callrate'])):
+	if (not miss is None and not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) < float(miss)) or (not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) == 0) or (math.isnan(marker_info['callrate'])):
 		filter += 1000
-	if (not freq is None and not math.isnan(marker_info['freq']) and ((float(marker_info['freq']) < freq or float(marker_info['freq']) > 1-freq or float(marker_info['freq']) == 0 or float(marker_info['freq']) == 1) and (float(marker_info['freq.unrel']) < freq or float(marker_info['freq.unrel']) > 1-freq or float(marker_info['freq.unrel']) == 0 or float(marker_info['freq.unrel']) == 1))) or (math.isnan(marker_info['freq'])):
+	if (not freq is None and not math.isnan(marker_info['freq']) and ((float(marker_info['freq']) < float(freq) or float(marker_info['freq']) > 1-float(freq) or float(marker_info['freq']) == 0 or float(marker_info['freq']) == 1) and (float(marker_info['freq.unrel']) < float(freq) or float(marker_info['freq.unrel']) > 1-float(freq) or float(marker_info['freq.unrel']) == 0 or float(marker_info['freq.unrel']) == 1))) or (math.isnan(marker_info['freq'])):
 		filter += 100
-	if (not rsq is None and not math.isnan(marker_info['rsq']) and (float(marker_info['rsq']) < rsq and float(marker_info['rsq.unrel']) < rsq)) or (math.isnan(marker_info['rsq'])):
+	if (not rsq is None and not math.isnan(marker_info['rsq']) and (float(marker_info['rsq']) < float(rsq) and float(marker_info['rsq.unrel']) < float(rsq))) or (math.isnan(marker_info['rsq'])):
 		filter += 10
-	if not hwe is None and not math.isnan(marker_info['hwe']) and (float(marker_info['hwe']) < hwe and float(marker_info['hwe.unrel']) < hwe):
+	if not hwe is None and not math.isnan(marker_info['hwe']) and (float(marker_info['hwe']) < float(hwe) and float(marker_info['hwe.unrel']) < float(hwe)):
 		filter += 1
 	return filter
 
@@ -57,8 +57,8 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	valid = False
 	if model.find('*') != -1:
 		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[1]]			
-	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().stack().value_counts()[1] != model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().shape[0]):
-		status = -3
+	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().stack().value_counts()[1] != model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().shape[0]):
+		status = -2
 	else:
 		if marker_info['filter'] == 0:
 			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(), strings_as_factors=False)
@@ -73,15 +73,15 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 			if 'try-error' in rclass(model_out):
 				model_out=rtry(rsummary(geepack.geeglm(ro.r(model),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr='independence')),silent=ro.r('TRUE'))
 				if 'try-error' in rclass(model_out):
-					status = -4
+					status = -5
 				else:
-					status = 2 if model_out.rx2('error')[0] != 1 else -2
+					status = 2 if model_out.rx2('error')[0] != 1 else -4
 					valid = True if model_out.rx2('error')[0] != 1 else False
 			else:
-				status = 1 if model_out.rx2('error')[0] != 1 else -1
+				status = 1 if model_out.rx2('error')[0] != 1 else -3
 				valid = True if model_out.rx2('error')[0] != 1 else False
 		else:
-			status = -5
+			status = -1
 	if valid:
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
@@ -117,9 +117,9 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	n = 0
 	valid = False
 	if model.find('*') != -1:
-		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.find('*') != -1][0].split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.find('*') != -1][0].split('*')[1]]			
-	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter']))]].corr().stack().value_counts()[1] > model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter']))]].corr().shape[0]):
-		status = -3
+		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[1]]			
+	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().stack().value_counts()[1] != model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().shape[0]):
+		status = -2
 	else:
 		if marker_info['filter'] == 0:
 			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(), strings_as_factors=False)
@@ -132,12 +132,12 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 					rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
 			model_out=rtry(rsummary(rglm(ro.r(model),data=rmodel_df,family=fxn)),silent=ro.r('TRUE'))
 			if 'try-error' in rclass(model_out):
-				status = -4
+				status = -3
 			else:
 				status = 1
 				valid = True
 		else:
-			status = -5
+			status = -1
 	if valid:
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
@@ -174,8 +174,8 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	valid = False
 	if model.find('*') != -1:
 		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.find('*') != -1][0].split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.find('*') != -1][0].split('*')[1]]			
-	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter']))]].corr().stack().value_counts()[1] > model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter']))]].corr().shape[0]):
-		status = -3
+	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter']))]].corr().abs().stack().value_counts()[1] > model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter']))]].corr().abs().shape[0]):
+		status = -2
 	else:
 		if marker_info['filter'] == 0:
 			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(),strings_as_factors=False)
@@ -188,12 +188,12 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 					rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
 			model_out=rtry(rsummary(lme4.glmer(ro.r(model),data=rmodel_df,REML=ro.r('FALSE'),family=fxn)),silent=ro.r('TRUE'))
 			if 'try-error' in rclass(model_out):
-				status = -4
+				status = -3
 			else:
 				status = 1
 				valid = True
 		else:
-			status = -5
+			status = -1
 	if valid:
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
@@ -238,12 +238,12 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 				rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
 		model_out=rtry(rsummary(survival.coxph(ro.r(model),data=rmodel_df,control=ro.r('coxph.control(iter.max = 100)'))),silent=ro.r('TRUE'))
 		if 'try-error' in rclass(model_out):
-			status = -4
+			status = -2
 		else:
 			status = 1
 			valid = True
 	else:
-		status = -5
+		status = -1
 	if valid:
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		conf_int = py2r.convert_robj(model_out.rx('conf.int'))['conf.int']
