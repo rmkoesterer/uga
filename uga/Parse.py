@@ -30,15 +30,6 @@ def Parser():
 						action='store', 
 						nargs=1, 
 						help='column name with sample ID (The IDs in this column must match the --samples file)')
-	model_required.add_argument('--model', 
-						action='store', 
-						nargs=1, 
-						help='model string in the format "phenotype~age+factor(sex)+pc1+pc2+pc3+marker" (see documentation)')
-	model_required.add_argument('--method', 
-						action='store', 
-						nargs=1, 
-						choices = ["gee_gaussian","gee_binomial","glm_gaussian","glm_binomial","lme_gaussian","lme_binomial","coxph","efftests","skat_o","famskat_o"], 
-						help='analysis method identifier (see documentation  for descriptions)')
 	model_parser.add_argument('--cfg', 
 						action='store', 
 						help='configuration file name (see documentation)')
@@ -185,6 +176,37 @@ def Parser():
 	model_parser_split_group4.add_argument('--vcf', 
 						action='store', 
 						help='vcf 4.0/4.1 format genotype data file')
+	model_parser_split_group5 = model_parser.add_mutually_exclusive_group()
+	model_parser_split_group5.add_argument('--gee-gaussian', 
+						action='store', 
+						help='model string for gee gaussian analysis')
+	model_parser_split_group5.add_argument('--gee-binomial', 
+						action='store', 
+						help='model string for gee binomial analysis')
+	model_parser_split_group5.add_argument('--glm-gaussian', 
+						action='store', 
+						help='model string for glm gaussian analysis')
+	model_parser_split_group5.add_argument('--glm-binomial', 
+						action='store', 
+						help='model string for glm binomial analysis')
+	model_parser_split_group5.add_argument('--lme-gaussian', 
+						action='store', 
+						help='model string for lme gaussian analysis')
+	model_parser_split_group5.add_argument('--lme-binomial', 
+						action='store', 
+						help='model string for lme binomial analysis')
+	model_parser_split_group5.add_argument('--coxph', 
+						action='store', 
+						help='model string for coxph analysis')
+	model_parser_split_group5.add_argument('--efftests', 
+						action='store', 
+						help='model string for efftests analysis')
+	model_parser_split_group5.add_argument('--skat_o', 
+						action='store', 
+						help='model string for skat_o analysis')
+	model_parser_split_group5.add_argument('--famskat_o', 
+						action='store', 
+						help='model string for famskat_o analysis')
 
 	meta_parser = subparsers.add_parser('meta', help='meta-analysis', parents=[parser])
 	meta_required = meta_parser.add_argument_group('required arguments')	
@@ -403,8 +425,13 @@ def Parse(top_parser):
 		top_parser.error("missing argument: --region-list required in module meta with --method efftest")
 	if args.which == 'map' and not (args.b or args.kb or args.mb or args.n):
 		top_parser.error("missing argument: --b, --kb, --mb, or --n required in module map")
-	if args.which == 'model' and args.cfg is None and (args.out is None or args.pheno is None or args.fid is None or args.iid is None or args.model is None or args.method is None):
-		top_parser.error("missing argument: --out, --pheno, --fid, --iid, --model and --method required in module model without --cfg")
+	if args.which == 'model' and args.cfg is None and (args.out is None or args.pheno is None or args.fid is None or args.iid is None or 
+															(args.gee_gaussian is None and args.gee_binomial is None and
+															args.glm_gaussian is None and args.glm_binomial is None and
+															args.lme_gaussian is None and args.lme_binomial is None and
+															args.coxph is None and args.efftests is None and
+															args.skat_o is None and args.famskat_o is None)):
+		top_parser.error("missing argument: --out, --pheno, --fid, --iid, and a model string (ie. --gee-gaussian, etc.) required in module model without --cfg")
 	print ''
 	print 'Universal Genome Analyst v' + __version__
 	print ''

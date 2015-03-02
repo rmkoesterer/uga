@@ -212,10 +212,15 @@ def main(args=None):
 					cmd = cmd + ',mem=' + str(args.mem) + ')'
 				else:
 					cmd = args.which.capitalize() + '(out=\'' + out + '\''
-					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','model','fid','iid','method','focus','sig','region_list','region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','pedigree','delimiter']:
+					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','fid','iid','focus','sig','region_list','gee_gaussian',
+								'gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','skat_o','famskat_o',
+								'region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail',
+								'pedigree','delimiter']:
 						if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
 							if x in ['oxford','dos1','dos2','plink','vcf']:
 								cmd = cmd + ',data=[\'' + str(vars(args)[x]) + '\'],format=[\'' + x + '\']'
+							elif x in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','skat_o','famskat_o']:
+								cmd = cmd + ',model=[\'' + str(vars(args)[x]) + '\'],method=[\'' + x + '\']'
 							elif type(vars(args)[x]) is str:
 								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 							else:

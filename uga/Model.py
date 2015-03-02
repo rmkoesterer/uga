@@ -73,7 +73,7 @@ def Model(out = None,
 	##### populate configuration #####
 	if cfg is None:
 		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'freq': freq, 'miss': freq, 'rsq': freq, 'mem': mem, 'sig': int(sig), 'nofail': nofail,
-				'data_info': {'NA': {'process_data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
+				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
 					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
 						'corstr': corstr[0], 'delimiter': delimiter[0]}}}
 
@@ -100,13 +100,13 @@ def Model(out = None,
 	for k in cfg['data_order']:
 		if cfg['data_info'][k]['format'] == 'plink':
 			print "reading Plink binary files for model " + k if len(cfg['data_info'].keys()) > 1 else "reading Plink binary files"
-			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_it'], cfg['data_info'][k]['sample_ids'] = LoadPlink(cfg['data_info'][k]['process_data'])
+			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_it'], cfg['data_info'][k]['sample_ids'] = LoadPlink(cfg['data_info'][k]['data'])
 		elif cfg['data_info'][k]['format'] == 'vcf':
 			print "reading vcf file for model " + k if len(cfg['data_info'].keys()) > 1 else "reading vcf file"
-			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = LoadVcf(cfg['data_info'][k]['process_data'])
+			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = LoadVcf(cfg['data_info'][k]['data'])
 		else:
 			print "reading data and sample files for model " + k if len(cfg['data_info'].keys()) > 1 else "reading data and sample files"
-			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = LoadDos(cfg['data_info'][k]['process_data'], cfg['data_info'][k]['samples'])
+			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = LoadDos(cfg['data_info'][k]['data'], cfg['data_info'][k]['samples'])
 		if len(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].isin(cfg['data_info'][k]['sample_ids'])]) == 0:
 			print Error("phenotype file and data file contain no common samples")
 			return
@@ -168,7 +168,7 @@ def Model(out = None,
 				else:
 					marker_list[k][i] = len(cfg['data_info'][k]['data_it'])
 		else:
-			tb = tabix.open(cfg['data_info'][k]['process_data'])
+			tb = tabix.open(cfg['data_info'][k]['data'])
 			for i in range(len(marker_list.index)):
 				try:
 					records = tb.querys(marker_list['region'][i])

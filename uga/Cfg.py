@@ -64,13 +64,17 @@ class Cfg(object):
 						line = line.replace('[' + k + ']', self.vars[k])
 					key = str(line.split()[0])
 					val = " ".join(line.split()[1:])
-					if key in ["out","sig","buffer","miss","freq","rsq","hwe","mem","nofail"]:
+					if key in ['out','sig','buffer','miss','freq','rsq','hwe','mem','nofail']:
 						config[key] = val
-					elif key == "process_data":
+					elif key in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','skat_o','famskat_o']:
+						config_temp["model"] = val
+						config_temp["method"] = key
+					elif key in ['oxford','vcf','plink','dos1','dos2']:
 						i = i + 1
 						if not 'tag' in config_temp.keys():
 							config_temp['tag']='FILE' + str(i)
-						config_temp['process_data'] = val
+						config_temp["data"] = val
+						config_temp["format"] = key
 						config['data_info'][config_temp['tag']] = dict(config_temp)
 						config['data_order'].append(config_temp['tag'])
 					else:
