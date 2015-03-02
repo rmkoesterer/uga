@@ -142,7 +142,7 @@ def Model(out = None,
 	for k in cfg['data_order']:
 		if 'pedigree' in cfg['data_info'][k].keys() and not cfg['data_info'][k]['pedigree'] is None:
 			print "extracting pedigree from file for model " + k if len(cfg['data_info'].keys()) > 1 else "extracting pedigree from file"
-			cfg['data_info'][k]['ped_df'] = pd.read_table(cfg['data_info'][k]['pedigree'],sep='\t',dtype='str',header=None, names=['FID','IID','PAT','MAT'])
+			cfg['data_info'][k]['ped_df'] = pd.read_table(cfg['data_info'][k]['pedigree'],sep='\t',dtype='str',usecols=['FID','IID','PAT','MAT'])
 			cfg['data_info'][k]['ped_df'] = cfg['data_info'][k]['ped_df'][cfg['data_info'][k]['ped_df']['IID'].isin(list(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].values))]
 
 	##### GENERATE REGION LIST #####
@@ -157,7 +157,7 @@ def Model(out = None,
 		marker_list['reg_id'] = region_id
 	else:
 		marker_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
-	
+
 	##### DETERMINE REGION COUNTS #####
 	for k in cfg['data_order']:
 		marker_list[k] = 0
@@ -168,11 +168,12 @@ def Model(out = None,
 				else:
 					marker_list[k][i] = len(cfg['data_info'][k]['data_it'])
 		else:
+			pos_ind = 1 if cfg['data_info'][k]['format'] == 'dos2' else 2
 			tb = tabix.open(cfg['data_info'][k]['data'])
 			for i in range(len(marker_list.index)):
 				try:
 					records = tb.querys(marker_list['region'][i])
-					records = (x for x in records if int(x[1]) >= int(marker_list['start'][i]) and int(x[1]) <= int(marker_list['end'][i]))
+					records = (x for x in records if int(x[pos_ind]) >= int(marker_list['start'][i]) and int(x[pos_ind]) <= int(marker_list['end'][i]))
 				except:
 					pass
 				else:
@@ -213,7 +214,7 @@ def Model(out = None,
 			else:
 				try:
 					records = cfg['data_info'][k]['data_it'].querys(reg)
-					records = (x for x in records if int(x[1]) >= int(marker_list['start'][r]) and int(x[1]) <= int(marker_list['end'][r]))
+					records = (x for x in records if int(x[pos_ind]) >= int(marker_list['start'][r]) and int(x[pos_ind]) <= int(marker_list['end'][r]))
 				except:
 					break
 			while True:
@@ -261,7 +262,7 @@ def Model(out = None,
 						marker_data=marker_data.applymap(CallToDos)
 					elif cfg['data_info'][k]['format'] == 'oxford':
 						marker_data = chunkdf.ix[:,5:].transpose()
-						marker_data = marker_data.apply(lambda col: pd.Series(np.array(ConvertDosage(list(col))).astype(np.float64)),0)
+						marker_data = marker_data.apply(lambda col: pd.Series(ConvertDosage(np.array(col.astype(np.float64)))),0)
 					else:
 						marker_data = chunkdf.ix[:,5:].transpose()
 					marker_data = marker_data.convert_objects(convert_numeric=True)
@@ -376,7 +377,16 @@ def Model(out = None,
 					snp_info = pd.DataFrame({'Name': reg_marker_info['marker_unique'], 'gene': marker_list['reg_id'][r]})
 					z = reg_model_df[list(marker_info['marker_unique'])]
 					pheno = reg_model_df[list(set(cfg['data_info'][k]['model_vars_dict'].keys() + [cfg['data_info'][k]['iid'],cfg['data_info'][k]['fid']]))]
-					results_pre = CalcFamSkatO(snp_info=snp_info, z=z, model=cfg['data_info'][k]['model'], pheno=cfg['data_info'][k]['pheno'], pedigree=cfg['data_info'][k]['ped_df'])
+					
+
+
+					print z.shape
+					print cfg['data_info'][k]['ped_df'].shape
+
+
+
+
+					results_pre = CalcFamSkatO(snp_info=snp_info, z=z, model=cfg['data_info'][k]['model'], pheno=pheno, pedigree=cfg['data_info'][k]['ped_df'])
 					results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
 											'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})

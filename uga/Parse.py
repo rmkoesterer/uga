@@ -201,10 +201,10 @@ def Parser():
 	model_parser_split_group5.add_argument('--efftests', 
 						action='store', 
 						help='model string for efftests analysis')
-	model_parser_split_group5.add_argument('--skat_o', 
+	model_parser_split_group5.add_argument('--skat-o', 
 						action='store', 
 						help='model string for skat_o analysis')
-	model_parser_split_group5.add_argument('--famskat_o', 
+	model_parser_split_group5.add_argument('--famskat-o', 
 						action='store', 
 						help='model string for famskat_o analysis')
 

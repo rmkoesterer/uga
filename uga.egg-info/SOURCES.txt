@@ -4,12 +4,13 @@ setup.py
 uga/Cfg.py
 uga/Coordinates.py
 uga/File.py
+uga/Iterators.py
 uga/Map.py
 uga/MarkerCalc.py
 uga/Messages.py
 uga/Meta.py
 uga/Model.py
-uga/ModelFile.py
+uga/ModelFxns.py
 uga/Parse.py
 uga/Plot.py
 uga/Process.py
