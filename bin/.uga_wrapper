@@ -10,11 +10,11 @@ import resource
 import subprocess
 import argparse
 import sys
-from Model import Model
-from Meta import Meta
-from Map import Map
-from Plot import Plot
-from Process import kill_all
+from uga.Model import Model
+from uga.Meta import Meta
+from uga.Map import Map
+from uga.Plot import Plot
+from uga.Process import kill_all
 from time import strftime, localtime, time, gmtime
 
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)

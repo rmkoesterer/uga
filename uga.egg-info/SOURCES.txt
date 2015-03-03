@@ -1,6 +1,7 @@
 README.rst
 setup.cfg
 setup.py
+bin/quga.py
 uga/Cfg.py
 uga/Coordinates.py
 uga/File.py

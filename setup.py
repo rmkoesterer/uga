@@ -47,8 +47,7 @@ setup(
     long_description=long_description,
     entry_points={
        'console_scripts': [
-           'uga = uga.__main__:main',
-		   'quga = uga.QUga:main',
+			'uga = uga.__main__:main',
            ],
        },
     packages=['uga'],

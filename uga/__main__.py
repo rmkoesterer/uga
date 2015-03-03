@@ -88,8 +88,8 @@ def main(args=None):
 		if dist_mode in ['chr','region','split-list','split-list-n']:
 			out_files = GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
 
-	##### define script library path #####
-	script_path = os.environ['UGA_BIN']
+	##### get user home directory #####
+	home_dir = os.path.expanduser('~')
 
 	if args.which == 'summary':
 		summary_out = os.path.basename(args.out) if not args.out_rename else args.out_rename
@@ -151,7 +151,7 @@ def main(args=None):
 					else:
 						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 			cmd = cmd + ')'
-			Interactive('quga', cmd, summary_out + '.plot.log')
+			Interactive(home_dir + '/.uga_wrapper', cmd, summary_out + '.plot.log')
 	elif args.which in ['model','meta']:
 		if not os.path.exists(args.directory):
 			try:
@@ -237,9 +237,9 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ')'
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + 'quga --internal --cmd \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + home_dir + '/.uga_wrapper --internal --cmd \"' + cmd + '\"')
 			else:
-				Interactive('quga', cmd, out + '.log')
+				Interactive(home_dir + '/.uga_wrapper', cmd, out + '.log')
 	elif args.which == 'map':
 		if args.split_chr:
 			for i in range(26):
@@ -257,9 +257,9 @@ def main(args=None):
 					CheckExistingFiles(args.out + '.chr' + str(i+1), args.which)
 				name = args.which + '.' + os.path.basename(args.out + '.chr' + str(i+1)) if not args.name else args.name
 				if args.qsub:
-					Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + 'quga --internal --cmd \"' + cmd + '\"')
+					Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + home_dir + '/.uga_wrapper --internal --cmd \"' + cmd + '\"')
 				else:
-					Interactive('quga', cmd)
+					Interactive(home_dir + '/.uga_wrapper', cmd)
 		else:
 			cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
 			for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr']:
@@ -275,9 +275,9 @@ def main(args=None):
 				CheckExistingFiles(args.out, args.which)
 			name = args.which + '.' + os.path.basename(args.out) if not args.name else args.name
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + 'quga --internal --cmd \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + home_dir + '/.uga_wrapper --internal --cmd \"' + cmd + '\"')
 			else:
-				Interactive('quga', cmd)
+				Interactive(home_dir + '/.uga_wrapper', cmd)
 	else:
 		print Error(args.which + " not a module")
 	print ''
