@@ -13,7 +13,7 @@ import signal
 
 def RemoveExistingFiles(file, module):
 	if module in['model','meta']:
-		for f in [file, file + '.log']:
+		for f in [file, file + '.' + module + '.log']:
 			try:
 				os.remove(f)
 			except OSError:
@@ -24,13 +24,13 @@ def RemoveExistingFiles(file, module):
 			except OSError:
 				continue
 	if module == 'plot':
-		for f in [file + '.qq.tiff', file + '.gc.qq.tiff', file + '.mht.tiff',file + '.qq.eps', file + '.gc.qq.eps', file + '.mht.eps',file + '.qq.pdf', file + '.mht.pdf']:
+		for f in [file + '.qq.tiff', file + '.gc.qq.tiff', file + '.mht.tiff',file + '.qq.eps', file + '.gc.qq.eps', file + '.mht.eps',file + '.qq.pdf', file + '.mht.pdf', file + '.' + module + '.log']:
 			try:
 				os.remove(f)
 			except OSError:
 				continue
 	if module == 'map':
-		for f in [file, file + '.log']:
+		for f in [file, file + '.' + module + '.log']:
 			try:
 				os.remove(f)
 			except OSError:
@@ -92,11 +92,11 @@ def GenerateSubFiles(region_df, f, dist_mode, n):
 			of = f + '.chr' + str(region_df['chr'][i])
 			out_files[str(region_df['chr'][i])] = of
 		else:
-			print Error("   ... invalid dist_mode: " + dist_mode)
+			print Error("invalid dist_mode: " + dist_mode)
 			return
 	return out_files
 
-def CheckResults(file_dict, out, cpus, complete_string, overwrite):
+def CheckResults(file_dict, out, complete_string, overwrite, cpus=1):
 	cpus = cpu_count() if cpu_count() < cpus else cpus	
 	n = len(file_dict.keys())
 	if n > 1:
@@ -108,7 +108,7 @@ def CheckResults(file_dict, out, cpus, complete_string, overwrite):
 		reg_missingfile_dict = manager.dict()
 		joblist = [file_dict.keys()[i:i+int(math.ceil(float(len(file_dict.keys()))/cpus))] for i in range(0,len(file_dict.keys()),int(math.ceil(float(len(file_dict.keys()))/cpus)))]
 		if cpus == 1:
-			pbar = ProgressBar(maxval=len(joblist[i]), widgets = ['   ... processed ', Counter(), ' of ' + str(len(joblist[i])) + ' regions (', Timer(), ')'])
+			pbar = ProgressBar(maxval=len(joblist[i]), widgets = ['   processed ', Counter(), ' of ' + str(len(joblist[i])) + ' regions (', Timer(), ')'])
 		def CheckReg(i, joblist, reg_complete_dict,reg_rerun_dict,reg_incompletefile_dict,reg_missingfile_dict):
 			reg_complete = []
 			reg_rerun = []
@@ -137,15 +137,14 @@ def CheckResults(file_dict, out, cpus, complete_string, overwrite):
 					reg_rerun.append(str(j))
 				if cpus == 1:
 					pbar.update(k)
-					#print "   ... checked " + str(k) + " of " + str(len(joblist))
 			reg_complete_dict[i] = reg_complete
 			reg_rerun_dict[i] = reg_rerun
 			reg_incompletefile_dict[i] = reg_incompletefile
 			reg_missingfile_dict[i] = reg_missingfile
 			if cpus > 1:
-				print "   ... finished processing on cpu " + str(i+1)
+				print "   finished processing on cpu " + str(i+1)
 		for i in range(len(joblist)):
-			print "   ... submitting " + str(len(joblist[i])) + " result files for verification on cpu " + str(i+1)
+			print "submitting " + str(len(joblist[i])) + " result files for verification on cpu " + str(i+1)
 			reg_complete_dict[i] = []
 			reg_rerun_dict[i] = []
 			reg_incompletefile_dict[i] = []
@@ -168,30 +167,30 @@ def CheckResults(file_dict, out, cpus, complete_string, overwrite):
 			reg_missingfile.extend(reg_missingfile_dict[i])
 		if cpus == 1:
 			pbar.finish()
-		print "   ... verification status"
-		print "          " + str(len(reg_complete)) + " of " + str(n) + " complete"
+		print "verification status ... "
+		print "   " + str(len(reg_complete)) + " of " + str(n) + " complete"
 		if len(reg_incompletefile) > 0:
-			print "          " + str(len(reg_incompletefile)) + " of " + str(n) + " incomplete"
+			print "   " + str(len(reg_incompletefile)) + " of " + str(n) + " incomplete"
 			f = open(out + '.files.incomplete', 'w')
 			f.write('\n'.join(reg_incompletefile))
 			f.close()
-			print "             written to file " + out + ".files.incomplete"
+			print "      written to file " + out + ".files.incomplete"
 		if len(reg_missingfile) > 0:
-			print "          " + str(len(reg_missingfile)) + " of " + str(n) + " files missing"
+			print "   " + str(len(reg_missingfile)) + " of " + str(n) + " files missing"
 			f = open(out + '.files.missing', 'w')
 			f.write('\n'.join(reg_missingfile))
 			f.close()
-			print "             written to file " + out + ".files.missing"
+			print "      written to file " + out + ".files.missing"
 		if len(reg_rerun) > 0:
-			print "          " + str(len(reg_rerun)) + " of " + str(n) + " total regions to rerun"
+			print "   " + str(len(reg_rerun)) + " of " + str(n) + " total regions to rerun"
 			f = open(out + '.regions.rerun', 'w')
 			f.write('\n'.join(reg_rerun))
 			f.close()
-			print "             written to file " + out + ".regions.rerun"
-		if len(reg_complete) == n:
-			return True
-		else:
+			print "      written to file " + out + ".regions.rerun"
+		if len(reg_complete) != n:
 			return False
+		else:
+			return True
 	else:
 		resfile = file_basename + '.chr' + file_dict.values()[0].split(":")[0] + 'bp' + file_dict.values()[0].split(":")[1].split("-")[0] + '-' + file_dict.values()[0].split(":")[1].split("-")[1]
 		logfile = resfile + ".log"
@@ -202,23 +201,23 @@ def CheckResults(file_dict, out, cpus, complete_string, overwrite):
 				complete = p.communicate()[0]
 				complete = int(complete.strip())
 				if complete == 0:
-					print "          analysis complete"
+					print "analysis complete"
 					return True
 				else:
-					print "          analysis incomplete"
+					print "analysis incomplete"
 					return False
 			else:
-				print "          analysis incomplete ... no log file found"
+				print "analysis incomplete ... no log file found"
 				return False
 		else:
-			print "          analysis incomplete ... no out file found"
+			print "analysis incomplete ... no out file found"
 			return False
 
 def CompileResults(out_files, out, overwrite):
-	print "   ... compiling results"
+	print "compiling results"
 	bgzfile = bgzf.BgzfWriter(out + '.gz', 'wb')
 	logfile = file(out + '.log', 'w')
-	pbar = ProgressBar(maxval=len(out_files.keys()), widgets = ['   ... processed ', Counter(), ' of ' + str(len(out_files.keys())) + ' regions (', Timer(), ')'])
+	pbar = ProgressBar(maxval=len(out_files.keys()), widgets = ['   processed ', Counter(), ' of ' + str(len(out_files.keys())) + ' regions (', Timer(), ')'])
 	i=0
 	pbar.start()
 	for reg in out_files.keys():
@@ -250,7 +249,7 @@ def CompileResults(out_files, out, overwrite):
 	pbar.finish()
 	bgzfile.close()
 	logfile.close()
-	print "   ... mapping compiled file"
+	print "mapping compiled file"
 	p7 = subprocess.Popen(['zcat',out + '.gz'], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
 	p8 = subprocess.Popen(['head','-1'], stdin=p7.stdout, stdout=subprocess.PIPE)
 	header = p8.communicate()[0]
@@ -267,5 +266,5 @@ def CompileResults(out_files, out, overwrite):
 	cmd = 'tabix -b ' + str(b) + ' -e ' + str(e) + ' ' + out + '.gz'
 	p = subprocess.Popen(cmd, shell=True)
 	p.wait()
-	print "   ... file compilation complete"
+	print "file compilation complete"
 	return True

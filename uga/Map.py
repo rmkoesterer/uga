@@ -40,7 +40,7 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, 
 	##### map bim file #####
 	if not plink is None:
 		total = 0
-		print "   ... mapping Plink format bim file"
+		print "mapping Plink format bim file"
 		bim=pd.read_table(plink + '.bim',header=None,names=['chr','marker','x','pos','a1','a2'])
 		with open(out, "w") as fout:
 			for i in chrs:
@@ -59,7 +59,7 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, 
 						chr_write['reg']=chr_write.apply(lambda a: str(a['chr']) + ':' + str(a['start']) + '-' + str(a['end']-1),axis=1)
 						chr_write['reg'].to_csv(fout,header=False,index=False,mode='a')
 						total += len(chr_write['reg'])
-					print "   ... processed chromosome " + str(i)
+					print "   processed chromosome " + str(i)
 	elif not vcf is None:
 		total = 0
 		with open(out, "w") as fout:
@@ -81,7 +81,7 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, 
 									total += 1
 									fout.write(str(i) + ':' + reg + '\n')
 									break
-					print "   ... processed chromosome " + str(i)
+					print "   processed chromosome " + str(i)
 				else:
 					tb = tabix.open(vcf)
 					try:
@@ -106,7 +106,7 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, 
 								total += 1
 								fout.write(str(i) + ':' + str(last+1) + '-' + str(chunk[0][1]) + '\n')
 								last = int(chunk[0][1])
-					print "   ... processed chromosome " + str(i)
+					print "   processed chromosome " + str(i)
 	else:
 		if not oxford is None:
 			file = oxford
@@ -157,7 +157,7 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, 
 								end = int(chunk[0][2]) if not oxford is None or not dos1 is None else int(chunk[0][1])
 								fout.write(str(i) + ':' + str(last+1) + '-' + str(end) + '\n')
 								last = end
-				print "   ... processed chromosome " + str(i)
+				print "   processed chromosome " + str(i)
 	"""
 	else:
 		##### list possible regions #####
@@ -230,10 +230,10 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, 
 		total=len(r_write)
 	"""
 	if b:
-		print "   " + str(total) + " non-empty regions of size " + str(s) + "bp written to file " + out
+		print str(total) + " non-empty regions of size " + str(s) + "bp written to file " + out
 	elif kb:
-		print "   " + str(total) + " non-empty regions of size " + str(s/1000) + "kb written to file " + out
+		print str(total) + " non-empty regions of size " + str(s/1000) + "kb written to file " + out
 	elif mb:
-		print "   " + str(total) + " non-empty regions of size " + str(s/1000000) + "mb written to file " + out
+		print str(total) + " non-empty regions of size " + str(s/1000000) + "mb written to file " + out
 	elif n:
-		print "   " + str(total) + " non-empty regions of length " + str(n) + " written to file " + out
+		print str(total) + " non-empty regions of length " + str(n) + " written to file " + out

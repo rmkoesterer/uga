@@ -333,7 +333,7 @@ def Parser():
 						help='name for compiled summary files (basename only: do not include path)')
 	summary_parser.add_argument('--complete-string', 
 						action='store', 
-						help='string indicating completeness in the result log file (default: COMPLETE_STRING=\'   ... process complete\')')
+						help='string indicating completeness in the result log file (default: COMPLETE_STRING=\'process complete\')')
 	summary_parser.add_argument('--verify', 
 						action='store_true', 
 						help='verify results before compiling')
@@ -358,6 +358,9 @@ def Parser():
 	summary_parser.add_argument('--p', 
 						action='store', 
 						help='column name for p-value (default: P=p)')
+	summary_parser.add_argument('--z', 
+						action='store', 
+						help='column name for z-value (default: Z=z)')
 	summary_parser.add_argument('--rsq', 
 						action='store', 
 						help='column name for imputation quality (default: RSQ=rsq)')
@@ -401,6 +404,52 @@ def Parser():
 	summary_parser.add_argument('-o', '--overwrite', 
 						action='store_true', 
 						help='overwrite existing output files')
+	summary_parser.add_argument('-d', '--directory', 
+						action='store', 
+						default=os.getcwd(), 
+						help='output directory path (default: current working directory)')
+	summary_parser.add_argument('--mem', 
+						action='store', 
+						type=int, 
+						default=3, 
+						help='amount of ram memory to request for queued job in GB (default: MEM=3')
+	summary_parser.add_argument('--f-dist-dfn', 
+						action='store', 
+						type=int, 
+						help='f-distribution p-value dfn (see python scipy.stats.f.cdf documentation)')
+	summary_parser.add_argument('--f-dist-dfd', 
+						action='store', 
+						type=int, 
+						help='f-distribution p-value dfd (see python scipy.stats.f.cdf documentation)')
+	summary_parser.add_argument('--name', 
+						action='store', 
+						help='job name (only used with --qsub; if not set, --out basename will be used')
+	summary_parser_split_group1 = summary_parser.add_mutually_exclusive_group()
+	summary_parser_split_group1.add_argument('-r', '--region', 
+						action='store', 
+						help='region specified in Tabix format (ie. 1:10583-1010582).')
+	summary_parser_split_group1.add_argument('--region-list', 
+						action='store', 
+						help='filename for a list of tabix format regions')
+	summary_parser_split_group2 = summary_parser.add_mutually_exclusive_group()
+	summary_parser_split_group2.add_argument('-s', '--split', 
+						action='store_true', 
+						help='split region list into 1 job for each line in file (requires --region-list)')
+	summary_parser_split_group2.add_argument('-n', '--split-n', 
+						action='store', 
+						type=int, 
+						help='split region list into SPLIT_N jobs (requires --region-list)')
+	summary_parser_split_group2.add_argument('--split-chr', 
+						action='store_true', 
+						help='split jobs into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
+	summary_parser_split_group3 = summary_parser.add_mutually_exclusive_group()
+	summary_parser_split_group3.add_argument('-j', '--job', 
+						action='store', 
+						type=int, 
+						help='run a particular job number (requires --split-n)')
+	summary_parser_split_group3.add_argument('--job-list', 
+						action='store', 
+						help='filename for a list of job numbers (requires --split-n)')
 
 	return top_parser
 	
@@ -432,6 +481,8 @@ def Parse(top_parser):
 															args.coxph is None and args.efftests is None and
 															args.skat_o is None and args.famskat_o is None)):
 		top_parser.error("missing argument: --out, --pheno, --fid, --iid, and a model string (ie. --gee-gaussian, etc.) required in module model without --cfg")
+	if args.which == 'summary' and ((not args.f_dist_dfn is None and (args.f_dist_dfd is None or args.z is None)) or (not args.f_dist_dfd is None and (args.f_dist_dfn is None or args.z is None))):
+		top_parser.error("missing argument: for f-distribution p-values, --z, --f-dist-dfn and --f-dist-dfd are all required")
 	print ''
 	print 'Universal Genome Analyst v' + __version__
 	print ''

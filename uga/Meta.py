@@ -20,10 +20,10 @@ def Meta(cfg=None,
 			region=None, 
 			region_list=None):
 
-	print "   ... active options ..."
+	print "meta options ..."
 	for arg in locals().keys():
 		if not locals()[arg] in [None, False]:
-			print "      {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
+			print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 
 	assert cfg, Error("no configuration file specified")
 
@@ -50,7 +50,7 @@ def Meta(cfg=None,
 	out_cols.append(tag + '.filtered')
 	
 	##### determine markers to be analyzed #####
-	print "   ... generating region list"
+	print "generating region list"
 	if region_list:
 		marker_list = Coordinates(region_list).Load()
 	elif region:
@@ -76,7 +76,7 @@ def Meta(cfg=None,
 
 	for r in range(len(marker_list.index)):
 		reg = marker_list['region'][r]
-		print "   ... building reference database for " + str(r + 1) + " of " + str(len(marker_list.index)) + " regions"
+		print "building reference database for " + str(r + 1) + " of " + str(len(marker_list.index)) + " regions"
 		delim = "><"
 		ref = multi_key_dict()
 		ref_alleles = multi_key_dict()
@@ -175,7 +175,7 @@ def Meta(cfg=None,
 									output[record[chr] + delim + record[pos] + delim + refmarker + delim + refa1 + delim + refa2].update(dict(out_vals))
 						else:
 							output[record[chr] + delim + record[pos] + delim + refmarker + delim + refa1 + delim + refa2] = dict(out_vals)
-				print "          merged cohort " + tag + " : " + str(len(output.keys())) + " markers"
+				print "   merged cohort " + tag + " : " + str(len(output.keys())) + " markers"
 
 	output_df = pd.DataFrame(output).transpose()
 	header=['chr','pos','a1','a2','marker']
@@ -209,7 +209,7 @@ def Meta(cfg=None,
 	if cfg['method'] in ['sample_size','stderr','efftest']:
 		for tag in cfg['file_order']:
 			if 'gc' in cfg['data_info'][tag].keys():
-				print "   ... applying genomic control correction for cohort " + tag
+				print "applying genomic control correction for cohort " + tag
 				if 'stderr' in cfg['data_info'][tag].keys():
 					output_df[tag + '.stderr'] = output_df[tag + '.stderr'] * math.sqrt(float(cfg['data_info'][tag]['gc']))
 				if 'z' in cfg['data_info'][tag].keys():
@@ -222,7 +222,7 @@ def Meta(cfg=None,
 	##### apply efftest correction #####
 	if cfg['method'] == 'efftest':
 		for tag in cfg['file_order']:
-			print "   ... applying efftest correction for " + tag
+			print "applying efftest correction for " + tag
 			with gzip.open(cfg['data_info'][tag]['efftest_file']) as f:
 				efftests = pd.read_table(f, header=False)
 			output_df[tag + '.n_eff'] = 0
@@ -236,7 +236,7 @@ def Meta(cfg=None,
 
 	##### meta analysis #####
 	for meta in cfg['meta_order']:
-		print "   ... running meta analysis for cohorts " + meta
+		print "   running meta analysis for cohorts " + meta
 		if cfg['method'] in ['efftest','sample_size']:
 			p_ext = '.p' if cfg['method'] == 'sample_size' else '.p_eff'
 			output_df[meta + '.dir'] = ''
@@ -359,10 +359,10 @@ def Meta(cfg=None,
 		output_df.to_csv(bgzfile, header=True, index=False, sep="\t")
 	bgzfile.close()
 
-	print "   ... mapping results file"
+	print "mapping results file"
 	cmd = 'tabix -b 2 -e 3 ' + cfg['out'] + '.gz' if cfg['method'] == 'efftest' else 'tabix -b 2 -e 2 ' + cfg['out'] + '.gz'
 	p = subprocess.Popen(cmd, shell=True)
 	time.sleep(1)
 	p.wait()
 	
-	print '   ... process complete'
+	print 'process complete'

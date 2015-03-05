@@ -165,7 +165,12 @@ def CalcHWE(marker, chr = None, female_idx = None):
 	else:
 		return float('NaN')
 
+def GetRowCalls(row):
+	newrow = row
+	i = newrow[8].split(':').index('GT')
+	newrow[9:] = newrow[9:].apply(lambda x: x.split(':')[i])
+	return newrow
+
 def CallToDos(call):
-	c = call.split(':')[0]
-	c = 'NaN' if not c in ['0/0','0/1','1/1','1/0'] else c
+	c = 'NaN' if not call in ['0/0','0/1','1/1','1/0'] else call
 	return float(c.replace('0/0','2').replace('0/1','1').replace('1/1','0').replace('1/0','1'))

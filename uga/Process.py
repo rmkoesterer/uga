@@ -9,12 +9,12 @@ def Qsub(command):
 		p.wait()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
-		print Highlight("terminated by user")
+		print Highlight("process terminated by user")
 		sys.exit(1)
 
 def Interactive(submit, cmd, log_file = None):
 	try:
-		p = subprocess.Popen([submit,'--internal','--cmd', cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+		p = subprocess.Popen([submit,cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		if log_file:
 			log = open(log_file, 'w')
 		for line in iter(p.stdout.readline, ''):
@@ -26,7 +26,7 @@ def Interactive(submit, cmd, log_file = None):
 			log.close()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
-		print Highlight("terminated by user")
+		print Highlight("process terminated by user")
 		sys.exit(1)
 
 def kill_all(pid):

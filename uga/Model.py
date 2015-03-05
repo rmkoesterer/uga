@@ -13,7 +13,7 @@ import re
 from itertools import islice,takewhile
 from Bio import bgzf
 import psutil
-from MarkerCalc import Complement,ConvertDosage,CalcCallrate,CalcFreq,CalcRsq,CalcHWE,CallToDos
+from MarkerCalc import Complement,ConvertDosage,CalcCallrate,CalcFreq,CalcRsq,CalcHWE,CallToDos,GetRowCalls
 from Messages import Error
 from Stats import GenerateFilterCode,CalcGEE,CalcGLM,CalcLME,CalcCoxPH,CalcEffTests,CalcFamSkatO,CalcFamSkat
 from Coordinates import Coordinates
@@ -100,7 +100,7 @@ def Model(out = None,
 	for k in cfg['data_order']:
 		if cfg['data_info'][k]['format'] == 'plink':
 			print "reading Plink binary files for model " + k if len(cfg['data_info'].keys()) > 1 else "reading Plink binary files"
-			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_it'], cfg['data_info'][k]['sample_ids'] = LoadPlink(cfg['data_info'][k]['data'])
+			cfg['data_info'][k]['bed_it'], cfg['data_info'][k]['locus_it'], cfg['data_info'][k]['sample_it'], cfg['data_info'][k]['sample_ids'] = LoadPlink(cfg['data_info'][k]['data'])
 		elif cfg['data_info'][k]['format'] == 'vcf':
 			print "reading vcf file for model " + k if len(cfg['data_info'].keys()) > 1 else "reading vcf file"
 			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = LoadVcf(cfg['data_info'][k]['data'])
@@ -164,11 +164,11 @@ def Model(out = None,
 		if cfg['data_info'][k]['format'] == 'plink':
 			for i in range(len(marker_list.index)):
 				if marker_list['start'][i] != 'NA':
-					marker_list[k][i] = len([c for c in cfg['data_info'][k]['data_it'] if c.chromosome == int(marker_list['chr'][i]) and c.bp_position >= int(marker_list['start'][i]) and c.bp_position <= int(marker_list['end'][i])])
+					marker_list[k][i] = len([c for c in cfg['data_info'][k]['locus_it'] if c.chromosome == int(marker_list['chr'][i]) and c.bp_position >= int(marker_list['start'][i]) and c.bp_position <= int(marker_list['end'][i])])
 				else:
-					marker_list[k][i] = len(cfg['data_info'][k]['data_it'])
+					marker_list[k][i] = len(cfg['data_info'][k]['locus_it'])
 		else:
-			pos_ind = 1 if cfg['data_info'][k]['format'] == 'dos2' else 2
+			pos_ind = 1 if cfg['data_info'][k]['format'] in ['dos2','vcf'] else 2
 			tb = tabix.open(cfg['data_info'][k]['data'])
 			for i in range(len(marker_list.index)):
 				try:
@@ -203,12 +203,12 @@ def Model(out = None,
 			if cfg['data_info'][k]['format'] == 'plink':
 				if reg == chr:
 					try:
-						records = (x for x in cfg['data_info'][k]['data_it'] if x.chromosome == int(chr))
+						records = (x for x in cfg['data_info'][k]['locus_it'] if x.chromosome == int(chr))
 					except:
 						break
 				else:
 					try:
-						records = (x for x in cfg['data_info'][k]['data_it'] if x.chromosome == int(chr) and x.bp_position >= int(marker_list['start'][r]) and x.bp_position <= int(marker_list['end'][r]))
+						records = (x for x in cfg['data_info'][k]['locus_it'] if x.chromosome == int(chr) and x.bp_position >= int(marker_list['start'][r]) and x.bp_position <= int(marker_list['end'][r]))
 					except:
 						break
 			else:
@@ -230,7 +230,7 @@ def Model(out = None,
 					marker_info['a1'] = collections.OrderedDict()
 					marker_info['a2'] = collections.OrderedDict()
 					marker_data=collections.OrderedDict()
-					for locus, row in zip(chunk, cfg['data_info'][k]['data_it']):
+					for locus, row in zip(chunk, cfg['data_info'][k]['bed_it']):
 						if locus.allele1 == '0':
 							locus.allele1 = locus.allele2
 						marker_unique = 'chr' + str(locus.chromosome) + 'bp' + str(locus.bp_position) + '.'  + locus.name + '.' + locus.allele2 + '.' + locus.allele1
@@ -258,6 +258,7 @@ def Model(out = None,
 					marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '.'  + marker_info['marker'].astype(str) + '.'  + marker_info['a1'].astype(str) + '.'  + marker_info['a2'].astype(str)
 					marker_info.index = marker_info['marker_unique']
 					if cfg['data_info'][k]['format'] == 'vcf':
+						chunkdf = chunkdf.apply(GetRowCalls,1)
 						marker_data = chunkdf.ix[:,9:].transpose()
 						marker_data=marker_data.applymap(CallToDos)
 					elif cfg['data_info'][k]['format'] == 'oxford':

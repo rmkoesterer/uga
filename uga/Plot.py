@@ -21,26 +21,28 @@ def Plot(data,
 			color = True, 
 			ext = 'tiff', 
 			sig = 0.000000054, 
-			calc_sig = False, 
 			gc = False, 
 			chr = '#chr', 
 			pos = 'pos', 
+			z = 'marker.z', 
 			p = 'marker.p', 
 			rsq = 'rsq', 
 			freq = 'freq', 
 			hwe = 'hwe', 
 			meta_dir = 'meta.dir', 
+			f_dist_dfn = None, 
+			f_dist_dfd = None, 
 			rsq_thresh = None, 
 			freq_thresh = None, 
 			hwe_thresh = None, 
 			df_thresh = None):
 
-	print "   ... generating plots"
+	print "plot options ..."
 	for arg in locals().keys():
 		if not locals()[arg] in [None, False]:
-			print "      {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
+			print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 
-	fcols = [chr,pos,p]
+	fcols = [chr,pos,p,z]
 	if rsq and rsq_thresh:
 		fcols.append(rsq)
 	if freq and freq_thresh:
@@ -51,6 +53,7 @@ def Plot(data,
 		fcols.append(meta_dir)
 	
 	##### read data from file #####
+	print "loading data from file"
 	pvals = pd.DataFrame(columns=fcols)
 	reader = pd.read_table(data, sep='\t', chunksize=1000000,compression='gzip',usecols=fcols)
 	i = 0
@@ -61,32 +64,35 @@ def Plot(data,
 		chunk = chunk[chunk[p] != 0]
 		if len(chunk) > 0:
 			pvals = pvals.append(chunk)
-		print "   ... loaded " + str(i*1000000) + " lines: " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
+		print "   processed " + str(i*1000000) + " lines: " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
 
 	##### filter data #####
 	if rsq and rsq_thresh:
-		print "   ... filtering data for imputation quality"
+		print "filtering data for imputation quality"
 		pvals = pvals[(pvals[rsq] >= rsq_thresh) & (pvals[rsq] <= 1/rsq_thresh)]
 	if freq and freq_thresh:
-		print "   ... filtering data for frequency"
+		print "filtering data for frequency"
 		pvals = pvals[(pvals[freq] >= freq_thresh) & (pvals[freq] <= 1 - freq_thresh)]
 	if hwe and hwe_thresh:
-		print "   ... filtering data for Hardy Weinberg p-value"
+		print "filtering data for Hardy Weinberg p-value"
 		pvals = pvals[pvals[hwe] > hwe_thresh]
 	def count_df(x):
 		return len(re.findall('\\+|-',x))
 	if meta_dir and df_thresh:
-		print "   ... filtering data for degrees of freedom"
+		print "filtering data for degrees of freedom"
 		pvals = pvals[pvals[meta_dir].apply(count_df) >= int(df_thresh) + 1]
-	print "   ... " + str(len(pvals)) + " markers left after filtering"
+	print str(len(pvals)) + " markers left after filtering"
 	
-	if calc_sig:
-		sig = 0.05/len(pvals)
-		print "   ... significance level set to " + str(sig)
-	
-	print "   ... calculating genomic inflation factor"
+	##### calculate p-value for f-distribution #####
+	print "calculating new p-values for f-distribution"
+	pvals[p + '_orig']=pvals[p]
+	if not f_dist_dfn is None:
+		out = out + '.fdist'
+		pvals[p]=1-scipy.f.cdf(abs(pvals[z]),dfn=int(f_dist_dfn),dfd=int(f_dist_dfd))
+
+	print "genomic inflation = ",
 	l=np.median(scipy.chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/0.455
-	print "   ... genomic inflation = " + str(l)
+	print str(l)
 
 	a = -1 * np.log10(ro.r('ppoints(' + str(len(pvals.index)) + ')'))
 	a.sort()
@@ -97,7 +103,7 @@ def Plot(data,
 	dftext = ro.DataFrame({'x': a[-1] * 0.10, 'y': b.irow(-1) * 0.80, 'lab': 'lambda==' + str(l)})
 
 	if qq:
-		print "   ... generating qq plot"
+		print "generating qq plot"
 		if ext == 'tiff':
 			grdevices.tiff(out + '.qq.' + ext,width=4,height=4,units="in",bg="white",compression="lzw",res=300)
 		elif ext == 'eps':
@@ -118,12 +124,12 @@ def Plot(data,
 		grdevices.dev_off()
 	
 	if gc:
-		print "   ... adjusting p-values for genomic inflation"
+		print "adjusting p-values for genomic inflation"
 		pvals[p]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*pvals[p]) / math.sqrt(l)))
 	
-		print "   ... calculating genomic inflation after genomic control correction"
+		print "calculating genomic inflation after genomic control correction"
 		l=np.median(scipy.chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/0.455
-		print "   ... post correction genomic inflation = " + str(l)	
+		print "post correction genomic inflation = " + str(l)	
 
 		a = -1 * np.log10(ro.r('ppoints(' + str(len(pvals.index)) + ')'))
 		a.sort()
@@ -134,7 +140,7 @@ def Plot(data,
 		dftext = ro.DataFrame({'x': a[-1] * 0.10, 'y': b.irow(-1) * 0.80, 'lab': 'lambda==' + str(l)})
 
 		if qq:
-			print "   ... generating qq plot for genomic inflation corrected p-values"
+			print "generating qq plot for genomic inflation corrected p-values"
 			if ext == 'tiff':
 				grdevices.tiff(out + '.gc.qq.' + ext,width=4,height=4,units="in",bg="white",compression="lzw",res=300)
 			elif ext == 'eps':
@@ -155,7 +161,7 @@ def Plot(data,
 			grdevices.dev_off()
 
 	if manhattan:
-		print "   ... ordering by genomic position for manhattan plot"
+		print "calculating genomic positions for manhattan plot"
 		df = pvals[[chr,pos,p]].reset_index(drop=True)
 		df.sort(columns=[chr,pos], inplace=True)
 		ticks = []
@@ -173,7 +179,7 @@ def Plot(data,
 		else:
 			df['colours'] = "#000000"
 			for i in range(len(chrs)):
-				print "   ... calculating genomic positions for chromosome " + str(int(chrs[i]))
+				print "   processed chromosome " + str(int(chrs[i]))
 				if i == 0:
 					df['gpos'][df[chr] == chrs[i]] = df[pos][df[chr] == chrs[i]]
 				else:
@@ -196,7 +202,7 @@ def Plot(data,
 			grdevices.postscript(out + '.mht.' + ext,width=12,height=4,bg="white",horizontal=False)
 		else:
 			grdevices.pdf(out + '.mht.' + ext,width=12,height=4,bg="white")
-		print "   ... generating manhattan plot"
+		print "generating manhattan plot"
 		if nchr == 1:
 			gp = ggplot2.ggplot(rdf)
 			pp = gp + \
@@ -221,5 +227,5 @@ def Plot(data,
 					ggplot2.theme(**{'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=8), 'axis.text': ggplot2.element_text(size=6), 'legend.position': 'none'})
 			pp.plot()
 		grdevices.dev_off()
-	"   ... process complete"
+	"process complete"
 					

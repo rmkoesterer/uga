@@ -9,7 +9,7 @@ def LoadPlink(data):
 	plink_sample_it = plink_bed_it.get_samples()
 	plink_locus_it = plink_bed_it.get_loci()
 	sample_ids = [x.iid for x in plink_sample_it]
-	return plink_locus_it, plink_sample_it, sample_ids
+	return plink_bed_it, plink_locus_it, plink_sample_it, sample_ids
 
 def LoadVcf(data):
 	tb = tabix.open(data)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import os
 import gzip
 import sys
@@ -37,8 +36,8 @@ def main(args=None):
 	if args.which in ['model','meta','summary']:
 		n = 1
 		dist_mode = 'full'
-		print "generating list of genomic regions ...", 
 		if args.region_list:
+			print "generating list of genomic regions ...", 
 			region_df = Coordinates(args.region_list).Load()
 			if args.split or args.split_n:
 				if not args.split_n or args.split_n > len(region_df.index):
@@ -49,6 +48,7 @@ def main(args=None):
 					dist_mode = 'split-list-n'
 			else:
 				dist_mode = 'list'
+			print " " + str(len(region_df.index)) + " regions found"
 		elif args.region:
 			if len(args.region.split(':')) > 1:
 				region_df = pd.DataFrame({'chr': [re.split(':|-', args.region)[0]], 'start': [re.split(':|-', args.region)[1]], 'end': [re.split(':|-', args.region)[2]], 'region': [args.region]})
@@ -60,7 +60,6 @@ def main(args=None):
 		else:
 			region_df = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
 			n = 1
-		print " " + str(len(region_df.index)) + " regions found"
 
 		##### get job list from file #####
 		if args.job_list:
@@ -93,7 +92,7 @@ def main(args=None):
 
 	if args.which == 'summary':
 		summary_out = os.path.basename(args.out) if not args.out_rename else args.out_rename
-		if args.verify:
+		if args.verify and dist_mode in ['split-list', 'split-list-n']:
 			complete_string = 'process complete' if not args.complete_string else args.complete_string
 			print "scanning for previous check results files"
 			if os.path.exists(summary_out + '.verify' + '.files.incomplete'):
@@ -114,7 +113,7 @@ def main(args=None):
 				else:
 					print Error("file " + summary_out + '.verify' + ".regions.rerun already exists (use --overwrite flag to replace the existing file)")
 					sys.exit()
-		if args.compile:
+		if args.compile and dist_mode in ['split-list', 'split-list-n'] and len(out_files.keys()) > 1:
 			print "scanning for previous compiled results files"
 			if os.path.exists(summary_out + '.gz'):
 				if args.overwrite:
@@ -134,7 +133,7 @@ def main(args=None):
 			else:
 				CheckExistingFiles(summary_out, 'plot')
 		if dist_mode in ['split-list', 'split-list-n'] and args.verify:
-			if not CheckResults(out_files, summary_out + '.verify', args.cpu, complete_string, args.overwrite):
+			if not CheckResults(file_dict=out_files, out=summary_out + '.verify', complete_string=complete_string, overwrite=args.overwrite):
 				print Error("results could not be verified")
 				sys.exit()
 		if dist_mode in ['split-list', 'split-list-n'] and len(out_files.keys()) > 1 and args.compile:
@@ -142,16 +141,15 @@ def main(args=None):
 				print Error("results could not be compiled")
 				sys.exit()
 		if args.qq or args.manhattan:
-			from Plot import Plot
 			cmd = 'Plot(data="' + summary_out + '.gz",out="' + summary_out + '"'
-			for x in ['ext','qq','manhattan','gc','chr','pos','p','rsq','freq','hwe','meta_dir','rsq_thresh','freq_thresh','hwe_thresh','df_thresh','sig','calc_sig']:
+			for x in ['ext','qq','manhattan','gc','chr','pos','p','z','rsq','freq','hwe','meta_dir','rsq_thresh','freq_thresh','hwe_thresh','df_thresh','sig','calc_sig','f_dist_dfn','f_dist_dfd']:
 				if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 					if type(vars(args)[x]) is str:
 						cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
 					else:
 						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 			cmd = cmd + ')'
-			Interactive(home_dir + '/.uga_wrapper', cmd, summary_out + '.plot.log')
+		Interactive(home_dir + '/.uga_wrapper.py', cmd, summary_out + '.' + args.which + '.log')
 	elif args.which in ['model','meta']:
 		if not os.path.exists(args.directory):
 			try:
@@ -173,7 +171,7 @@ def main(args=None):
 			joblist.extend(jobs)
 		else:
 			joblist.extend(range(n))
-		name = args.which + '.' + os.path.basename(args.out) if not args.name else args.name
+		name = os.path.basename(args.out) if not args.name else args.name
 		for i in joblist:
 			if dist_mode in ['split-list', 'region']:
 				out = out_files['%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))]
@@ -237,9 +235,9 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ')'
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.log ' + home_dir + '/.uga_wrapper --internal --cmd \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
 			else:
-				Interactive(home_dir + '/.uga_wrapper', cmd, out + '.log')
+				Interactive(home_dir + '/.uga_wrapper.py', cmd, out + '.' + args.which + '.log')
 	elif args.which == 'map':
 		if args.split_chr:
 			for i in range(26):
@@ -256,10 +254,10 @@ def main(args=None):
 				else:
 					CheckExistingFiles(args.out + '.chr' + str(i+1), args.which)
 				name = args.which + '.' + os.path.basename(args.out + '.chr' + str(i+1)) if not args.name else args.name
-				if args.qsub:
-					Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + home_dir + '/.uga_wrapper --internal --cmd \"' + cmd + '\"')
-				else:
-					Interactive(home_dir + '/.uga_wrapper', cmd)
+				#if args.qsub:
+				#	Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + home_dir + '/.uga_wrapper.py --internal --cmd \"' + cmd + '\"')
+				#else:
+				Interactive(home_dir + '/.uga_wrapper.py', cmd, out + '.' + args.which + '.log')
 		else:
 			cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
 			for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr']:
@@ -274,10 +272,10 @@ def main(args=None):
 			else:
 				CheckExistingFiles(args.out, args.which)
 			name = args.which + '.' + os.path.basename(args.out) if not args.name else args.name
-			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + home_dir + '/.uga_wrapper --internal --cmd \"' + cmd + '\"')
-			else:
-				Interactive(home_dir + '/.uga_wrapper', cmd)
+			#if args.qsub:
+			#	Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + home_dir + '/.uga_wrapper.py --internal --cmd \"' + cmd + '\"')
+			#else:
+			Interactive(home_dir + '/.uga_wrapper.py', cmd, out + '.' + args.which + '.log')
 	else:
 		print Error(args.which + " not a module")
 	print ''
