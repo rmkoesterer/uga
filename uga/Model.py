@@ -65,7 +65,7 @@ def Model(out = None,
 
 	print "model options ..."
 	if not cfg is None:
-		for arg in ['cfg','region','region_list','region_id','mem','merge']:
+		for arg in ['cfg','out','sig','buffer','miss','freq','rsq','hwe','mem','nofail','region_list','region','region_id','merge']:
 			if not str(locals()[arg]) in ['None','False']:
 				print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 	else:
@@ -76,6 +76,7 @@ def Model(out = None,
 	##### populate configuration #####
 	if cfg is None:
 		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'freq': freq, 'miss': freq, 'rsq': freq, 'mem': mem, 'sig': int(sig), 'nofail': nofail, 'merge': merge, 
+				'region': region, 'region_list': region_list, 'region_id': region_id, 
 				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
 					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
 						'corstr': corstr[0], 'pheno_sep': pheno_sep[0]}}}
@@ -157,15 +158,15 @@ def Model(out = None,
 			cfg['data_info'][k]['kins'] = kinship2.makekinship(rpedigree.rx2('FID'),rpedigree.rx2('IID'),rpedigree.rx2('PAT'),rpedigree.rx2('MAT'))
 
 	##### GENERATE REGION LIST #####
-	if region_list:
+	if not cfg['region_list'] is None:
 		print "reading list of regions from file"
-		marker_list = Coordinates(region_list).Load()
-	elif region:
-		if len(region.split(':')) > 1:
-			marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
+		marker_list = Coordinates(cfg['region_list']).Load()
+	elif not cfg['region'] is None:
+		if len(cfg['region'].split(':')) > 1:
+			marker_list = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
 		else:
-			marker_list = pd.DataFrame({'chr': [region],'start': ['NA'],'end': ['NA'],'region': [region]})
-		marker_list['reg_id'] = region_id
+			marker_list = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
+		marker_list['reg_id'] = cfg['region_id']
 	else:
 		marker_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
 

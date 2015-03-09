@@ -53,7 +53,8 @@ class Cfg(object):
 						config_temp[key] = val
 			return config
 		elif self.module == 'model':
-			config = {'out': None, 'sig': 5, 'buffer': 100, 'miss': None, 'freq': None, 'rsq': None, 'hwe': None, 'mem': 3, 'nofail': False, 'data_info': {}, 'data_order': []}
+			config = {'out': None, 'sig': 5, 'buffer': 100, 'miss': None, 'freq': None, 'rsq': None, 'hwe': None, 'mem': 3, 'nofail': False, 
+						'region_list': None, 'region': None, 'region_id': None, 'merge': False, 'data_info': {}, 'data_order': []}
 			config_temp = {}
 			with open(self.filename) as f:
 				lines = (line.rstrip() for line in f)
@@ -64,8 +65,10 @@ class Cfg(object):
 						line = line.replace('[' + k + ']', self.vars[k])
 					key = str(line.split()[0])
 					val = " ".join(line.split()[1:])
-					if key in ['out','sig','buffer','miss','freq','rsq','hwe','mem','nofail']:
+					if key in ['out','sig','buffer','miss','freq','rsq','hwe','mem','region_list','region','region_id']:
 						config[key] = val
+					if key in ['nofail','merge']:
+						config[key] = True
 					elif key in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','skat_o','famskat_o']:
 						config_temp["model"] = val
 						config_temp["method"] = key
