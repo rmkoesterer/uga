@@ -3,11 +3,11 @@ import pandas as pd
 import re
 from Messages import Error
 
-def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,delimiter='\t'):
+def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,pheno_sep='\t'):
 	model_vars_dict = {}
 	dependent = re.split('\\~',model)[0]
 	independent = re.split('\\~',model)[1]
-	vars_df = pd.read_table(pheno,sep=delimiter,dtype='str')
+	vars_df = pd.read_table(pheno,sep=pheno_sep,dtype='str')
 	for x in [a for a in list(set(re.split('Surv\(|,|\)|~|\+|cluster\(|\(1\||\*|factor\(',model))) if a != '']:
 		mtype = ''
 		if dependent.find(x) != -1:

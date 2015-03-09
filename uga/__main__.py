@@ -201,7 +201,7 @@ def main(args=None):
 				if not args.cfg is None:
 					config['out'] = out
 					cmd = args.which.capitalize() + '(cfg=' + str(config)
-					for x in ['region_list', 'region', 'region_id']:
+					for x in ['region_list', 'region', 'region_id', 'merge']:
 						if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 							if type(vars(args)[x]) is str:
 								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
@@ -212,8 +212,8 @@ def main(args=None):
 					cmd = args.which.capitalize() + '(out=\'' + out + '\''
 					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','fid','iid','focus','sig','region_list','gee_gaussian',
 								'gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','skat_o','famskat_o',
-								'region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail',
-								'pedigree','delimiter']:
+								'region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','merge', 
+								'pedigree','pheno_sep']:
 						if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
 							if x in ['oxford','dos1','dos2','plink','vcf']:
 								cmd = cmd + ',data=[\'' + str(vars(args)[x]) + '\'],format=[\'' + x + '\']'

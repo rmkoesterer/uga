@@ -33,7 +33,7 @@ def Parser():
 	model_parser.add_argument('--cfg', 
 						action='store', 
 						help='configuration file name (see documentation)')
-	model_parser.add_argument('--delimiter', 
+	model_parser.add_argument('--pheno-sep', 
 						action='store', 
 						nargs=1, 
 						choices=['tab','space','comma'], 
@@ -109,6 +109,9 @@ def Parser():
 	model_parser.add_argument('--nofail', 
 						action='store_true', 
 						help='exclude filtered/failed analyses from results (if not set, full results are reported with filtered marker stats set to NA')
+	model_parser.add_argument('--merge', 
+						action='store_true', 
+						help='merge results from multiple analyses into a single file (adds processing time due to marker alignment algorithm)')
 	model_parser.add_argument('--pedigree', 
 						nargs=1, 
 						action='store', 

@@ -46,10 +46,12 @@ def ListCompatibleMarkers(chr,pos,a1,a2,delim):
 		markers.append(chr + delim + pos + delim + alt + delim + a1)
 	return list(set(markers))
 
-def ConvertDosage(x):
-	a=zip(x[0::3],x[1::3],x[2::3])
-	return [2*t[0] + 1*t[1] if t[0] > 0 or t[1] > 0 or t[2] > 0 else float('nan') for t in a]
-	
+def ConvertDosage(row):
+	newrow = row[:5]
+	a=zip(row[5::3],row[6::3],row[7::3])
+	newrow = newrow + [2*float(t[0]) + 1*float(t[1]) if float(t[0]) > 0 or float(t[1]) > 0 or float(t[2]) > 0 else float('nan') for t in a]
+	return newrow
+
 def CalcCallrate(x):
 	xlen = len(x)
 	x = x.dropna().astype(float)
@@ -169,8 +171,5 @@ def GetRowCalls(row):
 	newrow = row
 	i = newrow[8].split(':').index('GT')
 	newrow[9:] = newrow[9:].apply(lambda x: x.split(':')[i])
+	newrow[9:] = newrow[9:].apply(lambda x: 'NaN' if not x in ['0/0','0/1','1/1','1/0'] else x.replace('0/0','2').replace('0/1','1').replace('1/1','0').replace('1/0','1'))
 	return newrow
-
-def CallToDos(call):
-	c = 'NaN' if not call in ['0/0','0/1','1/1','1/0'] else call
-	return float(c.replace('0/0','2').replace('0/1','1').replace('1/1','0').replace('1/0','1'))

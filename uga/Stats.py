@@ -293,13 +293,11 @@ def CalcEffTests(model_df, mem):
 		n_eff = 1
 	return '%.5g' % n_eff
 
-def CalcFamSkatO(snp_info, z, model, pheno, pedigree):
+def CalcFamSkatO(snp_info, z, model, pheno, kinship):
 	rsnp_info = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
 	rz = ro.r('as.matrix')(py2r.convert_to_r_dataframe(z, strings_as_factors=False))
 	rpheno = py2r.convert_to_r_dataframe(pheno, strings_as_factors=False)
-	rpedigree = py2r.convert_to_r_dataframe(pedigree, strings_as_factors=False)
-	kins = kinship2.makekinship(rpedigree.rx2('FID'),rpedigree.rx2('IID'),rpedigree.rx2('PAT'),rpedigree.rx2('MAT'))
-	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, kins = kins, sparse=ro.r('FALSE'))
+	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, kins = kinship, sparse=ro.r('FALSE'))
 	result = rtry(seqmeta.skatOMeta(base.as_symbol('ps'), SNPInfo = rsnp_info),silent=ro.r('TRUE'))
 	result_df = py2r.convert_robj(result)
 	result_df['p'] = '%.2e' % (result_df['p'])
@@ -311,13 +309,11 @@ def CalcFamSkatO(snp_info, z, model, pheno, pedigree):
 	result_df['errflag'] = '%d' % (result_df['errflag'])
 	return result_df
 
-def CalcFamSkat(snp_info, z, model, pheno, pedigree):
+def CalcFamSkat(snp_info, z, model, pheno, kinship):
 	rsnp_info = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
 	rz = ro.r('as.matrix')(py2r.convert_to_r_dataframe(z, strings_as_factors=False))
 	rpheno = py2r.convert_to_r_dataframe(pheno, strings_as_factors=False)
-	rpedigree = py2r.convert_to_r_dataframe(pedigree, strings_as_factors=False)
-	kins = kinship2.makekinship(rpedigree.rx2('FID'),rpedigree.rx2('IID'),rpedigree.rx2('PAT'),rpedigree.rx2('MAT'))
-	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, kins = kins, sparse=ro.r('FALSE'))
+	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, kins = kinship, sparse=ro.r('FALSE'))
 	result = rtry(seqmeta.skatMeta(base.as_symbol('ps'), SNPInfo = rsnp_info),silent=ro.r('TRUE'))
 	result_df = py2r.convert_robj(result)
 	result_df['p'] = '%.2e' % (result_df['p'])
