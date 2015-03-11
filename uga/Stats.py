@@ -4,6 +4,7 @@ import numpy as np
 import re
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
+from rpy2.rinterface import RRuntimeError
 #import statsmodels.api as sm
 import pandas.rpy.common as py2r
 import math
@@ -21,9 +22,9 @@ rclass = ro.r('class')
 rglm = ro.r('glm')
 base=py2r.importr('base')
 
-def GenerateFilterCode(marker_info, miss = None, freq = None, rsq = None, hwe = None):
+def GenerateFilterCode(marker_info, no_mono=True, miss = None, freq = None, rsq = None, hwe = None):
 	filter = 0
-	if (not miss is None and not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) < float(miss)) or (not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) == 0) or (math.isnan(marker_info['callrate'])):
+	if (not miss is None and not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) < float(miss)) or (not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) == 0 and no_mono) or (math.isnan(marker_info['callrate'])):
 		filter += 1000
 	if (not freq is None and not math.isnan(marker_info['freq']) and ((float(marker_info['freq']) < float(freq) or float(marker_info['freq']) > 1-float(freq) or float(marker_info['freq']) == 0 or float(marker_info['freq']) == 1) and (float(marker_info['freq.unrel']) < float(freq) or float(marker_info['freq.unrel']) > 1-float(freq) or float(marker_info['freq.unrel']) == 0 or float(marker_info['freq.unrel']) == 1))) or (math.isnan(marker_info['freq'])):
 		filter += 100
@@ -293,6 +294,39 @@ def CalcEffTests(model_df, mem):
 		n_eff = 1
 	return '%.5g' % n_eff
 
+def PrepScores(snp_info, z, model, pheno):
+	rsnp_info = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
+	rz = ro.r('as.matrix')(py2r.convert_to_r_dataframe(z, strings_as_factors=False))
+	rpheno = py2r.convert_to_r_dataframe(pheno, strings_as_factors=False)
+	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno)
+	return ro.globalenv['ps']
+
+def PrepScoresFam(snp_info, z, model, pheno, kinship):
+	rsnp_info = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
+	rz = ro.r('as.matrix')(py2r.convert_to_r_dataframe(z, strings_as_factors=False))
+	rpheno = py2r.convert_to_r_dataframe(pheno, strings_as_factors=False)
+	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, kins = kinship, sparse=ro.r('FALSE'))
+	return ro.globalenv['ps']
+
+def SkatOMeta(cmd, snp_info):
+	ro.globalenv['rsnp_info'] = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
+	try:
+		result = rtry(ro.reval(cmd),silent=ro.r('TRUE'))
+	except RRuntimeError:
+		result_df = pd.DataFrame({'p': ['NA'], 'pmin': ['NA'], 'rho': ['NA'], 'cmaf': ['NA'], 'nmiss': ['NA'], 'nsnps': ['NA'], 'errflag': ['100']})
+		result_df.index = [1]
+	else:
+		result_df = py2r.convert_robj(result)
+		result_df['p'] = '%.2e' % (result_df['p']) if result_df['p'][1] != 0 else 'NA'
+		result_df['pmin'] = '%.2e' % (result_df['pmin']) if result_df['pmin'][1] != 0 else 'NA'
+		result_df['rho'] = '%.5g' % (result_df['rho'])
+		result_df['cmaf'] = '%.5g' % (result_df['cmaf'])
+		result_df['nmiss'] = '%d' % (result_df['nmiss'])
+		result_df['nsnps'] = '%d' % (result_df['nsnps'])
+		result_df['errflag'] = '%d' % (result_df['errflag'])
+	return result_df
+
+"""
 def CalcFamSkatO(snp_info, z, model, pheno, kinship):
 	rsnp_info = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
 	rz = ro.r('as.matrix')(py2r.convert_to_r_dataframe(z, strings_as_factors=False))
@@ -323,3 +357,4 @@ def CalcFamSkat(snp_info, z, model, pheno, kinship):
 	result_df['nsnps'] = '%d' % (result_df['nsnps'])
 	result_df['errflag'] = '%d' % (result_df['errflag'])
 	return result_df
+"""

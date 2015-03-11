@@ -16,10 +16,10 @@ from Bio import bgzf
 import psutil
 from MarkerCalc import Complement,ConvertDosage,CalcCallrate,CalcFreq,CalcRsq,CalcHWE,GetRowCalls
 from Messages import Error
-from Stats import GenerateFilterCode,CalcGEE,CalcGLM,CalcLME,CalcCoxPH,CalcEffTests,CalcFamSkatO,CalcFamSkat
+from Stats import GenerateFilterCode,CalcGEE,CalcGLM,CalcLME,CalcCoxPH,CalcEffTests,SkatOMeta,PrepScores,PrepScoresFam
 from Coordinates import Coordinates
 from ModelFxns import ExtractModelVars,GetFocus,GetDelimiter
-from MarkerRefDb import MarkerRefDb
+from MarkerRefDb import MarkerRefDb,ChunkRefDb
 from plinkio import plinkfile
 import collections
 import pysam
@@ -29,6 +29,7 @@ from Iterators import LoadPlink,LoadVcf,LoadDos
 #from memory_profiler import profile, memory_usage
 
 pd.options.mode.chained_assignment = None
+kinship2 = importr('kinship2')
 
 #@profile
 def Model(out = None, 
@@ -60,12 +61,11 @@ def Model(out = None,
 			mem = 3, 
 			corstr = ['exchangeable'], 
 			pheno_sep = ['tab'], 
-			nofail = False, 
-			merge = False):
+			nofail = False):
 
 	print "model options ..."
 	if not cfg is None:
-		for arg in ['cfg','out','sig','buffer','miss','freq','rsq','hwe','mem','nofail','region_list','region','region_id','merge']:
+		for arg in ['cfg','out','sig','buffer','miss','freq','rsq','hwe','mem','nofail','region_list','region','region_id']:
 			if not str(locals()[arg]) in ['None','False']:
 				print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 	else:
@@ -75,7 +75,7 @@ def Model(out = None,
 
 	##### populate configuration #####
 	if cfg is None:
-		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'freq': freq, 'miss': freq, 'rsq': freq, 'mem': mem, 'sig': int(sig), 'nofail': nofail, 'merge': merge, 
+		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'freq': freq, 'miss': freq, 'rsq': freq, 'mem': mem, 'sig': int(sig), 'nofail': nofail, 
 				'region': region, 'region_list': region_list, 'region_id': region_id, 
 				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
 					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
@@ -113,7 +113,7 @@ def Model(out = None,
 			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = LoadVcf(cfg['data_info'][k]['data'])
 		else:
 			print "reading data and sample files for model " + k if len(cfg['data_info'].keys()) > 1 else "reading data and sample files"
-			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = LoadDos(cfg['data_info'][k]['data'], cfg['data_info'][k]['sample'])
+			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = LoadDos(cfg['data_info'][k]['data'], cfg['data_info'][k]['samples'])
 		if len(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].isin(cfg['data_info'][k]['sample_ids'])]) == 0:
 			print Error("phenotype file and data file contain no common samples")
 			return
@@ -150,7 +150,6 @@ def Model(out = None,
 	##### READ PEDIGREE FROM FILE FOR FAMILY BASED SKAT TEST #####
 	for k in cfg['data_order']:
 		if 'pedigree' in cfg['data_info'][k].keys() and not cfg['data_info'][k]['pedigree'] is None:
-			kinship2 = importr('kinship2')
 			print "extracting pedigree from file for model " + k if len(cfg['data_info'].keys()) > 1 else "extracting pedigree from file"
 			cfg['data_info'][k]['ped_df'] = pd.read_table(cfg['data_info'][k]['pedigree'],sep='\t',dtype='str',usecols=['FID','IID','PAT','MAT'])
 			cfg['data_info'][k]['ped_df'] = cfg['data_info'][k]['ped_df'][cfg['data_info'][k]['ped_df']['IID'].isin(list(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].values))]
@@ -158,15 +157,15 @@ def Model(out = None,
 			cfg['data_info'][k]['kins'] = kinship2.makekinship(rpedigree.rx2('FID'),rpedigree.rx2('IID'),rpedigree.rx2('PAT'),rpedigree.rx2('MAT'))
 
 	##### GENERATE REGION LIST #####
-	if not cfg['region_list'] is None:
+	if not region_list is None:
 		print "reading list of regions from file"
-		marker_list = Coordinates(cfg['region_list']).Load()
-	elif not cfg['region'] is None:
-		if len(cfg['region'].split(':')) > 1:
-			marker_list = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
+		marker_list = Coordinates(region_list).Load()
+	elif not region is None:
+		if len(region.split(':')) > 1:
+			marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
 		else:
-			marker_list = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
-		marker_list['reg_id'] = cfg['region_id']
+			marker_list = pd.DataFrame({'chr': [region],'start': ['NA'],'end': ['NA'],'region': [region]})
+		marker_list['reg_id'] = region_id
 	else:
 		marker_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
 
@@ -195,7 +194,7 @@ def Model(out = None,
 						else:
 							marker_list[k][i] = 'n'
 							break
-	marker_list = marker_list[(marker_list[cfg['data_order']].T != 0).any()]
+	marker_list = marker_list[(marker_list[cfg['data_order']].T != 0).any()].reset_index(drop=True)
 	if len(marker_list.index) == 0:
 		print Error("no markers found")
 		return()
@@ -212,21 +211,28 @@ def Model(out = None,
 	if len(list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))) > 1:
 		print Error("mixing gene based and marker based methods not available")
 		return()
-	if not merge:
-		for k in cfg['data_order']:
-			cfg['data_info'][k]['out'] = cfg['out'] + '.' + k + '.gz' if len(cfg['data_info'].keys()) > 1 else cfg['out'] + '.gz'
-			cfg['data_info'][k]['bgzfile'] = bgzf.BgzfWriter(cfg['data_info'][k]['out'], 'wb')
-	else:
-		bgzfile = bgzf.BgzfWriter(cfg['out'] + '.gz', 'wb')
+	bgzfile = bgzf.BgzfWriter(cfg['out'] + '.gz', 'wb')
+	if 'meta' in cfg.keys():
+		cfg['meta_results']={}
+		cfg['meta_written']={}
+		for meta in cfg['meta']:
+			meta_tag = meta.split(':')[0]
+			cfg['meta_written'][meta_tag]=False
 
 	##### START ANALYSIS #####
 	print "modelling data ..."
+
+	##### LOOP OVER REGIONS #####
 	for r in range(len(marker_list.index)):
 		mdb = MarkerRefDb()
 		reg = marker_list['region'][r]
 		chr = reg.split(':')[0]
+
+		##### LOOP OVER DATASETS #####
 		for k in cfg['data_order']:
 			i = 0
+			cfg['reg_model_df'] = None
+			cfg['reg_marker_info'] = None
 			if cfg['data_info'][k]['format'] == 'plink':
 				if reg == chr:
 					try:
@@ -244,11 +250,16 @@ def Model(out = None,
 					records = (x for x in records if int(x[pos_ind]) >= int(marker_list['start'][r]) and int(x[pos_ind]) <= int(marker_list['end'][r]))
 				except:
 					break
+
+			##### CONTINUE SLICING UNTIL NO RECORDS LEFT #####
+			chunk_db = ChunkRefDb()
 			while True:
 				i = i + 1
 				chunk=list(islice(records, cfg['buffer']))
 				if not chunk:
 					break
+
+				##### READ IN CHUNK AND CREATE STANDARD DATA FRAME #####
 				if cfg['data_info'][k]['format'] == 'plink':
 					marker_info=collections.OrderedDict()
 					marker_info['chr'] = collections.OrderedDict()
@@ -291,17 +302,26 @@ def Model(out = None,
 					elif cfg['data_info'][k]['format'] == 'dos2':
 						chunkdf = pd.DataFrame(chunk)
 					chunkdf.columns = ['chr','pos','marker','a1','a2'] + cfg['data_info'][k]['sample_ids']
-				chunkdf = chunkdf.drop_duplicates(subset=[x for x in chunkdf.columns if x != 'marker'])
+				chunkdf = chunkdf.drop_duplicates(subset=['chr','pos','a1','a2'])
+				chunkdf.index=chunkdf['chr'].astype(str) + '><' + chunkdf['pos'].astype(str) + '><'  + chunkdf['a1'].astype(str) + '><'  + chunkdf['a2'].astype(str)
+				chunkdf = chunkdf[~chunkdf.index.isin(chunk_db.ListKeys())]
+				chunkdf.apply(chunk_db.Update,1)
 				chunkdf = chunkdf.apply(mdb.Update,1)
+
+				##### EXTRACT MARKER INFO AND MARKER DATA #####
 				marker_info = chunkdf.ix[:,:5]
 				marker_info.replace('.','NA',inplace=True)
-				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '.'  + marker_info['marker'].astype(str) + '.'  + marker_info['a1'].astype(str) + '.'  + marker_info['a2'].astype(str)
+				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '.'  + marker_info['marker'].astype(str).str.replace('-','_') + '.'  + marker_info['a1'].astype(str) + '.'  + marker_info['a2'].astype(str)
 				marker_info.index = marker_info['marker_unique']
 				marker_data = chunkdf.ix[:,5:].transpose()
 				marker_data = marker_data.convert_objects(convert_numeric=True)
 				marker_data.columns = marker_info['marker_unique']
 				marker_data[cfg['data_info'][k]['iid']] = marker_data.index
+
+				##### MERGE PHENO DATAFRAME AND MARKER DATA #####
 				model_df = pd.merge(cfg['data_info'][k]['vars_df'], marker_data, on = [cfg['data_info'][k]['iid']], how='left').sort([cfg['data_info'][k]['fid']])
+
+				##### EXTRACT UNIQUE SAMPLES AND CALCULATE DESCRIPTIVE STATS #####
 				model_df_nodup=model_df.drop_duplicates(subset=[cfg['data_info'][k]['iid']]).reset_index(drop=True)
 				marker_info['callrate']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: CalcCallrate(col), 0)
 				model_df_nodup_unrel=model_df_nodup.drop_duplicates(subset=[cfg['data_info'][k]['fid']]).reset_index(drop=True)
@@ -332,8 +352,13 @@ def Model(out = None,
 					marker_info['hwe.case']=model_df_nodup[model_df_nodup[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
 					marker_info['hwe.unrel.ctrl']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
 					marker_info['hwe.unrel.case']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
-				marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, miss=cfg['miss'], freq=cfg['freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
+				if cfg['data_info'][k]['method'] in ['famskat_o','skat_o','famskat','skat','burden']:
+					marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, no_mono=True, miss=cfg['miss'], freq=cfg['freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
+				else:
+					marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, miss=cfg['miss'], freq=cfg['freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
 				marker_info['samples'] = str(cfg['data_info'][k]['samples']) + '/' + str(cfg['data_info'][k]['samples_unique']) + '/' + str(cfg['data_info'][k]['clusters']) + '/' + str(cfg['data_info'][k]['cases']) + '/' + str(cfg['data_info'][k]['ctrls'])
+
+				##### CONVERT ALL COLUMNS TO APPROPRIATE FORMAT FOR ANALYSIS #####
 				markercols = [col for col in model_df.columns if 'chr' in col]
 				model_df[markercols] = model_df[markercols].astype(float)
 				for x in cfg['data_info'][k]['model_vars_dict'].keys():
@@ -342,6 +367,8 @@ def Model(out = None,
 				for x in [a for a in cfg['data_info'][k]['model_vars_dict'].keys() if a != 'marker']:
 					if cfg['data_info'][k]['model_vars_dict'][x]['class'] not in ['factor','random','cluster']:
 						model_df[x] = model_df[x].astype(float)
+
+				##### MARKER ANALYSIS #####
 				if cfg['data_info'][k]['method'].split('_')[0] in ['gee','glm','lme','coxph']:
 					if cfg['data_info'][k]['method'].split('_')[0] == 'gee':
 						model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
@@ -360,35 +387,37 @@ def Model(out = None,
 						results['reg_id'] = marker_list['reg_id'][r]
 					if 'marker_unique' in results.columns.values:
 						results.drop('marker_unique',axis=1,inplace=True)
-					if not merge:
-						if not cfg['data_info'][k]['written']:
-							cfg['data_info'][k]['bgzfile'].write("\t".join(['#' + x if x == 'chr' else x for x in results.columns.values.tolist()]) + '\n')
-							cfg['data_info'][k]['bgzfile'].flush()
-						results.to_csv(cfg['data_info'][k]['bgzfile'], header=False, sep='\t', index=False)
-					elif cfg['data_info'][k]['written'] == False:
-						results.columns = [k + '.' + a if not a in ['chr','pos','a1','a2'] else a for a in results.columns]
+					if cfg['data_info'][k]['written'] == False:
+						results.columns = [k + '.' + a if not a in ['chr','pos','a1','a2'] and k != 'NA' else a for a in results.columns]
 						cfg['data_info'][k]['results'] = results.copy()
 						cfg['data_info'][k]['written'] = True
 					else:
-						results.columns = [k + '.' + a if not a in ['chr','pos','a1','a2'] else a for a in results.columns]
+						results.columns = [k + '.' + a if not a in ['chr','pos','a1','a2'] and k != 'NA' else a for a in results.columns]
 						cfg['data_info'][k]['results'] = cfg['data_info'][k]['results'].append(results).reset_index(drop=True)
+
+				##### PREPARE DATA FOR GENE BASED ANALYSIS #####
 				else:
 					if cfg['data_info'][k]['method_type'] == 'gene':
 						if i == 1:
-							reg_model_df = model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1)
-							reg_marker_info = marker_info[marker_info['filter'] == 0]
+							cfg['reg_model_df'] = model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1)
+							cfg['reg_marker_info'] = marker_info[marker_info['filter'] == 0]
 						else:
-							reg_model_df = pd.merge(reg_model_df,model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1),how='outer',copy=False)
-							reg_marker_info = reg_marker_info.append(marker_info[marker_info['filter'] == 0],ignore_index=True)
+							cfg['reg_model_df'] = pd.merge(cfg['reg_model_df'],model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1),how='outer',copy=False)
+							cfg['reg_marker_info'] = cfg['reg_marker_info'].append(marker_info[marker_info['filter'] == 0],ignore_index=True)
+
+				##### UPDATE LOOP STATUS #####
 				cur_markers = str(min(i*cfg['buffer'],marker_list[k][r])) if marker_list['start'][r] != 'NA' else str(i*cfg['buffer'])
 				tot_markers = str(marker_list[k][r]) if marker_list['start'][r] != 'NA' else '> 0'
-				status = '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(marker_list.index)) if len(cfg['data_info'].keys()) == 1 else '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(marker_list.index)) + " for model " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
+				status_reg = marker_list['region'][r] + ': ' + marker_list['reg_id'][r] if 'reg_id' in marker_list.columns else marker_list['region'][r]
+				status = '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(marker_list.index)) + ' (' + status_reg + ')' if len(cfg['data_info'].keys()) == 1 else '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(marker_list.index)) + ' (' + status_reg + ')' + " for model " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
 				print status
+
+			##### CALCULATE EFFECTIVE TESTS #####
 			if cfg['data_info'][k]['method'] == 'efftests':
-				tot_tests = reg_marker_info.shape[0]
+				tot_tests = cfg['reg_marker_info'].shape[0]
 				if tot_tests > 0:
 					if (tot_tests * tot_tests) / 100000000.0 <= mem:
-						n_eff = CalcEffTests(model_df=reg_model_df[reg_marker_info['marker_unique']], mem=mem)
+						n_eff = CalcEffTests(model_df=cfg['reg_model_df'][cfg['reg_marker_info']['marker_unique']], mem=mem)
 						status = 0
 					else:
 						n_eff = float('nan')
@@ -403,78 +432,116 @@ def Model(out = None,
 					results['reg_id'] = marker_list['reg_id'][r]
 				if 'marker_unique' in results.columns.values:
 					results.drop('marker_unique',axis=1,inplace=True)
-				if not merge:
-					if not cfg['data_info'][k]['written']:
-						cfg['data_info'][k]['bgzfile'].write("\t".join(['#' + x if x == 'chr' else x for x in results.columns.values.tolist()]) + '\n')
-						cfg['data_info'][k]['bgzfile'].flush()
-						cfg['data_info'][k]['written'] = True
-					results.to_csv(cfg['data_info'][k]['bgzfile'], header=False, sep='\t', index=False)
-				elif cfg['data_info'][k]['written'] == False:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] else a for a in results.columns]
+				if cfg['data_info'][k]['written'] == False:
+					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
 					cfg['data_info'][k]['results'] = results.copy()
 					cfg['data_info'][k]['written'] = True
 				else:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] else a for a in results.columns]
+					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
 					cfg['data_info'][k]['results'] = cfg['data_info'][k]['results'].append(results).reset_index(drop=True)
 				status = '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(marker_list.index)) if len(cfg['data_info'].keys()) == 1 else '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(marker_list.index)) + " for model " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
 				print status
-			elif cfg['data_info'][k]['method'] == 'famskat_o':
-				if reg_marker_info.shape[0] > 0:
-					reg_model_df.dropna(inplace=True)
-					snp_info = pd.DataFrame({'Name': reg_marker_info['marker_unique'], 'gene': marker_list['reg_id'][r]})
-					z = reg_model_df[list(marker_info['marker_unique'][marker_info['filter'] == 0])]
-					pheno = reg_model_df[list(set(cfg['data_info'][k]['model_vars_dict'].keys() + [cfg['data_info'][k]['iid'],cfg['data_info'][k]['fid']]))]
-					results_pre = CalcFamSkatO(snp_info=snp_info, z=z, model=cfg['data_info'][k]['model'], pheno=pheno, kinship=cfg['data_info'][k]['kins'])
-					results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
-											'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
-											'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
-					results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
-					if not merge:
-						if not cfg['data_info'][k]['written']:
-							cfg['data_info'][k]['bgzfile'].write("\t".join(['#' + x if x == 'chr' else x for x in results.columns.values.tolist()]) + '\n')
-							cfg['data_info'][k]['bgzfile'].flush()
-							cfg['data_info'][k]['written'] = True
-						results.to_csv(cfg['data_info'][k]['bgzfile'], header=False, sep='\t', index=False)
-					elif cfg['data_info'][k]['written'] == False:
-						results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] else a for a in results.columns]
-						cfg['data_info'][k]['results'] = results.copy()
-						cfg['data_info'][k]['written'] = True
+
+			##### CALCULATE PREPSCORES AND INDIVIDUAL MODELS FOR GENE BASED TESTS #####
+			elif cfg['data_info'][k]['method'] in ['famskat_o','skat_o','famskat','skat','burden']:
+				if not cfg['reg_marker_info'] is None:
+					if cfg['reg_marker_info'].shape[0] > 1:
+						#reg_model_df.dropna(inplace=True)
+						cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': marker_list['reg_id'][r]})
+						z = cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])]
+						pheno = cfg['reg_model_df'][list(set(cfg['data_info'][k]['model_vars_dict'].keys() + [cfg['data_info'][k]['iid'],cfg['data_info'][k]['fid']]))]
+
+						##### SKAT-O #####
+						if cfg['data_info'][k]['method'] == 'famskat_o':
+							ro.globalenv['ps' + k] = PrepScoresFam(snp_info=cfg['data_info'][k]['snp_info'], z=z, model=cfg['data_info'][k]['model'], pheno=pheno, kinship=cfg['data_info'][k]['kins'])
+							results_pre = SkatOMeta('skatOMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
+							results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+												'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
+												'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
+							results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
 					else:
-						results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] else a for a in results.columns]
-						cfg['data_info'][k]['results'] = cfg['data_info'][k]['results'].append(results).reset_index(drop=True)
+						cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': [], 'gene': []})
+						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+												'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
+												'nsnps': [cfg['reg_marker_info'].shape[0]],'errflag': ['NA']})
+				else:
+					cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': [], 'gene': []})
+					results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+											'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
+											'nsnps': [0],'errflag': ['NA']})
+				if cfg['data_info'][k]['written'] == False:
+					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
+					cfg['data_info'][k]['results'] = results.copy()
+					cfg['data_info'][k]['written'] = True
+				else:
+					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
+					cfg['data_info'][k]['results'] = cfg['data_info'][k]['results'].append(results).reset_index(drop=True)
 
-	##### CLOSE AND MAP MERGED OUTPUT FILE #####
-	if merge:
-		for k in cfg['data_order']:
-			if k == cfg['data_order'][0]:
-				results = cfg['data_info'][k]['results']
+		##### PERFORM GENE BASED TEST META ANALYSIS #####
+		if cfg['data_info'][cfg['data_order'][0]]['method'] in ['famskat_o','skat_o','famskat','skat','burden'] and 'meta' in cfg.keys():
+			for meta in cfg['meta']:
+				meta_tag = meta.split(':')[0]
+				meta_incl = meta.split(':')[1].split('+')
+				seqmeta_cmd = ''
+				for k in meta_incl:
+					if meta_incl[0] == k:
+						snp_info_meta = cfg['data_info'][k]['snp_info']
+					else:
+						snp_info_meta = snp_info_meta.merge(cfg['data_info'][k]['snp_info'])
+					if seqmeta_cmd == '':
+						seqmeta_cmd = 'ps' + k
+					else:
+						seqmeta_cmd = seqmeta_cmd + ', ps' + k
+				if snp_info_meta.shape[0] > 1:
+					if cfg['data_info'][cfg['data_order'][0]]['method'] == 'famskat_o':
+						
+						results_pre = SkatOMeta('skatOMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info)', snp_info_meta)
+						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
+													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
+						results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+				else:
+					results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+													'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
+													'nsnps': [snp_info_meta.shape[0]],'errflag': ['NA']})
+				if cfg['meta_written'][meta_tag] == False:
+					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
+					cfg['meta_results'][meta_tag] = results.copy()
+					cfg['meta_written'][meta_tag] = True
+				else:
+					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
+					cfg['meta_results'][meta_tag] = cfg['meta_results'][meta_tag].merge(results, how='outer', copy=False)
+
+	header = ['chr','start','end','reg_id'] if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'gene' else ['chr','pos','a1','a2']
+	if 'meta' in cfg.keys():
+		for meta in cfg['meta']:
+			meta_tag = meta.split(':')[0]
+			if meta == cfg['meta'][0]:
+				results = cfg['meta_results'][meta_tag]
 			else:
-				results=results.merge(cfg['data_info'][k]['results'],how='outer')
-		results.fillna('NA', inplace=True)
-		if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'marker':
-			results.sort(columns=['chr','pos'],inplace=True)
-		else:
-			results.sort(columns=['chr','start'],inplace=True)
-		bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in results.columns.values.tolist()]) + '\n')
-		bgzfile.flush()
-		results.to_csv(bgzfile, header=False, sep='\t', index=False)
-		bgzfile.close()
-		if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'marker':
-			cmd = 'tabix -b 2 -e 2 ' + cfg['out'] + '.gz'
-		else:
-			cmd = 'tabix -b 2 -e 3 ' + cfg['out'] + '.gz'
-		p = subprocess.Popen(cmd, shell=True)
-		p.wait()
-
-	##### CLOSE AND MAP OUT FILES #####
+				results = results.merge(cfg['meta_results'][meta_tag], how='outer', copy=False)
+			header = header + [a for a in cfg['meta_results'][meta_tag].columns.values.tolist() if not a in header]
 	for k in cfg['data_order']:
-		if not merge:
-			cfg['data_info'][k]['bgzfile'].close()
-			print "mapping results file" if len(cfg['data_info'].keys()) == 1 else "mapping results file for model " + k
-			if cfg['data_info'][k]['method_type'] == 'marker':
-				cmd = 'tabix -b 2 -e 2 ' + cfg['data_info'][k]['out']
-			else:
-				cmd = 'tabix -b 2 -e 3 ' + cfg['data_info'][k]['out']
-			p = subprocess.Popen(cmd, shell=True)
-			p.wait()
+		if len(header) == 0:
+			results = cfg['data_info'][k]['results']
+		else:
+			results = results.merge(cfg['data_info'][k]['results'], how='outer', copy=False)
+		header = header + [a for a in cfg['data_info'][k]['results'].columns.values.tolist() if not a in header]
+	if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'marker':
+		results.sort(columns=['chr','pos'],inplace=True)
+	else:
+		results.sort(columns=['chr','start'],inplace=True)
+	results.fillna('NA', inplace=True)	
+	results = results[header]
+	bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in results.columns.values.tolist()]) + '\n')
+	bgzfile.flush()
+	results.to_csv(bgzfile, header=False, sep='\t', index=False)
+	bgzfile.close()
+	if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'marker':
+		cmd = 'tabix -b 2 -e 2 ' + cfg['out'] + '.gz'
+	else:
+		cmd = 'tabix -b 2 -e 3 ' + cfg['out'] + '.gz'
+	p = subprocess.Popen(cmd, shell=True)
+	p.wait()
+
 	print "process complete"

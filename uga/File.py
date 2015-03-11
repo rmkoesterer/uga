@@ -10,6 +10,7 @@ from Bio import bgzf
 import tabix
 from Messages import Error
 import signal
+import glob
 
 def RemoveExistingFiles(file, module):
 	if module in['model','meta']:
@@ -117,11 +118,11 @@ def CheckResults(file_dict, out, complete_string, overwrite, cpus=1):
 			k = 0
 			for j in joblist:
 				k = k + 1
-				logfile = file_dict[j] + ".log"
+				logfile = glob.glob(file_dict[j] + ".*.log")
 				resfile = file_dict[j] + ".gz"
 				if os.path.exists(resfile):
-					if os.path.exists(logfile):
-						p = subprocess.Popen(['grep','-cw',complete_string,logfile], stdout=subprocess.PIPE)	
+					if os.path.exists(logfile[0]):
+						p = subprocess.Popen(['grep','-cw',complete_string,logfile[0]], stdout=subprocess.PIPE)	
 						complete = p.communicate()[0]
 						complete = int(complete.strip())
 						if complete == 0:

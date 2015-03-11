@@ -54,7 +54,8 @@ class Cfg(object):
 			return config
 		elif self.module == 'model':
 			config = {'out': None, 'sig': 5, 'buffer': 100, 'miss': None, 'freq': None, 'rsq': None, 'hwe': None, 'mem': 3, 'nofail': False, 
-						'region_list': None, 'region': None, 'region_id': None, 'merge': False, 'data_info': {}, 'data_order': []}
+						'merge': False, 'data_info': {}, 'data_order': [], 'meta': []}
+						#'region_list': None, 'region': None, 'region_id': None, 
 			config_temp = {}
 			with open(self.filename) as f:
 				lines = (line.rstrip() for line in f)
@@ -65,7 +66,7 @@ class Cfg(object):
 						line = line.replace('[' + k + ']', self.vars[k])
 					key = str(line.split()[0])
 					val = " ".join(line.split()[1:])
-					if key in ['out','sig','buffer','miss','freq','rsq','hwe','mem','region_list','region','region_id']:
+					if key in ['out','sig','buffer','miss','freq','rsq','hwe','mem']: #,'region_list','region','region_id'
 						config[key] = val
 					if key in ['nofail','merge']:
 						config[key] = True
@@ -80,6 +81,8 @@ class Cfg(object):
 						config_temp["format"] = key
 						config['data_info'][config_temp['tag']] = dict(config_temp)
 						config['data_order'].append(config_temp['tag'])
+					elif key == 'meta':
+						config['meta'].append(val)
 					else:
 						config_temp[key] = val
 			return config
