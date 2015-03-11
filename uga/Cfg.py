@@ -70,7 +70,8 @@ class Cfg(object):
 						config[key] = val
 					if key in ['nofail','merge']:
 						config[key] = True
-					elif key in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','skat_o','famskat_o']:
+					elif key in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests',
+									'famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']:
 						config_temp["model"] = val
 						config_temp["method"] = key
 					elif key in ['oxford','vcf','plink','dos1','dos2']:

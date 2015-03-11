@@ -76,10 +76,9 @@ def CalcFreq(marker, chr, male_idx = None, female_idx = None):
 
 def CalcRsq(x):
 	x = x.dropna().astype(float)
-	rsq = x.var() / (2 * (x.mean() / 2) * (1 - (x.mean() / 2))) if (len(x) > 0 and x.mean()/2 != 1 and x.mean()/2 != 0) else None
-	if rsq != None: 
-		rsq = 1 / rsq if rsq > 1 else rsq
-	return float('%.5g' % (rsq)) if rsq != None else float('NaN')
+	rsq = x.var() / (2 * (x.mean() / 2) * (1 - (x.mean() / 2)))
+	rsq = 1 / rsq if rsq > 1 else rsq
+	return float('%.5g' % (rsq))
 
 def CalcHWE(marker, chr = None, female_idx = None):
 	marker = marker.dropna().astype(float)

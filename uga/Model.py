@@ -16,7 +16,7 @@ from Bio import bgzf
 import psutil
 from MarkerCalc import Complement,ConvertDosage,CalcCallrate,CalcFreq,CalcRsq,CalcHWE,GetRowCalls
 from Messages import Error
-from Stats import GenerateFilterCode,CalcGEE,CalcGLM,CalcLME,CalcCoxPH,CalcEffTests,SkatOMeta,PrepScores,PrepScoresFam
+from Stats import GenerateFilterCode,CalcGEE,CalcGLM,CalcLME,CalcCoxPH,CalcEffTests,SkatOMeta,SkatMeta,BurdenMeta,PrepScores,PrepScoresFam,SkatOMetaEmpty,SkatMetaEmpty,BurdenMetaEmpty
 from Coordinates import Coordinates
 from ModelFxns import ExtractModelVars,GetFocus,GetDelimiter
 from MarkerRefDb import MarkerRefDb,ChunkRefDb
@@ -81,6 +81,11 @@ def Model(out = None,
 					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
 						'corstr': corstr[0], 'pheno_sep': pheno_sep[0]}}}
 
+	##### DEFINE MODEL TYPES #####
+	marker_tests = ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph']
+	seqmeta_tests = ['famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']
+	efftests=['efftests']
+
 	##### READ model VARIABLES FROM FILE #####
 	vars_df_dict = {}
 	model_vars_dict_dict = {}
@@ -93,8 +98,15 @@ def Model(out = None,
 			cfg['data_info'][k]['pheno_sep'] = GetDelimiter(cfg['data_info'][k]['pheno_sep'])
 		else:
 			cfg['data_info'][k]['pheno_sep'] = '\t'
-		cfg['data_info'][k]['fxn'] = cfg['data_info'][k]['method'].split('_')[1] if cfg['data_info'][k]['method'] in ["gee_gaussian","gee_binomial","glm_gaussian","glm_binomial","lme_gaussian","lme_binomial"] else None
-		cfg['data_info'][k]['vars_df'], cfg['data_info'][k]['model_vars_dict'] = ExtractModelVars(cfg['data_info'][k]['pheno'],cfg['data_info'][k]['model'],cfg['data_info'][k]['fid'],cfg['data_info'][k]['iid'],fxn=cfg['data_info'][k]['fxn'],sex=cfg['data_info'][k]['sex'],pheno_sep=cfg['data_info'][k]['pheno_sep'])
+		if '_gaussian' in cfg['data_info'][k]['method'] or '_binomial' in cfg['data_info'][k]['method']:
+			cfg['data_info'][k]['fxn'] = cfg['data_info'][k]['method'].split('_')[-1]
+		else:
+			cfg['data_info'][k]['fxn'] = None
+		cfg['data_info'][k]['vars_df'], cfg['data_info'][k]['model_vars_dict'] = ExtractModelVars(pheno=cfg['data_info'][k]['pheno'], model=cfg['data_info'][k]['model'],
+																										fid=cfg['data_info'][k]['fid'], iid=cfg['data_info'][k]['iid'],
+																										fxn=cfg['data_info'][k]['fxn'], sex=cfg['data_info'][k]['sex'],
+																										case=cfg['data_info'][k]['case'], ctrl=cfg['data_info'][k]['ctrl'],
+																										pheno_sep=cfg['data_info'][k]['pheno_sep'])
 
 	##### DETERMINE MODEL STATS TO BE EXTRACTED #####
 	for k in cfg['data_order']:
@@ -203,7 +215,7 @@ def Model(out = None,
 
 	##### DETERMINE ANALYSIS TYPE AND SETUP FILE HANDLES #####
 	for k in cfg['data_order']:
-		if cfg['data_info'][k]['method'] in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph']:
+		if cfg['data_info'][k]['method'] in marker_tests:
 			cfg['data_info'][k]['method_type'] = 'marker'
 		else:
 			cfg['data_info'][k]['method_type'] = 'gene'
@@ -352,7 +364,7 @@ def Model(out = None,
 					marker_info['hwe.case']=model_df_nodup[model_df_nodup[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
 					marker_info['hwe.unrel.ctrl']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
 					marker_info['hwe.unrel.case']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
-				if cfg['data_info'][k]['method'] in ['famskat_o','skat_o','famskat','skat','burden']:
+				if cfg['data_info'][k]['method'] in seqmeta_tests:
 					marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, no_mono=True, miss=cfg['miss'], freq=cfg['freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
 				else:
 					marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, miss=cfg['miss'], freq=cfg['freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
@@ -408,7 +420,7 @@ def Model(out = None,
 				##### UPDATE LOOP STATUS #####
 				cur_markers = str(min(i*cfg['buffer'],marker_list[k][r])) if marker_list['start'][r] != 'NA' else str(i*cfg['buffer'])
 				tot_markers = str(marker_list[k][r]) if marker_list['start'][r] != 'NA' else '> 0'
-				status_reg = marker_list['region'][r] + ': ' + marker_list['reg_id'][r] if 'reg_id' in marker_list.columns else marker_list['region'][r]
+				status_reg = marker_list['region'][r] + ': ' + marker_list['reg_id'][r] if 'reg_id' in marker_list.columns and not marker_list['reg_id'][r] is None else marker_list['region'][r]
 				status = '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(marker_list.index)) + ' (' + status_reg + ')' if len(cfg['data_info'].keys()) == 1 else '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(marker_list.index)) + ' (' + status_reg + ')' + " for model " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
 				print status
 
@@ -443,32 +455,60 @@ def Model(out = None,
 				print status
 
 			##### CALCULATE PREPSCORES AND INDIVIDUAL MODELS FOR GENE BASED TESTS #####
-			elif cfg['data_info'][k]['method'] in ['famskat_o','skat_o','famskat','skat','burden']:
-				if not cfg['reg_marker_info'] is None:
-					if cfg['reg_marker_info'].shape[0] > 1:
-						#reg_model_df.dropna(inplace=True)
-						cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': marker_list['reg_id'][r]})
-						z = cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])]
-						pheno = cfg['reg_model_df'][list(set(cfg['data_info'][k]['model_vars_dict'].keys() + [cfg['data_info'][k]['iid'],cfg['data_info'][k]['fid']]))]
+			elif cfg['data_info'][k]['method'] in seqmeta_tests:
+				if not cfg['reg_marker_info'] is None and cfg['reg_marker_info'].shape[0] > 1:
+					cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': marker_list['reg_id'][r]})
+					z = cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])]
+					pheno = cfg['reg_model_df'][list(set(cfg['data_info'][k]['model_vars_dict'].keys() + [cfg['data_info'][k]['iid'],cfg['data_info'][k]['fid']]))]
 
-						##### SKAT-O #####
-						if cfg['data_info'][k]['method'] == 'famskat_o':
-							ro.globalenv['ps' + k] = PrepScoresFam(snp_info=cfg['data_info'][k]['snp_info'], z=z, model=cfg['data_info'][k]['model'], pheno=pheno, kinship=cfg['data_info'][k]['kins'])
-							results_pre = SkatOMeta('skatOMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
-							results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
-												'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
-												'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
-							results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+					##### PREPSCORES #####
+					if cfg['data_info'][k]['method'] in ['famskat_o','famskat','famburden']:
+						ro.globalenv['ps' + k] = PrepScoresFam(snp_info=cfg['data_info'][k]['snp_info'], z=z, model=cfg['data_info'][k]['model'], pheno=pheno, kinship=cfg['data_info'][k]['kins'])
 					else:
-						cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': [], 'gene': []})
+						ro.globalenv['ps' + k] = PrepScores(snp_info=cfg['data_info'][k]['snp_info'], z=z, model=cfg['data_info'][k]['model'], pheno=pheno, family=cfg['data_info'][k]['fxn'])
+
+					##### SKAT-O #####
+					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
+						results_pre = SkatOMeta('skatOMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
 						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
-												'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
-												'nsnps': [cfg['reg_marker_info'].shape[0]],'errflag': ['NA']})
+											'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
+											'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
+						results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+
+					##### SKAT #####
+					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
+						results_pre = SkatMeta('skatMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
+						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+											'p': [results_pre['p'][1]],'Qmeta': [results_pre['pmin'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
+											'nsnps': [results_pre['nsnps'][1]]})
+						results = results[['chr','start','end','reg_id','p','Qmeta','cmaf','nmiss','nsnps']]
+
+					##### BURDEN #####
+					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
+						results_pre = BurdenMeta('burdenMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
+						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+											'p': [results_pre['p'][1]],'beta': [results_pre['beta'][1]],'se': [results_pre['se'][1]],'cmafTotal': [results_pre['cmafTotal'][1]],
+											'cmafUsed': [results_pre['cmafUsed'][1]],'nsnpsTotal': [results_pre['nsnpsTotal'][1]],'nsnpsUsed': [results_pre['nsnpsUsed'][1]],
+											'nmiss': [results_pre['nmiss'][1]]})
+						results = results[['chr','start','end','reg_id','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
 				else:
+
+					##### EMPTY SNP_INFO DF #####
 					cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': [], 'gene': []})
-					results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
-											'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
-											'nsnps': [0],'errflag': ['NA']})
+
+					##### EMPTY SKAT-O DF #####
+					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
+						results = SkatOMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+
+					##### EMPTY SKAT DF #####
+					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
+						results = SkatMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+
+					##### EMPTY BURDEN DF #####
+					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
+						results = BurdenMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+					
+				##### APPEND TO RESULTS DF #####
 				if cfg['data_info'][k]['written'] == False:
 					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
 					cfg['data_info'][k]['results'] = results.copy()
@@ -478,7 +518,7 @@ def Model(out = None,
 					cfg['data_info'][k]['results'] = cfg['data_info'][k]['results'].append(results).reset_index(drop=True)
 
 		##### PERFORM GENE BASED TEST META ANALYSIS #####
-		if cfg['data_info'][cfg['data_order'][0]]['method'] in ['famskat_o','skat_o','famskat','skat','burden'] and 'meta' in cfg.keys():
+		if cfg['data_info'][cfg['data_order'][0]]['method'] in seqmeta_tests and 'meta' in cfg.keys():
 			for meta in cfg['meta']:
 				meta_tag = meta.split(':')[0]
 				meta_incl = meta.split(':')[1].split('+')
@@ -493,17 +533,47 @@ def Model(out = None,
 					else:
 						seqmeta_cmd = seqmeta_cmd + ', ps' + k
 				if snp_info_meta.shape[0] > 1:
-					if cfg['data_info'][cfg['data_order'][0]]['method'] == 'famskat_o':
-						
+
+					##### SKAT-O #####
+					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
 						results_pre = SkatOMeta('skatOMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info)', snp_info_meta)
 						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
 													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
 						results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+
+					##### SKAT #####
+					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
+						results_pre = SkatMeta('skatMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info)', snp_info_meta)
+						
+						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
+													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
+						results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+
+					##### BURDEN #####
+					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
+						results_pre = BurdenMeta('burdenMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
+						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+											'p': [results_pre['p'][1]],'beta': [results_pre['beta'][1]],'se': [results_pre['se'][1]],'cmafTotal': [results_pre['cmafTotal'][1]],
+											'cmafUsed': [results_pre['cmafUsed'][1]],'nsnpsTotal': [results_pre['nsnpsTotal'][1]],'nsnpsUsed': [results_pre['nsnpsUsed'][1]],
+											'nmiss': [results_pre['nmiss'][1]]})
+						results = results[['chr','start','end','reg_id','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
 				else:
-					results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
-													'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
-													'nsnps': [snp_info_meta.shape[0]],'errflag': ['NA']})
+
+					##### EMPTY SKAT-O DF #####
+					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
+						results = SkatOMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+
+					##### EMPTY SKAT DF #####
+					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
+						results = SkatMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+
+					##### EMPTY BURDEN DF #####
+					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
+						results = BurdenMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+
+				##### APPEND TO META DF #####
 				if cfg['meta_written'][meta_tag] == False:
 					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
 					cfg['meta_results'][meta_tag] = results.copy()
@@ -512,6 +582,7 @@ def Model(out = None,
 					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
 					cfg['meta_results'][meta_tag] = cfg['meta_results'][meta_tag].merge(results, how='outer', copy=False)
 
+	##### COMPILE ALL RESULTS #####
 	header = ['chr','start','end','reg_id'] if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'gene' else ['chr','pos','a1','a2']
 	if 'meta' in cfg.keys():
 		for meta in cfg['meta']:
@@ -527,16 +598,24 @@ def Model(out = None,
 		else:
 			results = results.merge(cfg['data_info'][k]['results'], how='outer', copy=False)
 		header = header + [a for a in cfg['data_info'][k]['results'].columns.values.tolist() if not a in header]
+
+	##### SORT RESULTS AND CONVERT CHR, POS, AND START COLUMNS TO INT #####
 	if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'marker':
 		results.sort(columns=['chr','pos'],inplace=True)
+		results[['chr','pos']] = results[['chr','pos']].astype(int)
 	else:
 		results.sort(columns=['chr','start'],inplace=True)
+		results[['chr','start','end']] = results[['chr','start','end']].astype(int)
+
+	##### FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
 	results.fillna('NA', inplace=True)	
 	results = results[header]
 	bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in results.columns.values.tolist()]) + '\n')
 	bgzfile.flush()
 	results.to_csv(bgzfile, header=False, sep='\t', index=False)
 	bgzfile.close()
+
+	##### MAP OUTPUT FILES FOR TABIX #####
 	if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'marker':
 		cmd = 'tabix -b 2 -e 2 ' + cfg['out'] + '.gz'
 	else:

@@ -204,12 +204,33 @@ def Parser():
 	model_parser_split_group5.add_argument('--efftests', 
 						action='store', 
 						help='model string for efftests analysis')
-	model_parser_split_group5.add_argument('--skat-o', 
-						action='store', 
-						help='model string for skat_o analysis')
 	model_parser_split_group5.add_argument('--famskat-o', 
 						action='store', 
-						help='model string for famskat_o analysis')
+						help='model string for family based skat-o analysis')
+	model_parser_split_group5.add_argument('--skat-o-gaussian', 
+						action='store', 
+						help='model string for skat-o gaussian analysis')
+	model_parser_split_group5.add_argument('--skat-o-binomial', 
+						action='store', 
+						help='model string for skat-o binomial analysis')
+	model_parser_split_group5.add_argument('--famskat', 
+						action='store', 
+						help='model string for family based skat analysis')
+	model_parser_split_group5.add_argument('--skat-gaussian', 
+						action='store', 
+						help='model string for skat gaussian analysis')
+	model_parser_split_group5.add_argument('--skat-binomial', 
+						action='store', 
+						help='model string for skat binomial analysis')
+	model_parser_split_group5.add_argument('--famburden', 
+						action='store', 
+						help='model string for family based burden analysis')
+	model_parser_split_group5.add_argument('--burden-gaussian', 
+						action='store', 
+						help='model string for burden  gaussian analysis')
+	model_parser_split_group5.add_argument('--burden-binomial', 
+						action='store', 
+						help='model string for burden binomial analysis')
 
 	meta_parser = subparsers.add_parser('meta', help='meta-analysis', parents=[parser])
 	meta_required = meta_parser.add_argument_group('required arguments')	
@@ -482,7 +503,9 @@ def Parse(top_parser):
 															args.glm_gaussian is None and args.glm_binomial is None and
 															args.lme_gaussian is None and args.lme_binomial is None and
 															args.coxph is None and args.efftests is None and
-															args.skat_o is None and args.famskat_o is None)):
+															args.famskat_o is None and args.skat_o_gaussian is None and args.skat_o_binomial is None and
+															args.famskat is None and args.skat_gaussian is None and args.skat_binomial is None and
+															args.famburden is None and args.burden_gaussian is None and  args.burden_binomial is None)):
 		top_parser.error("missing argument: --out, --pheno, --fid, --iid, and a model string (ie. --gee-gaussian, etc.) required in module model without --cfg")
 	if args.which == 'summary' and ((not args.f_dist_dfn is None and (args.f_dist_dfd is None or args.z is None)) or (not args.f_dist_dfd is None and (args.f_dist_dfn is None or args.z is None))):
 		top_parser.error("missing argument: for f-distribution p-values, --z, --f-dist-dfn and --f-dist-dfd are all required")

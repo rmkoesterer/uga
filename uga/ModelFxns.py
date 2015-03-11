@@ -3,7 +3,7 @@ import pandas as pd
 import re
 from Messages import Error
 
-def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,pheno_sep='\t'):
+def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,pheno_sep='\t'):
 	model_vars_dict = {}
 	dependent = re.split('\\~',model)[0]
 	independent = re.split('\\~',model)[1]

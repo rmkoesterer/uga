@@ -149,7 +149,7 @@ def main(args=None):
 					else:
 						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 			cmd = cmd + ')'
-		Interactive(home_dir + '/.uga_wrapper.py', cmd, summary_out + '.' + args.which + '.log')
+			Interactive(home_dir + '/.uga_wrapper.py', cmd, summary_out + '.' + args.which + '.log')
 	elif args.which in ['model','meta']:
 		if not os.path.exists(args.directory):
 			try:
@@ -211,13 +211,15 @@ def main(args=None):
 				else:
 					cmd = args.which.capitalize() + '(out=\'' + out + '\''
 					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','fid','iid','focus','sig','region_list','gee_gaussian',
-								'gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','skat_o','famskat_o',
+								'gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','famskat_o','skat_o_gaussian','skat_o_binomial',
+								'famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial',
 								'region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','merge', 
 								'pedigree','pheno_sep']:
 						if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
 							if x in ['oxford','dos1','dos2','plink','vcf']:
 								cmd = cmd + ',data=[\'' + str(vars(args)[x]) + '\'],format=[\'' + x + '\']'
-							elif x in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','skat_o','famskat_o']:
+							elif x in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests',
+											'famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']:
 								cmd = cmd + ',model=[\'' + str(vars(args)[x]) + '\'],method=[\'' + x + '\']'
 							elif type(vars(args)[x]) is str:
 								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''

@@ -28,7 +28,7 @@ def GenerateFilterCode(marker_info, no_mono=True, miss = None, freq = None, rsq 
 		filter += 1000
 	if (not freq is None and not math.isnan(marker_info['freq']) and ((float(marker_info['freq']) < float(freq) or float(marker_info['freq']) > 1-float(freq) or float(marker_info['freq']) == 0 or float(marker_info['freq']) == 1) and (float(marker_info['freq.unrel']) < float(freq) or float(marker_info['freq.unrel']) > 1-float(freq) or float(marker_info['freq.unrel']) == 0 or float(marker_info['freq.unrel']) == 1))) or (math.isnan(marker_info['freq'])):
 		filter += 100
-	if (not rsq is None and not math.isnan(marker_info['rsq']) and (float(marker_info['rsq']) < float(rsq) and float(marker_info['rsq.unrel']) < float(rsq))) or (math.isnan(marker_info['rsq'])):
+	if not rsq is None and not math.isnan(marker_info['rsq']) and (float(marker_info['rsq']) < float(rsq) and float(marker_info['rsq.unrel']) < float(rsq)):
 		filter += 10
 	if not hwe is None and not math.isnan(marker_info['hwe']) and (float(marker_info['hwe']) < float(hwe) and float(marker_info['hwe.unrel']) < float(hwe)):
 		filter += 1
@@ -294,11 +294,12 @@ def CalcEffTests(model_df, mem):
 		n_eff = 1
 	return '%.5g' % n_eff
 
-def PrepScores(snp_info, z, model, pheno):
+def PrepScores(snp_info, z, model, pheno, family=None):
+	family = ro.r('gaussian()') if family is None or family == 'gaussian' else ro.r('binomial()')
 	rsnp_info = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
 	rz = ro.r('as.matrix')(py2r.convert_to_r_dataframe(z, strings_as_factors=False))
 	rpheno = py2r.convert_to_r_dataframe(pheno, strings_as_factors=False)
-	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno)
+	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, family=family)
 	return ro.globalenv['ps']
 
 def PrepScoresFam(snp_info, z, model, pheno, kinship):
@@ -325,6 +326,60 @@ def SkatOMeta(cmd, snp_info):
 		result_df['nsnps'] = '%d' % (result_df['nsnps'])
 		result_df['errflag'] = '%d' % (result_df['errflag'])
 	return result_df
+
+def SkatMeta(cmd, snp_info):
+	ro.globalenv['rsnp_info'] = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
+	try:
+		result = rtry(ro.reval(cmd),silent=ro.r('TRUE'))
+	except RRuntimeError:
+		result_df = pd.DataFrame({'p': ['NA'], 'Qmeta': ['NA'], 'cmaf': ['NA'], 'nmiss': ['NA'], 'nsnps': ['NA']})
+		result_df.index = [1]
+	else:
+		result_df = py2r.convert_robj(result)
+		result_df['p'] = '%.2e' % (result_df['p']) if result_df['p'][1] != 0 else 'NA'
+		result_df['Qmeta'] = '%.5g' % (result_df['Qmeta'])
+		result_df['cmaf'] = '%.5g' % (result_df['cmaf'])
+		result_df['nmiss'] = '%d' % (result_df['nmiss'])
+		result_df['nsnps'] = '%d' % (result_df['nsnps'])
+	return result_df
+
+def BurdenMeta(cmd, snp_info):
+	ro.globalenv['rsnp_info'] = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
+	try:
+		result = rtry(ro.reval(cmd),silent=ro.r('TRUE'))
+	except RRuntimeError:
+		result_df = pd.DataFrame({'p': ['NA'], 'beta': ['NA'], 'se': ['NA'], 'cmafTotal': ['NA'], 'cmafUsed': ['NA'], 'nsnpsTotal': ['NA'], 'nsnpsUsed': ['NA'], 'nmiss': ['NA']})
+		result_df.index = [1]
+	else:
+		result_df = py2r.convert_robj(result)
+		result_df['p'] = '%.2e' % (result_df['p']) if result_df['p'][1] != 0 else 'NA'
+		result_df['beta'] = '%.5g' % (result_df['beta'])
+		result_df['se'] = '%.5g' % (result_df['se'])
+		result_df['cmafTotal'] = '%.5g' % (result_df['cmafTotal'])
+		result_df['cmafUsed'] = '%.5g' % (result_df['cmafUsed'])
+		result_df['nsnpsTotal'] = '%d' % (result_df['nsnpsTotal'])
+		result_df['nsnpsUsed'] = '%d' % (result_df['nsnpsUsed'])
+		result_df['nmiss'] = '%d' % (result_df['nmiss'])
+	return result_df
+
+
+def SkatOMetaEmpty(chr, start, end, reg_id):
+	results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],
+								'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
+								'nsnps': [0],'errflag': ['NA']})
+	return results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+
+def SkatMetaEmpty(chr, start, end, reg_id):
+	results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],
+								'p': ['NA'],'Qmeta': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
+								'nsnps': ['NA']})
+	return results[['chr','start','end','reg_id','p','Qmeta','cmaf','nmiss','nsnps']]
+
+def BurdenMetaEmpty(chr, start, end, reg_id):
+	results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],
+								'p': ['NA'],'beta': ['NA'],'se': ['NA'],'cmafTotal': ['NA'],'cmafUsed': ['NA'],
+								'nsnpsTotal': ['NA'],'nsnpsUsed': ['NA'],'nmiss': ['NA']})
+	return results[['chr','start','end','reg_id','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
 
 """
 def CalcFamSkatO(snp_info, z, model, pheno, kinship):
