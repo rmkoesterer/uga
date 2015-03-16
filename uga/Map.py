@@ -3,7 +3,7 @@ import tabix
 import math
 import pandas as pd
 import numpy as np
-from Messages import Error
+from SystemFxns import Error
 from multiprocessing import Process, Manager, cpu_count
 from plinkio import plinkfile
 from itertools import islice,groupby

@@ -9,9 +9,9 @@ import pandas as pd
 import numpy as np
 pd.options.mode.chained_assignment = None
 import re
-from MarkerCalc import Complement,ListCompatibleMarkers
-from Coordinates import Coordinates
-from Messages import Error
+from MiscFxns import Complement,ListCompatibleMarkers
+from FileFxns import Coordinates
+from SystemFxns import Error
 from multi_key_dict import multi_key_dict
 from Bio import bgzf
 import scipy.stats as scipy

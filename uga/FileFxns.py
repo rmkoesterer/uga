@@ -4,13 +4,133 @@ import os
 import subprocess
 from collections import OrderedDict
 import numpy as np
+import pandas as pd
 from multiprocessing import Process, Manager, cpu_count
 import math
 from Bio import bgzf
 import tabix
-from Messages import Error
+from SystemFxns import Error
 import signal
 import glob
+
+class Cfg(object):
+
+	def __init__(self, filename, module, vars = None):
+		self.filename = filename
+		self.module = module
+		self.vars = dict(item.split('=') for item in vars.split(',')) if vars else {}
+		
+	def getFilename(self):
+		return self.filename
+	
+	def getModule(self):
+		return self.module
+		
+	def getVars(self):
+		return self.vars
+		
+	def __str__(self):
+		return "%s is a configuration file for module %s with variables %s" % (self.filename, self.module, self.vars)
+		
+	def Load(self):
+		if self.module == 'meta':
+			config = {'out': None, 'sig': 5, 'method': None, 'data_info': {}, 'meta_info': {}, 'meta_order': [], 'file_order': []}
+			config_temp = {'filters': []}
+			with open(self.filename) as f:
+				lines = (line.rstrip() for line in f)
+				lines = (line for line in lines if line)
+				i = 0
+				for line in lines:
+					for k in self.vars.keys():
+						line = line.replace('[' + k + ']', self.vars[k])
+					key = str(line.split()[0])
+					val = " ".join(line.split()[1:])
+					if key in ["out","sig","method"]:
+						config[key] = val
+					elif key == "remove_filters":
+						config_temp['filters'] = []
+					elif key == "filter":
+						config_temp['filters'].append(val)
+					elif key == "process_meta":
+						config['meta_order'].append(val.split(':')[0])
+						config['meta_info'][val.split(':')[0]] = val.split(':')[1].split('+')
+					elif key == "process_file":
+						i = i + 1
+						if not 'tag' in config_temp.keys():
+							config_temp['tag']='FILE' + str(i)
+						config_temp['process_file'] = val
+						config['data_info'][config_temp['tag']] = dict(config_temp)
+						config['file_order'].append(config_temp['tag'])
+					else:
+						config_temp[key] = val
+			return config
+		elif self.module == 'model':
+			config = {'out': None, 'sig': 5, 'buffer': 100, 'miss': None, 'freq': None, 'rsq': None, 'hwe': None, 'mem': 3, 'nofail': False, 
+						'merge': False, 'data_info': {}, 'data_order': [], 'meta': []}
+			config_temp = {}
+			with open(self.filename) as f:
+				lines = (line.rstrip() for line in f)
+				lines = (line for line in lines if line)
+				i = 0
+				for line in lines:
+					for k in self.vars.keys():
+						line = line.replace('[' + k + ']', self.vars[k])
+					key = str(line.split()[0])
+					val = " ".join(line.split()[1:])
+					if key in ['out','sig','buffer','miss','freq','rsq','hwe','mem']:
+						config[key] = val
+					if key in ['nofail','merge']:
+						config[key] = True
+					elif key in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests',
+									'famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']:
+						config_temp["model"] = val
+						config_temp["method"] = key
+					elif key in ['oxford','vcf','plink','dos1','dos2']:
+						i = i + 1
+						if not 'tag' in config_temp.keys():
+							config_temp['tag']='FILE' + str(i)
+						config_temp["data"] = val
+						config_temp["format"] = key
+						config['data_info'][config_temp['tag']] = dict(config_temp)
+						config['data_order'].append(config_temp['tag'])
+					elif key == 'meta':
+						config['meta'].append(val)
+					else:
+						config_temp[key] = val
+			return config
+		else:
+			print Error('module ' + model + ' cannot be used with cfg file')
+
+class Coordinates(object):
+	def __init__(self, filename):
+		self.filename = filename
+		
+	def getFilename(self):
+		return self.filename
+		
+	def __str__(self):
+		return "%s is a coordinate file" % self.filename
+		
+	def Load(self):
+		with open(self.filename) as f:
+			regions = pd.read_table(f, header=None)
+		if regions.shape[1] == 2:
+			regions.columns=['region','reg_id']
+		elif regions.shape[1] == 1:
+			regions.columns=['region']
+		else:
+			print Error("too many columns in region list")
+			return
+		if not 'reg_id' in regions.columns:
+			regions['reg_id'] = 'NA'
+		regions['chr'] = regions['region'].apply(lambda row: int(row.split(':')[0]),1)
+		regions['start'] = regions['region'].apply(lambda row: int(row.split(':')[1].split('-')[0]),1)
+		regions['end'] = regions['region'].apply(lambda row: int(row.split(':')[1].split('-')[1]),1)
+		regions['chr'] = regions['chr'].astype(int)
+		regions['start'] = regions['start'].astype(int)
+		regions['end'] = regions['end'].astype(int)
+		regions = regions.sort_index(by=['chr','start'],ascending=[True,True])
+		return regions
 
 def RemoveExistingFiles(file, module):
 	if module in['model','meta']:

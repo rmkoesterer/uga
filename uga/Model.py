@@ -14,22 +14,18 @@ import re
 from itertools import islice,takewhile
 from Bio import bgzf
 import psutil
-from MarkerCalc import Complement,ConvertDosage,CalcCallrate,CalcFreq,CalcRsq,CalcHWE,GetRowCalls
-from Messages import Error
-from Stats import GenerateFilterCode,CalcGEE,CalcGLM,CalcLME,CalcCoxPH,CalcEffTests,SkatOMeta,SkatMeta,BurdenMeta,PrepScores,PrepScoresFam,SkatOMetaEmpty,SkatMetaEmpty,BurdenMetaEmpty
-from Coordinates import Coordinates
-from ModelFxns import ExtractModelVars,GetFocus,GetDelimiter
-from MarkerRefDb import MarkerRefDb,ChunkRefDb
+from SystemFxns import Error
+from MiscFxns import *
+from StatsFxns import *
+from FileFxns import Coordinates
 from plinkio import plinkfile
 import collections
 import pysam
 import vcf as VCF
-from Iterators import LoadPlink,LoadVcf,LoadDos
 		
 #from memory_profiler import profile, memory_usage
 
 pd.options.mode.chained_assignment = None
-kinship2 = importr('kinship2')
 
 #@profile
 def Model(out = None, 
@@ -56,6 +52,7 @@ def Model(out = None,
 			freq = None, 
 			rsq = None, 
 			hwe = None, 
+			geeboss_thresh = 1e-5, 
 			case = [1], 
 			ctrl = [0], 
 			mem = 3, 
@@ -76,13 +73,13 @@ def Model(out = None,
 	##### populate configuration #####
 	if cfg is None:
 		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'freq': freq, 'miss': freq, 'rsq': freq, 'mem': mem, 'sig': int(sig), 'nofail': nofail, 
-				'region': region, 'region_list': region_list, 'region_id': region_id, 
+				'region': region, 'region_list': region_list, 'region_id': region_id,
 				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
 					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
-						'corstr': corstr[0], 'pheno_sep': pheno_sep[0]}}}
+						'corstr': corstr[0], 'pheno_sep': pheno_sep[0],'geeboss_thresh': geeboss_thresh}}}
 
 	##### DEFINE MODEL TYPES #####
-	marker_tests = ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph']
+	marker_tests = ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','geeboss_gaussian','geeboss_binomial']
 	seqmeta_tests = ['famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']
 	efftests=['efftests']
 
@@ -102,6 +99,14 @@ def Model(out = None,
 			cfg['data_info'][k]['fxn'] = cfg['data_info'][k]['method'].split('_')[-1]
 		else:
 			cfg['data_info'][k]['fxn'] = None
+		if not 'sex' in cfg['data_info'][k].keys():
+			cfg['data_info'][k]['sex'] = None
+		if not 'case' in cfg['data_info'][k].keys():
+			cfg['data_info'][k]['case'] = None
+		if not 'ctrl' in cfg['data_info'][k].keys():
+			cfg['data_info'][k]['ctrl'] = None
+		if not 'pheno_sep' in cfg['data_info'][k].keys():
+			cfg['data_info'][k]['pheno_sep'] = '\t'
 		cfg['data_info'][k]['vars_df'], cfg['data_info'][k]['model_vars_dict'] = ExtractModelVars(pheno=cfg['data_info'][k]['pheno'], model=cfg['data_info'][k]['model'],
 																										fid=cfg['data_info'][k]['fid'], iid=cfg['data_info'][k]['iid'],
 																										fxn=cfg['data_info'][k]['fxn'], sex=cfg['data_info'][k]['sex'],
@@ -160,13 +165,17 @@ def Model(out = None,
 		print "   " + str(cfg['data_info'][k]['nfemale']) + " female"
 
 	##### READ PEDIGREE FROM FILE FOR FAMILY BASED SKAT TEST #####
+	kinship2 = None
 	for k in cfg['data_order']:
-		if 'pedigree' in cfg['data_info'][k].keys() and not cfg['data_info'][k]['pedigree'] is None:
-			print "extracting pedigree from file for model " + k if len(cfg['data_info'].keys()) > 1 else "extracting pedigree from file"
-			cfg['data_info'][k]['ped_df'] = pd.read_table(cfg['data_info'][k]['pedigree'],sep='\t',dtype='str',usecols=['FID','IID','PAT','MAT'])
-			cfg['data_info'][k]['ped_df'] = cfg['data_info'][k]['ped_df'][cfg['data_info'][k]['ped_df']['IID'].isin(list(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].values))]
-			rpedigree = py2r.convert_to_r_dataframe(cfg['data_info'][k]['ped_df'], strings_as_factors=False)
-			cfg['data_info'][k]['kins'] = kinship2.makekinship(rpedigree.rx2('FID'),rpedigree.rx2('IID'),rpedigree.rx2('PAT'),rpedigree.rx2('MAT'))
+		if 'pedigree' in cfg['data_info'][k].keys():
+			if kinship2 is None:
+				kinship2 = importr('kinship2')
+			if cfg['data_info'][k]['pedigree'] is not None:
+				print "extracting pedigree from file for model " + k if len(cfg['data_info'].keys()) > 1 else "extracting pedigree from file"
+				cfg['data_info'][k]['ped_df'] = pd.read_table(cfg['data_info'][k]['pedigree'],sep='\t',dtype='str',usecols=['FID','IID','PAT','MAT'])
+				cfg['data_info'][k]['ped_df'] = cfg['data_info'][k]['ped_df'][cfg['data_info'][k]['ped_df']['IID'].isin(list(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].values))]
+				rpedigree = py2r.convert_to_r_dataframe(cfg['data_info'][k]['ped_df'], strings_as_factors=False)
+				cfg['data_info'][k]['kins'] = kinship2.makekinship(rpedigree.rx2('FID'),rpedigree.rx2('IID'),rpedigree.rx2('PAT'),rpedigree.rx2('MAT'))
 
 	##### GENERATE REGION LIST #####
 	if not region_list is None:
@@ -177,9 +186,9 @@ def Model(out = None,
 			marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
 		else:
 			marker_list = pd.DataFrame({'chr': [region],'start': ['NA'],'end': ['NA'],'region': [region]})
-		marker_list['reg_id'] = region_id
+		marker_list['reg_id'] = region_id if not region_id is None else 'NA'
 	else:
-		marker_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
+		marker_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)],'reg_id': ['NA' for i in range(26)]})
 
 	##### DETERMINE REGION COUNTS #####
 	for k in cfg['data_order']:
@@ -283,12 +292,12 @@ def Model(out = None,
 					for locus, row in zip(chunk, cfg['data_info'][k]['bed_it']):
 						if locus.allele1 == '0':
 							locus.allele1 = locus.allele2
-						marker_unique = 'chr' + str(locus.chromosome) + 'bp' + str(locus.bp_position) + '.'  + locus.name + '.' + locus.allele2 + '.' + locus.allele1
-						marker_info['chr'][marker_unique] = locus.chromosome
-						marker_info['marker'][marker_unique] = locus.name
-						marker_info['pos'][marker_unique] = locus.bp_position
-						marker_info['a1'][marker_unique] = locus.allele2
-						marker_info['a2'][marker_unique] = locus.allele1
+						marker_unique = 'chr' + str(locus.chromosome) + 'bp' + str(locus.bp_position) + '.'  + str(locus.name) + '.' + str(locus.allele2) + '.' + str(locus.allele1)
+						marker_info['chr'][marker_unique] = str(locus.chromosome)
+						marker_info['marker'][marker_unique] = str(locus.name)
+						marker_info['pos'][marker_unique] = str(locus.bp_position)
+						marker_info['a1'][marker_unique] = str(locus.allele2)
+						marker_info['a2'][marker_unique] = str(locus.allele1)
 						for sample, geno in zip(cfg['data_info'][k]['sample_it'], row):
 							if not marker_unique in marker_data.keys():
 								marker_data[marker_unique] = collections.OrderedDict({sample.iid: geno})
@@ -381,11 +390,15 @@ def Model(out = None,
 						model_df[x] = model_df[x].astype(float)
 
 				##### MARKER ANALYSIS #####
-				if cfg['data_info'][k]['method'].split('_')[0] in ['gee','glm','lme','coxph']:
+				if cfg['data_info'][k]['method'].split('_')[0] in ['gee','geeboss','glm','lme','coxph']:
 					if cfg['data_info'][k]['method'].split('_')[0] == 'gee':
 						model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
 						model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
 						results = marker_info.apply(lambda row: CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr']), 1)
+					elif cfg['data_info'][k]['method'].split('_')[0] == 'geeboss':
+						model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
+						model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
+						results = marker_info.apply(lambda row: CalcGEEBoss(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr'], thresh=cfg['data_info'][k]['geeboss_thresh']), 1)
 					elif cfg['data_info'][k]['method'].split('_')[0] == 'glm':
 						results = marker_info.apply(lambda row: CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var']), 1)
 					elif cfg['data_info'][k]['method'].split('_')[0] == 'lme':
@@ -420,7 +433,7 @@ def Model(out = None,
 				##### UPDATE LOOP STATUS #####
 				cur_markers = str(min(i*cfg['buffer'],marker_list[k][r])) if marker_list['start'][r] != 'NA' else str(i*cfg['buffer'])
 				tot_markers = str(marker_list[k][r]) if marker_list['start'][r] != 'NA' else '> 0'
-				status_reg = marker_list['region'][r] + ': ' + marker_list['reg_id'][r] if 'reg_id' in marker_list.columns and not marker_list['reg_id'][r] is None else marker_list['region'][r]
+				status_reg = marker_list['region'][r] + ': ' + marker_list['reg_id'][r] if 'reg_id' in marker_list.columns and marker_list['reg_id'][r] != 'NA' else marker_list['region'][r]
 				status = '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(marker_list.index)) + ' (' + status_reg + ')' if len(cfg['data_info'].keys()) == 1 else '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(marker_list.index)) + ' (' + status_reg + ')' + " for model " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
 				print status
 
@@ -527,7 +540,7 @@ def Model(out = None,
 					if meta_incl[0] == k:
 						snp_info_meta = cfg['data_info'][k]['snp_info']
 					else:
-						snp_info_meta = snp_info_meta.merge(cfg['data_info'][k]['snp_info'])
+						snp_info_meta = snp_info_meta.merge(cfg['data_info'][k]['snp_info'], how='outer')
 					if seqmeta_cmd == '':
 						seqmeta_cmd = 'ps' + k
 					else:
@@ -545,7 +558,6 @@ def Model(out = None,
 					##### SKAT #####
 					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
 						results_pre = SkatMeta('skatMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info)', snp_info_meta)
-						
 						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
 													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})

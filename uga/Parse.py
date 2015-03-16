@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-from __init__ import __version__
+from __init__ import version
 
 def Parser():
 	parser = argparse.ArgumentParser(add_help=False)
@@ -10,23 +10,22 @@ def Parser():
 
 	top_parser.add_argument('--version', 
 						action='version', 
-						version='Universal Genome Analyst: %(prog)s v' + __version__, 
+						version='Universal Genome Analyst: %(prog)s v' + version, 
 						help='display version information and exit')
 
 	model_parser = subparsers.add_parser('model', help='marker and locus-based statistical modeling', parents=[parser])
-	model_required = model_parser.add_argument_group('required arguments')
-	model_required.add_argument('--out', 
+	model_parser.add_argument('--out', 
 						action='store', 
 						help='output file name (basename only: do not include path)')
-	model_required.add_argument('--pheno', 
+	model_parser.add_argument('--pheno', 
 						nargs=1, 
 						action='store', 
 						help='phenotype file (see documentation for required formatting)')
-	model_required.add_argument('--fid', 
+	model_parser.add_argument('--fid', 
 						nargs=1, 
 						action='store', 
 						help='column name with family ID')
-	model_required.add_argument('--iid', 
+	model_parser.add_argument('--iid', 
 						action='store', 
 						nargs=1, 
 						help='column name with sample ID (The IDs in this column must match the --samples file)')
@@ -108,7 +107,12 @@ def Parser():
 						help='correlation structure for gee analyses (default: exchangeable)')
 	model_parser.add_argument('--nofail', 
 						action='store_true', 
-						help='exclude filtered/failed analyses from results (if not set, full results are reported with filtered marker stats set to NA')
+						help='exclude filtered/failed analyses from results (if not set, full results are reported with filtered marker stats set to NA)')
+	model_parser.add_argument('--geeboss-thresh', 
+						nargs=1, 
+						action='store', 
+						type=float, 
+						help='p-value threshold for boss.fit thresh option (see CRAN R boss package documentation)')
 	model_parser.add_argument('--merge', 
 						action='store_true', 
 						help='merge results from multiple analyses into a single file (adds processing time due to marker alignment algorithm)')
@@ -186,6 +190,12 @@ def Parser():
 	model_parser_split_group5.add_argument('--gee-binomial', 
 						action='store', 
 						help='model string for gee binomial analysis')
+	model_parser_split_group5.add_argument('--geeboss-gaussian', 
+						action='store', 
+						help='model string for gee boss.fit gaussian analysis')
+	model_parser_split_group5.add_argument('--geeboss-binomial', 
+						action='store', 
+						help='model string for gee boss.fit binomial analysis')
 	model_parser_split_group5.add_argument('--glm-gaussian', 
 						action='store', 
 						help='model string for glm gaussian analysis')
@@ -505,12 +515,15 @@ def Parse(top_parser):
 															args.coxph is None and args.efftests is None and
 															args.famskat_o is None and args.skat_o_gaussian is None and args.skat_o_binomial is None and
 															args.famskat is None and args.skat_gaussian is None and args.skat_binomial is None and
-															args.famburden is None and args.burden_gaussian is None and  args.burden_binomial is None)):
+															args.famburden is None and args.burden_gaussian is None and args.burden_binomial is None and
+															args.geeboss_gaussian is None and args.geeboss_binomial is None)):
 		top_parser.error("missing argument: --out, --pheno, --fid, --iid, and a model string (ie. --gee-gaussian, etc.) required in module model without --cfg")
+	if args.which == 'model' and not (args.famskat_o is None or args.famskat is None or args.famburden is None) and args.pedigree is None:
+		top_parser.error("missing argument: --pedigree required for gene based modelling of family data")
 	if args.which == 'summary' and ((not args.f_dist_dfn is None and (args.f_dist_dfd is None or args.z is None)) or (not args.f_dist_dfd is None and (args.f_dist_dfn is None or args.z is None))):
 		top_parser.error("missing argument: for f-distribution p-values, --z, --f-dist-dfn and --f-dist-dfd are all required")
 	print ''
-	print 'Universal Genome Analyst v' + __version__
+	print 'Universal Genome Analyst v' + version
 	print ''
 	print 'active module: ' + args.which
 	return args

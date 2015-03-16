@@ -1,11 +1,9 @@
-#import pickle
 import pandas as pd
 import numpy as np
 import re
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 from rpy2.rinterface import RRuntimeError
-#import statsmodels.api as sm
 import pandas.rpy.common as py2r
 import math
 from scipy.stats import norm
@@ -15,6 +13,7 @@ lme4 = importr('lme4')
 survival = importr('survival')
 seqmeta = importr('seqMeta')
 kinship2 = importr('kinship2')
+boss = importr('boss')
 
 rtry = ro.r('try')
 rsummary = ro.r('summary')
@@ -33,22 +32,6 @@ def GenerateFilterCode(marker_info, no_mono=True, miss = None, freq = None, rsq 
 	if not hwe is None and not math.isnan(marker_info['hwe']) and (float(marker_info['hwe']) < float(hwe) and float(marker_info['hwe.unrel']) < float(hwe)):
 		filter += 1
 	return filter
-
-"""def CalcGEEPython(marker_info, model_df, model_vars_dict, MODEL, IID_COL, FID_COL, METHOD, FXN_FAMILY, FOCUS_VARS, dep_var):
-	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
-	notes = 'NA'
-	status = 0
-	valid = False
-	#if FXN_FAMILY == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(rmodel_df.rx2(marker_info['marker_unique'])).labels) < 3 and 0 in rxtab(robjects.r('~' + marker_info['marker_unique'] + '+' + dep_var), data=rmodel_df))):
-	if FXN_FAMILY == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(pd.Categorical.from_array(model_df[marker_info['marker_unique']]).labels) < 3 and 0 in pd.crosstab(model_df[marker_info['marker_unique']],model_df[dep_var]))):
-		status = -3
-	else:
-		if marker_info['filter'] != 0:
-			model = sm.GEE.from_formula(MODEL, groups=FID_COL, data=model_df, family=sm.families.Gaussian(), cov_struct=sm.cov_struct.Exchangeable())
-			result = model.fit()
-	print marker_info['marker_unique']
-	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
-	return marker_info"""
 
 def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, corstr = 'exchangeable'):
 	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
@@ -284,6 +267,69 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
 	return marker_info
 
+def CalcGEEBoss(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, corstr = 'exchangeable', thresh = 1e-5):
+	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
+	notes = 'NA'
+	status = 0
+	n = 0
+	valid = False
+	if model.find('*') != -1:
+		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[1]]
+	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().stack().value_counts()[1] != model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().shape[0]):
+		status = -2
+	else:
+		if marker_info['filter'] == 0:
+			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(), strings_as_factors=False)
+			rmodel_df = ro.r.subset(rmodel_df,rmodel_df.rx('marker').ro != "NA")
+			n = len(py2r.convert_robj(ro.r.unique(rmodel_df.rx(iid))))
+			for x in model_vars_dict.keys():
+				if model_vars_dict[x]['class'] == 'factor':
+					rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])
+					rmodel_df=ro.r.cbind(rmodel_df,ugaConvert=ro.r('factor')(rmodel_df.rx2(x + '_ugaFactored')))
+					rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
+			boss_set=rtry(boss.boss_set(formula=ro.r(model.replace('+marker','').replace('marker+','')),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr=corstr),silent=ro.r('TRUE'))
+			if 'try-error' in rclass(boss_set):
+				status = -4
+			else:
+				model_out=rtry(boss.boss_fit(rmodel_df.rx2('marker'),boss_set,thresh=thresh),silent=ro.r('TRUE'))
+				print model_out
+				if 'try-error' in rclass(model_out):
+					status = -5
+				else:
+					status = 1 if model_out.rx2('error')[0] != 1 else -3
+					valid = True if model_out.rx2('error')[0] != 1 else False
+		else:
+			status = -1
+	"""
+	if valid:
+		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
+		for x in focus:
+			xt = x.replace('*',':')
+			if xt in coef.index.values:
+				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
+				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std.err'])
+				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
+				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+				marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			else:
+				marker_info[x + '.effect'] = float('NaN')
+				marker_info[x + '.stderr'] = float('NaN')
+				marker_info[x + '.or'] = float('NaN')
+				marker_info[x + '.z'] = float('NaN')
+				marker_info[x + '.p'] = float('NaN')
+	else:
+		for x in focus:
+			marker_info[x + '.effect'] = float('NaN')
+			marker_info[x + '.stderr'] = float('NaN')
+			marker_info[x + '.or'] = float('NaN')
+			marker_info[x + '.z'] = float('NaN')
+			marker_info[x + '.p'] = float('NaN')
+	marker_info['n'] = n
+	marker_info['status'] = status
+	"""
+	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
+	return marker_info
+
 def CalcEffTests(model_df, mem):
 	if model_df.shape[1] > 1:
 		markers_cor = model_df.corr()
@@ -318,8 +364,8 @@ def SkatOMeta(cmd, snp_info):
 		result_df.index = [1]
 	else:
 		result_df = py2r.convert_robj(result)
-		result_df['p'] = '%.2e' % (result_df['p']) if result_df['p'][1] != 0 else 'NA'
-		result_df['pmin'] = '%.2e' % (result_df['pmin']) if result_df['pmin'][1] != 0 else 'NA'
+		result_df['p'] = '%.2e' % (result_df['p']) if result_df['p'][1] != 0 and result_df['errflag'][1] == 0 else 'NA'
+		result_df['pmin'] = '%.2e' % (result_df['pmin']) if result_df['pmin'][1] != 0 and result_df['errflag'][1] == 0 else 'NA'
 		result_df['rho'] = '%.5g' % (result_df['rho'])
 		result_df['cmaf'] = '%.5g' % (result_df['cmaf'])
 		result_df['nmiss'] = '%d' % (result_df['nmiss'])
@@ -366,7 +412,7 @@ def BurdenMeta(cmd, snp_info):
 def SkatOMetaEmpty(chr, start, end, reg_id):
 	results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],
 								'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
-								'nsnps': [0],'errflag': ['NA']})
+								'nsnps': ['NA'],'errflag': ['NA']})
 	return results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
 
 def SkatMetaEmpty(chr, start, end, reg_id):
@@ -380,36 +426,3 @@ def BurdenMetaEmpty(chr, start, end, reg_id):
 								'p': ['NA'],'beta': ['NA'],'se': ['NA'],'cmafTotal': ['NA'],'cmafUsed': ['NA'],
 								'nsnpsTotal': ['NA'],'nsnpsUsed': ['NA'],'nmiss': ['NA']})
 	return results[['chr','start','end','reg_id','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
-
-"""
-def CalcFamSkatO(snp_info, z, model, pheno, kinship):
-	rsnp_info = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
-	rz = ro.r('as.matrix')(py2r.convert_to_r_dataframe(z, strings_as_factors=False))
-	rpheno = py2r.convert_to_r_dataframe(pheno, strings_as_factors=False)
-	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, kins = kinship, sparse=ro.r('FALSE'))
-	result = rtry(seqmeta.skatOMeta(base.as_symbol('ps'), SNPInfo = rsnp_info),silent=ro.r('TRUE'))
-	result_df = py2r.convert_robj(result)
-	result_df['p'] = '%.2e' % (result_df['p'])
-	result_df['pmin'] = '%.2e' % (result_df['pmin'])
-	result_df['rho'] = '%.5g' % (result_df['rho'])
-	result_df['cmaf'] = '%.5g' % (result_df['cmaf'])
-	result_df['nmiss'] = '%d' % (result_df['nmiss'])
-	result_df['nsnps'] = '%d' % (result_df['nsnps'])
-	result_df['errflag'] = '%d' % (result_df['errflag'])
-	return result_df
-
-def CalcFamSkat(snp_info, z, model, pheno, kinship):
-	rsnp_info = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
-	rz = ro.r('as.matrix')(py2r.convert_to_r_dataframe(z, strings_as_factors=False))
-	rpheno = py2r.convert_to_r_dataframe(pheno, strings_as_factors=False)
-	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, kins = kinship, sparse=ro.r('FALSE'))
-	result = rtry(seqmeta.skatMeta(base.as_symbol('ps'), SNPInfo = rsnp_info),silent=ro.r('TRUE'))
-	result_df = py2r.convert_robj(result)
-	result_df['p'] = '%.2e' % (result_df['p'])
-	result_df['Qmeta'] = '%.5g' % (result_df['Qmeta'])
-	result_df['cmaf'] = '%.5g' % (result_df['cmaf'])
-	result_df['nmiss'] = '%d' % (result_df['nmiss'])
-	result_df['nsnps'] = '%d' % (result_df['nsnps'])
-	result_df['errflag'] = '%d' % (result_df['errflag'])
-	return result_df
-"""

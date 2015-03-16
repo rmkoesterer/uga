@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import math
-from Messages import Error
+from SystemFxns import Error
 import scipy.stats as scipy
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
@@ -88,7 +88,7 @@ def Plot(data,
 	pvals[p + '_orig']=pvals[p]
 	if not f_dist_dfn is None:
 		out = out + '.fdist'
-		pvals[p]=1-scipy.f.cdf(abs(pvals[z]),dfn=int(f_dist_dfn),dfd=int(f_dist_dfd))
+		pvals[p]=1-scipy.f.cdf(pvals[z] ** 2,dfn=int(f_dist_dfn),dfd=int(f_dist_dfd))
 
 	print "genomic inflation = ",
 	l=np.median(scipy.chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/0.455
