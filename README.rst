@@ -5,5 +5,5 @@ Universal Genome Analyst
 
 `Documentation`_
 
-.. _`Ryan Koesterer`: koesterr@bu.edu
+.. _`Ryan Koesterer`: uga-feedback@gmail.com
 .. _`Documentation`: http://rmkoesterer.github.io/uga-doc/
