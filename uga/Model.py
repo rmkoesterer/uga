@@ -26,6 +26,7 @@ import vcf as VCF
 #from memory_profiler import profile, memory_usage
 
 pd.options.mode.chained_assignment = None
+ro.r('options(warn=1)')
 
 #@profile
 def Model(out = None, 
@@ -171,7 +172,7 @@ def Model(out = None,
 			if kinship2 is None:
 				kinship2 = importr('kinship2')
 			if cfg['data_info'][k]['pedigree'] is not None:
-				print "extracting pedigree from file for model " + k if len(cfg['data_info'].keys()) > 1 else "extracting pedigree from file"
+				print "loading pedigree for model " + k if len(cfg['data_info'].keys()) > 1 else "loading pedigree"
 				cfg['data_info'][k]['ped_df'] = pd.read_table(cfg['data_info'][k]['pedigree'],sep='\t',dtype='str',usecols=['FID','IID','PAT','MAT'])
 				cfg['data_info'][k]['ped_df'] = cfg['data_info'][k]['ped_df'][cfg['data_info'][k]['ped_df']['IID'].isin(list(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].values))]
 				rpedigree = py2r.convert_to_r_dataframe(cfg['data_info'][k]['ped_df'], strings_as_factors=False)
@@ -179,7 +180,7 @@ def Model(out = None,
 
 	##### GENERATE REGION LIST #####
 	if not region_list is None:
-		print "reading list of regions from file"
+		print "loading region list"
 		marker_list = Coordinates(region_list).Load()
 	elif not region is None:
 		if len(region.split(':')) > 1:
@@ -473,7 +474,10 @@ def Model(out = None,
 					cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': marker_list['reg_id'][r]})
 					z = cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])]
 					pheno = cfg['reg_model_df'][list(set(cfg['data_info'][k]['model_vars_dict'].keys() + [cfg['data_info'][k]['iid'],cfg['data_info'][k]['fid']]))]
-
+					cfg['data_info'][k]['snp_info'].to_csv("test.snpinfo." + k, index=True, header=True, sep="\t")
+					z.to_csv("test.z." + k, index=True, header=True, sep="\t")
+					pheno.to_csv("test.pheno." + k, index=True, header=True, sep="\t")
+					
 					##### PREPSCORES #####
 					if cfg['data_info'][k]['method'] in ['famskat_o','famskat','famburden']:
 						ro.globalenv['ps' + k] = PrepScoresFam(snp_info=cfg['data_info'][k]['snp_info'], z=z, model=cfg['data_info'][k]['model'], pheno=pheno, kinship=cfg['data_info'][k]['kins'])
@@ -536,16 +540,18 @@ def Model(out = None,
 				meta_tag = meta.split(':')[0]
 				meta_incl = meta.split(':')[1].split('+')
 				seqmeta_cmd = ''
+				snp_info_meta = None
 				for k in meta_incl:
-					if meta_incl[0] == k:
-						snp_info_meta = cfg['data_info'][k]['snp_info']
-					else:
-						snp_info_meta = snp_info_meta.merge(cfg['data_info'][k]['snp_info'], how='outer')
-					if seqmeta_cmd == '':
-						seqmeta_cmd = 'ps' + k
-					else:
-						seqmeta_cmd = seqmeta_cmd + ', ps' + k
-				if snp_info_meta.shape[0] > 1:
+					if 'ps' + k in ro.globalenv and cfg['data_info'][k]['results'][k + '.p'][0] != 'NA':
+						if snp_info_meta is None:
+							snp_info_meta = cfg['data_info'][k]['snp_info']
+						else:
+							snp_info_meta = snp_info_meta.merge(cfg['data_info'][k]['snp_info'], how='outer')
+						if seqmeta_cmd == '':
+							seqmeta_cmd = 'ps' + k
+						else:
+							seqmeta_cmd = seqmeta_cmd + ', ps' + k
+				if snp_info_meta is not None and snp_info_meta.shape[0] > 1:
 
 					##### SKAT-O #####
 					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:

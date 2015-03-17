@@ -69,7 +69,7 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	if valid:
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
-			xt = x.replace('*',':')
+			xt = x.replace('*',':') if x.replace('*',':') in coef.index.values else x.replace('*',':').split(':')[1] + ':' + x.replace('*',':').split(':')[0]
 			if xt in coef.index.values:
 				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std.err'])
@@ -125,7 +125,7 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	if valid:
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
-			xt = x.replace('*',':')
+			xt = x.replace('*',':') if x.replace('*',':') in coef.index.values else x.replace('*',':').split(':')[1] + ':' + x.replace('*',':').split(':')[0]
 			if xt in coef.index.values:
 				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
@@ -181,7 +181,7 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	if valid:
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
-			xt = x.replace('*',':')
+			xt = x.replace('*',':') if x.replace('*',':') in coef.index.values else x.replace('*',':').split(':')[1] + ':' + x.replace('*',':').split(':')[0]
 			if xt in coef.index.values:
 				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
@@ -232,7 +232,7 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		conf_int = py2r.convert_robj(model_out.rx('conf.int'))['conf.int']
 		for x in focus:
-			xt = x.replace('*',':')
+			xt = x.replace('*',':') if x.replace('*',':') in coef.index.values else x.replace('*',':').split(':')[1] + ':' + x.replace('*',':').split(':')[0]
 			if xt in coef.index.values:
 				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'coef'])
 				marker_info[x + '.or'] = '%.5g' % (coef.loc[xt,'exp(coef)'])
