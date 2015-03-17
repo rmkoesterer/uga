@@ -2,25 +2,25 @@ Universal Genome Analyst
 ========================
   
 Universal Genome Analyst (uga) is a toolbox designed to assist biomedical researchers in complex genomic data analysis, making use of many powerful existing 
-R packages and Python modules along with large scale computing cluster integration to provide the following features.
+R packages and Python modules along with large scale computing cluster integration to provide the following features:
 
 * Compatibility with standard VCF4.0/4.1, Oxford (Impute2 output with 3 probabilities for each genotype), Plink binary, and various single allele dosage format files
 * Mapping of files based on region size or number of markers for splitting analyses
 * Automatic deployment of jobs on parallel computing systems using qsub
 * Verification and compilation of parallel distributed jobs
-* Marker association modelling:
-   generalized linear models
-   linear mixed effects models
-   generalized estimating equations
-   survival analysis
+* Marker association modelling
+   * generalized linear models
+   * linear mixed effects models
+   * generalized estimating equations
+   * survival analysis
 * Gene/Locus based association modelling
-   effective test correction
-   burden test
-   sequence kernel association test (SKAT)
-   optimal unified sequence kernel association test (SKAT-O)
-   family Based SKAT and SKAT-O
+   * effective test correction
+   * burden test
+   * sequence kernel association test (SKAT)
+   * optimal unified sequence kernel association test (SKAT-O)
+   * family Based SKAT and SKAT-O
 * Meta analysis
-   uses unique marker naming based on both position and alleles to allow compatibility between multiple marker naming conventions
+   * uses unique marker naming based on both position and alleles to allow compatibility between multiple marker naming conventions
 * automatically aligns compatible markers alleles, eliminating the need to align input results manually
 * Optional genomic inflation correction (genomic control)
 * Publication quality Q-Q and Manhattan Plots
@@ -34,10 +34,9 @@ Installation
 
 This software connects a vast array of Python and R based packages that may lead to incompatibilities in your system Python installation. Thus, it might be simpler for users
 to install a Python virtual environment to avoid disrupting system Python functionality. Additionally, uga requires an installation of R and a few packages used for analysis 
-and plotting. The following lists are necessary tools that uga needs to perform all tasks. Python modules are easiest installed using pip as described in the section labeled 
-'Installation', thus you may skip ahead to the Installation section to begin. The following lists display versions used during development.
+and plotting. The following lists are necessary tools that uga needs to perform all tasks. The following lists display versions used during development.
 
-Python (2.7.7)
+|  Python (2.7.7)
 
 Python modules required (may not be part of the Python base install), followed by versions used during development:
 
@@ -53,7 +52,7 @@ Python modules required (may not be part of the Python base install), followed b
 * biopython (1.64)
 * plinkio (0.9.5)
 
-R (3.1.1)
+|  R (3.1.1)
 
 R libraries needed for certain analytical and plotting tasks, followed by versions used during development:
 
@@ -62,30 +61,29 @@ R libraries needed for certain analytical and plotting tasks, followed by versio
 * lme4 (1.1-7)
 * survival (2.37-7)
 * seqMeta (1.5)
-  
+
 Some of these libraries may have dependencies which will need to be installed as well.
+
    
-Tabix and bgzip
+|  Tabix and bgzip
 
 In order to reduce file clutter and encourage the consolidation and compression of data and results files, uga makes extensive use of both Tabix and bgzip. 
 These tools are generally release as part of the `Samtools`_ suite
 	
 .. _`Samtools`: http://www.htslib.org/
 
-**Installation Steps**
+|  **Installation Steps**
 
 Before installing uga, for full functionality, the following should be installed and working (see above for development version information):
 
 * Python (base install)
-
 * virtualenv
-
 * R (base install), plus the following libraries
-   ggplot2
-   geepack
-   lme4
-   survival
-   seqMeta
+   * ggplot2
+   * geepack
+   * lme4
+   * survival
+   * seqMeta
 * Tabix
 * bgzip
    
@@ -114,13 +112,13 @@ After sourcing your virtual environment, you can install the required Python mod
    >>> pip install -r requirements.txt
    >>> pip install uga
 
-* There is a qsub wrapper included in your installation directory (bin/.uga_wrapper.py). This needs to be copied or moved to your home directory to allow uga to submit
+\* There is a qsub wrapper included in your installation directory (bin/.uga_wrapper.py). This needs to be copied or moved to your home directory to allow uga to submit
 jobs to your computing cluster using the qsub command.
 	  
 Note: The virtual environment created during installation is the environment under which uga must be run, thus you need to source the environment
 before running any task in uga.
 
-**Parallel computing**
+|  **Parallel computing**
 
 While you may simply run uga on a single cpu system, if you have access to a parallel computing cluster, 
 you will be able to take advantage of the self-managed parallel mode of use for which this software was designed. 
