@@ -53,7 +53,6 @@ def Model(out = None,
 			freq = None, 
 			rsq = None, 
 			hwe = None, 
-			geeboss_thresh = 1e-5, 
 			case = [1], 
 			ctrl = [0], 
 			mem = 3, 
@@ -77,10 +76,10 @@ def Model(out = None,
 				'region': region, 'region_list': region_list, 'region_id': region_id,
 				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
 					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
-						'corstr': corstr[0], 'pheno_sep': pheno_sep[0],'geeboss_thresh': geeboss_thresh}}}
+						'corstr': corstr[0], 'pheno_sep': pheno_sep[0]}}}
 
 	##### DEFINE MODEL TYPES #####
-	marker_tests = ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','geeboss_gaussian','geeboss_binomial']
+	marker_tests = ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph']
 	seqmeta_tests = ['famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']
 	efftests=['efftests']
 
@@ -391,15 +390,11 @@ def Model(out = None,
 						model_df[x] = model_df[x].astype(float)
 
 				##### MARKER ANALYSIS #####
-				if cfg['data_info'][k]['method'].split('_')[0] in ['gee','geeboss','glm','lme','coxph']:
+				if cfg['data_info'][k]['method'].split('_')[0] in ['gee','glm','lme','coxph']:
 					if cfg['data_info'][k]['method'].split('_')[0] == 'gee':
 						model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
 						model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
 						results = marker_info.apply(lambda row: CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr']), 1)
-					elif cfg['data_info'][k]['method'].split('_')[0] == 'geeboss':
-						model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
-						model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
-						results = marker_info.apply(lambda row: CalcGEEBoss(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr'], thresh=cfg['data_info'][k]['geeboss_thresh']), 1)
 					elif cfg['data_info'][k]['method'].split('_')[0] == 'glm':
 						results = marker_info.apply(lambda row: CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var']), 1)
 					elif cfg['data_info'][k]['method'].split('_')[0] == 'lme':

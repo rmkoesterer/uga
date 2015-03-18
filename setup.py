@@ -29,6 +29,7 @@ setup(
 						'plinkio', 
 						'pysam', 
 						'PyVCF'], 
+	scripts=['bin/uga_wrapper.py'], 
     entry_points={
        'console_scripts': [
 			'uga = uga.__main__:main',

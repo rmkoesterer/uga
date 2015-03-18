@@ -11,4 +11,3 @@ biopython
 plinkio
 pysam
 PyVCF
-plinkio

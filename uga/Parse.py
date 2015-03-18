@@ -74,11 +74,11 @@ def Parser():
 	model_parser.add_argument('--miss', 
 						action='store', 
 						type=float, 
-						help='threshold value for missingness (ie. MISS=0.95 allows for up to 5%% missingness')
+						help='threshold value for missingness (ie. MISS=0.95 allows for up to 5%% missingness)')
 	model_parser.add_argument('--freq', 
 						action='store', 
 						type=float, 
-						help='threshold value for allele frequency (ie. FREQ=0.03 filters out markers with MAF < 0.03')
+						help='threshold value for allele frequency (ie. FREQ=0.03 filters out markers with MAF < 0.03)')
 	model_parser.add_argument('--rsq', 
 						action='store', 
 						type=float, 
@@ -86,7 +86,7 @@ def Parser():
 	model_parser.add_argument('--hwe', 
 						action='store', 
 						type=float, 
-						help='threshold value for Hardy Weinberg p-value (ie. HWE=1e-6 filters out markers with Hardy Weinberg p-value < 1e-6')
+						help='threshold value for Hardy Weinberg p-value (ie. HWE=1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
 	model_parser.add_argument('--case', 
 						nargs=1, 
 						action='store', 
@@ -108,11 +108,6 @@ def Parser():
 	model_parser.add_argument('--nofail', 
 						action='store_true', 
 						help='exclude filtered/failed analyses from results (if not set, full results are reported with filtered marker stats set to NA)')
-	model_parser.add_argument('--geeboss-thresh', 
-						nargs=1, 
-						action='store', 
-						type=float, 
-						help='p-value threshold for boss.fit thresh option (see CRAN R boss package documentation)')
 	model_parser.add_argument('--merge', 
 						action='store_true', 
 						help='merge results from multiple analyses into a single file (adds processing time due to marker alignment algorithm)')
@@ -128,7 +123,7 @@ def Parser():
 						help='group ID under which to submit jobs to the queue')
 	model_parser.add_argument('--name', 
 						action='store', 
-						help='job name (only used with --qsub; if not set, --out basename will be used')
+						help='job name (only used with --qsub; if not set, --out basename will be used)')
 	model_parser.add_argument('-d', '--directory', 
 						action='store', 
 						default=os.getcwd(), 
@@ -137,7 +132,7 @@ def Parser():
 						action='store', 
 						type=int, 
 						default=3, 
-						help='amount of ram memory to request for queued job in GB (default: MEM=3')
+						help='amount of ram memory to request for queued job in GB (default: MEM=3)')
 	model_parser.add_argument('--region-id', 
 						action='store', 
 						help='add region id to results (for use with --region option)')
@@ -182,7 +177,7 @@ def Parser():
 						help='plink binary format genotype data file (without extension)')
 	model_parser_split_group4.add_argument('--vcf', 
 						action='store', 
-						help='vcf 4.0/4.1 format genotype data file')
+						help='vcf 4.1/4.2 format genotype data file')
 	model_parser_split_group5 = model_parser.add_mutually_exclusive_group()
 	model_parser_split_group5.add_argument('--gee-gaussian', 
 						action='store', 
@@ -190,12 +185,6 @@ def Parser():
 	model_parser_split_group5.add_argument('--gee-binomial', 
 						action='store', 
 						help='model string for gee binomial analysis')
-	model_parser_split_group5.add_argument('--geeboss-gaussian', 
-						action='store', 
-						help='model string for gee boss.fit gaussian analysis')
-	model_parser_split_group5.add_argument('--geeboss-binomial', 
-						action='store', 
-						help='model string for gee boss.fit binomial analysis')
 	model_parser_split_group5.add_argument('--glm-gaussian', 
 						action='store', 
 						help='model string for glm gaussian analysis')
@@ -354,7 +343,7 @@ def Parser():
 						help='plink binary format genotype data file (without extension)')					
 	map_split_group2.add_argument('--vcf', 
 						action='store', 
-						help='vcf 4.0/4.1 format genotype data file')					
+						help='vcf 4.1/4.2 format genotype data file')					
 
 	summary_parser = subparsers.add_parser('summary', help='verify, compile, filter and/or plot results files', parents=[parser])
 	summary_required = summary_parser.add_argument_group('required arguments')
@@ -515,8 +504,7 @@ def Parse(top_parser):
 															args.coxph is None and args.efftests is None and
 															args.famskat_o is None and args.skat_o_gaussian is None and args.skat_o_binomial is None and
 															args.famskat is None and args.skat_gaussian is None and args.skat_binomial is None and
-															args.famburden is None and args.burden_gaussian is None and args.burden_binomial is None and
-															args.geeboss_gaussian is None and args.geeboss_binomial is None)):
+															args.famburden is None and args.burden_gaussian is None and args.burden_binomial is None)):
 		top_parser.error("missing argument: --out, --pheno, --fid, --iid, and a model string (ie. --gee-gaussian, etc.) required in module model without --cfg")
 	if args.which == 'model' and not (args.famskat_o is None or args.famskat is None or args.famburden is None) and args.pedigree is None:
 		top_parser.error("missing argument: --pedigree required for gene based modelling of family data")

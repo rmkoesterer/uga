@@ -84,7 +84,8 @@ def main(args=None):
 			out_files = GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
 
 	##### get user home directory #####
-	home_dir = os.path.expanduser('~')
+	#home_dir = os.path.expanduser('~')
+	home_dir = os.path.dirname(sys.executable)
 
 	if args.which == 'summary':
 		summary_out = os.path.basename(args.out) if not args.out_rename else args.out_rename
@@ -145,7 +146,7 @@ def main(args=None):
 					else:
 						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 			cmd = cmd + ')'
-			Interactive(home_dir + '/.uga_wrapper.py', cmd, summary_out + '.' + args.which + '.log')
+			Interactive(home_dir + '/uga_wrapper.py', cmd, summary_out + '.' + args.which + '.log')
 	elif args.which in ['model','meta']:
 		if not os.path.exists(args.directory):
 			try:
@@ -207,14 +208,14 @@ def main(args=None):
 				else:
 					cmd = args.which.capitalize() + '(out=\'' + out + '\''
 					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','fid','iid','focus','sig','region_list','gee_gaussian','gee_binomial',
-								'geeboss_gaussian','geeboss_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','famskat_o','skat_o_gaussian','skat_o_binomial',
+								'glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','famskat_o','skat_o_gaussian','skat_o_binomial',
 								'famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial',
-								'region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','merge','geeboss_thresh',
+								'region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','merge',
 								'pedigree','pheno_sep']:
 						if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
 							if x in ['oxford','dos1','dos2','plink','vcf']:
 								cmd = cmd + ',data=[\'' + str(vars(args)[x]) + '\'],format=[\'' + x + '\']'
-							elif x in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','geeboss_gaussian','geeboss_binomial',
+							elif x in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests',
 											'famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']:
 								cmd = cmd + ',model=[\'' + str(vars(args)[x]) + '\'],method=[\'' + x + '\']'
 							elif type(vars(args)[x]) is str:
@@ -233,9 +234,9 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ')'
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
+				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.' + args.which + '.log ' + home_dir + '/uga_wrapper.py \"' + cmd + '\"')
 			else:
-				Interactive(home_dir + '/.uga_wrapper.py', cmd, out + '.' + args.which + '.log')
+				Interactive(home_dir + '/uga_wrapper.py', cmd, out + '.' + args.which + '.log')
 	elif args.which == 'map':
 		if args.split_chr:
 			for i in range(26):
@@ -255,7 +256,7 @@ def main(args=None):
 				#if args.qsub:
 				#	Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + home_dir + '/.uga_wrapper.py --internal --cmd \"' + cmd + '\"')
 				#else:
-				Interactive(home_dir + '/.uga_wrapper.py', cmd, out + '.' + args.which + '.log')
+				Interactive(home_dir + '/uga_wrapper.py', cmd, out + '.' + args.which + '.log')
 		else:
 			cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
 			for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr']:
@@ -273,7 +274,7 @@ def main(args=None):
 			#if args.qsub:
 			#	Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + home_dir + '/.uga_wrapper.py --internal --cmd \"' + cmd + '\"')
 			#else:
-			Interactive(home_dir + '/.uga_wrapper.py', cmd, out + '.' + args.which + '.log')
+			Interactive(home_dir + '/uga_wrapper.py', cmd, out + '.' + args.which + '.log')
 	else:
 		print Error(args.which + " not a module")
 	print ''
