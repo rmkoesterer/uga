@@ -108,9 +108,6 @@ def Parser():
 	model_parser.add_argument('--nofail', 
 						action='store_true', 
 						help='exclude filtered/failed analyses from results (if not set, full results are reported with filtered marker stats set to NA)')
-	model_parser.add_argument('--merge', 
-						action='store_true', 
-						help='merge results from multiple analyses into a single file (adds processing time due to marker alignment algorithm)')
 	model_parser.add_argument('--pedigree', 
 						nargs=1, 
 						action='store', 
@@ -126,7 +123,6 @@ def Parser():
 						help='job name (only used with --qsub; if not set, --out basename will be used)')
 	model_parser.add_argument('-d', '--directory', 
 						action='store', 
-						default=os.getcwd(), 
 						help='output directory path (default: current working directory)')
 	model_parser.add_argument('--mem', 
 						action='store', 
@@ -510,6 +506,8 @@ def Parse(top_parser):
 		top_parser.error("missing argument: --pedigree required for gene based modelling of family data")
 	if args.which == 'summary' and ((not args.f_dist_dfn is None and (args.f_dist_dfd is None or args.z is None)) or (not args.f_dist_dfd is None and (args.f_dist_dfn is None or args.z is None))):
 		top_parser.error("missing argument: for f-distribution p-values, --z, --f-dist-dfn and --f-dist-dfd are all required")
+	if not args.directory:
+		args.directory=os.getcwd()
 	print ''
 	print 'Universal Genome Analyst v' + version
 	print ''

@@ -205,7 +205,8 @@ def Model(out = None,
 			for i in range(len(marker_list.index)):
 				try:
 					records = tb.querys(marker_list['region'][i])
-					records = (x for x in records if int(x[pos_ind]) >= int(marker_list['start'][i]) and int(x[pos_ind]) <= int(marker_list['end'][i]))
+					if marker_list['start'][i] != 'NA':
+						records = (x for x in records if int(x[pos_ind]) >= int(marker_list['start'][i]) and int(x[pos_ind]) <= int(marker_list['end'][i]))
 				except:
 					pass
 				else:
@@ -268,7 +269,8 @@ def Model(out = None,
 			else:
 				try:
 					records = cfg['data_info'][k]['data_it'].querys(reg)
-					records = (x for x in records if int(x[pos_ind]) >= int(marker_list['start'][r]) and int(x[pos_ind]) <= int(marker_list['end'][r]))
+					if reg != chr:
+						records = (x for x in records if int(x[pos_ind]) >= int(marker_list['start'][r]) and int(x[pos_ind]) <= int(marker_list['end'][r]))
 				except:
 					break
 
