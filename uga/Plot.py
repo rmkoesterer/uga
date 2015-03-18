@@ -126,7 +126,8 @@ def Plot(data,
 	if gc:
 		print "adjusting p-values for genomic inflation"
 		pvals[p]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*pvals[p]) / math.sqrt(l)))
-	
+
+		"""
 		print "calculating genomic inflation after genomic control correction"
 		l=np.median(scipy.chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/0.455
 		print "post correction genomic inflation = " + str(l)	
@@ -159,6 +160,7 @@ def Plot(data,
 					ggplot2.theme(**{'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=8), 'axis.text': ggplot2.element_text(size=6)})
 			pp.plot()
 			grdevices.dev_off()
+			"""
 
 	if manhattan:
 		print "calculating genomic positions for manhattan plot"
