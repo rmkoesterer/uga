@@ -132,52 +132,6 @@ class Coordinates(object):
 		regions = regions.sort_index(by=['chr','start'],ascending=[True,True])
 		return regions
 
-def RemoveExistingFiles(file, module):
-	if module in['model','meta']:
-		for f in [file, file + '.' + module + '.log']:
-			try:
-				os.remove(f)
-			except OSError:
-				continue
-		for f in [file + '.gz', file + '.gz.tbi']:
-			try:
-				os.remove(f)
-			except OSError:
-				continue
-	if module == 'plot':
-		for f in [file + '.qq.tiff', file + '.gc.qq.tiff', file + '.mht.tiff',file + '.qq.eps', file + '.gc.qq.eps', file + '.mht.eps',file + '.qq.pdf', file + '.mht.pdf', file + '.' + module + '.log']:
-			try:
-				os.remove(f)
-			except OSError:
-				continue
-	if module == 'map':
-		for f in [file, file + '.' + module + '.log']:
-			try:
-				os.remove(f)
-			except OSError:
-				continue
-				
-def CheckExistingFiles(file, module):
-	for f in [file, file + '.log']:
-		if os.path.exists(f):
-			print Error("1 or more output files already exists (use --overwrite flag to replace)")
-			sys.exit()
-	if module in['model','meta']:
-		for f in [file + '.gz', file + '.gz.tbi']:
-			if os.path.exists(f):
-				print Error("1 or more output files already exists (use --overwrite flag to replace)")
-				sys.exit()
-	if module == 'plot':
-		for f in [file + '.qq.tiff', file + '.mht.tiff',file + '.qq.eps', file + '.mht.eps',file + '.qq.pdf', file + '.mht.pdf']:
-			if os.path.exists(f):
-				print Error("1 or more plot files already exists (use --overwrite flag to replace)")
-				sys.exit()
-	if module == 'map':
-		for f in [file, file + '.log']:
-			if os.path.exists(f):
-				print Error("output files already exist (use --overwrite flag to replace)")
-				sys.exit()
-
 def PrepareChrDirs(regions, directory):
 	try:
 		os.mkdir(directory.replace('chr[CHR]/',''))
@@ -217,7 +171,8 @@ def GenerateSubFiles(region_df, f, dist_mode, n):
 			return
 	return out_files
 
-def CheckResults(file_dict, out, complete_string, overwrite, cpus=1):
+def CheckResults(file_dict, out, overwrite, cpus=1):
+	print "verifying results"
 	cpus = cpu_count() if cpu_count() < cpus else cpus	
 	n = len(file_dict.keys())
 	if n > 1:
@@ -242,7 +197,7 @@ def CheckResults(file_dict, out, complete_string, overwrite, cpus=1):
 				resfile = file_dict[j] + ".gz"
 				if os.path.exists(resfile):
 					if os.path.exists(logfile[0]):
-						p = subprocess.Popen(['grep','-cw',complete_string,logfile[0]], stdout=subprocess.PIPE)	
+						p = subprocess.Popen(['grep','-cw','process complete',logfile[0]], stdout=subprocess.PIPE)	
 						complete = p.communicate()[0]
 						complete = int(complete.strip())
 						if complete == 0:
@@ -318,7 +273,7 @@ def CheckResults(file_dict, out, complete_string, overwrite, cpus=1):
 		resfile = resfile + ".gz"
 		if os.path.exists(resfile):
 			if os.path.exists(logfile):
-				p = subprocess.Popen(['grep','-cw',complete_string,logfile], stdout=subprocess.PIPE)	
+				p = subprocess.Popen(['grep','-cw','process complete',logfile], stdout=subprocess.PIPE)	
 				complete = p.communicate()[0]
 				complete = int(complete.strip())
 				if complete == 0:

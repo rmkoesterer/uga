@@ -50,8 +50,8 @@ def main(argv):
 		from uga.Meta import Meta
 	elif argv[1].split('(')[0] == "Map":
 		from uga.Map import Map
-	elif argv[1].split('(')[0] == "Plot":
-		from uga.Plot import Plot
+	elif argv[1].split('(')[0] == "Explore":
+		from uga.Explore import Explore
 
 	eval(argv[1])
 

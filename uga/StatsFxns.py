@@ -76,18 +76,18 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 				marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 			else:
-				marker_info[x + '.effect'] = float('NaN')
-				marker_info[x + '.stderr'] = float('NaN')
-				marker_info[x + '.or'] = float('NaN')
-				marker_info[x + '.z'] = float('NaN')
-				marker_info[x + '.p'] = float('NaN')
+				marker_info[x + '.effect'] = 'NA'
+				marker_info[x + '.stderr'] = 'NA'
+				marker_info[x + '.or'] = 'NA'
+				marker_info[x + '.z'] = 'NA'
+				marker_info[x + '.p'] = 'NA'
 	else:
 		for x in focus:
-			marker_info[x + '.effect'] = float('NaN')
-			marker_info[x + '.stderr'] = float('NaN')
-			marker_info[x + '.or'] = float('NaN')
-			marker_info[x + '.z'] = float('NaN')
-			marker_info[x + '.p'] = float('NaN')
+			marker_info[x + '.effect'] = 'NA'
+			marker_info[x + '.stderr'] = 'NA'
+			marker_info[x + '.or'] = 'NA'
+			marker_info[x + '.z'] = 'NA'
+			marker_info[x + '.p'] = 'NA'
 	marker_info['n'] = n
 	marker_info['status'] = status
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
@@ -132,18 +132,18 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 				marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 			else:
-				marker_info[x + '.effect'] = float('NaN')
-				marker_info[x + '.stderr'] = float('NaN')
-				marker_info[x + '.or'] = float('NaN')
-				marker_info[x + '.z'] = float('NaN')
-				marker_info[x + '.p'] = float('NaN')
+				marker_info[x + '.effect'] = 'NA'
+				marker_info[x + '.stderr'] = 'NA'
+				marker_info[x + '.or'] = 'NA'
+				marker_info[x + '.z'] = 'NA'
+				marker_info[x + '.p'] = 'NA'
 	else:
 		for x in focus:
-			marker_info[x + '.effect'] = float('NaN')
-			marker_info[x + '.stderr'] = float('NaN')
-			marker_info[x + '.or'] = float('NaN')
-			marker_info[x + '.z'] = float('NaN')
-			marker_info[x + '.p'] = float('NaN')
+			marker_info[x + '.effect'] = 'NA'
+			marker_info[x + '.stderr'] = 'NA'
+			marker_info[x + '.or'] = 'NA'
+			marker_info[x + '.z'] = 'NA'
+			marker_info[x + '.p'] = 'NA'
 	marker_info['n'] = n
 	marker_info['status'] = status
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
@@ -184,22 +184,22 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 			if xt in coef.index.values:
 				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
-				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
-				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-				marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else 'NA'
+				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else 'NA'
+				marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else 'NA'
 			else:
-				marker_info[x + '.effect'] = float('NaN')
-				marker_info[x + '.stderr'] = float('NaN')
-				marker_info[x + '.or'] = float('NaN')
-				marker_info[x + '.z'] = float('NaN')
-				marker_info[x + '.p'] = float('NaN')
+				marker_info[x + '.effect'] = 'NA'
+				marker_info[x + '.stderr'] = 'NA'
+				marker_info[x + '.or'] = 'NA'
+				marker_info[x + '.z'] = 'NA'
+				marker_info[x + '.p'] = 'NA'
 	else:
 		for x in focus:
-			marker_info[x + '.effect'] = float('NaN')
-			marker_info[x + '.stderr'] = float('NaN')
-			marker_info[x + '.or'] = float('NaN')
-			marker_info[x + '.z'] = float('NaN')
-			marker_info[x + '.p'] = float('NaN')
+			marker_info[x + '.effect'] = 'NA'
+			marker_info[x + '.stderr'] = 'NA'
+			marker_info[x + '.or'] = 'NA'
+			marker_info[x + '.z'] = 'NA'
+			marker_info[x + '.p'] = 'NA'
 	marker_info['n'] = n
 	marker_info['status'] = status
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
@@ -242,25 +242,25 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'z'])
 				marker_info[x + '.p'] = '%.2e' % (coef.loc[xt,'Pr(>|z|)'])
 			else:
-				marker_info[x + '.effect'] = float('NaN')
-				marker_info[x + '.or'] = float('NaN')
-				marker_info[x + '.ci_lower'] = float('NaN')
-				marker_info[x + '.ci_upper'] = float('NaN')
-				marker_info[x + '.stderr'] = float('NaN')
-				marker_info[x + '.robust_stderr'] = float('NaN')
-				marker_info[x + '.z'] = float('NaN')
-				marker_info[x + '.p'] = float('NaN')
+				marker_info[x + '.effect'] = 'NA'
+				marker_info[x + '.or'] = 'NA'
+				marker_info[x + '.ci_lower'] = 'NA'
+				marker_info[x + '.ci_upper'] = 'NA'
+				marker_info[x + '.stderr'] = 'NA'
+				marker_info[x + '.robust_stderr'] = 'NA'
+				marker_info[x + '.z'] = 'NA'
+				marker_info[x + '.p'] = 'NA'
 		marker_info['n'] = '%d' % (np.array(model_out.rx('n')[0])[0])
 	else:
 		for x in focus:
-			marker_info[x + '.effect'] = float('NaN')
-			marker_info[x + '.or'] = float('NaN')
-			marker_info[x + '.ci_lower'] = float('NaN')
-			marker_info[x + '.ci_upper'] = float('NaN')
-			marker_info[x + '.stderr'] = float('NaN')
-			marker_info[x + '.robust_stderr'] = float('NaN')
-			marker_info[x + '.z'] = float('NaN')
-			marker_info[x + '.p'] = float('NaN')
+			marker_info[x + '.effect'] = 'NA'
+			marker_info[x + '.or'] = 'NA'
+			marker_info[x + '.ci_lower'] = 'NA'
+			marker_info[x + '.ci_upper'] = 'NA'
+			marker_info[x + '.stderr'] = 'NA'
+			marker_info[x + '.robust_stderr'] = 'NA'
+			marker_info[x + '.z'] = 'NA'
+			marker_info[x + '.p'] = 'NA'
 		marker_info['n'] = 0
 	marker_info['status'] = status
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)

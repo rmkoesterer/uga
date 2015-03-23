@@ -11,7 +11,7 @@ import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 import pandas.rpy.common as py2r
 import re
-from itertools import islice,takewhile
+from itertools import islice,takewhile,ifilter
 from Bio import bgzf
 import psutil
 from SystemFxns import Error
@@ -62,6 +62,25 @@ def Model(out = None,
 
 	print "model options ..."
 	if not cfg is None:
+		for k in cfg['data_order']:
+			if 'pheno_sep' in cfg['data_info'][k].keys():
+				cfg['data_info'][k]['pheno_sep'] = GetDelimiter(cfg['data_info'][k]['pheno_sep'])
+			else:
+				cfg['data_info'][k]['pheno_sep'] = '\t'
+			if '_gaussian' in cfg['data_info'][k]['method'] or '_binomial' in cfg['data_info'][k]['method']:
+				cfg['data_info'][k]['fxn'] = cfg['data_info'][k]['method'].split('_')[-1]
+			else:
+				cfg['data_info'][k]['fxn'] = None
+			if not 'sex' in cfg['data_info'][k].keys():
+				cfg['data_info'][k]['sex'] = None
+			if not 'case' in cfg['data_info'][k].keys():
+				cfg['data_info'][k]['case'] = None
+			if not 'ctrl' in cfg['data_info'][k].keys():
+				cfg['data_info'][k]['ctrl'] = None
+			if not 'corstr' in cfg['data_info'][k].keys():
+				cfg['data_info'][k]['corstr'] = 'exchangeable'
+			if not 'pheno_sep' in cfg['data_info'][k].keys():
+				cfg['data_info'][k]['pheno_sep'] = '\t'
 		for arg in ['cfg','out','sig','buffer','miss','freq','rsq','hwe','mem','nofail','region_list','region','region_id']:
 			if not str(locals()[arg]) in ['None','False']:
 				print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
@@ -77,6 +96,24 @@ def Model(out = None,
 				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
 					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
 						'corstr': corstr[0], 'pheno_sep': pheno_sep[0]}}}
+		if 'pheno_sep' in cfg['data_info']['NA'].keys():
+			cfg['data_info']['NA']['pheno_sep'] = GetDelimiter(cfg['data_info']['NA']['pheno_sep'])
+		else:
+			cfg['data_info']['NA']['pheno_sep'] = '\t'
+		if '_gaussian' in cfg['data_info']['NA']['method'] or '_binomial' in cfg['data_info']['NA']['method']:
+			cfg['data_info']['NA']['fxn'] = cfg['data_info']['NA']['method'].split('_')[-1]
+		else:
+			cfg['data_info']['NA']['fxn'] = None
+		if not 'sex' in cfg['data_info']['NA'].keys():
+			cfg['data_info']['NA']['sex'] = None
+		if not 'case' in cfg['data_info']['NA'].keys():
+			cfg['data_info']['NA']['case'] = None
+		if not 'ctrl' in cfg['data_info']['NA'].keys():
+			cfg['data_info']['NA']['ctrl'] = None
+		if not 'corstr' in cfg['data_info']['NA'].keys():
+			cfg['data_info']['NA']['corstr'] = 'exchangeable'
+		if not 'pheno_sep' in cfg['data_info']['NA'].keys():
+			cfg['data_info']['NA']['pheno_sep'] = '\t'
 
 	##### DEFINE MODEL TYPES #####
 	marker_tests = ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph']
@@ -91,22 +128,6 @@ def Model(out = None,
 			print "extracting model variables for model " + k + " and removing missing/invalid samples ..."
 		else:
 			print "extracting model variables and removing missing/invalid samples ..."
-		if 'pheno_sep' in cfg['data_info'][k].keys():
-			cfg['data_info'][k]['pheno_sep'] = GetDelimiter(cfg['data_info'][k]['pheno_sep'])
-		else:
-			cfg['data_info'][k]['pheno_sep'] = '\t'
-		if '_gaussian' in cfg['data_info'][k]['method'] or '_binomial' in cfg['data_info'][k]['method']:
-			cfg['data_info'][k]['fxn'] = cfg['data_info'][k]['method'].split('_')[-1]
-		else:
-			cfg['data_info'][k]['fxn'] = None
-		if not 'sex' in cfg['data_info'][k].keys():
-			cfg['data_info'][k]['sex'] = None
-		if not 'case' in cfg['data_info'][k].keys():
-			cfg['data_info'][k]['case'] = None
-		if not 'ctrl' in cfg['data_info'][k].keys():
-			cfg['data_info'][k]['ctrl'] = None
-		if not 'pheno_sep' in cfg['data_info'][k].keys():
-			cfg['data_info'][k]['pheno_sep'] = '\t'
 		cfg['data_info'][k]['vars_df'], cfg['data_info'][k]['model_vars_dict'] = ExtractModelVars(pheno=cfg['data_info'][k]['pheno'], model=cfg['data_info'][k]['model'],
 																										fid=cfg['data_info'][k]['fid'], iid=cfg['data_info'][k]['iid'],
 																										fxn=cfg['data_info'][k]['fxn'], sex=cfg['data_info'][k]['sex'],
@@ -124,7 +145,7 @@ def Model(out = None,
 	for k in cfg['data_order']:
 		if cfg['data_info'][k]['format'] == 'plink':
 			print "reading Plink binary files for model " + k if len(cfg['data_info'].keys()) > 1 else "reading Plink binary files"
-			cfg['data_info'][k]['bed_it'], cfg['data_info'][k]['locus_it'], cfg['data_info'][k]['sample_it'], cfg['data_info'][k]['sample_ids'] = LoadPlink(cfg['data_info'][k]['data'])
+			cfg['data_info'][k]['plink_handle'],cfg['data_info'][k]['plink_locus_it'],cfg['data_info'][k]['plink_sample_it'],cfg['data_info'][k]['sample_ids'] = LoadPlink(cfg['data_info'][k]['data'])
 		elif cfg['data_info'][k]['format'] == 'vcf':
 			print "reading vcf file for model " + k if len(cfg['data_info'].keys()) > 1 else "reading vcf file"
 			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = LoadVcf(cfg['data_info'][k]['data'])
@@ -196,26 +217,19 @@ def Model(out = None,
 		if cfg['data_info'][k]['format'] == 'plink':
 			for i in range(len(marker_list.index)):
 				if marker_list['start'][i] != 'NA':
-					marker_list[k][i] = len([c for c in cfg['data_info'][k]['locus_it'] if c.chromosome == int(marker_list['chr'][i]) and c.bp_position >= int(marker_list['start'][i]) and c.bp_position <= int(marker_list['end'][i])])
+					marker_list[k][i] = countPlinkRegion(cfg['data_info'][k]['plink_handle'].loci, int(marker_list['chr'][i]), int(marker_list['start'][i]), int(marker_list['end'][i]))
 				else:
-					marker_list[k][i] = len(cfg['data_info'][k]['locus_it'])
+					marker_list[k][i] = 'n'
 		else:
-			pos_ind = 1 if cfg['data_info'][k]['format'] in ['dos2','vcf'] else 2
-			tb = tabix.open(cfg['data_info'][k]['data'])
 			for i in range(len(marker_list.index)):
-				try:
-					records = tb.querys(marker_list['region'][i])
-					if marker_list['start'][i] != 'NA':
-						records = (x for x in records if int(x[pos_ind]) >= int(marker_list['start'][i]) and int(x[pos_ind]) <= int(marker_list['end'][i]))
-				except:
-					pass
+				if marker_list['start'][i] != 'NA':
+					try:
+						records = cfg['data_info'][k]['data_it'].querys(marker_list['region'][i])
+						marker_list[k][i] = countNonPlinkRegion(records, cfg['data_info'][k]['format'], int(marker_list['start'][i]), int(marker_list['end'][i]))
+					except:
+						marker_list[k][i] = 'n'
 				else:
-					for record in records:
-						if marker_list['start'][i] != 'NA' and int(marker_list['end'][i]) - int(marker_list['start'][i]) <= 10000000:
-							marker_list[k][i] = marker_list[k][i] + 1
-						else:
-							marker_list[k][i] = 'n'
-							break
+					marker_list[k][i] = 'n'
 	marker_list = marker_list[(marker_list[cfg['data_order']].T != 0).any()].reset_index(drop=True)
 	if len(marker_list.index) == 0:
 		print Error("no markers found")
@@ -258,15 +272,16 @@ def Model(out = None,
 			if cfg['data_info'][k]['format'] == 'plink':
 				if reg == chr:
 					try:
-						records = (x for x in cfg['data_info'][k]['locus_it'] if x.chromosome == int(chr))
+						records = (x for x in cfg['data_info'][k]['plink_handle'].loci if x.chromosome == int(chr))
 					except:
 						break
 				else:
 					try:
-						records = (x for x in cfg['data_info'][k]['locus_it'] if x.chromosome == int(chr) and x.bp_position >= int(marker_list['start'][r]) and x.bp_position <= int(marker_list['end'][r]))
+						records = (x for x in cfg['data_info'][k]['plink_handle'].loci if x.chromosome == int(chr) and x.bp_position >= int(marker_list['start'][r]) and x.bp_position <= int(marker_list['end'][r]))
 					except:
 						break
 			else:
+				pos_ind = 1 if cfg['data_info'][k]['format'] in ['dos2','vcf'] else 2
 				try:
 					records = cfg['data_info'][k]['data_it'].querys(reg)
 					if reg != chr:
@@ -281,7 +296,6 @@ def Model(out = None,
 				chunk=list(islice(records, cfg['buffer']))
 				if not chunk:
 					break
-
 				##### READ IN CHUNK AND CREATE STANDARD DATA FRAME #####
 				if cfg['data_info'][k]['format'] == 'plink':
 					marker_info=collections.OrderedDict()
@@ -291,7 +305,7 @@ def Model(out = None,
 					marker_info['a1'] = collections.OrderedDict()
 					marker_info['a2'] = collections.OrderedDict()
 					marker_data=collections.OrderedDict()
-					for locus, row in zip(chunk, cfg['data_info'][k]['bed_it']):
+					for locus, row in zip(chunk, cfg['data_info'][k]['plink_handle']):
 						if locus.allele1 == '0':
 							locus.allele1 = locus.allele2
 						marker_unique = 'chr' + str(locus.chromosome) + 'bp' + str(locus.bp_position) + '.'  + str(locus.name) + '.' + str(locus.allele2) + '.' + str(locus.allele1)
@@ -300,7 +314,7 @@ def Model(out = None,
 						marker_info['pos'][marker_unique] = str(locus.bp_position)
 						marker_info['a1'][marker_unique] = str(locus.allele2)
 						marker_info['a2'][marker_unique] = str(locus.allele1)
-						for sample, geno in zip(cfg['data_info'][k]['sample_it'], row):
+						for sample, geno in zip(cfg['data_info'][k]['plink_sample_it'], row):
 							if not marker_unique in marker_data.keys():
 								marker_data[marker_unique] = collections.OrderedDict({sample.iid: geno})
 							else:
@@ -608,7 +622,13 @@ def Model(out = None,
 				results = results.merge(cfg['meta_results'][meta_tag], how='outer', copy=False)
 			header = header + [a for a in cfg['meta_results'][meta_tag].columns.values.tolist() if not a in header]
 	for k in cfg['data_order']:
-		if len(header) == 0:
+		if 'reg_id' in cfg['data_info'][k]['results'].keys() and len(list(cfg['data_info'][k]['results']['reg_id'].unique())) and list(cfg['data_info'][k]['results']['reg_id'].unique())[0] == 'NA':
+			cfg['data_info'][k]['results'].drop('reg_id',axis=1,inplace=True)
+		if k + '.reg_id' in cfg['data_info'][k]['results'].keys() and len(list(cfg['data_info'][k]['results'][k + '.reg_id'].unique())) and list(cfg['data_info'][k]['results'][k + '.reg_id'].unique())[0] == 'NA':
+			cfg['data_info'][k]['results'].drop(k + '.reg_id',axis=1,inplace=True)
+		if cfg['data_info'][k]['fxn'] is not None and cfg['data_info'][k]['fxn'] == 'gaussian':
+			cfg['data_info'][k]['results'].drop([x for x in cfg['data_info'][k]['results'].columns if '.or' in x], axis=1,inplace=True)
+		if k == cfg['data_order'][0] and 'meta' not in cfg.keys():
 			results = cfg['data_info'][k]['results']
 		else:
 			results = results.merge(cfg['data_info'][k]['results'], how='outer', copy=False)
@@ -616,11 +636,11 @@ def Model(out = None,
 
 	##### SORT RESULTS AND CONVERT CHR, POS, AND START COLUMNS TO INT #####
 	if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'marker':
-		results.sort(columns=['chr','pos'],inplace=True)
 		results[['chr','pos']] = results[['chr','pos']].astype(int)
+		results.sort(columns=['chr','pos'],inplace=True)
 	else:
-		results.sort(columns=['chr','start'],inplace=True)
 		results[['chr','start','end']] = results[['chr','start','end']].astype(int)
+		results.sort(columns=['chr','start'],inplace=True)
 
 	##### FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
 	results.fillna('NA', inplace=True)	
