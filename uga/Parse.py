@@ -117,15 +117,7 @@ def Parser():
 						help='overwrite existing output files')
 	model_parser.add_argument('-q', '--qsub', 
 						action='store', 
-						help='group ID under which to submit jobs to the queue')
-	model_parser.add_argument('--name', 
-						action='store', 
-						help='job name (only used with --qsub; if not set, --out basename will be used)')
-	model_parser.add_argument('--mem', 
-						action='store', 
-						type=int, 
-						default=3, 
-						help='amount of ram memory to request for queued job in GB (default: MEM=3)')
+						help='string indicating all qsub options to be added to the qsub command')
 	model_parser.add_argument('--region-id', 
 						action='store', 
 						help='add region id to results (for use with --region option)')
@@ -243,19 +235,7 @@ def Parser():
 						help='overwrite existing output files')
 	meta_parser.add_argument('-q', '--qsub', 
 						action='store', 
-						help='group ID under which to submit jobs to the queue')
-	meta_parser.add_argument('--name', 
-						action='store', 
-						help='job name (only used with --qsub; if not set, --out basename will be used')
-	meta_parser.add_argument('-d', '--directory', 
-						action='store', 
-						default=os.getcwd(), 
-						help='output directory path (default: current working directory)')
-	meta_parser.add_argument('--mem', 
-						action='store', 
-						type=int, 
-						default=3, 
-						help='amount of ram memory to request for queued job in GB (default: MEM=3')
+						help='string indicating all qsub options to be added to the qsub command')
 	meta_parser.add_argument('--region-id', 
 						action='store', 
 						help='add region id to results (for use with --region option)')
@@ -301,10 +281,7 @@ def Parser():
 						help='overwrite existing out file')
 	map_parser.add_argument('-q', '--qsub', 
 						action='store', 
-						help='group ID under which to submit jobs to the queue')
-	map_parser.add_argument('--name', 
-						action='store', 
-						help='job name (only used with --qsub; if not set, --out basename will be used')
+						help='string indicating all qsub options to be added to the qsub command')
 	map_parser.add_argument('--split-chr', 
 						action='store_true', 
 						help='split jobs into 26 chromosomes')
@@ -373,7 +350,7 @@ def Parser():
 	explore_required.add_argument('--data', 
 						action='store', 
 						required=True, 
-						help='filename for compiled results (basename only: do not include path)')
+						help='filename for compiled results')
 	explore_required.add_argument('--out', 
 						action='store', 
 						required=True, 
@@ -465,9 +442,6 @@ def Parser():
 						action='store', 
 						type=int, 
 						help='f-distribution p-value dfd (see python scipy.stats.f.cdf documentation)')
-	explore_parser.add_argument('--name', 
-						action='store', 
-						help='job name (only used with --qsub; if not set, --out basename will be used')
 	explore_parser_split_group = explore_parser.add_mutually_exclusive_group()
 	explore_parser_split_group.add_argument('-r', '--region', 
 						action='store', 

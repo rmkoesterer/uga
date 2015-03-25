@@ -8,12 +8,13 @@ import scipy.stats as scipy
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 import re
+import os
 
 pd.options.mode.chained_assignment = None
 
 #from memory_profiler import profile, memory_usage
 #@profile
-def Summary(data, 
+def Explore(data, 
 			out, 
 			qq = False, 
 			manhattan = False, 
@@ -314,6 +315,7 @@ def Summary(data,
 
 	if len(regions) > 0:
 		print "generating regional plots"
+		home_dir = os.path.expanduser("~")
 		for reg in regions:
 			chr = int(reg.split(':')[0])
 			start = int(reg.split(':')[1].split('-')[0])
@@ -325,7 +327,7 @@ def Summary(data,
 			pvals_region.sort(columns=['P-value'], inplace=True)
 			pvals_region = pvals_region[['MarkerName','P-value','pos']]
 			pvals_region.to_csv(out + '.chr' + reg.replace(':','bp') + '.plotdata',header=True, index=False, sep='\t')
-			cmd = 'locuszoom --metal ' + out + '.chr' + reg.replace(':','bp') + '.plotdata --chr ' + str(chr) + ' --start ' + str(start) + ' --end ' + str(end) + ' --source 1000G_March2012 --build hg19 --pop EUR --no-ld --plotonly --cache None --prefix ' + out
+			cmd = home_dir + '/locuszoom --metal ' + out + '.chr' + reg.replace(':','bp') + '.plotdata --chr ' + str(chr) + ' --start ' + str(start) + ' --end ' + str(end) + ' --source 1000G_March2012 --build hg19 --pop EUR --no-ld --plotonly --cache None --prefix ' + out
 			try:
 				pr = subprocess.Popen(cmd,shell=True)
 				pr.wait()

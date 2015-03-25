@@ -55,7 +55,6 @@ def Model(out = None,
 			hwe = None, 
 			case = [1], 
 			ctrl = [0], 
-			mem = 3, 
 			corstr = ['exchangeable'], 
 			pheno_sep = ['tab'], 
 			nofail = False):
@@ -81,7 +80,7 @@ def Model(out = None,
 				cfg['data_info'][k]['corstr'] = 'exchangeable'
 			if not 'pheno_sep' in cfg['data_info'][k].keys():
 				cfg['data_info'][k]['pheno_sep'] = '\t'
-		for arg in ['cfg','out','sig','buffer','miss','freq','rsq','hwe','mem','nofail','region_list','region','region_id']:
+		for arg in ['cfg','out','sig','buffer','miss','freq','rsq','hwe','nofail','region_list','region','region_id']:
 			if not str(locals()[arg]) in ['None','False']:
 				print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 	else:
@@ -91,7 +90,7 @@ def Model(out = None,
 
 	##### populate configuration #####
 	if cfg is None:
-		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'freq': freq, 'miss': freq, 'rsq': freq, 'mem': mem, 'sig': int(sig), 'nofail': nofail, 
+		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'freq': freq, 'miss': freq, 'rsq': freq, 'sig': int(sig), 'nofail': nofail, 
 				'region': region, 'region_list': region_list, 'region_id': region_id,
 				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
 					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
@@ -146,6 +145,7 @@ def Model(out = None,
 		if cfg['data_info'][k]['format'] == 'plink':
 			print "reading Plink binary files for model " + k if len(cfg['data_info'].keys()) > 1 else "reading Plink binary files"
 			cfg['data_info'][k]['plink_handle'],cfg['data_info'][k]['plink_locus_it'],cfg['data_info'][k]['plink_sample_it'],cfg['data_info'][k]['sample_ids'] = LoadPlink(cfg['data_info'][k]['data'])
+			cfg['data_info'][k]['plink_zip'] = zip(cfg['data_info'][k]['plink_locus_it'],cfg['data_info'][k]['plink_handle'])
 		elif cfg['data_info'][k]['format'] == 'vcf':
 			print "reading vcf file for model " + k if len(cfg['data_info'].keys()) > 1 else "reading vcf file"
 			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = LoadVcf(cfg['data_info'][k]['data'])
@@ -272,12 +272,12 @@ def Model(out = None,
 			if cfg['data_info'][k]['format'] == 'plink':
 				if reg == chr:
 					try:
-						records = (x for x in cfg['data_info'][k]['plink_handle'].loci if x.chromosome == int(chr))
+						records = (x for x in cfg['data_info'][k]['plink_zip'] if x[0].chromosome == int(chr))
 					except:
 						break
 				else:
 					try:
-						records = (x for x in cfg['data_info'][k]['plink_handle'].loci if x.chromosome == int(chr) and x.bp_position >= int(marker_list['start'][r]) and x.bp_position <= int(marker_list['end'][r]))
+						records = (x for x in cfg['data_info'][k]['plink_zip'] if x[0].chromosome == int(chr) and x[0].bp_position >= int(marker_list['start'][r]) and x[0].bp_position <= int(marker_list['end'][r]))
 					except:
 						break
 			else:
@@ -305,7 +305,7 @@ def Model(out = None,
 					marker_info['a1'] = collections.OrderedDict()
 					marker_info['a2'] = collections.OrderedDict()
 					marker_data=collections.OrderedDict()
-					for locus, row in zip(chunk, cfg['data_info'][k]['plink_handle']):
+					for locus, row in chunk:
 						if locus.allele1 == '0':
 							locus.allele1 = locus.allele2
 						marker_unique = 'chr' + str(locus.chromosome) + 'bp' + str(locus.bp_position) + '.'  + str(locus.name) + '.' + str(locus.allele2) + '.' + str(locus.allele1)
@@ -319,6 +319,8 @@ def Model(out = None,
 								marker_data[marker_unique] = collections.OrderedDict({sample.iid: geno})
 							else:
 								marker_data[marker_unique][sample.iid] = geno if geno != 3 else 'NA'
+							#if sample.iid in ['005QOL','0075FS','347']:
+							#	print sample.iid, geno
 					marker_info = pd.DataFrame(marker_info)
 					marker_data = pd.DataFrame(marker_data)
 					marker_data = marker_data.convert_objects(convert_numeric=True)
@@ -453,12 +455,8 @@ def Model(out = None,
 			if cfg['data_info'][k]['method'] == 'efftests':
 				tot_tests = cfg['reg_marker_info'].shape[0]
 				if tot_tests > 0:
-					if (tot_tests * tot_tests) / 100000000.0 <= mem:
-						n_eff = CalcEffTests(model_df=cfg['reg_model_df'][cfg['reg_marker_info']['marker_unique']], mem=mem)
-						status = 0
-					else:
-						n_eff = float('nan')
-						status = 2
+					n_eff = CalcEffTests(model_df=cfg['reg_model_df'][cfg['reg_marker_info']['marker_unique']])
+					status = 0
 				else:
 					n_eff, tot_tests, status = (0, 0, 1)
 				results = pd.DataFrame({'chr': [marker_list['chr'][r]], 'start': [marker_list['start'][r]], 'end': [marker_list['end'][r]], 'reg_id': [marker_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','reg_id','n_total','n_eff','status']]
@@ -652,10 +650,12 @@ def Model(out = None,
 
 	##### MAP OUTPUT FILES FOR TABIX #####
 	if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'marker':
-		cmd = 'tabix -b 2 -e 2 ' + cfg['out'] + '.gz'
+		cmd = ['tabix','-b','2','-e','2',cfg['out'] + '.gz']
 	else:
-		cmd = 'tabix -b 2 -e 3 ' + cfg['out'] + '.gz'
-	p = subprocess.Popen(cmd, shell=True)
-	p.wait()
-
-	print "process complete"
+		cmd = ['tabix','-b','2','-e','3',cfg['out'] + '.gz']
+	try:
+		p = subprocess.check_call(cmd)
+	except subprocess.CalledProcessError:
+		print Error("file mapping failed")
+	else:
+		print "process complete"

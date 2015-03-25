@@ -360,9 +360,10 @@ def Meta(cfg=None,
 	bgzfile.close()
 
 	print "mapping results file"
-	cmd = 'tabix -b 2 -e 3 ' + cfg['out'] + '.gz' if cfg['method'] == 'efftest' else 'tabix -b 2 -e 2 ' + cfg['out'] + '.gz'
-	p = subprocess.Popen(cmd, shell=True)
-	time.sleep(1)
-	p.wait()
-	
+	cmd = ['tabix','-b','2','-e','3',cfg['out'] + '.gz'] if cfg['method'] == 'efftest' else ['tabix','-b','2','-e','2',cfg['out'] + '.gz']
+	try:
+		p = subprocess.check_call(cmd)
+	except subprocess.CalledProcessError:
+		print Error("file mapping failed")
+	else:
 	print 'process complete'

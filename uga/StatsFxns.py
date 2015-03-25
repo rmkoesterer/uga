@@ -266,7 +266,7 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
 	return marker_info
 
-def CalcEffTests(model_df, mem):
+def CalcEffTests(model_df):
 	if model_df.shape[1] > 1:
 		markers_cor = model_df.corr()
 		markers_cor_eigvals = np.linalg.eigvalsh(markers_cor)

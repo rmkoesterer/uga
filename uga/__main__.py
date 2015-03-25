@@ -89,7 +89,7 @@ def main(args=None):
 				out_files = GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
 
 	##### get user home directory #####
-	home_dir = os.path.dirname(sys.executable)
+	home_dir = os.path.expanduser("~")
 
 	if args.which == 'map':
 		if args.split_chr:
@@ -113,7 +113,7 @@ def main(args=None):
 						if os.path.exists(f):
 							print Error("1 or more output files already exists (use --overwrite flag to replace)")
 							return
-				Interactive(home_dir + '/uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
+				Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
 		else:
 			cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
 			for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr']:
@@ -134,14 +134,14 @@ def main(args=None):
 					if os.path.exists(f):
 						print Error("1 or more output files already exists (use --overwrite flag to replace)")
 						return
-			Interactive(home_dir + '/uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
+			Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
 
 	elif args.which == 'compile':
 		if len(out_files.keys()) > 1:
 			existing_files = glob.glob(args.out + '*')
 			if len(existing_files) > 0:
 				if not args.overwrite:
-					print Error("1 or more output files already exists (use --overwrite flag to replace)")
+					print Error("1 or more output files or files with similar basename already exists (use --overwrite flag to replace)")
 					return
 				else:
 					for f in existing_files:
@@ -171,7 +171,7 @@ def main(args=None):
 						os.remove(f)
 					except OSError:
 						continue
-		cmd = 'Explore(data="' + args.data + '.gz",out="' + args.out + '"'
+		cmd = 'Explore(data="' + args.data + '",out="' + args.out + '"'
 		for x in ['qq','manhattan','color','ext','sig','gc','top_p','regional_n','stats_prefix','tag','unrel','f_dist_dfn','f_dist_dfd','callrate_thresh','rsq_thresh','freq_thresh','hwe_thresh','effect_thresh','stderr_thresh','or_thresh','df_thresh']:
 			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 				if type(vars(args)[x]) is str:
@@ -179,7 +179,7 @@ def main(args=None):
 				else:
 					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 		cmd = cmd + ')'
-		Interactive(home_dir + '/uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
+		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
 
 	elif args.which in ['model','meta']:
 		print "preparing output directories"
@@ -196,7 +196,6 @@ def main(args=None):
 			joblist.extend(jobs)
 		else:
 			joblist.extend(range(n))
-		name = os.path.basename(args.out) if not args.name else args.name
 		for i in joblist:
 			if dist_mode in ['split-list', 'region']:
 				out = out_files['%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))]
@@ -233,7 +232,7 @@ def main(args=None):
 								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 							else:
 								cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-					cmd = cmd + ',mem=' + str(args.mem) + ')'
+					cmd = cmd + ')'
 				else:
 					cmd = args.which.capitalize() + '(out=\'' + out + '\''
 					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','fid','iid','focus','sig','region_list','gee_gaussian','gee_binomial',
@@ -251,7 +250,7 @@ def main(args=None):
 								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 							else:
 								cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-					cmd = cmd + ',mem=' + str(args.mem) + ')'
+					cmd = cmd + ')'
 			elif args.which == 'meta':
 				config['out'] = out
 				cmd = args.which.capitalize() + '(cfg=' + str(config)
@@ -263,9 +262,9 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ')'
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.' + args.which + '.log ' + home_dir + '/uga_wrapper.py \"' + cmd + '\"')
+				Qsub('qsub ' + args.qsub + ' -o ' + out + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
 			else:
-				Interactive(home_dir + '/uga_wrapper.py', cmd, out + '.' + args.which + '.log')
+				Interactive(home_dir + '/.uga_wrapper.py', cmd, out + '.' + args.which + '.log')
 
 	else:
 		print Error(args.which + " not a module")
