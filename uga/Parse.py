@@ -463,9 +463,9 @@ def Parse(top_parser):
 			assert not args.split_chr, top_parser.error("argument --split-chr: not allowed with argument --region")
 		if args.region_list:
 			assert os.path.exists(args.region_list), top_parser.error("argument --region-list: file does not exist")
-			if args.split:
-				assert not args.job, top_parser.error("argument --job: not allowed with argument -s/--split")
-				assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument -s/--split")
+			#if args.split:
+			#	assert not args.job, top_parser.error("argument --job: not allowed with argument -s/--split")
+			#	assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument -s/--split")
 			if args.split_n:
 				if args.job_list:
 					assert os.path.exists(args.job_list), top_parser.error("argument --job-list: file does not exist")

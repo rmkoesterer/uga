@@ -341,16 +341,17 @@ def Model(out = None,
 					elif cfg['data_info'][k]['format'] == 'dos2':
 						chunkdf = pd.DataFrame(chunk)
 					chunkdf.columns = ['chr','pos','marker','a1','a2'] + cfg['data_info'][k]['sample_ids']
-				chunkdf = chunkdf.drop_duplicates(subset=['chr','pos','a1','a2'])
-				chunkdf.index=chunkdf['chr'].astype(str) + '><' + chunkdf['pos'].astype(str) + '><'  + chunkdf['a1'].astype(str) + '><'  + chunkdf['a2'].astype(str)
-				chunkdf = chunkdf[~chunkdf.index.isin(chunk_db.ListKeys())]
-				chunkdf.apply(chunk_db.Update,1)
-				chunkdf = chunkdf.apply(mdb.Update,1)
+				if len(cfg['data_order']) > 1:
+					chunkdf = chunkdf.drop_duplicates(subset=['chr','pos','a1','a2'])
+					chunkdf.index=chunkdf['chr'].astype(str) + '><' + chunkdf['pos'].astype(str) + '><'  + chunkdf['a1'].astype(str) + '><'  + chunkdf['a2'].astype(str)
+					chunkdf = chunkdf[~chunkdf.index.isin(chunk_db.ListKeys())]
+					chunkdf.apply(chunk_db.Update,1)
+					chunkdf = chunkdf.apply(mdb.Update,1)
 
 				##### EXTRACT MARKER INFO AND MARKER DATA #####
 				marker_info = chunkdf.ix[:,:5]
 				marker_info.replace('.','NA',inplace=True)
-				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '.'  + marker_info['marker'].astype(str).str.replace('-','_') + '.'  + marker_info['a1'].astype(str) + '.'  + marker_info['a2'].astype(str)
+				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '.'  + marker_info['marker'].astype(str).str.replace('-','_').str.replace(':','.') + '.'  + marker_info['a1'].astype(str) + '.'  + marker_info['a2'].astype(str)
 				marker_info.index = marker_info['marker_unique']
 				marker_data = chunkdf.ix[:,5:].transpose()
 				marker_data = marker_data.convert_objects(convert_numeric=True)
@@ -483,10 +484,7 @@ def Model(out = None,
 					cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': marker_list['reg_id'][r]})
 					z = cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])]
 					pheno = cfg['reg_model_df'][list(set(cfg['data_info'][k]['model_vars_dict'].keys() + [cfg['data_info'][k]['iid'],cfg['data_info'][k]['fid']]))]
-					cfg['data_info'][k]['snp_info'].to_csv("test.snpinfo." + k, index=True, header=True, sep="\t")
-					z.to_csv("test.z." + k, index=True, header=True, sep="\t")
-					pheno.to_csv("test.pheno." + k, index=True, header=True, sep="\t")
-					
+
 					##### PREPSCORES #####
 					if cfg['data_info'][k]['method'] in ['famskat_o','famskat','famburden']:
 						ro.globalenv['ps' + k] = PrepScoresFam(snp_info=cfg['data_info'][k]['snp_info'], z=z, model=cfg['data_info'][k]['model'], pheno=pheno, kinship=cfg['data_info'][k]['kins'])

@@ -231,6 +231,7 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,p
 	dependent = re.split('\\~',model)[0]
 	independent = re.split('\\~',model)[1]
 	vars_df = pd.read_table(pheno,sep=pheno_sep,dtype='str')
+	vars_df[vars_df == "."] = None
 	for x in [a for a in list(set(re.split('Surv\(|,|\)|~|\+|cluster\(|\(1\||\*|factor\(',model))) if a != '']:
 		mtype = ''
 		if dependent.find(x) != -1:

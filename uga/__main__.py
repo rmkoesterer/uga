@@ -65,7 +65,10 @@ def main(args=None):
 				lines = (line.rstrip() for line in f)
 				lines = (line for line in lines if line)
 				for line in lines:
-					jobs.append(int(line))
+					if line.find(':') != -1:
+						jobs.append(region_df['region'][region_df['region'] == line].index[0])
+					else:
+						jobs.append(int(line))
 			print "" + str(len(jobs)) + " jobs read from job list file"
 
 		##### define output directory and update out file name #####
