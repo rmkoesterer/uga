@@ -542,7 +542,7 @@ def Model(out = None,
 					cfg['data_info'][k]['results'] = cfg['data_info'][k]['results'].append(results).reset_index(drop=True)
 
 		##### PERFORM GENE BASED TEST META ANALYSIS #####
-		if cfg['data_info'][cfg['data_order'][0]]['method'] in seqmeta_tests and 'meta' in cfg.keys():
+		if cfg['data_info'][cfg['data_order'][0]]['method'] in seqmeta_tests and len(cfg['meta']) > 0:
 			for meta in cfg['meta']:
 				meta_tag = meta.split(':')[0]
 				meta_incl = meta.split(':')[1].split('+')
@@ -609,7 +609,7 @@ def Model(out = None,
 
 	##### COMPILE ALL RESULTS #####
 	header = ['chr','start','end','reg_id'] if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'gene' else ['chr','pos','a1','a2']
-	if 'meta' in cfg.keys():
+	if len(cfg['meta']) > 0:
 		for meta in cfg['meta']:
 			meta_tag = meta.split(':')[0]
 			if meta == cfg['meta'][0]:
@@ -617,14 +617,15 @@ def Model(out = None,
 			else:
 				results = results.merge(cfg['meta_results'][meta_tag], how='outer', copy=False)
 			header = header + [a for a in cfg['meta_results'][meta_tag].columns.values.tolist() if not a in header]
+
 	for k in cfg['data_order']:
-		if 'reg_id' in cfg['data_info'][k]['results'].keys() and len(list(cfg['data_info'][k]['results']['reg_id'].unique())) and list(cfg['data_info'][k]['results']['reg_id'].unique())[0] == 'NA':
+		if 'reg_id' in cfg['data_info'][k]['results'].keys() and len(list(cfg['data_info'][k]['results']['reg_id'].unique())) == 1 and list(cfg['data_info'][k]['results']['reg_id'].unique())[0] == 'NA':
 			cfg['data_info'][k]['results'].drop('reg_id',axis=1,inplace=True)
-		if k + '.reg_id' in cfg['data_info'][k]['results'].keys() and len(list(cfg['data_info'][k]['results'][k + '.reg_id'].unique())) and list(cfg['data_info'][k]['results'][k + '.reg_id'].unique())[0] == 'NA':
+		if k + '.reg_id' in cfg['data_info'][k]['results'].keys() and len(list(cfg['data_info'][k]['results'][k + '.reg_id'].unique())) == 1 and list(cfg['data_info'][k]['results'][k + '.reg_id'].unique())[0] == 'NA':
 			cfg['data_info'][k]['results'].drop(k + '.reg_id',axis=1,inplace=True)
 		if cfg['data_info'][k]['fxn'] is not None and cfg['data_info'][k]['fxn'] == 'gaussian':
 			cfg['data_info'][k]['results'].drop([x for x in cfg['data_info'][k]['results'].columns if '.or' in x], axis=1,inplace=True)
-		if k == cfg['data_order'][0] and 'meta' not in cfg.keys():
+		if k == cfg['data_order'][0] and len(cfg['meta']) == 0:
 			results = cfg['data_info'][k]['results']
 		else:
 			results = results.merge(cfg['data_info'][k]['results'], how='outer', copy=False)

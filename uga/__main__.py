@@ -95,49 +95,26 @@ def main(args=None):
 	home_dir = os.path.expanduser("~")
 
 	if args.which == 'map':
-		if args.split_chr:
-			for i in range(26):
-				cmd = args.which.capitalize() + '(out=\'' + args.out + '.chr' + str(i+1) + '\',chr=' + str(i+1)
-				for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n']:
-					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-						if type(vars(args)[x]) is str:
-							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
-						else:
-							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-				cmd = cmd + ')'
-				if args.overwrite:
-					for f in [args.out + '.chr' + str(i+1), args.out + '.chr' + str(i+1) + '.map.log']:
-						try:
-							os.remove(f)
-						except OSError:
-							continue
+		cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
+		for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr']:
+			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+				if type(vars(args)[x]) is str:
+					cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 				else:
-					for f in [args.out + '.chr' + str(i+1), args.out + '.chr' + str(i+1) + '.map.log']:
-						if os.path.exists(f):
-							print Error("1 or more output files already exists (use --overwrite flag to replace)")
-							return
-				Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
+					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+		cmd = cmd + ')'
+		if args.overwrite:
+			for f in [args.out, args.out + '.map.log']:
+				try:
+					os.remove(f)
+				except OSError:
+					continue
 		else:
-			cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
-			for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr']:
-				if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-					if type(vars(args)[x]) is str:
-						cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
-					else:
-						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-			cmd = cmd + ')'
-			if args.overwrite:
-				for f in [args.out, args.out + '.map.log']:
-					try:
-						os.remove(f)
-					except OSError:
-						continue
-			else:
-				for f in [args.out, args.out + '.map.log']:
-					if os.path.exists(f):
-						print Error("1 or more output files already exists (use --overwrite flag to replace)")
-						return
-			Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
+			for f in [args.out, args.out + '.map.log']:
+				if os.path.exists(f):
+					print Error("1 or more output files already exists (use --overwrite flag to replace)")
+					return
+		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
 
 	elif args.which == 'compile':
 		if len(out_files.keys()) > 1:

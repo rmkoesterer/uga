@@ -366,4 +366,4 @@ def Meta(cfg=None,
 	except subprocess.CalledProcessError:
 		print Error("file mapping failed")
 	else:
-	print 'process complete'
+		print 'process complete'

@@ -279,12 +279,6 @@ def Parser():
 	map_parser.add_argument('-o', '--overwrite', 
 						action='store_true', 
 						help='overwrite existing out file')
-	map_parser.add_argument('-q', '--qsub', 
-						action='store', 
-						help='string indicating all qsub options to be added to the qsub command')
-	map_parser.add_argument('--split-chr', 
-						action='store_true', 
-						help='split jobs into 26 chromosomes')
 	map_split_group1 = map_parser.add_mutually_exclusive_group()
 	map_split_group1.add_argument('--mb', 
 						action='store', 
