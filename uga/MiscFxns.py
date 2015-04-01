@@ -240,8 +240,8 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,p
 			if not pre[-1].isalpha() and not post[0].isalpha():
 				mtype = 'dependent'
 		if independent.find(x) != -1:
-			pre = independent.split(x)[0] if independent.split(x)[0] != '' else '.'
-			post = independent.split(x)[1] if independent.split(x)[1] != '' else '.'
+			pre = independent.replace('factor','').split(x)[0] if independent.replace('factor','').split(x)[0] != '' else '.'
+			post = independent.replace('factor','').split(x)[1] if independent.replace('factor','').split(x)[1] != '' else '.'
 			if not pre[-1].isalpha() and not post[0].isalpha():
 				if mtype == '':
 					mtype = 'independent'
@@ -259,7 +259,6 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,p
 				model_vars_dict[x] = {'class': 'cluster', 'type': mtype}
 			else:
 				model_vars_dict[x] = {'class': 'numeric', 'type': mtype}
-
 	for x in model_vars_dict.keys():
 		if x in list(vars_df.columns):
 			print "   %s variable %s found" % (model_vars_dict[x]['type'], x)

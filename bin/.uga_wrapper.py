@@ -30,6 +30,9 @@ def main(argv):
 	if not 'SGE_TASK_ID' in env_vars.keys():
 		env_vars['SGE_TASK_ID'] = 'None'
 
+	from uga.__version__ import version
+
+	print "uga v" + version
 	print "start time: " + strftime("%Y-%m-%d %H:%M:%S", start_time[0])
 	if 'HOSTNAME' in env_vars.keys():
 		print "compute node: " + env_vars['HOSTNAME']

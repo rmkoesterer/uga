@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-from __init__ import version
+from __version__ import version
 
 def Parser():
 	parser = argparse.ArgumentParser(add_help=False)
@@ -143,10 +143,10 @@ def Parser():
 	model_parser_split_group3.add_argument('-j', '--job', 
 						action='store', 
 						type=int, 
-						help='run a particular job number (requires --split-n)')
+						help='run a particular job (use with --region-list and --split/--split-n)')
 	model_parser_split_group3.add_argument('--job-list', 
 						action='store', 
-						help='filename for a list of job numbers (requires --split-n)')
+						help='filename for a list of jobs (use with --region-list and --split/--split-n)')
 	model_parser_split_group4 = model_parser.add_mutually_exclusive_group()
 	model_parser_split_group4.add_argument('--oxford', 
 						action='store', 
@@ -261,10 +261,10 @@ def Parser():
 	meta_parser_split_group3.add_argument('-j', '--job', 
 						action='store', 
 						type=int, 
-						help='run a particular job number (requires --split-n)')
+						help='run a particular job (use with --region-list and --split/--split-n)')
 	meta_parser_split_group3.add_argument('--job-list', 
 						action='store', 
-						help='filename for a list of job numbers (requires --split-n)')
+						help='filename for a list of jobs (use with --region-list and --split/--split-n)')
 
 	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype data files', parents=[parser])
 	map_required = map_parser.add_argument_group('required arguments')
@@ -361,15 +361,12 @@ def Parser():
 	explore_parser.add_argument('--manhattan', 
 						action='store_true', 
 						help='print manhattan plot')
-	explore_parser.add_argument('--info', 
-						action='store_true', 
-						help='calculate inflation and print top results to file')
 	explore_parser.add_argument('--color', 
 						action='store_true', 
 						help='plot in color')
 	explore_parser.add_argument('--gc', 
 						action='store_true', 
-						help='print plots with genomic inflation corrected p-values')
+						help='print manhattan plots with genomic inflation corrected p-values')
 	explore_parser.add_argument('--stats-prefix', 
 						action='store', 
 						help='string indicating prefix for stats to be summarized, not including tag (default: STATS_PREFIX=\'marker\')')
@@ -466,9 +463,8 @@ def Parse(top_parser):
 			#if args.split:
 			#	assert not args.job, top_parser.error("argument --job: not allowed with argument -s/--split")
 			#	assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument -s/--split")
-			if args.split_n:
-				if args.job_list:
-					assert os.path.exists(args.job_list), top_parser.error("argument --job-list: file does not exist")
+		if args.job_list:
+			assert os.path.exists(args.job_list), top_parser.error("argument --job-list: file does not exist")
 	if args.which == 'meta' and args.method == 'efftest' and not args.region_list:
 		top_parser.error("missing argument: --region-list required in module meta with --method efftest")
 	if args.which == 'map' and not (args.b or args.kb or args.mb or args.n):
