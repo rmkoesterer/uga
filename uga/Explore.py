@@ -327,7 +327,7 @@ def Explore(data,
 			pvals_region.sort(columns=['P-value'], inplace=True)
 			pvals_region = pvals_region[['MarkerName','P-value','pos']]
 			pvals_region.to_csv(out + '.chr' + reg.replace(':','bp') + '.plotdata',header=True, index=False, sep='\t')
-			cmd = home_dir + '/locuszoom --metal ' + out + '.chr' + reg.replace(':','bp') + '.plotdata --chr ' + str(chr) + ' --start ' + str(start) + ' --end ' + str(end) + ' --source 1000G_March2012 --build hg19 --pop EUR --no-ld --plotonly --cache None --prefix ' + out
+			cmd = home_dir + '/locuszoom --metal ' + out + '.chr' + reg.replace(':','bp') + '.plotdata --chr ' + str(chr) + ' --start ' + str(start) + ' --end ' + str(end) + ' --source 1000G_March2012 --build hg19 --pop EUR --plotonly --cache None --prefix ' + out
 			try:
 				pr = subprocess.Popen(cmd,shell=True)
 				pr.wait()

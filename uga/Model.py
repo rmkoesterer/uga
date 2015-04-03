@@ -90,7 +90,7 @@ def Model(out = None,
 
 	##### populate configuration #####
 	if cfg is None:
-		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'freq': freq, 'miss': freq, 'rsq': freq, 'sig': int(sig), 'nofail': nofail, 
+		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'meta': [], 'freq': freq, 'miss': freq, 'rsq': freq, 'sig': int(sig), 'nofail': nofail, 
 				'region': region, 'region_list': region_list, 'region_id': region_id,
 				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
 					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 

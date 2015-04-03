@@ -159,7 +159,7 @@ def main(args=None):
 				else:
 					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 		cmd = cmd + ')'
-		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
+		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.log')
 
 	elif args.which in ['model','meta']:
 		print "preparing output directories"
