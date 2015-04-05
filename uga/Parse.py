@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-from __init__ import version
+from __version__ import version
 
 def Parser():
 	parser = argparse.ArgumentParser(add_help=False)
@@ -16,7 +16,7 @@ def Parser():
 	model_parser = subparsers.add_parser('model', help='marker and locus-based statistical modeling', parents=[parser])
 	model_parser.add_argument('--out', 
 						action='store', 
-						help='output file name (basename only: do not include path)')
+						help='base output file name (basename only: do not include path)')
 	model_parser.add_argument('--pheno', 
 						nargs=1, 
 						action='store', 
@@ -113,9 +113,6 @@ def Parser():
 						action='store', 
 						type=float, 
 						help='p-value threshold for boss.fit thresh option (see CRAN R boss package documentation)')
-	model_parser.add_argument('--merge', 
-						action='store_true', 
-						help='merge results from multiple analyses into a single file (adds processing time due to marker alignment algorithm)')
 	model_parser.add_argument('--pedigree', 
 						nargs=1, 
 						action='store', 
@@ -125,19 +122,7 @@ def Parser():
 						help='overwrite existing output files')
 	model_parser.add_argument('-q', '--qsub', 
 						action='store', 
-						help='group ID under which to submit jobs to the queue')
-	model_parser.add_argument('--name', 
-						action='store', 
-						help='job name (only used with --qsub; if not set, --out basename will be used)')
-	model_parser.add_argument('-d', '--directory', 
-						action='store', 
-						default=os.getcwd(), 
-						help='output directory path (default: current working directory)')
-	model_parser.add_argument('--mem', 
-						action='store', 
-						type=int, 
-						default=3, 
-						help='amount of ram memory to request for queued job in GB (default: MEM=3)')
+						help='string indicating all qsub options to be added to the qsub command')
 	model_parser.add_argument('--region-id', 
 						action='store', 
 						help='add region id to results (for use with --region option)')
@@ -163,10 +148,10 @@ def Parser():
 	model_parser_split_group3.add_argument('-j', '--job', 
 						action='store', 
 						type=int, 
-						help='run a particular job number (requires --split-n)')
+						help='run a particular job (use with --region-list and --split/--split-n)')
 	model_parser_split_group3.add_argument('--job-list', 
 						action='store', 
-						help='filename for a list of job numbers (requires --split-n)')
+						help='filename for a list of jobs (use with --region-list and --split/--split-n)')
 	model_parser_split_group4 = model_parser.add_mutually_exclusive_group()
 	model_parser_split_group4.add_argument('--oxford', 
 						action='store', 
@@ -261,19 +246,7 @@ def Parser():
 						help='overwrite existing output files')
 	meta_parser.add_argument('-q', '--qsub', 
 						action='store', 
-						help='group ID under which to submit jobs to the queue')
-	meta_parser.add_argument('--name', 
-						action='store', 
-						help='job name (only used with --qsub; if not set, --out basename will be used')
-	meta_parser.add_argument('-d', '--directory', 
-						action='store', 
-						default=os.getcwd(), 
-						help='output directory path (default: current working directory)')
-	meta_parser.add_argument('--mem', 
-						action='store', 
-						type=int, 
-						default=3, 
-						help='amount of ram memory to request for queued job in GB (default: MEM=3')
+						help='string indicating all qsub options to be added to the qsub command')
 	meta_parser.add_argument('--region-id', 
 						action='store', 
 						help='add region id to results (for use with --region option)')
@@ -299,10 +272,10 @@ def Parser():
 	meta_parser_split_group3.add_argument('-j', '--job', 
 						action='store', 
 						type=int, 
-						help='run a particular job number (requires --split-n)')
+						help='run a particular job (use with --region-list and --split/--split-n)')
 	meta_parser_split_group3.add_argument('--job-list', 
 						action='store', 
-						help='filename for a list of job numbers (requires --split-n)')
+						help='filename for a list of jobs (use with --region-list and --split/--split-n)')
 
 	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype data files', parents=[parser])
 	map_required = map_parser.add_argument_group('required arguments')
@@ -317,15 +290,6 @@ def Parser():
 	map_parser.add_argument('-o', '--overwrite', 
 						action='store_true', 
 						help='overwrite existing out file')
-	map_parser.add_argument('-q', '--qsub', 
-						action='store', 
-						help='group ID under which to submit jobs to the queue')
-	map_parser.add_argument('--name', 
-						action='store', 
-						help='job name (only used with --qsub; if not set, --out basename will be used')
-	map_parser.add_argument('--split-chr', 
-						action='store_true', 
-						help='split jobs into 26 chromosomes')
 	map_split_group1 = map_parser.add_mutually_exclusive_group()
 	map_split_group1.add_argument('--mb', 
 						action='store', 
@@ -356,134 +320,137 @@ def Parser():
 						action='store', 
 						help='vcf 4.1/4.2 format genotype data file')					
 
-	summary_parser = subparsers.add_parser('summary', help='verify, compile, filter and/or plot results files', parents=[parser])
-	summary_required = summary_parser.add_argument_group('required arguments')
-	summary_required.add_argument('--out', 
+	compile_parser = subparsers.add_parser('compile', help='verify and compile plot results files', parents=[parser])
+	compile_required = compile_parser.add_argument_group('required arguments')
+	compile_required.add_argument('--out', 
 						action='store', 
 						required=True, 
-						help='filename of existing results (basename only: do not include path)')
-	summary_parser.add_argument('--out-rename', 
+						help='filename for compiled results (basename only: do not include path)')
+	compile_required.add_argument('--data', 
 						action='store', 
-						help='name for compiled summary files (basename only: do not include path)')
-	summary_parser.add_argument('--complete-string', 
+						required=True, 
+						help='base filename of existing results (basename only: do not include path)')
+	compile_required.add_argument('--region-list', 
 						action='store', 
-						help='string indicating completeness in the result log file (default: COMPLETE_STRING=\'process complete\')')
-	summary_parser.add_argument('--verify', 
+						required=True, 
+						help='filename for a list of tabix format regions')
+	compile_parser.add_argument('-o', '--overwrite', 
 						action='store_true', 
-						help='verify results before compiling')
-	summary_parser.add_argument('--compile', 
+						help='overwrite existing output files')
+	compile_parser_split_group = compile_parser.add_mutually_exclusive_group()
+	compile_parser_split_group.add_argument('-s', '--split', 
 						action='store_true', 
-						help='compile results')
-	summary_parser.add_argument('--qq', 
+						help='split region list into 1 job for each line in file (requires --region-list)')
+	compile_parser_split_group.add_argument('-n', '--split-n', 
+						action='store', 
+						type=int, 
+						help='split region list into SPLIT_N jobs (requires --region-list)')
+	compile_parser_split_group.add_argument('--split-chr', 
+						action='store_true', 
+						help='split jobs into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
+	
+
+	explore_parser = subparsers.add_parser('explore', help='filter and/or plot results files', parents=[parser])
+	explore_required = explore_parser.add_argument_group('required arguments')
+	explore_required.add_argument('--data', 
+						action='store', 
+						required=True, 
+						help='filename for compiled results')
+	explore_required.add_argument('--out', 
+						action='store', 
+						required=True, 
+						help='filename for compiled results (basename only: do not include path)')
+	explore_parser.add_argument('--qq', 
 						action='store_true', 
 						help='print qq plot')
-	summary_parser.add_argument('--manhattan', 
+	explore_parser.add_argument('--manhattan', 
 						action='store_true', 
 						help='print manhattan plot')
-	summary_parser.add_argument('--gc', 
+	explore_parser.add_argument('--color', 
 						action='store_true', 
-						help='print plots with genomic inflation corrected p-values')
-	summary_parser.add_argument('--chr', 
+						help='plot in color')
+	explore_parser.add_argument('--gc', 
+						action='store_true', 
+						help='print manhattan plots with genomic inflation corrected p-values')
+	explore_parser.add_argument('--stats-prefix', 
 						action='store', 
-						help='column name for chromosome (default: CHR=chr)')
-	summary_parser.add_argument('--pos', 
+						help='string indicating prefix for stats to be summarized, not including tag (default: STATS_PREFIX=\'marker\')')
+	explore_parser.add_argument('--top-p', 
 						action='store', 
-						help='column name for position (default: POS=pos)')
-	summary_parser.add_argument('--p', 
+						type=float, 
+						help='threshold for p-values to export to file (ie. TOP_P=1e-4 prints all markers with p value < 1e-4 to a top results file')
+	explore_parser.add_argument('--regional-n', 
 						action='store', 
-						help='column name for p-value (default: P=p)')
-	summary_parser.add_argument('--z', 
+						type=int, 
+						help='print regional plots for top REGIONAL_N markers')
+	explore_parser.add_argument('--tag', 
 						action='store', 
-						help='column name for z-value (default: Z=z)')
-	summary_parser.add_argument('--rsq', 
-						action='store', 
-						help='column name for imputation quality (default: RSQ=rsq)')
-	summary_parser.add_argument('--freq', 
-						action='store', 
-						help='column name for allele frequency (default: FREQ=freq)')
-	summary_parser.add_argument('--hwe', 
-						action='store', 
-						help='column name for Hardy Weinberg p-value (default: HWE=hwe)')
-	summary_parser.add_argument('--meta-dir', 
+						help='string indicating tag for stats to be summarized, if tag exists')
+	explore_parser.add_argument('--unrel', 
+						action='store_true', 
+						help='filter based on unrel columns')	
+	explore_parser.add_argument('--meta-dir', 
 						action='store', 
 						help='column name meta analysis direction (default: META_DIR=meta.dir)')
-	summary_parser.add_argument('--rsq-thresh', 
+	explore_parser.add_argument('--rsq-thresh', 
 						action='store', 
 						type=float, 
-						help='threshold for imputation quality (ie. RSQ_THRESH=0.8 filters out markers with r-squared < 0.8; requires --rsq)')
-	summary_parser.add_argument('--freq-thresh', 
+						help='threshold for imputation quality (ie. RSQ_THRESH=0.8 filters out markers with r-squared < 0.8)')
+	explore_parser.add_argument('--freq-thresh', 
 						action='store', 
 						type=float, 
-						help='threshold for allele frequency (ie. FREQ_THRESH=0.03 filters out markers with MAF < 0.03; requires --freq)')
-	summary_parser.add_argument('--hwe-thresh', 
+						help='threshold for allele frequency (ie. FREQ_THRESH=0.03 filters out markers with MAF < 0.03)')
+	explore_parser.add_argument('--hwe-thresh', 
 						action='store', 
 						type=float, 
-						help='threshold for Hardy Weinberg p-value (ie. HWE_THRESH=1e-6 filters out markers with Hardy Weinberg p-value < 1e-6; requires --hwe)')
-	summary_parser.add_argument('--df-thresh', 
+						help='threshold for Hardy Weinberg p-value (ie. HWE_THRESH=1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
+	explore_parser.add_argument('--callrate-thresh', 
+						action='store', 
+						type=float, 
+						help='threshold for callrate (ie. CALLRATE_THRESH=0.95 filters out markers with callrate < 0.95)')
+	explore_parser.add_argument('--effect-thresh', 
+						action='store', 
+						type=float, 
+						help='threshold for effect estimate (ie. EFFECT_THRESH=1.7 filters out markers with effect estimate > 1.7 and < -1.7)')
+	explore_parser.add_argument('--stderr-thresh', 
+						action='store', 
+						type=float, 
+						help='threshold for standard error (ie. STDERR_THRESH=5 filters out markers with standard error > 5)')
+	explore_parser.add_argument('--or-thresh', 
+						action='store', 
+						type=float, 
+						help='threshold for odds ratio (ie. OR_THRESH=1.3 filters out markers with odds ratio > 1.25 and < 1/1.25 = 0.8)')
+	explore_parser.add_argument('--df-thresh', 
 						action='store', 
 						type=int, 
 						help='threshold for meta analysis degrees of freedom (ie. DF_THRESH=4 filters out markers less than 5 datasets included in the meta analysis; requires --meta-dir)')
-	summary_parser.add_argument('--sig', 
+	explore_parser.add_argument('--sig', 
 						action='store', 
 						type=float, 
 						help='significant digits reported for float type stats (default: SIG=5)')
-	summary_parser.add_argument('--calc-sig', 
-						action='store_true', 
-						help='calculate significance level from number of filtered markers reported (0.05 / n)')
-	summary_parser.add_argument('--ext', 
+	explore_parser.add_argument('--ext', 
 						action='store', 
 						default='tiff', 
 						choices=['tiff','eps','pdf'], 
 						help='file type extension for plot files')
-	summary_parser.add_argument('-o', '--overwrite', 
+	explore_parser.add_argument('-o', '--overwrite', 
 						action='store_true', 
 						help='overwrite existing output files')
-	summary_parser.add_argument('-d', '--directory', 
-						action='store', 
-						default=os.getcwd(), 
-						help='output directory path (default: current working directory)')
-	summary_parser.add_argument('--mem', 
-						action='store', 
-						type=int, 
-						default=3, 
-						help='amount of ram memory to request for queued job in GB (default: MEM=3')
-	summary_parser.add_argument('--f-dist-dfn', 
+	explore_parser.add_argument('--f-dist-dfn', 
 						action='store', 
 						type=int, 
 						help='f-distribution p-value dfn (see python scipy.stats.f.cdf documentation)')
-	summary_parser.add_argument('--f-dist-dfd', 
+	explore_parser.add_argument('--f-dist-dfd', 
 						action='store', 
 						type=int, 
 						help='f-distribution p-value dfd (see python scipy.stats.f.cdf documentation)')
-	summary_parser.add_argument('--name', 
-						action='store', 
-						help='job name (only used with --qsub; if not set, --out basename will be used')
-	summary_parser_split_group1 = summary_parser.add_mutually_exclusive_group()
-	summary_parser_split_group1.add_argument('-r', '--region', 
+	explore_parser_split_group = explore_parser.add_mutually_exclusive_group()
+	explore_parser_split_group.add_argument('-r', '--region', 
 						action='store', 
 						help='region specified in Tabix format (ie. 1:10583-1010582).')
-	summary_parser_split_group1.add_argument('--region-list', 
+	explore_parser_split_group.add_argument('--region-list', 
 						action='store', 
 						help='filename for a list of tabix format regions')
-	summary_parser_split_group2 = summary_parser.add_mutually_exclusive_group()
-	summary_parser_split_group2.add_argument('-s', '--split', 
-						action='store_true', 
-						help='split region list into 1 job for each line in file (requires --region-list)')
-	summary_parser_split_group2.add_argument('-n', '--split-n', 
-						action='store', 
-						type=int, 
-						help='split region list into SPLIT_N jobs (requires --region-list)')
-	summary_parser_split_group2.add_argument('--split-chr', 
-						action='store_true', 
-						help='split jobs into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	summary_parser_split_group3 = summary_parser.add_mutually_exclusive_group()
-	summary_parser_split_group3.add_argument('-j', '--job', 
-						action='store', 
-						type=int, 
-						help='run a particular job number (requires --split-n)')
-	summary_parser_split_group3.add_argument('--job-list', 
-						action='store', 
-						help='filename for a list of job numbers (requires --split-n)')
 
 	return top_parser
 	
@@ -498,12 +465,11 @@ def Parse(top_parser):
 			assert not args.split_chr, top_parser.error("argument --split-chr: not allowed with argument --region")
 		if args.region_list:
 			assert os.path.exists(args.region_list), top_parser.error("argument --region-list: file does not exist")
-			if args.split:
-				assert not args.job, top_parser.error("argument --job: not allowed with argument -s/--split")
-				assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument -s/--split")
-			if args.split_n:
-				if args.job_list:
-					assert os.path.exists(args.job_list), top_parser.error("argument --job-list: file does not exist")
+			#if args.split:
+			#	assert not args.job, top_parser.error("argument --job: not allowed with argument -s/--split")
+			#	assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument -s/--split")
+		if args.job_list:
+			assert os.path.exists(args.job_list), top_parser.error("argument --job-list: file does not exist")
 	if args.which == 'meta' and args.method == 'efftest' and not args.region_list:
 		top_parser.error("missing argument: --region-list required in module meta with --method efftest")
 	if args.which == 'map' and not (args.b or args.kb or args.mb or args.n):
@@ -520,8 +486,8 @@ def Parse(top_parser):
 		top_parser.error("missing argument: --out, --pheno, --fid, --iid, and a model string (ie. --gee-gaussian, etc.) required in module model without --cfg")
 	if args.which == 'model' and not (args.famskat_o is None or args.famskat is None or args.famburden is None) and args.pedigree is None:
 		top_parser.error("missing argument: --pedigree required for gene based modelling of family data")
-	if args.which == 'summary' and ((not args.f_dist_dfn is None and (args.f_dist_dfd is None or args.z is None)) or (not args.f_dist_dfd is None and (args.f_dist_dfn is None or args.z is None))):
-		top_parser.error("missing argument: for f-distribution p-values, --z, --f-dist-dfn and --f-dist-dfd are all required")
+	if args.which == 'compile' and not (args.split or args.split_n or args.split_chr):
+		top_parser.error("missing argument: --split, --split-n, or --split-chr required for compile module")
 	print ''
 	print 'Universal Genome Analyst v' + version
 	print ''

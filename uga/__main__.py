@@ -10,6 +10,7 @@ import os.path
 import numpy as np
 import pandas as pd
 import re
+import glob
 from FileFxns import *
 from SystemFxns import *
 from Parse import Parse,Parser
@@ -29,7 +30,7 @@ def main(args=None):
 		args.out = config['out']
 
 	##### define region list #####
-	if args.which in ['model','meta','summary']:
+	if args.which in ['model','meta','compile']:
 		n = 1
 		dist_mode = 'full'
 		if args.region_list:
@@ -58,102 +59,109 @@ def main(args=None):
 			n = 1
 
 		##### get job list from file #####
-		if args.job_list:
+		if 'job_list' in vars(args).keys() and args.job_list is not None:
 			jobs = []
 			with open(args.job_list) as f:
 				lines = (line.rstrip() for line in f)
 				lines = (line for line in lines if line)
 				for line in lines:
-					jobs.append(int(line))
+					if line.find(':') != -1:
+						jobs.append(region_df['region'][region_df['region'] == line].index[0])
+					else:
+						jobs.append(int(line))
 			print "" + str(len(jobs)) + " jobs read from job list file"
 
 		##### define output directory and update out file name #####
-		directory = os.path.dirname(args.out) if not args.directory else args.directory
-		directory = directory + '/' if args.directory else directory
+		directory = os.getcwd() + '/'
 		if n > 1:
 			if dist_mode == 'split-list':
 				directory = directory + 'chr[CHR]/'
 			elif dist_mode == 'split-list-n':
 				directory = directory + 'list[LIST]/'
-		if 'out' in vars(args).keys():
+		if 'data' in vars(args).keys() and args.which == 'compile':
+			args.data = directory + args.data
+		if 'out' in vars(args).keys() and args.which in ['model','meta']:
 			args.out = directory + args.out
-	
+
 		##### generate out file names for split jobs or chr/region specific jobs #####
 		out_files = {}
 		if dist_mode in ['chr','region','split-list','split-list-n']:
-			out_files = GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
+			if args.which == "compile":
+				out_files = GenerateSubFiles(region_df = region_df, f = args.data, dist_mode = dist_mode, n = n)
+			else:
+				out_files = GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
 
 	##### get user home directory #####
-	#home_dir = os.path.expanduser('~')
-	home_dir = os.path.dirname(sys.executable)
+	home_dir = os.path.expanduser("~")
 
-	if args.which == 'summary':
-		summary_out = os.path.basename(args.out) if not args.out_rename else args.out_rename
-		if args.verify and dist_mode in ['split-list', 'split-list-n']:
-			complete_string = 'process complete' if not args.complete_string else args.complete_string
-			print "scanning for previous check results files"
-			if os.path.exists(summary_out + '.verify' + '.files.incomplete'):
-				if args.overwrite:
-					os.remove(summary_out + '.verify' + '.files.incomplete')
+	if args.which == 'map':
+		cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
+		for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr']:
+			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+				if type(vars(args)[x]) is str:
+					cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 				else:
-					print Error("file " + summary_out + '.verify' + ".files.incomplete already exists (use --overwrite flag to replace the existing file)")
-					sys.exit()
-			if os.path.exists(summary_out + '.verify' + '.files.missing'):
-				if args.overwrite:
-					os.remove(summary_out + '.verify' + '.files.missing')
+					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+		cmd = cmd + ')'
+		if args.overwrite:
+			for f in [args.out, args.out + '.map.log']:
+				try:
+					os.remove(f)
+				except OSError:
+					continue
+		else:
+			for f in [args.out, args.out + '.map.log']:
+				if os.path.exists(f):
+					print Error("1 or more output files already exists (use --overwrite flag to replace)")
+					return
+		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
+
+	elif args.which == 'compile':
+		if len(out_files.keys()) > 1:
+			existing_files = glob.glob(args.out + '*')
+			if len(existing_files) > 0:
+				if not args.overwrite:
+					print Error("1 or more output files or files with similar basename already exists (use --overwrite flag to replace)")
+					return
 				else:
-					print Error("file " + summary_out + '.verify' + ".files.missing already exists (use --overwrite flag to replace the existing file)")
-					sys.exit()
-			if os.path.exists(summary_out + '.verify' + '.regions.rerun'):
-				if args.overwrite:
-					os.remove(summary_out + '.verify' + '.regions.rerun')
-				else:
-					print Error("file " + summary_out + '.verify' + ".regions.rerun already exists (use --overwrite flag to replace the existing file)")
-					sys.exit()
-		if args.compile and dist_mode in ['split-list', 'split-list-n'] and len(out_files.keys()) > 1:
-			print "scanning for previous compiled results files"
-			if os.path.exists(summary_out + '.gz'):
-				if args.overwrite:
-					os.remove(summary_out + '.gz')
-				else:
-					print Error("file " + summary_out + ".gz already exists (use --overwrite flag to replace the existing file)")
-					sys.exit()
-			if os.path.exists(summary_out + '.gz.tbi'):
-				if args.overwrite:
-					os.remove(summary_out + '.gz.tbi')
-				else:
-					print Error("file " + summary_out + ".gz.tbi already exists (use --overwrite flag to replace the existing file)")
-					sys.exit()
-		if args.qq or args.manhattan:
-			if args.overwrite:
-				RemoveExistingFiles(summary_out, 'plot')
-			else:
-				CheckExistingFiles(summary_out, 'plot')
-		if dist_mode in ['split-list', 'split-list-n'] and args.verify:
-			if not CheckResults(file_dict=out_files, out=summary_out + '.verify', complete_string=complete_string, overwrite=args.overwrite):
+					for f in existing_files:
+						try:
+							os.remove(f)
+						except OSError:
+							continue		
+			if not CheckResults(file_dict=out_files, out=args.out + '.verify', overwrite=args.overwrite):
 				print Error("results could not be verified")
-				sys.exit()
-		if dist_mode in ['split-list', 'split-list-n'] and len(out_files.keys()) > 1 and args.compile:
-			if not CompileResults(out_files, summary_out, args.overwrite):
+				return
+			if not CompileResults(out_files, args.out, args.overwrite):
 				print Error("results could not be compiled")
-				sys.exit()
-		if args.qq or args.manhattan:
-			cmd = 'Plot(data="' + summary_out + '.gz",out="' + summary_out + '"'
-			for x in ['ext','qq','manhattan','gc','chr','pos','p','z','rsq','freq','hwe','meta_dir','rsq_thresh','freq_thresh','hwe_thresh','df_thresh','sig','calc_sig','f_dist_dfn','f_dist_dfd']:
-				if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-					if type(vars(args)[x]) is str:
-						cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
-					else:
-						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-			cmd = cmd + ')'
-			Interactive(home_dir + '/uga_wrapper.py', cmd, summary_out + '.' + args.which + '.log')
+				return
+		else:
+			print Error("no split results to compile")
+			return
+
+	elif args.which == 'explore':
+		existing_files = glob.glob(args.out + '*')
+		if len(existing_files) > 0:
+			if not args.overwrite:
+				print Error("1 or more output files already exists (use --overwrite flag to replace)")
+				return
+			else:	
+				for f in existing_files:
+					try:
+						os.remove(f)
+					except OSError:
+						continue
+		cmd = 'Explore(data="' + args.data + '",out="' + args.out + '"'
+		for x in ['qq','manhattan','color','ext','sig','gc','top_p','regional_n','stats_prefix','tag','unrel','f_dist_dfn','f_dist_dfd','callrate_thresh','rsq_thresh','freq_thresh','hwe_thresh','effect_thresh','stderr_thresh','or_thresh','df_thresh']:
+			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+				if type(vars(args)[x]) is str:
+					cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
+				else:
+					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
+		cmd = cmd + ')'
+		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.log')
+
 	elif args.which in ['model','meta']:
-		if not os.path.exists(args.directory):
-			try:
-				os.mkdir(args.directory)
-			except OSError:
-				print Error("unable to create output directory")
-				sys.exit()
 		print "preparing output directories"
 		if dist_mode == 'split-list' and n > 1:
 			PrepareChrDirs(region_df['region'], directory)
@@ -168,7 +176,6 @@ def main(args=None):
 			joblist.extend(jobs)
 		else:
 			joblist.extend(range(n))
-		name = os.path.basename(args.out) if not args.name else args.name
 		for i in joblist:
 			if dist_mode in ['split-list', 'region']:
 				out = out_files['%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))]
@@ -185,32 +192,33 @@ def main(args=None):
 			else:
 				out = args.out
 			if args.overwrite:
-				RemoveExistingFiles(out, args.which)
-				if not args.cfg is None and args.which == 'model':
-					for k in config['data_info'].keys():
-						RemoveExistingFiles(out + '.' + k, args.which)
+				for f in [out, out + '.' + args.which + '.log',out + '.gz', out + '.gz.tbi']:
+					try:
+						os.remove(f)
+					except OSError:
+						continue
 			else:
-				CheckExistingFiles(out, args.which)
-				if not args.cfg is None and args.which == 'model':
-					for k in config['data_info'].keys():
-						CheckExistingFiles(out + '.' + k, args.which)
+				for f in [out, out + '.log',out + '.gz', out + '.gz.tbi']:
+					if os.path.exists(f):
+						print Error("1 or more output files already exists (use --overwrite flag to replace)")
+						return
 			if args.which == 'model':
 				if not args.cfg is None:
 					config['out'] = out
 					cmd = args.which.capitalize() + '(cfg=' + str(config)
-					for x in ['region_list', 'region', 'region_id', 'merge']:
+					for x in ['region_list', 'region', 'region_id']:
 						if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 							if type(vars(args)[x]) is str:
 								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 							else:
 								cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-					cmd = cmd + ',mem=' + str(args.mem) + ')'
+					cmd = cmd + ')'
 				else:
 					cmd = args.which.capitalize() + '(out=\'' + out + '\''
 					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','fid','iid','focus','sig','region_list','gee_gaussian','gee_binomial',
 								'geeboss_gaussian','geeboss_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','famskat_o','skat_o_gaussian','skat_o_binomial',
 								'famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial',
-								'region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','merge','geeboss_thresh',
+								'region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','geeboss_thresh',
 								'pedigree','pheno_sep']:
 						if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
 							if x in ['oxford','dos1','dos2','plink','vcf']:
@@ -222,7 +230,7 @@ def main(args=None):
 								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
 							else:
 								cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-					cmd = cmd + ',mem=' + str(args.mem) + ')'
+					cmd = cmd + ')'
 			elif args.which == 'meta':
 				config['out'] = out
 				cmd = args.which.capitalize() + '(cfg=' + str(config)
@@ -234,49 +242,13 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ')'
 			if args.qsub:
-				Qsub('qsub -P ' + args.qsub + ' -l mem_free=' + str(args.mem) + 'g -N ' + name + ' -o ' + out + '.' + args.which + '.log ' + home_dir + '/uga_wrapper.py \"' + cmd + '\"')
+				Qsub('qsub ' + args.qsub + ' -o ' + out + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
 			else:
-				Interactive(home_dir + '/uga_wrapper.py', cmd, out + '.' + args.which + '.log')
-	elif args.which == 'map':
-		if args.split_chr:
-			for i in range(26):
-				cmd = args.which.capitalize() + '(out=\'' + args.out + '.chr' + str(i+1) + '\',chr=' + str(i+1)
-				for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n']:
-					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-						if type(vars(args)[x]) is str:
-							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
-						else:
-							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-				cmd = cmd + ')'
-				if args.overwrite:
-					RemoveExistingFiles(args.out + '.chr' + str(i+1), args.which)
-				else:
-					CheckExistingFiles(args.out + '.chr' + str(i+1), args.which)
-				name = args.which + '.' + os.path.basename(args.out + '.chr' + str(i+1)) if not args.name else args.name
-				#if args.qsub:
-				#	Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.chr' + str(i+1) + '.log ' + home_dir + '/.uga_wrapper.py --internal --cmd \"' + cmd + '\"')
-				#else:
-				Interactive(home_dir + '/uga_wrapper.py', cmd, out + '.' + args.which + '.log')
-		else:
-			cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
-			for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr']:
-				if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-					if type(vars(args)[x]) is str:
-						cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
-					else:
-						cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-			cmd = cmd + ')'
-			if args.overwrite:
-				RemoveExistingFiles(args.out, args.which)
-			else:
-				CheckExistingFiles(args.out, args.which)
-			name = args.which + '.' + os.path.basename(args.out) if not args.name else args.name
-			#if args.qsub:
-			#	Qsub('qsub -P ' + args.qsub + ' -N ' + name + ' -o ' + args.out + '.log ' + home_dir + '/.uga_wrapper.py --internal --cmd \"' + cmd + '\"')
-			#else:
-			Interactive(home_dir + '/uga_wrapper.py', cmd, out + '.' + args.which + '.log')
+				Interactive(home_dir + '/.uga_wrapper.py', cmd, out + '.' + args.which + '.log')
+
 	else:
 		print Error(args.which + " not a module")
+
 	print ''
 
 if __name__ == "__main__":

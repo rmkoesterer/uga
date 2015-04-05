@@ -3,6 +3,7 @@ import pandas as pd
 import re
 from SystemFxns import Error
 from multi_key_dict import multi_key_dict
+from itertools import islice,takewhile,ifilter
 from plinkio import plinkfile
 import pysam
 import vcf as VCF
@@ -10,11 +11,17 @@ import tabix
 import gzip
 	
 def LoadPlink(data):
-	plink_bed_it = plinkfile.open(data)
-	plink_sample_it = plink_bed_it.get_samples()
-	plink_locus_it = plink_bed_it.get_loci()
-	sample_ids = [x.iid for x in plink_sample_it]
-	return plink_bed_it, plink_locus_it, plink_sample_it, sample_ids
+	plink_handle = plinkfile.open(data)
+	plink_locus_it = plink_handle.get_loci()
+	plink_sample_it = plink_handle.get_samples()
+	sample_ids = [x.iid for x in plink_handle.samples]
+	return plink_handle, plink_locus_it, plink_sample_it, sample_ids
+
+def countPlinkRegion(iter, chr, start, end):
+	k = 0
+	for record in ifilter(lambda c: c.chromosome == chr and c.bp_position >= start and c.bp_position <= end, iter):
+		k += 1
+	return k
 
 def LoadVcf(data):
 	tb = tabix.open(data)
@@ -33,6 +40,16 @@ def LoadDos(data, samples):
 		for line in lines:
 			sample_ids.append(line)
 	return tb, sample_ids
+
+def countNonPlinkRegion(iter, type, start, end):
+	k = 0
+	if type in ['vcf','dos2']:
+		for record in ifilter(lambda c: int(c[1]) >= start and int(c[1]) <= end, iter):
+			k += 1
+	else:
+		for record in ifilter(lambda c: int(c[2]) >= start and int(c[2]) <= end, iter):
+			k += 1
+	return k
 
 def Complement(x):
 	if x != "NA":
@@ -214,6 +231,7 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,p
 	dependent = re.split('\\~',model)[0]
 	independent = re.split('\\~',model)[1]
 	vars_df = pd.read_table(pheno,sep=pheno_sep,dtype='str')
+	vars_df[vars_df == "."] = None
 	for x in [a for a in list(set(re.split('Surv\(|,|\)|~|\+|cluster\(|\(1\||\*|factor\(',model))) if a != '']:
 		mtype = ''
 		if dependent.find(x) != -1:
@@ -222,8 +240,8 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,p
 			if not pre[-1].isalpha() and not post[0].isalpha():
 				mtype = 'dependent'
 		if independent.find(x) != -1:
-			pre = independent.split(x)[0] if independent.split(x)[0] != '' else '.'
-			post = independent.split(x)[1] if independent.split(x)[1] != '' else '.'
+			pre = independent.replace('factor','').split(x)[0] if independent.replace('factor','').split(x)[0] != '' else '.'
+			post = independent.replace('factor','').split(x)[1] if independent.replace('factor','').split(x)[1] != '' else '.'
 			if not pre[-1].isalpha() and not post[0].isalpha():
 				if mtype == '':
 					mtype = 'independent'
@@ -241,7 +259,6 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,p
 				model_vars_dict[x] = {'class': 'cluster', 'type': mtype}
 			else:
 				model_vars_dict[x] = {'class': 'numeric', 'type': mtype}
-
 	for x in model_vars_dict.keys():
 		if x in list(vars_df.columns):
 			print "   %s variable %s found" % (model_vars_dict[x]['type'], x)

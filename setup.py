@@ -10,7 +10,7 @@ with open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'README.rst')
 
 setup(
     name='uga',
-	description='Universal Genome Analyst: A command line tool for analyzing genetic data',
+	description='Universal Genome Analyst (uga) is a tool designed to assist biomedical researchers in complex genomic data analysis',
 	long_description=long_description, 
     version=version,
     url='',
@@ -29,7 +29,6 @@ setup(
 						'plinkio', 
 						'pysam', 
 						'PyVCF'], 
-	scripts=['bin/uga_wrapper.py'], 
     entry_points={
        'console_scripts': [
 			'uga = uga.__main__:main',
