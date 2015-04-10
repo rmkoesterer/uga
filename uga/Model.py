@@ -397,7 +397,7 @@ def Model(out = None,
 					marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, no_mono=True, miss=cfg['miss'], freq=cfg['freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
 				else:
 					marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, miss=cfg['miss'], freq=cfg['freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
-				marker_info['samples'] = str(cfg['data_info'][k]['samples']) + '/' + str(cfg['data_info'][k]['samples_unique']) + '/' + str(cfg['data_info'][k]['clusters']) + '/' + str(cfg['data_info'][k]['cases']) + '/' + str(cfg['data_info'][k]['ctrls'])
+				marker_info['samples'] = str(cfg['data_info'][k]['samples']) + '/' + str(cfg['data_info'][k]['samples_unique']) + '/' + str(cfg['data_info'][k]['clusters']) + '/' + str(cfg['data_info'][k]['cases']) + '/' + str(cfg['data_info'][k]['ctrls']) + '/' + str(cfg['data_info'][k]['nmale']) + '/' + str(cfg['data_info'][k]['nfemale'])
 
 				##### CONVERT ALL COLUMNS TO APPROPRIATE FORMAT FOR ANALYSIS #####
 				markercols = [col for col in model_df.columns if 'chr' in col]

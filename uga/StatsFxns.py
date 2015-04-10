@@ -27,8 +27,6 @@ def GenerateFilterCode(marker_info, no_mono=True, miss = None, freq = None, rsq 
 		filter += 1000
 	if (not freq is None and not math.isnan(marker_info['freq']) and ((float(marker_info['freq']) < float(freq) or float(marker_info['freq']) > 1-float(freq) or float(marker_info['freq']) == 0 or float(marker_info['freq']) == 1) and (float(marker_info['freq.unrel']) < float(freq) or float(marker_info['freq.unrel']) > 1-float(freq) or float(marker_info['freq.unrel']) == 0 or float(marker_info['freq.unrel']) == 1))) or (math.isnan(marker_info['freq'])):
 		filter += 100
-	print marker_info
-	print rsq
 	if not rsq is None and not math.isnan(marker_info['rsq']) and (float(marker_info['rsq']) < float(rsq) and float(marker_info['rsq.unrel']) < float(rsq)):
 		filter += 10
 	if not hwe is None and not math.isnan(marker_info['hwe']) and (float(marker_info['hwe']) < float(hwe) and float(marker_info['hwe.unrel']) < float(hwe)):

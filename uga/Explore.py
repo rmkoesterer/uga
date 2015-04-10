@@ -47,6 +47,7 @@ def Explore(data,
 
 	if qq or manhattan:
 		import rpy2.robjects.lib.ggplot2 as ggplot2
+		rgrid = importr('grid')
 		grdevices = importr('grDevices')
 
 	fcols = ['#chr','pos','a1','a2','marker','callrate','freq']
@@ -123,13 +124,13 @@ def Explore(data,
 		pvals = pvals[pvals[callrate] >= callrate_thresh]
 	if effect_thresh:
 		print "filtering data for effect estimate"
-		pvals = pvals[pvals[effect] <= effect_thresh and pvals[effect] >= -1 * effect_thresh]
+		pvals = pvals[(pvals[effect] <= effect_thresh) & (pvals[effect] >= -1 * effect_thresh)]
 	if stderr_thresh:
 		print "filtering data for standard error"
 		pvals = pvals[pvals[stderr] <= stderr_thresh]
 	if or_thresh:
 		print "filtering data for odds ratio"
-		pvals = pvals[pvals[oddsratio] <= or_thresh and pvals[oddsratio] >= 1 / or_thresh]
+		pvals = pvals[(pvals[oddsratio] <= or_thresh) & (pvals[oddsratio] >= 1 / or_thresh)]
 	def count_df(x):
 		return len(re.findall('\\+|-',x))
 	if df_thresh:
@@ -144,18 +145,53 @@ def Explore(data,
 		out = out + '.fdist'
 		pvals[p]=1-scipy.f.cdf(pvals[z] ** 2,dfn=int(f_dist_dfn),dfd=int(f_dist_dfd))
 
-	print "genomic inflation = ",
-	l=np.median(scipy.chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/0.455
-	print str(l)
+	l=np.median(scipy.chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+	print "genomic inflation (all markers) = " + str(l)
+	lA='NA'
+	lB='NA'
+	lC='NA'
+	lD='NA'
+	lE='NA'
+	lE_n=len(pvals[p][(pvals['freq'] < 0.01) | (pvals['freq'] > 0.99)])
+	lD_n=len(pvals[p][((pvals['freq'] >= 0.01) & (pvals['freq'] < 0.03)) | ((pvals['freq'] <= 0.99) & (pvals['freq'] > 0.97))])
+	lC_n=len(pvals[p][((pvals['freq'] >= 0.03) & (pvals['freq'] < 0.05)) | ((pvals['freq'] <= 0.97) & (pvals['freq'] > 0.95))])
+	lB_n=len(pvals[p][((pvals['freq'] >= 0.05) & (pvals['freq'] < 0.1)) | ((pvals['freq'] <= 0.95) & (pvals['freq'] > 0.9))])
+	lA_n=len(pvals[p][(pvals['freq'] >= 0.1) & (pvals['freq'] <= 0.9)])
+	if lE_n > 0:
+		lE=np.median(scipy.chi2.ppf([1-x for x in pvals[p][(pvals['freq'] < 0.01) | (pvals['freq'] > 0.99)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+	if lD_n > 0:
+		lD=np.median(scipy.chi2.ppf([1-x for x in pvals[p][((pvals['freq'] >= 0.01) & (pvals['freq'] < 0.03)) | ((pvals['freq'] <= 0.99) & (pvals['freq'] > 0.97))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+	if lC_n > 0:
+		lC=np.median(scipy.chi2.ppf([1-x for x in pvals[p][((pvals['freq'] >= 0.03) & (pvals['freq'] < 0.05)) | ((pvals['freq'] <= 0.97) & (pvals['freq'] > 0.95))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+	if lB_n > 0:
+		lB=np.median(scipy.chi2.ppf([1-x for x in pvals[p][((pvals['freq'] >= 0.05) & (pvals['freq'] < 0.1)) | ((pvals['freq'] <= 0.95) & (pvals['freq'] > 0.9))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+	if lA_n > 0:
+		lA=np.median(scipy.chi2.ppf([1-x for x in pvals[p][(pvals['freq'] >= 0.1) & (pvals['freq'] <= 0.9)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+	print "genomic inflation (MAF >= 10%, n=" + str(lA_n) + ") = " + str(lA)
+	print "genomic inflation (5% <= MAF < 10%, n=" + str(lB_n) + ") = " + str(lB)
+	print "genomic inflation (3% <= MAF < 5%, n=" + str(lC_n) + ") = " + str(lC)
+	print "genomic inflation (1% <= MAF < 3%, n=" + str(lD_n) + ") = " + str(lD)
+	print "genomic inflation (MAF < 1%, n=" + str(lE_n) + ") = " + str(lE)
 
 	if qq:
 		a = -1 * np.log10(ro.r('ppoints(' + str(len(pvals.index)) + ')'))
 		a.sort()
-		b = -1 * np.log10(pvals[p])
-		b.sort()
 		
-		df = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(b)})
-		dftext = ro.DataFrame({'x': a[-1] * 0.10, 'y': b.irow(-1) * 0.80, 'lab': 'lambda==' + str(l)})
+		pvals['logp'] = -1 * np.log10(pvals[p])
+		pvals.sort(columns=['logp'], inplace=True)
+		pvals['MAF'] = 'E'
+		pvals['MAF'][(pvals['freq'] >= 0.01) & (pvals['freq'] <= 0.99)] = 'D'
+		pvals['MAF'][(pvals['freq'] >= 0.03) & (pvals['freq'] <= 0.97)] = 'C'
+		pvals['MAF'][(pvals['freq'] >= 0.05) & (pvals['freq'] <= 0.95)] = 'B'
+		pvals['MAF'][(pvals['freq'] >= 0.1) & (pvals['freq'] <= 0.9)] = 'A'
+
+		ci_upper = -1 * np.log10(scipy.beta.ppf(0.95, range(1,len(pvals[p]) + 1), range(len(pvals[p]),0,-1)))
+		ci_upper.sort()
+		ci_lower = -1 * np.log10(scipy.beta.ppf(0.05, range(1,len(pvals[p]) + 1), range(len(pvals[p]),0,-1)))
+		ci_lower.sort()
+
+		df = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(pvals['logp']), 'MAF': ro.StrVector(pvals['MAF']), 'ci_upper': ro.FloatVector(ci_upper), 'ci_lower': ro.FloatVector(ci_lower)})
+		dftext = ro.DataFrame({'x': a[-1] * 0.80, 'y': 0, 'lab': 'lambda %~~% ' + str(round(l,3))})
 
 		print "generating qq plot"
 		if ext == 'tiff':
@@ -167,13 +203,14 @@ def Explore(data,
 		gp = ggplot2.ggplot(df)
 		pp = gp + \
 				ggplot2.aes_string(x='a',y='b') + \
-				ggplot2.geom_point(size=1.5) + \
-				ggplot2.geom_abline(intercept=0, linetype=2)	 + \
+				ggplot2.geom_ribbon(ggplot2.aes_string(x='a',ymin='ci_lower',ymax='ci_upper'), data=df, alpha=0.15, fill='black') + \
+				ggplot2.geom_point(ggplot2.aes_string(color='MAF'), size=2) + \
+				ggplot2.scale_colour_manual(values=ro.r('c("E"="#a8ddb5", "D"="#7bccc4", "C"="#4eb3d3", "B"="#2b8cbe", "A"="#08589e")'), labels=ro.r('c("E"="MAF < 1%","D"="1% <= MAF < 3%","C"="3% <= MAF < 5%","B"="5% <= MAF < 10%","A"="MAF >= 10%")')) + \
+				ggplot2.geom_abline(intercept=0, slope=1, alpha=0.5) + \
 				ggplot2.scale_x_continuous(ro.r('expression(Expected~~-log[10](italic(p)))')) + \
 				ggplot2.scale_y_continuous(ro.r('expression(Observed~~-log[10](italic(p)))')) + \
 				ggplot2.theme_bw(base_size = 8) + \
-				ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext, colour="black", size = 2, parse=ro.r('TRUE')) + \
-				ggplot2.theme(**{'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=8), 'axis.text': ggplot2.element_text(size=6)})
+				ggplot2.theme(**{'legend.title': ggplot2.element_blank(), 'legend.key.height': ro.r.unit(0.1,"in"), 'legend.text': ggplot2.element_text(size=5), 'legend.key': ggplot2.element_blank(), 'legend.justification': ro.r('c(0,1)'), 'legend.position': ro.r('c(0,1)'), 'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=8), 'axis.text': ggplot2.element_text(size=6)})
 		pp.plot()
 		grdevices.dev_off()
 	
