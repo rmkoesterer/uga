@@ -269,6 +269,7 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 
 def CalcGEEBoss(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, corstr = 'exchangeable', thresh = 1e-5):
 	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
+	fxn = ro.r.gaussian() if fxn = 'gaussian' else ro.r.binomial()
 	interact = ro.r('NULL')
 	notes = 'NA'
 	status = 0
@@ -284,19 +285,15 @@ def CalcGEEBoss(marker_info, model_df, model_vars_dict, model, iid, fid, method,
 		if marker_info['filter'] == 0:
 			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,'id']))].dropna(), strings_as_factors=False)
 			rmodel_df = ro.r.subset(rmodel_df,rmodel_df.rx('marker').ro != "NA")
-			
 			n = len(py2r.convert_robj(ro.r.unique(rmodel_df.rx(iid))))
 			for x in model_vars_dict.keys():
 				if model_vars_dict[x]['class'] == 'factor':
 					rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])
 					rmodel_df=ro.r.cbind(rmodel_df,ugaConvert=ro.r('factor')(rmodel_df.rx2(x + '_ugaFactored')))
 					rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
-
-
-			##### implement the interaction option #####
 			for col in rmodel_df:
 				col.rclass = None
-			bs=rtry(boss.boss_set(ro.r.formula(model.replace('+marker','').replace('marker+','')),id=rmodel_df.rx2('id'),type="gee",E_name=interact,family=ro.r.gaussian(),corstr=corstr,data=rmodel_df),silent=ro.r('TRUE'))
+			bs=rtry(boss.boss_set(ro.r.formula(model.replace('+marker','').replace('marker+','')),id=rmodel_df.rx2('id'),type="gee",E_name=interact,family=fxn,corstr=corstr,data=rmodel_df),silent=ro.r('TRUE'))
 			if 'try-error' in rclass(bs):
 				status = -4
 			else:
@@ -327,34 +324,27 @@ def CalcGEEBoss(marker_info, model_df, model_vars_dict, model, iid, fid, method,
 			marker_info['inter.z'] = '%.5g' % (py2r.convert_robj(model_out.rx2('beta.inter'))[0] / math.sqrt(py2r.convert_robj(model_out.rx2('v.inter'))[0])) if py2r.convert_robj(model_out.rx2('beta.inter'))[0] and py2r.convert_robj(model_out.rx2('v.inter'))[0] and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] < -709.782712893384 else 'NA'
 			marker_info['inter.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(py2r.convert_robj(model_out.rx2('beta.inter'))[0] / math.sqrt(py2r.convert_robj(model_out.rx2('v.inter'))[0])))) if py2r.convert_robj(model_out.rx2('beta.inter'))[0] and py2r.convert_robj(model_out.rx2('v.inter'))[0] and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] < -709.782712893384 else 'NA'
 			marker_info['inter.sattdf.p'] = '%.2e' % (2 * t.sf(abs(py2r.convert_robj(model_out.rx2('beta.inter'))[0] / math.sqrt(py2r.convert_robj(model_out.rx2('v.inter'))[0])),py2r.convert_robj(model_out.rx2('df.satt'))[0])) if py2r.convert_robj(model_out.rx2('df.satt')[0]) and py2r.convert_robj(model_out.rx2('beta.inter'))[0] and py2r.convert_robj(model_out.rx2('v.inter'))[0] and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] < -709.782712893384 else 'NA'
-		print marker_info
-		
-	"""
-		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
-		for x in focus:
-			xt = x.replace('*',':')
-			if xt in coef.index.values:
-				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
-				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std.err'])
-				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
-				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-				marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-			else:
-				marker_info[x + '.effect'] = float('NaN')
-				marker_info[x + '.stderr'] = float('NaN')
-				marker_info[x + '.or'] = float('NaN')
-				marker_info[x + '.z'] = float('NaN')
-				marker_info[x + '.p'] = float('NaN')
 	else:
-		for x in focus:
-			marker_info[x + '.effect'] = float('NaN')
-			marker_info[x + '.stderr'] = float('NaN')
-			marker_info[x + '.or'] = float('NaN')
-			marker_info[x + '.z'] = float('NaN')
-			marker_info[x + '.p'] = float('NaN')
+		marker_info['marker.effect'] = 'NA'
+		marker_info['marker.v'] = 'NA'
+		if interact != ro.r('NULL'):
+			marker_info['inter.effect'] = 'NA'
+			marker_info['inter.v'] = 'NA'
+			marker_info['inter.cov'] = 'NA'
+		marker_info['satt.df'] = 'NA'
+		marker_info['marker.stderr'] = 'NA'
+		marker_info['marker.or'] = 'NA'
+		marker_info['marker.z'] = 'NA'
+		marker_info['marker.p'] = 'NA'
+		marker_info['marker.sattdf.p'] = 'NA'
+		if interact != ro.r('NULL'):
+			marker_info['inter.stderr'] = 'NA'
+			marker_info['inter.or'] = 'NA'
+			marker_info['inter.z'] = 'NA'
+			marker_info['inter.p'] = 'NA'
+			marker_info['inter.sattdf.p'] = 'NA'
 	marker_info['n'] = n
 	marker_info['status'] = status
-	"""
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
 	return marker_info
 
