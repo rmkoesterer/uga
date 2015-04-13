@@ -6,7 +6,7 @@ from rpy2.robjects.packages import importr
 from rpy2.rinterface import RRuntimeError
 import pandas.rpy.common as py2r
 import math
-from scipy.stats import norm
+from scipy.stats import norm,t
 
 geepack = importr('geepack')
 lme4 = importr('lme4')
@@ -269,39 +269,67 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 
 def CalcGEEBoss(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, corstr = 'exchangeable', thresh = 1e-5):
 	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
+	interact = ro.r('NULL')
 	notes = 'NA'
 	status = 0
 	n = 0
 	valid = False
 	if model.find('*') != -1:
+		interact_vars = [x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].split('*')
+		interact = [x for x in interact_vars if x != 'marker'][0]
 		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[1]]
 	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().stack().value_counts()[1] != model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().shape[0]):
 		status = -2
 	else:
 		if marker_info['filter'] == 0:
-			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(), strings_as_factors=False)
+			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,'id']))].dropna(), strings_as_factors=False)
 			rmodel_df = ro.r.subset(rmodel_df,rmodel_df.rx('marker').ro != "NA")
+			
 			n = len(py2r.convert_robj(ro.r.unique(rmodel_df.rx(iid))))
 			for x in model_vars_dict.keys():
 				if model_vars_dict[x]['class'] == 'factor':
 					rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])
 					rmodel_df=ro.r.cbind(rmodel_df,ugaConvert=ro.r('factor')(rmodel_df.rx2(x + '_ugaFactored')))
 					rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
-			boss_set=rtry(boss.boss_set(formula=ro.r(model.replace('+marker','').replace('marker+','')),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr=corstr),silent=ro.r('TRUE'))
-			if 'try-error' in rclass(boss_set):
+
+
+			##### implement the interaction option #####
+			for col in rmodel_df:
+				col.rclass = None
+			bs=rtry(boss.boss_set(ro.r.formula(model.replace('+marker','').replace('marker+','')),id=rmodel_df.rx2('id'),type="gee",E_name=interact,family=ro.r.gaussian(),corstr=corstr,data=rmodel_df),silent=ro.r('TRUE'))
+			if 'try-error' in rclass(bs):
 				status = -4
 			else:
-				model_out=rtry(boss.boss_fit(rmodel_df.rx2('marker'),boss_set,thresh=thresh),silent=ro.r('TRUE'))
-				print model_out
+				model_out=rtry(boss.boss_fit(rmodel_df.rx2('marker'),bs,thresh=thresh,sattdf=ro.r('TRUE')),silent=ro.r('TRUE'))
 				if 'try-error' in rclass(model_out):
 					status = -5
 				else:
-					status = 1 if model_out.rx2('error')[0] != 1 else -3
-					valid = True if model_out.rx2('error')[0] != 1 else False
+					status = 1
+					valid = True
 		else:
 			status = -1
-	"""
 	if valid:
+		marker_info['marker.effect'] = '%.5g' % (py2r.convert_robj(model_out.rx2('beta.main'))[0]) if py2r.convert_robj(model_out.rx2('beta.main')[0]) else 'NA'
+		marker_info['marker.v'] = '%.5g' % (py2r.convert_robj(model_out.rx2('v.main'))[0]) if py2r.convert_robj(model_out.rx2('v.main')[0]) else 'NA'
+		if interact != ro.r('NULL'):
+			marker_info['inter.effect'] = '%.5g' % (py2r.convert_robj(model_out.rx2('beta.inter'))[0]) if py2r.convert_robj(model_out.rx2('beta.inter')[0]) else 'NA'
+			marker_info['inter.v'] = '%.5g' % (py2r.convert_robj(model_out.rx2('v.inter'))[0]) if py2r.convert_robj(model_out.rx2('v.inter')[0]) else 'NA'
+			marker_info['inter.cov'] = '%.5g' % (py2r.convert_robj(model_out.rx2('cov.inter'))[0]) if py2r.convert_robj(model_out.rx2('cov.inter')[0]) else 'NA'
+		marker_info['satt.df'] = '%.5g' % (py2r.convert_robj(model_out.rx2('df.satt'))[0]) if py2r.convert_robj(model_out.rx2('df.satt')[0]) else 'NA'
+		marker_info['marker.stderr'] = '%.5g' % (math.sqrt(py2r.convert_robj(model_out.rx2('v.main'))[0])) if py2r.convert_robj(model_out.rx2('v.main')[0]) else 'NA'
+		marker_info['marker.or'] = '%.5g' % (math.exp(py2r.convert_robj(model_out.rx2('beta.main'))[0])) if py2r.convert_robj(model_out.rx2('beta.main')[0]) and not py2r.convert_robj(model_out.rx2('beta.main')[0]) > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.main')[0]) < -709.782712893384 and fxn == 'binomial' else 'NA'
+		marker_info['marker.z'] = '%.5g' % (py2r.convert_robj(model_out.rx2('beta.main'))[0] / math.sqrt(py2r.convert_robj(model_out.rx2('v.main'))[0])) if py2r.convert_robj(model_out.rx2('beta.main'))[0] and py2r.convert_robj(model_out.rx2('v.main'))[0] and not py2r.convert_robj(model_out.rx2('beta.main'))[0] > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.main'))[0] < -709.782712893384 else 'NA'
+		marker_info['marker.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(py2r.convert_robj(model_out.rx2('beta.main'))[0] / math.sqrt(py2r.convert_robj(model_out.rx2('v.main'))[0])))) if py2r.convert_robj(model_out.rx2('beta.main'))[0] and py2r.convert_robj(model_out.rx2('v.main'))[0] and not py2r.convert_robj(model_out.rx2('beta.main'))[0] > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.main'))[0] < -709.782712893384 else 'NA'
+		marker_info['marker.sattdf.p'] = '%.2e' % (2 * t.sf(abs(py2r.convert_robj(model_out.rx2('beta.main'))[0] / math.sqrt(py2r.convert_robj(model_out.rx2('v.main'))[0])),py2r.convert_robj(model_out.rx2('df.satt'))[0])) if py2r.convert_robj(model_out.rx2('df.satt')[0]) and py2r.convert_robj(model_out.rx2('beta.main'))[0] and py2r.convert_robj(model_out.rx2('v.main'))[0] and not py2r.convert_robj(model_out.rx2('beta.main'))[0] > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.main'))[0] < -709.782712893384 else 'NA'
+		if interact != ro.r('NULL'):
+			marker_info['inter.stderr'] = '%.5g' % (math.sqrt(py2r.convert_robj(model_out.rx2('v.inter'))[0])) if py2r.convert_robj(model_out.rx2('v.inter')[0]) else 'NA'
+			marker_info['inter.or'] = '%.5g' % (math.exp(py2r.convert_robj(model_out.rx2('beta.inter'))[0])) if py2r.convert_robj(model_out.rx2('beta.inter')[0]) and not py2r.convert_robj(model_out.rx2('beta.inter')[0]) > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.inter')[0]) < -709.782712893384 and fxn == 'binomial' else 'NA'
+			marker_info['inter.z'] = '%.5g' % (py2r.convert_robj(model_out.rx2('beta.inter'))[0] / math.sqrt(py2r.convert_robj(model_out.rx2('v.inter'))[0])) if py2r.convert_robj(model_out.rx2('beta.inter'))[0] and py2r.convert_robj(model_out.rx2('v.inter'))[0] and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] < -709.782712893384 else 'NA'
+			marker_info['inter.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(py2r.convert_robj(model_out.rx2('beta.inter'))[0] / math.sqrt(py2r.convert_robj(model_out.rx2('v.inter'))[0])))) if py2r.convert_robj(model_out.rx2('beta.inter'))[0] and py2r.convert_robj(model_out.rx2('v.inter'))[0] and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] < -709.782712893384 else 'NA'
+			marker_info['inter.sattdf.p'] = '%.2e' % (2 * t.sf(abs(py2r.convert_robj(model_out.rx2('beta.inter'))[0] / math.sqrt(py2r.convert_robj(model_out.rx2('v.inter'))[0])),py2r.convert_robj(model_out.rx2('df.satt'))[0])) if py2r.convert_robj(model_out.rx2('df.satt')[0]) and py2r.convert_robj(model_out.rx2('beta.inter'))[0] and py2r.convert_robj(model_out.rx2('v.inter'))[0] and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] > 709.782712893384 and not py2r.convert_robj(model_out.rx2('beta.inter'))[0] < -709.782712893384 else 'NA'
+		print marker_info
+		
+	"""
 		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
 		for x in focus:
 			xt = x.replace('*',':')

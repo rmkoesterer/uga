@@ -139,7 +139,12 @@ def Model(out = None,
 		if 'focus' in cfg['data_info'][k].keys() and not cfg['data_info'][k]['focus'] is None:
 			cfg['data_info'][k]['focus'] = cfg['data_info'][k]['focus'].split(',')
 		else:
-			cfg['data_info'][k]['focus'] = GetFocus(method=cfg['data_info'][k]['method'],model=cfg['data_info'][k]['model'],vars_df=cfg['data_info'][k]['vars_df'])
+			cfg['data_info'][k]['focus'] = GetFocus(method=cfg['data_info'][k]['method'],model=cfg['data_info'][k]['model'],vars_df=cfg['data_info'][k]['vars_df'],model_vars_dict=cfg['data_info'][k]['model_vars_dict'])
+
+	##### REMOVE FACTOR() FROM MODEL STRING #####
+	for k in cfg['data_order']:
+		for v in cfg['data_info'][k]['model_vars_dict'].keys():
+			cfg['data_info'][k]['model'] = cfg['data_info'][k]['model'].replace('factor(' + v + ')',v)
 
 	##### LOAD ITERATORS AND SAMPLE LISTS #####
 	for k in cfg['data_order']:
@@ -418,6 +423,7 @@ def Model(out = None,
 					elif cfg['data_info'][k]['method'].split('_')[0] == 'geeboss':
 						model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
 						model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
+						model_df['id'] = model_df[cfg['data_info'][k]['fid']] if cfg['data_info'][k]['fid'] != 'id' else model_df['id']
 						results = marker_info.apply(lambda row: CalcGEEBoss(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr'], thresh=cfg['data_info'][k]['geeboss_thresh']), 1)
 					elif cfg['data_info'][k]['method'].split('_')[0] == 'glm':
 						results = marker_info.apply(lambda row: CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var']), 1)

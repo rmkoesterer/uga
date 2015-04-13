@@ -103,7 +103,7 @@ def Parser():
 						nargs=1, 
 						action='store', 
 						choices=['exchangeable','independence','ar1','unstructured'], 
-						default='exchangeable', 
+						default=['exchangeable'], 
 						help='correlation structure for gee analyses (default: exchangeable)')
 	model_parser.add_argument('--nofail', 
 						action='store_true', 

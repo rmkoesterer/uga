@@ -302,13 +302,25 @@ def GetDelimiter(delimiter):
 		delimiter = ','
 	return delimiter
 
-def GetFocus(method,model,vars_df):
+def GetFocus(method,model,vars_df,model_vars_dict):
 	focus = ['(Intercept)'] if method.split('_')[0] in ['gee','geeboss','glm','lme'] else []
 	for x in re.sub("\+|\~|\-",",",model.split('~')[1]).split(','):
 		if not x[0] == '(' and x.find('cluster(') == -1:
 			if x.find('factor(') != -1:
-				for v in vars_df[re.sub('factor\(|\)','',x)].unique().astype(np.int64) - min(vars_df[re.sub('factor\(|\)','',x)].unique().astype(np.int64)):
-					if v != min(vars_df[re.sub('factor\(|\)','',x)].unique().astype(np.int64) - min(vars_df[re.sub('factor\(|\)','',x)].unique().astype(np.int64))):
+				x = re.sub('factor\(|\)','',x)
+			if x.find('*') != -1:
+				interact = []
+				for a in x.split('*'):
+					if model_vars_dict[a]['class'] == 'factor':
+						for v in vars_df[a].unique().astype(np.int64) - min(vars_df[a].unique().astype(np.int64)):
+							if v != min(vars_df[a].unique().astype(np.int64) - min(vars_df[a].unique().astype(np.int64))):
+								interact.append(a + str(v))
+					else:
+						interact.append(a)
+				focus.append(interact[0] + '*' + interact[1])
+			elif model_vars_dict[x]['class'] == 'factor':
+				for v in vars_df[x].unique().astype(np.int64) - min(vars_df[x].unique().astype(np.int64)):
+					if v != min(vars_df[x].unique().astype(np.int64) - min(vars_df[x].unique().astype(np.int64))):
 						focus.append(x + str(v))
 			elif x.find('*') != -1:
 				focus.append('*'.join(sorted(x.split('*'))))
