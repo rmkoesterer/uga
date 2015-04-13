@@ -267,9 +267,9 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, f
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
 	return marker_info
 
-def CalcGEEBoss(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, corstr = 'exchangeable', thresh = 1e-5):
+def CalcGEEBoss(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, corstr = 'exchangeable', thresh = 1e-7):
 	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
-	fxn = ro.r.gaussian() if fxn = 'gaussian' else ro.r.binomial()
+	fxn = ro.r.gaussian() if fxn == 'gaussian' else ro.r.binomial()
 	interact = ro.r('NULL')
 	notes = 'NA'
 	status = 0

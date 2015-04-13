@@ -112,6 +112,7 @@ def Parser():
 						nargs=1, 
 						action='store', 
 						type=float, 
+						default=1e-7, 
 						help='p-value threshold for boss.fit thresh option (see CRAN R boss package documentation)')
 	model_parser.add_argument('--pedigree', 
 						nargs=1, 
