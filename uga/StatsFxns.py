@@ -293,12 +293,14 @@ def CalcGEEBoss(marker_info, model_df, model_vars_dict, model, iid, fid, method,
 					rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
 			for col in rmodel_df:
 				col.rclass = None
-			bs=rtry(boss.boss_set(ro.r.formula(model.replace('+marker','').replace('marker+','')),id=rmodel_df.rx2('id'),type="gee",E_name=interact,family=fxn,corstr=corstr,data=rmodel_df),silent=ro.r('TRUE'))
-			if 'try-error' in rclass(bs):
+			try:
+				bs=rtry(boss.boss_set(ro.r.formula(model.replace('+marker','').replace('marker+','')),id=rmodel_df.rx2('id'),type="gee",E_name=interact,family=fxn,corstr=corstr,data=rmodel_df),silent=ro.r('TRUE'))
+			except RRuntimeError:
 				status = -4
 			else:
-				model_out=rtry(boss.boss_fit(rmodel_df.rx2('marker'),bs,thresh=thresh,sattdf=ro.r('TRUE')),silent=ro.r('TRUE'))
-				if 'try-error' in rclass(model_out):
+				try:
+					model_out=rtry(boss.boss_fit(rmodel_df.rx2('marker'),bs,thresh=thresh,sattdf=ro.r('TRUE')),silent=ro.r('TRUE'))
+				except RRuntimeError:
 					status = -5
 				else:
 					status = 1

@@ -215,7 +215,11 @@ def Meta(cfg=None,
 				if 'z' in cfg['data_info'][tag].keys():
 					output_df[tag + '.z'] = output_df[tag + '.z'] / math.sqrt(float(cfg['data_info'][tag]['gc']))
 				if 'p' in cfg['data_info'][tag].keys():
-					output_df[tag + '.p'] = 2 * scipy.norm.cdf(-1 * np.abs(output_df[tag + '.effect']) / output_df[tag + '.stderr'])
+					if 'stderr' in cfg['data_info'][tag].keys():
+						output_df[tag + '.p'] = 2 * scipy.norm.cdf(-1 * np.abs(output_df[tag + '.effect']) / output_df[tag + '.stderr'])
+					else:
+						output_df[tag + '.p'] = 2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*output_df[tag + '.p']) / math.sqrt(float(cfg['data_info'][tag]['gc']))))
+					
 	output_df['chr'] = output_df['chr'].astype(int)
 	output_df['pos'] = output_df['pos'].astype(int)
 	

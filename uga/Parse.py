@@ -364,7 +364,7 @@ def Parser():
 	explore_parser.add_argument('--qq', 
 						action='store_true', 
 						help='print qq plot')
-	explore_parser.add_argument('--manhattan', 
+	explore_parser.add_argument('--mht', 
 						action='store_true', 
 						help='print manhattan plot')
 	explore_parser.add_argument('--color', 
@@ -373,20 +373,20 @@ def Parser():
 	explore_parser.add_argument('--gc', 
 						action='store_true', 
 						help='print manhattan plots with genomic inflation corrected p-values')
-	explore_parser.add_argument('--stats-prefix', 
-						action='store', 
-						help='string indicating prefix for stats to be summarized, not including tag (default: STATS_PREFIX=\'marker\')')
-	explore_parser.add_argument('--top-p', 
+	explore_parser.add_argument('--set-gc', 
 						action='store', 
 						type=float, 
-						help='threshold for p-values to export to file (ie. TOP_P=1e-4 prints all markers with p value < 1e-4 to a top results file')
+						help='set genomic inflation value instead of calculating it')
+	explore_parser.add_argument('--stat', 
+						action='store', 
+						help='string indicating prefix for statistics to be summarized, not including tag (default: STAT=\'marker\')')
 	explore_parser.add_argument('--regional-n', 
 						action='store', 
 						type=int, 
 						help='print regional plots for top REGIONAL_N markers')
 	explore_parser.add_argument('--tag', 
 						action='store', 
-						help='string indicating tag for stats to be summarized, if tag exists')
+						help='string indicating tag for stats to be summarized, if tag exists (example: TAG=aa and STAT=marker -> aa.marker.p)')
 	explore_parser.add_argument('--unrel', 
 						action='store_true', 
 						help='filter based on unrel columns')	
@@ -452,6 +452,37 @@ def Parser():
 	explore_parser_split_group.add_argument('--region-list', 
 						action='store', 
 						help='filename for a list of tabix format regions')
+	explore_parser.add_argument('--region-id', 
+						action='store', 
+						help='add region id to results (for use with --region option)')
+	explore_parser.add_argument('--lz-source', 
+						action='store', 
+						help='locuszoom source option (default: None)')
+	explore_parser.add_argument('--lz-build', 
+						action='store', 
+						help='locuszoom build option (default: None)')
+	explore_parser.add_argument('--lz-pop', 
+						action='store', 
+						help='locuszoom pop option (default: None)')
+
+	gc_parser = subparsers.add_parser('gc', help='apply genomic control to 1 or more columns in a results file', parents=[parser])
+	gc_required = gc_parser.add_argument_group('required arguments')
+	gc_required.add_argument('--out', 
+						action='store', 
+						required=True, 
+						help='filename for corrected results (basename only: do not include path)')
+	gc_required.add_argument('--data', 
+						action='store', 
+						required=True, 
+						help='filename of existing results')
+	gc_required.add_argument('--gc', 
+						nargs=2, 
+						required=True, 
+						action='append', 
+						help='apply genomic control to a 1 or more p-value columns (ex. --gc meta.p 1.0123 --gc meta.aa.p 1.002123)')
+	gc_parser.add_argument('-o', '--overwrite', 
+						action='store_true', 
+						help='overwrite existing output files')
 
 	return top_parser
 	

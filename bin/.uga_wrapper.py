@@ -55,6 +55,8 @@ def main(argv):
 		from uga.Map import Map
 	elif argv[1].split('(')[0] == "Explore":
 		from uga.Explore import Explore
+	elif argv[1].split('(')[0] == "GC":
+		from uga.GC import GC
 
 	eval(argv[1])
 

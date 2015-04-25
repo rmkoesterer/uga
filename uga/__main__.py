@@ -140,26 +140,60 @@ def main(args=None):
 			return
 
 	elif args.which == 'explore':
-		existing_files = glob.glob(args.out + '*')
-		if len(existing_files) > 0:
-			if not args.overwrite:
-				print Error("1 or more output files already exists (use --overwrite flag to replace)")
-				return
-			else:	
-				for f in existing_files:
+		check_files = [args.out + '.explore.log']
+		check_files = check_files + [args.out + '.qq.tiff'] if 'qq' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'tiff' else check_files
+		check_files = check_files + [args.out + '.qq.eps'] if 'qq' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'eps' else check_files
+		check_files = check_files + [args.out + '.qq.pdf'] if 'qq' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'pdf' else check_files
+		check_files = check_files + [args.out + '.mht.tiff'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'tiff' else check_files
+		check_files = check_files + [args.out + '.mht.eps'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'eps' else check_files
+		check_files = check_files + [args.out + '.mht.pdf'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'pdf' else check_files
+		#check_files = check_files + glob.glob(args.out + '.rgnl.*') if 'region_list' in vars(args).keys() or 'region' in vars(args).keys() or 'regional_n' in vars(args).keys() else check_files
+		existing_files = []
+		for f in check_files:
+			if os.path.exists(f):
+				if not args.overwrite:
+					existing_files = existing_files + [f]
+					print "found file " + str(f)
+				else:
 					try:
 						os.remove(f)
 					except OSError:
 						continue
+		if len(existing_files) > 0:
+			print Error("above files already exist (use --overwrite flag to replace)")
+			return
 		cmd = 'Explore(data="' + args.data + '",out="' + args.out + '"'
-		for x in ['qq','manhattan','color','ext','sig','gc','top_p','regional_n','stats_prefix','tag','unrel','f_dist_dfn','f_dist_dfd','callrate_thresh','rsq_thresh','freq_thresh','hwe_thresh','effect_thresh','stderr_thresh','or_thresh','df_thresh']:
+		for x in ['qq','mht','color','ext','sig','gc','set_gc','lz_source','lz_build','lz_pop','regional_n','region_list','region_id','region','stat','tag','unrel','f_dist_dfn','f_dist_dfd','callrate_thresh','rsq_thresh','freq_thresh','hwe_thresh','effect_thresh','stderr_thresh','or_thresh','df_thresh']:
 			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 				if type(vars(args)[x]) is str:
 					cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
 				else:
 					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 		cmd = cmd + ')'
-		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.log')
+		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.explore.log')
+
+	elif args.which == 'gc':
+		check_files = [args.out + '.gc.log']
+		check_files = check_files + [args.out + '.gc.gz']
+		check_files = check_files + [args.out + '.gc.gz.tbi']
+		existing_files = []
+		for f in check_files:
+			if os.path.exists(f):
+				if not args.overwrite:
+					existing_files = existing_files + [f]
+					print "found file " + str(f)
+				else:
+					try:
+						os.remove(f)
+					except OSError:
+						continue
+		if len(existing_files) > 0:
+			print Error("above files already exist (use --overwrite flag to replace)")
+			return
+		cmd = 'GC(data="' + args.data + '",out="' + args.out + '"'
+		if args.gc:
+			cmd = cmd + ',gc=' + str(dict(args.gc)) + ')'
+		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.gc.log')
 
 	elif args.which in ['model','meta']:
 		print "preparing output directories"
