@@ -11,7 +11,20 @@ from operator import attrgetter
 import pysam
 import vcf as VCF
 
-def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, chr = None, mb = None, kb = None, b = None, n = None):
+def Map(out, 
+		oxford = None, 
+		dos1 = None, 
+		dos2 = None, 
+		plink = None, 
+		vcf = None, 
+		chr = None, 
+		mb = None, 
+		kb = None, 
+		b = None, 
+		n = None, 
+		shift_mb = None,
+		shift_kb = None, 
+		shift_b = None):
 
 	assert not oxford is None or not dos1 is None or not dos2 is None or not plink is None or not vcf is None, Error("a genotype data file must be specified")
 	assert not b is None or not kb is None or not mb is None or not n is None, Error("a region size or number of markers must be specified")
@@ -19,10 +32,15 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, 
 	s = int(b) if b else None
 	s = int(kb) * 1000 if kb else s
 	s = int(mb) * 1000000 if mb else s
+	shift = int(shift_b) if shift_b else 0
+	shift = int(shift_kb) * 1000 if shift_kb else shift
+	shift = int(shift_mb) * 1000000 if shift_mb else shift
+	if shift == None:
+		shift = 0
 
 	if not n is None:
 		n = int(n)
-	
+
 	if not chr is None:
 		if not int(chr) in range(1,27):
 			print Error("chromosome " + str(chr) + " is an invalid choice")
@@ -48,7 +66,7 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, 
 					bim_chr=bim[bim['chr'] == i]
 					bim_chr.reset_index(inplace=True,drop=True)
 					if not s is None:
-						chr_write=pd.DataFrame({'chr': [i for x in range(1,bim_chr.iloc[-1]['pos']+1,s)], 'start': range(1,bim_chr.iloc[-1]['pos']+1,s), 'end': range(s+1,bim_chr.iloc[-1]['pos']+s+1,s)})
+						chr_write=pd.DataFrame({'chr': [i for x in range(1,bim_chr.iloc[-1]['pos']+1,s-shift)], 'start': range(1,bim_chr.iloc[-1]['pos']+1,s-shift), 'end': range(s+1,bim_chr.iloc[-1]['pos']+s+1,s-shift)})
 						chr_write['reg']=chr_write.apply(lambda a: str(a['chr']) + ':' + str(a['start']) + '-' + str(a['end']-1),axis=1)
 						for j in chr_write.index:
 							if bim[(bim['chr'] == i) & (bim['pos'] >= chr_write.iloc[j]['start']) & (bim['pos'] <= chr_write.iloc[j]['end'])].shape[0] > 0:
@@ -66,10 +84,10 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, 
 			for i in chrs:	
 				if not s is None:
 					v=VCF.Reader(filename=vcf)
-					starts = range(1,300000000,s)
+					starts = range(1,300000000,s-shift)
 					regions = []
 					for rp in starts:
-						regions.append(str(rp) + "-" + str(rp+s-1)) 
+						regions.append(str(rp) + "-" + str(rp+s-1))
 					for reg in regions:
 						try:
 							records = v.fetch(str(i),int(reg.split('-')[0]),int(reg.split('-')[1]))
@@ -119,7 +137,7 @@ def Map(out, oxford = None, dos1 = None, dos2 = None, plink = None, vcf = None, 
 		with open(out, "w") as fout:
 			for i in chrs:
 				if not s is None:
-					starts = range(1,300000000,s)
+					starts = range(1,300000000,s-shift)
 					regions = []
 					for rp in starts:
 						regions.append(str(i) + ":" + str(rp) + "-" + str(rp+s-1)) 

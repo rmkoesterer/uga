@@ -96,7 +96,7 @@ def main(args=None):
 
 	if args.which == 'map':
 		cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
-		for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr']:
+		for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr','shift_mb','shift_kb','shift_b']:
 			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 				if type(vars(args)[x]) is str:
 					cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
@@ -249,7 +249,7 @@ def main(args=None):
 					cmd = cmd + ')'
 				else:
 					cmd = args.which.capitalize() + '(out=\'' + out + '\''
-					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','fid','iid','focus','sig','region_list','gee_gaussian','gee_binomial',
+					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','marker_list','fid','iid','focus','sig','region_list','gee_gaussian','gee_binomial',
 								'geeboss_gaussian','geeboss_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','famskat_o','skat_o_gaussian','skat_o_binomial',
 								'famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial',
 								'region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','geeboss_thresh',

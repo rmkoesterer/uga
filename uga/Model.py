@@ -35,6 +35,7 @@ def Model(out = None,
 			format = ['oxford'], 
 			samples = [None], 
 			pheno = [None], 
+			marker_list = [None], 
 			model = [None], 
 			fid = [None], 
 			iid = [None], 
@@ -93,7 +94,7 @@ def Model(out = None,
 	if cfg is None:
 		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'meta': [], 'freq': freq, 'miss': miss, 'rsq': rsq, 'sig': int(sig), 'nofail': nofail, 
 				'region': region, 'region_list': region_list, 'region_id': region_id,
-				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
+				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'marker_list': marker_list[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
 					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
 						'corstr': corstr[0], 'pheno_sep': pheno_sep[0],'geeboss_thresh': geeboss_thresh}}}
 		if 'pheno_sep' in cfg['data_info']['NA'].keys():
@@ -161,6 +162,9 @@ def Model(out = None,
 		if len(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].isin(cfg['data_info'][k]['sample_ids'])]) == 0:
 			print Error("phenotype file and data file contain no common samples")
 			return
+		cfg['data_info'][k]['marker_list_handle'] = None
+		if cfg['data_info'][k]['marker_list'] is not None:
+			cfg['data_info'][k]['marker_list_handle'] = tabix.open(cfg['data_info'][k]['marker_list'])
 
 	##### REDUCE PHENO DATA TO GENOTYPE IDs #####
 	for k in cfg['data_order']:
@@ -207,41 +211,55 @@ def Model(out = None,
 	##### GENERATE REGION LIST #####
 	if not region_list is None:
 		print "loading region list"
-		marker_list = Coordinates(region_list).Load()
+		region_list = Coordinates(region_list).Load()
 	elif not region is None:
 		if len(region.split(':')) > 1:
-			marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
+			region_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
 		else:
-			marker_list = pd.DataFrame({'chr': [region],'start': ['NA'],'end': ['NA'],'region': [region]})
-		marker_list['reg_id'] = region_id if not region_id is None else 'NA'
+			region_list = pd.DataFrame({'chr': [region],'start': ['NA'],'end': ['NA'],'region': [region]})
+		region_list['reg_id'] = region_id if not region_id is None else 'NA'
 	else:
-		marker_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)],'reg_id': ['NA' for i in range(26)]})
+		region_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)],'reg_id': ['NA' for i in range(26)]})
 
 	##### DETERMINE REGION COUNTS #####
 	for k in cfg['data_order']:
-		marker_list[k] = 0
+		region_list[k] = 0
 		if cfg['data_info'][k]['format'] == 'plink':
-			for i in range(len(marker_list.index)):
-				if marker_list['start'][i] != 'NA':
-					marker_list[k][i] = countPlinkRegion(cfg['data_info'][k]['plink_handle'].loci, int(marker_list['chr'][i]), int(marker_list['start'][i]), int(marker_list['end'][i]))
+			for i in range(len(region_list.index)):
+				if region_list['start'][i] != 'NA':
+					marker_list = None
+					if cfg['data_info'][k]['marker_list_handle'] is not None:
+						marker_list = cfg['data_info'][k]['marker_list_handle'].querys(region_list['region'][i])
+						marker_list = pd.DataFrame([x for x in marker_list if int(x[1]) >= int(region_list['start'][i]) and int(x[1]) <= int(region_list['end'][i])])
+						marker_list.columns = ['chr','pos','marker','a1','a2']
+						marker_list['chr'] = marker_list['chr'].astype(np.int64)
+						marker_list['pos'] = marker_list['pos'].astype(np.int64)
+					region_list[k][i] = countPlinkRegion(cfg['data_info'][k]['plink_handle'].loci, int(region_list['chr'][i]), int(region_list['start'][i]), int(region_list['end'][i]), marker_list)
 				else:
-					marker_list[k][i] = 'n'
+					region_list[k][i] = 'n'
 		else:
-			for i in range(len(marker_list.index)):
-				if marker_list['start'][i] != 'NA':
+			for i in range(len(region_list.index)):
+				if region_list['start'][i] != 'NA':
+					marker_list = None
+					if cfg['data_info'][k]['marker_list_handle'] is not None:
+						marker_list = cfg['data_info'][k]['marker_list_handle'].querys(region_list['region'][i])
+						marker_list = pd.DataFrame([x for x in marker_list if int(x[1]) >= int(region_list['start'][i]) and int(x[1]) <= int(region_list['end'][i])])
+						marker_list.columns = ['chr','pos','marker','a1','a2']
+						marker_list['chr'] = marker_list['chr'].astype(np.int64)
+						marker_list['pos'] = marker_list['pos'].astype(np.int64)
 					try:
-						records = cfg['data_info'][k]['data_it'].querys(marker_list['region'][i])
-						marker_list[k][i] = countNonPlinkRegion(records, cfg['data_info'][k]['format'], int(marker_list['start'][i]), int(marker_list['end'][i]))
+						records = cfg['data_info'][k]['data_it'].querys(region_list['region'][i])
+						region_list[k][i] = countNonPlinkRegion(records, cfg['data_info'][k]['format'], int(region_list['start'][i]), int(region_list['end'][i]), marker_list)
 					except:
-						marker_list[k][i] = 'n'
+						region_list[k][i] = 'n'
 				else:
-					marker_list[k][i] = 'n'
-	marker_list = marker_list[(marker_list[cfg['data_order']].T != 0).any()].reset_index(drop=True)
-	if len(marker_list.index) == 0:
+					region_list[k][i] = 'n'
+	region_list = region_list[(region_list[cfg['data_order']].T != 0).any()].reset_index(drop=True)
+	if len(region_list.index) == 0:
 		print Error("no markers found")
 		return()
 	else:
-		print "   " + str(len(marker_list.index)) + " non-empty regions"
+		print "   " + str(len(region_list.index)) + " non-empty regions"
 
 	##### DETERMINE ANALYSIS TYPE AND SETUP FILE HANDLES #####
 	for k in cfg['data_order']:
@@ -265,9 +283,9 @@ def Model(out = None,
 	print "modelling data ..."
 
 	##### LOOP OVER REGIONS #####
-	for r in range(len(marker_list.index)):
+	for r in range(len(region_list.index)):
 		mdb = MarkerRefDb()
-		reg = marker_list['region'][r]
+		reg = region_list['region'][r]
 		chr = reg.split(':')[0]
 
 		##### LOOP OVER DATASETS #####
@@ -275,6 +293,13 @@ def Model(out = None,
 			i = 0
 			cfg['reg_model_df'] = None
 			cfg['reg_marker_info'] = None
+			marker_list = None
+			if cfg['data_info'][k]['marker_list_handle'] is not None:
+				marker_list = cfg['data_info'][k]['marker_list_handle'].querys(reg)
+				marker_list = pd.DataFrame([x for x in marker_list if int(x[1]) >= int(region_list['start'][r]) and int(x[1]) <= int(region_list['end'][r])])
+				marker_list.columns = ['chr','pos','marker','a1','a2']
+				marker_list['chr'] = marker_list['chr'].astype(np.int64)
+				marker_list['pos'] = marker_list['pos'].astype(np.int64)
 			if cfg['data_info'][k]['format'] == 'plink':
 				if reg == chr:
 					try:
@@ -283,17 +308,21 @@ def Model(out = None,
 						break
 				else:
 					try:
-						records = (x for x in cfg['data_info'][k]['plink_zip'] if x[0].chromosome == int(chr) and x[0].bp_position >= int(marker_list['start'][r]) and x[0].bp_position <= int(marker_list['end'][r]))
+						records = (x for x in cfg['data_info'][k]['plink_zip'] if x[0].chromosome == int(chr) and x[0].bp_position >= int(region_list['start'][r]) and x[0].bp_position <= int(region_list['end'][r]))
 					except:
 						break
+				if marker_list is not None:
+					records = (x for x in records if marker_list[(marker_list['chr'] == x[0].chromosome) & (marker_list['pos'] == x[0].bp_position) & (marker_list['a1'] == x[0].allele1) & (marker_list['a2'] == x[0].allele2)].shape[0] > 0)
 			else:
 				pos_ind = 1 if cfg['data_info'][k]['format'] in ['dos2','vcf'] else 2
 				try:
 					records = cfg['data_info'][k]['data_it'].querys(reg)
 					if reg != chr:
-						records = (x for x in records if int(x[pos_ind]) >= int(marker_list['start'][r]) and int(x[pos_ind]) <= int(marker_list['end'][r]))
+						records = (x for x in records if int(x[pos_ind]) >= int(region_list['start'][r]) and int(x[pos_ind]) <= int(region_list['end'][r]))
 				except:
 					break
+				if marker_list is not None:
+					records = (x for x in records if marker_list[(marker_list['chr'] == int(x[0])) & (marker_list['pos'] == int(x[pos_ind])) & (marker_list['a1'] == x[3]) & (marker_list['a2'] == x[4])].shape[0] > 0)
 
 			##### CONTINUE SLICING UNTIL NO RECORDS LEFT #####
 			chunk_db = ChunkRefDb()
@@ -434,8 +463,8 @@ def Model(out = None,
 					results.fillna('NA', inplace=True)
 					if cfg['nofail']:
 						results = results[results['status'] > 0]
-					if 'reg_id' in marker_list.columns and not marker_list['reg_id'][r] is None:
-						results['reg_id'] = marker_list['reg_id'][r]
+					if 'reg_id' in region_list.columns and not region_list['reg_id'][r] is None:
+						results['reg_id'] = region_list['reg_id'][r]
 					if 'marker_unique' in results.columns.values:
 						results.drop('marker_unique',axis=1,inplace=True)
 					if cfg['data_info'][k]['written'] == False:
@@ -457,10 +486,10 @@ def Model(out = None,
 							cfg['reg_marker_info'] = cfg['reg_marker_info'].append(marker_info[marker_info['filter'] == 0],ignore_index=True)
 
 				##### UPDATE LOOP STATUS #####
-				cur_markers = str(min(i*cfg['buffer'],marker_list[k][r])) if marker_list['start'][r] != 'NA' else str(i*cfg['buffer'])
-				tot_markers = str(marker_list[k][r]) if marker_list['start'][r] != 'NA' else '> 0'
-				status_reg = marker_list['region'][r] + ': ' + marker_list['reg_id'][r] if 'reg_id' in marker_list.columns and marker_list['reg_id'][r] != 'NA' else marker_list['region'][r]
-				status = '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(marker_list.index)) + ' (' + status_reg + ')' if len(cfg['data_info'].keys()) == 1 else '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(marker_list.index)) + ' (' + status_reg + ')' + " for model " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
+				cur_markers = str(min(i*cfg['buffer'],region_list[k][r])) if region_list['start'][r] != 'NA' else str(i*cfg['buffer'])
+				tot_markers = str(region_list[k][r]) if region_list['start'][r] != 'NA' else '> 0'
+				status_reg = region_list['region'][r] + ': ' + region_list['reg_id'][r] if 'reg_id' in region_list.columns and region_list['reg_id'][r] != 'NA' else region_list['region'][r]
+				status = '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(region_list.index)) + ' (' + status_reg + ')' if len(cfg['data_info'].keys()) == 1 else '   processed ' + cur_markers + '/' + tot_markers + ' markers from region ' + str(r+1) + '/' + str(len(region_list.index)) + ' (' + status_reg + ')' + " for model " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
 				print status
 
 			##### CALCULATE EFFECTIVE TESTS #####
@@ -471,12 +500,12 @@ def Model(out = None,
 					status = 0
 				else:
 					n_eff, tot_tests, status = (0, 0, 1)
-				results = pd.DataFrame({'chr': [marker_list['chr'][r]], 'start': [marker_list['start'][r]], 'end': [marker_list['end'][r]], 'reg_id': [marker_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','reg_id','n_total','n_eff','status']]
+				results = pd.DataFrame({'chr': [region_list['chr'][r]], 'start': [region_list['start'][r]], 'end': [region_list['end'][r]], 'reg_id': [region_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','reg_id','n_total','n_eff','status']]
 				results.fillna('NA', inplace=True)
 				if nofail:
 					results = results[results['status'] > 0]
-				if 'reg_id' in marker_list.columns:
-					results['reg_id'] = marker_list['reg_id'][r]
+				if 'reg_id' in region_list.columns:
+					results['reg_id'] = region_list['reg_id'][r]
 				if 'marker_unique' in results.columns.values:
 					results.drop('marker_unique',axis=1,inplace=True)
 				if cfg['data_info'][k]['written'] == False:
@@ -486,13 +515,13 @@ def Model(out = None,
 				else:
 					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
 					cfg['data_info'][k]['results'] = cfg['data_info'][k]['results'].append(results).reset_index(drop=True)
-				status = '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(marker_list.index)) if len(cfg['data_info'].keys()) == 1 else '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(marker_list.index)) + " for model " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
+				status = '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(region_list.index)) if len(cfg['data_info'].keys()) == 1 else '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(region_list.index)) + " for model " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
 				print status
 
 			##### CALCULATE PREPSCORES AND INDIVIDUAL MODELS FOR GENE BASED TESTS #####
 			elif cfg['data_info'][k]['method'] in seqmeta_tests:
 				if not cfg['reg_marker_info'] is None and cfg['reg_marker_info'].shape[0] > 1:
-					cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': marker_list['reg_id'][r]})
+					cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': region_list['reg_id'][r]})
 					z = cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])]
 					pheno = cfg['reg_model_df'][list(set(cfg['data_info'][k]['model_vars_dict'].keys() + [cfg['data_info'][k]['iid'],cfg['data_info'][k]['fid']]))]
 
@@ -505,7 +534,7 @@ def Model(out = None,
 					##### SKAT-O #####
 					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
 						results_pre = SkatOMeta('skatOMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
-						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
 											'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
 						results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
@@ -513,7 +542,7 @@ def Model(out = None,
 					##### SKAT #####
 					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
 						results_pre = SkatMeta('skatMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
-						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
 											'p': [results_pre['p'][1]],'Qmeta': [results_pre['pmin'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]]})
 						results = results[['chr','start','end','reg_id','p','Qmeta','cmaf','nmiss','nsnps']]
@@ -521,7 +550,7 @@ def Model(out = None,
 					##### BURDEN #####
 					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
 						results_pre = BurdenMeta('burdenMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
-						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
 											'p': [results_pre['p'][1]],'beta': [results_pre['beta'][1]],'se': [results_pre['se'][1]],'cmafTotal': [results_pre['cmafTotal'][1]],
 											'cmafUsed': [results_pre['cmafUsed'][1]],'nsnpsTotal': [results_pre['nsnpsTotal'][1]],'nsnpsUsed': [results_pre['nsnpsUsed'][1]],
 											'nmiss': [results_pre['nmiss'][1]]})
@@ -533,15 +562,15 @@ def Model(out = None,
 
 					##### EMPTY SKAT-O DF #####
 					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
-						results = SkatOMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+						results = SkatOMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r])
 
 					##### EMPTY SKAT DF #####
 					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
-						results = SkatMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+						results = SkatMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r])
 
 					##### EMPTY BURDEN DF #####
 					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
-						results = BurdenMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+						results = BurdenMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r])
 					
 				##### APPEND TO RESULTS DF #####
 				if cfg['data_info'][k]['written'] == False:
@@ -574,7 +603,7 @@ def Model(out = None,
 					##### SKAT-O #####
 					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
 						results_pre = SkatOMeta('skatOMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info)', snp_info_meta)
-						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
 													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
 						results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
@@ -582,7 +611,7 @@ def Model(out = None,
 					##### SKAT #####
 					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
 						results_pre = SkatMeta('skatMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info)', snp_info_meta)
-						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
 													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
 						results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
@@ -590,7 +619,7 @@ def Model(out = None,
 					##### BURDEN #####
 					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
 						results_pre = BurdenMeta('burdenMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
-						results = pd.DataFrame({'chr': [marker_list['chr'][r]],'start': [marker_list['start'][r]],'end': [marker_list['end'][r]],'reg_id': [marker_list['reg_id'][r]],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
 											'p': [results_pre['p'][1]],'beta': [results_pre['beta'][1]],'se': [results_pre['se'][1]],'cmafTotal': [results_pre['cmafTotal'][1]],
 											'cmafUsed': [results_pre['cmafUsed'][1]],'nsnpsTotal': [results_pre['nsnpsTotal'][1]],'nsnpsUsed': [results_pre['nsnpsUsed'][1]],
 											'nmiss': [results_pre['nmiss'][1]]})
@@ -599,15 +628,15 @@ def Model(out = None,
 
 					##### EMPTY SKAT-O DF #####
 					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
-						results = SkatOMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+						results = SkatOMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r])
 
 					##### EMPTY SKAT DF #####
 					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
-						results = SkatMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+						results = SkatMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r])
 
 					##### EMPTY BURDEN DF #####
 					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
-						results = BurdenMetaEmpty(marker_list['chr'][r],marker_list['start'][r],marker_list['end'][r],marker_list['reg_id'][r])
+						results = BurdenMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r])
 
 				##### APPEND TO META DF #####
 				if cfg['meta_written'][meta_tag] == False:

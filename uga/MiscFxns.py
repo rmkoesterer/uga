@@ -17,9 +17,13 @@ def LoadPlink(data):
 	sample_ids = [x.iid for x in plink_handle.samples]
 	return plink_handle, plink_locus_it, plink_sample_it, sample_ids
 
-def countPlinkRegion(iter, chr, start, end):
+def countPlinkRegion(iter, chr, start, end, ml = None):
 	k = 0
-	for record in ifilter(lambda c: c.chromosome == chr and c.bp_position >= start and c.bp_position <= end, iter):
+	if ml is not None:
+		filt = ifilter(lambda c: ml[(ml['chr'] == c.chromosome) & (ml['pos'] == c.bp_position) & (ml['a1'] == c.allele1) & (ml['a2'] == c.allele2)].shape[0] > 0, iter)
+	else:
+		filt = ifilter(lambda c: c.chromosome == chr and c.bp_position >= start and c.bp_position <= end, iter)
+	for record in filt:
 		k += 1
 	return k
 
@@ -41,13 +45,21 @@ def LoadDos(data, samples):
 			sample_ids.append(line)
 	return tb, sample_ids
 
-def countNonPlinkRegion(iter, type, start, end):
+def countNonPlinkRegion(iter, type, start, end, ml = None):
 	k = 0
 	if type in ['vcf','dos2']:
-		for record in ifilter(lambda c: int(c[1]) >= start and int(c[1]) <= end, iter):
+		if ml is not None:
+			filt = ifilter(lambda c: ml[(ml['chr'] == int(c[0])) & (ml['pos'] == int(c[1])) & (ml['a1'] == c[3]) & (ml['a2'] == c[4])].shape[0] > 0, iter)
+		else:
+			filt = ifilter(lambda c: int(c[1]) >= start and int(c[1]) <= end, iter)
+		for record in filt:
 			k += 1
 	else:
-		for record in ifilter(lambda c: int(c[2]) >= start and int(c[2]) <= end, iter):
+		if ml is not None:
+			filt = ifilter(lambda c: ml[(ml['chr'] == int(c[0])) & (ml['pos'] == int(c[2])) & (ml['a1'] == c[2]) & (ml['a2'] == c[4])].shape[0] > 0, iter)
+		else:
+			ifilter(lambda c: int(c[2]) >= start and int(c[2]) <= end, iter)
+		for record in filt:
 			k += 1
 	return k
 

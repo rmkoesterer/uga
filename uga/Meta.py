@@ -52,31 +52,31 @@ def Meta(cfg=None,
 	##### determine markers to be analyzed #####
 	print "generating region list"
 	if region_list:
-		marker_list = Coordinates(region_list).Load()
+		region_list = Coordinates(region_list).Load()
 	elif region:
-		marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
+		region_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
 	else:
-		marker_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
-	marker_list['n'] = 0
-	for i in range(len(marker_list.index)):
+		region_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
+	region_list['n'] = 0
+	for i in range(len(region_list.index)):
 		for key in cfg['data_info'].keys():
 			tb = tabix.open(cfg['data_info'][key]['process_file'])
 			try:
-				records = tb.querys(marker_list['region'][i])
+				records = tb.querys(region_list['region'][i])
 			except:
 				pass
 			else:
-				marker_list['n'][i] = marker_list['n'][i] + 1
+				region_list['n'][i] = region_list['n'][i] + 1
 				break
-	if marker_list['n'].sum() == 0:
+	if region_list['n'].sum() == 0:
 		print Error("no markers found")
 		return()
 
 	cfg['sig'] = int(cfg['sig']) if 'sig' in cfg.keys() else 5
 
-	for r in range(len(marker_list.index)):
-		reg = marker_list['region'][r]
-		print "building reference database for " + str(r + 1) + " of " + str(len(marker_list.index)) + " regions"
+	for r in range(len(region_list.index)):
+		reg = region_list['region'][r]
+		print "building reference database for " + str(r + 1) + " of " + str(len(region_list.index)) + " regions"
 		delim = "><"
 		ref = multi_key_dict()
 		ref_alleles = multi_key_dict()
@@ -232,9 +232,9 @@ def Meta(cfg=None,
 			output_df[tag + '.n_eff'] = 0
 			output_df[tag + '.p_eff'] = 0
 			header.extend([tag + '.n_eff', tag + '.p_eff'])
-			for r in range(len(marker_list.index)):
-				if marker_list['reg_id'][r] in list(efftests['reg_id']):
-					output_df[tag + '.n_eff'][(output_df['chr'] == marker_list['chr'][r]) & (output_df['pos'] >= marker_list['start'][r]) & (output_df['chr'] <= marker_list['end'][r])] = efftests['n_eff'][efftests['reg_id'] == marker_list['reg_id'][r]].values[0]
+			for r in range(len(region_list.index)):
+				if region_list['reg_id'][r] in list(efftests['reg_id']):
+					output_df[tag + '.n_eff'][(output_df['chr'] == region_list['chr'][r]) & (output_df['pos'] >= region_list['start'][r]) & (output_df['chr'] <= region_list['end'][r])] = efftests['n_eff'][efftests['reg_id'] == region_list['reg_id'][r]].values[0]
 			output_df[tag + '.p_eff'] = output_df[tag + '.p'] * output_df[tag + '.n_eff']
 			output_df[tag + '.p_eff'] = output_df.apply(lambda x: 0.9999999999 if x[tag + '.p_eff'] >= 1 else x[tag + '.p_eff'],axis=1)
 
@@ -318,7 +318,7 @@ def Meta(cfg=None,
 
 	##### extract efftest corrected top p values #####
 	if cfg['method'] == 'efftest':
-		out_efftest_df = marker_list.copy()
+		out_efftest_df = region_list.copy()
 		header = ['chr','start','end','reg_id']
 		for tag in cfg['file_order']:
 			out_efftest_df[tag + '.min_snp'] = float('nan')

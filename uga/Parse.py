@@ -21,6 +21,10 @@ def Parser():
 						nargs=1, 
 						action='store', 
 						help='phenotype file (see documentation for required formatting)')
+	model_parser.add_argument('--marker-list', 
+						nargs=1, 
+						action='store', 
+						help='marker list file (see documentation for required formatting)')
 	model_parser.add_argument('--fid', 
 						nargs=1, 
 						action='store', 
@@ -319,7 +323,17 @@ def Parser():
 						help='plink binary format genotype data file (without extension)')					
 	map_split_group2.add_argument('--vcf', 
 						action='store', 
-						help='vcf 4.1/4.2 format genotype data file')					
+						help='vcf 4.1/4.2 format genotype data file')
+	map_split_group3 = map_parser.add_mutually_exclusive_group()
+	map_split_group3.add_argument('--shift-mb', 
+						action='store', 
+						help='shift size (megabase)')
+	map_split_group3.add_argument('--shift-kb', 
+						action='store', 
+						help='shift size (kilobase)')
+	map_split_group3.add_argument('--shift-b', 
+						action='store', 
+						help='shift size (base)')
 
 	compile_parser = subparsers.add_parser('compile', help='verify and compile plot results files', parents=[parser])
 	compile_required = compile_parser.add_argument_group('required arguments')
