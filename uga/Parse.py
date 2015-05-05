@@ -213,6 +213,10 @@ def Parser():
 	model_parser_split_group5.add_argument('--skat-o-binomial', 
 						action='store', 
 						help='model string for skat-o binomial analysis')
+	model_parser.add_argument('--skat-o-rho', 
+						action='store', 
+						nargs=1, 
+						help='rho value in (0,1] for seqMeta skat-o models (default: 1; ex. SKAT_O_RHO = 0.25 sets rho=c(0,0.25,0.5,0.75,1))')
 	model_parser_split_group5.add_argument('--famskat', 
 						action='store', 
 						help='model string for family based skat analysis')

@@ -430,7 +430,7 @@ def Explore(data,
 			end = int(reg.split(':')[1].split('-')[1])
 			pvals_region = pvals[(pvals['chr'] == chr) & (pvals['pos'] >= start) & (pvals['pos'] <= end)]
 			pvals_region['MarkerName'] = pvals_region['marker'].values
-			pvals_region['MarkerName'] = pvals_region['MarkerName'].map(lambda x: x.split(':')[0] + ':' + x.split(':')[1] if ':' in x and not 'rs' in x else x)
+			pvals_region['MarkerName'] = pvals_region['MarkerName'].map(lambda x: x.split(':')[0] + ':' + x.split(':')[1] if not 'rs' in x else x)
 			pvals_region['P-value'] = pvals_region[p].values
 			pvals_region.sort(columns=['P-value'], inplace=True)
 			pvals_region = pvals_region[['MarkerName','P-value','pos']]

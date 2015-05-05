@@ -375,8 +375,9 @@ def PrepScoresFam(snp_info, z, model, pheno, kinship):
 	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, kins = kinship, sparse=ro.r('FALSE'))
 	return ro.globalenv['ps']
 
-def SkatOMeta(cmd, snp_info):
+def SkatOMeta(cmd, snp_info, rho = 1):
 	ro.globalenv['rsnp_info'] = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
+	ro.globalenv['r_rho'] = ro.r('seq(0,1,' + str(rho) + ')')
 	try:
 		result = rtry(ro.reval(cmd),silent=ro.r('TRUE'))
 	except RRuntimeError:

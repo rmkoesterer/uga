@@ -244,22 +244,11 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,p
 	independent = re.split('\\~',model)[1]
 	vars_df = pd.read_table(pheno,sep=pheno_sep,dtype='str')
 	vars_df[vars_df == "."] = None
-	for x in [a for a in list(set(re.split('Surv\(|,|\)|~|\+|cluster\(|\(1\||\*|factor\(',model))) if a != '']:
-		mtype = ''
-		if dependent.find(x) != -1:
-			pre = dependent.split(x)[0] if dependent.split(x)[0] != '' else '.'
-			post = dependent.split(x)[1] if dependent.split(x)[1] != '' else '.'
-			if not pre[-1].isalpha() and not post[0].isalpha():
-				mtype = 'dependent'
-		if independent.find(x) != -1:
-			pre = independent.replace('factor','').split(x)[0] if independent.replace('factor','').split(x)[0] != '' else '.'
-			post = independent.replace('factor','').split(x)[1] if independent.replace('factor','').split(x)[1] != '' else '.'
-			if not pre[-1].isalpha() and not post[0].isalpha():
-				if mtype == '':
-					mtype = 'independent'
-				else:
-					print Error("a column in the phenotype file is defined in the model as both an independent and dependent variable")
-					return
+	for x in [a for a in list(set(re.split('Surv\(|,|\)|~|\+|cluster\(|\(1\||\*|factor\(',dependent))) if a != '']:
+		mtype = 'dependent'
+		model_vars_dict[x] = {'class': 'numeric', 'type': mtype}
+	for x in [a for a in list(set(re.split('Surv\(|,|\)|~|\+|cluster\(|\(1\||\*|factor\(',independent))) if a != '']:
+		mtype = 'independent'
 		if mtype != '':
 			if model[model.find(x)-7:model.find(x)] == 'factor(':
 				model_vars_dict[x] = {'class': 'factor', 'type': mtype}

@@ -53,7 +53,8 @@ def Model(out = None,
 			miss = None, 
 			freq = None, 
 			rsq = None, 
-			hwe = None, 
+			hwe = None,
+			skat_o_rho = [None], 
 			geeboss_thresh = 1e-7, 
 			case = [1], 
 			ctrl = [0], 
@@ -82,7 +83,7 @@ def Model(out = None,
 				cfg['data_info'][k]['corstr'] = 'exchangeable'
 			if not 'pheno_sep' in cfg['data_info'][k].keys():
 				cfg['data_info'][k]['pheno_sep'] = '\t'
-		for arg in ['cfg','out','sig','buffer','miss','freq','rsq','hwe','nofail','region_list','region','region_id']:
+		for arg in ['cfg','out','sig','buffer','miss','freq','skat_o_rho','rsq','hwe','nofail','region_list','region','region_id']:
 			if not str(locals()[arg]) in ['None','False']:
 				print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 	else:
@@ -95,7 +96,7 @@ def Model(out = None,
 		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'meta': [], 'freq': freq, 'miss': miss, 'rsq': rsq, 'sig': int(sig), 'nofail': nofail, 
 				'region': region, 'region_list': region_list, 'region_id': region_id,
 				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'marker_list': marker_list[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
-					'method': method[0], 'focus': focus[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
+					'method': method[0], 'focus': focus[0], 'skat_o_rho': skat_o_rho[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
 						'corstr': corstr[0], 'pheno_sep': pheno_sep[0],'geeboss_thresh': geeboss_thresh}}}
 		if 'pheno_sep' in cfg['data_info']['NA'].keys():
 			cfg['data_info']['NA']['pheno_sep'] = GetDelimiter(cfg['data_info']['NA']['pheno_sep'])
@@ -533,7 +534,7 @@ def Model(out = None,
 
 					##### SKAT-O #####
 					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
-						results_pre = SkatOMeta('skatOMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
+						results_pre = SkatOMeta('skatOMeta(ps' + k + ', SNPInfo=rsnp_info, rho=r_rho)', cfg['data_info'][k]['snp_info'], cfg['data_info'][k]['skat_o_rho'])
 						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
 											'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
@@ -543,7 +544,7 @@ def Model(out = None,
 					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
 						results_pre = SkatMeta('skatMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'])
 						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
-											'p': [results_pre['p'][1]],'Qmeta': [results_pre['pmin'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
+											'p': [results_pre['p'][1]],'Qmeta': [results_pre['Qmeta'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]]})
 						results = results[['chr','start','end','reg_id','p','Qmeta','cmaf','nmiss','nsnps']]
 
@@ -602,7 +603,7 @@ def Model(out = None,
 
 					##### SKAT-O #####
 					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
-						results_pre = SkatOMeta('skatOMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info)', snp_info_meta)
+						results_pre = SkatOMeta('skatOMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info, rho=r_rho)', snp_info_meta, cfg['data_info'][k]['skat_o_rho'])
 						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
 													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
