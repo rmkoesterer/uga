@@ -9,6 +9,7 @@ import subprocess
 import os.path
 import numpy as np
 import pandas as pd
+from collections import OrderedDict
 import re
 import glob
 from FileFxns import *
@@ -129,9 +130,12 @@ def main(args=None):
 							os.remove(f)
 						except OSError:
 							continue		
-			if not CheckResults(file_dict=out_files, out=args.out + '.verify', overwrite=args.overwrite):
+			complete, complete_reg = CheckResults(file_dict=out_files, out=args.out + '.verify', overwrite=args.overwrite)
+			if not complete:
 				print Error("results could not be verified")
 				return
+			complete_reg = [int(x) for x in complete_reg]
+			out_files =  OrderedDict([(x, out_files[x]) for x in out_files.keys() if x in complete_reg])
 			if not CompileResults(out_files, args.out, args.overwrite):
 				print Error("results could not be compiled")
 				return
@@ -163,7 +167,7 @@ def main(args=None):
 			print Error("above files already exist (use --overwrite flag to replace)")
 			return
 		cmd = 'Explore(data="' + args.data + '",out="' + args.out + '"'
-		for x in ['qq','mht','color','ext','sig','gc','set_gc','lz_source','lz_build','lz_pop','regional_n','region_list','region_id','region','stat','tag','unrel','f_dist_dfn','f_dist_dfd','callrate_thresh','rsq_thresh','freq_thresh','hwe_thresh','effect_thresh','stderr_thresh','or_thresh','df_thresh']:
+		for x in ['qq','qq_n','mht','color','ext','sig','gc','set_gc','lz_source','lz_build','lz_pop','regional_n','region_list','region_id','region','stat','tag','unrel','f_dist_dfn','f_dist_dfd','callrate_thresh','rsq_thresh','freq_thresh','hwe_thresh','effect_thresh','stderr_thresh','or_thresh','df_thresh']:
 			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 				if type(vars(args)[x]) is str:
 					cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'

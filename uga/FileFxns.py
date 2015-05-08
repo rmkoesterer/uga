@@ -182,14 +182,16 @@ def CheckResults(file_dict, out, overwrite, cpus=1):
 		reg_rerun_dict = manager.dict()
 		reg_incompletefile_dict = manager.dict()
 		reg_missingfile_dict = manager.dict()
+		reg_nomarkers_dict = manager.dict()
 		joblist = [file_dict.keys()[i:i+int(math.ceil(float(len(file_dict.keys()))/cpus))] for i in range(0,len(file_dict.keys()),int(math.ceil(float(len(file_dict.keys()))/cpus)))]
 		if cpus == 1:
 			pbar = ProgressBar(maxval=len(joblist[i]), widgets = ['   processed ', Counter(), ' of ' + str(len(joblist[i])) + ' regions (', Timer(), ')'])
-		def CheckReg(i, joblist, reg_complete_dict,reg_rerun_dict,reg_incompletefile_dict,reg_missingfile_dict):
+		def CheckReg(i, joblist, reg_complete_dict,reg_rerun_dict,reg_incompletefile_dict,reg_missingfile_dict,reg_nomarkers_dict):
 			reg_complete = []
 			reg_rerun = []
 			reg_incompletefile = []
 			reg_missingfile = []
+			reg_nomarkers = []
 			k = 0
 			for j in joblist:
 				k = k + 1
@@ -201,22 +203,35 @@ def CheckResults(file_dict, out, overwrite, cpus=1):
 						complete = p.communicate()[0]
 						complete = int(complete.strip())
 						if complete == 0:
-							reg_rerun.append(str(j))
-							reg_incompletefile.append(resfile)
+							p = subprocess.Popen(['grep','-cw','no markers found',logfile[0]], stdout=subprocess.PIPE)	
+							no_makers = p.communicate()[0]
+							no_makers = int(no_makers.strip())
+							if no_makers == 0:
+								reg_rerun.append(str(j))
+								reg_incompletefile.append(resfile)
+							else:
+								reg_nomarkers.append(str(j))
 						else:
 							reg_complete.append(str(j))
 					else:
 						reg_missingfile.append(resfile)
 						reg_rerun.append(str(j))
 				else:
-					reg_missingfile.append(resfile)
-					reg_rerun.append(str(j))
+					p = subprocess.Popen(['grep','-cw','no markers found',logfile[0]], stdout=subprocess.PIPE)	
+					no_makers = p.communicate()[0]
+					no_makers = int(no_makers.strip())
+					if no_makers == 0:
+						reg_rerun.append(str(j))
+						reg_missingfile.append(resfile)
+					else:
+						reg_nomarkers.append(str(j))
 				if cpus == 1:
 					pbar.update(k)
 			reg_complete_dict[i] = reg_complete
 			reg_rerun_dict[i] = reg_rerun
 			reg_incompletefile_dict[i] = reg_incompletefile
 			reg_missingfile_dict[i] = reg_missingfile
+			reg_nomarkers_dict[i] = reg_nomarkers
 			if cpus > 1:
 				print "   finished processing on cpu " + str(i+1)
 		for i in range(len(joblist)):
@@ -227,7 +242,7 @@ def CheckResults(file_dict, out, overwrite, cpus=1):
 			reg_missingfile_dict[i] = []
 			if cpus == 1:
 				pbar.start()
-			p = Process(target=CheckReg, args=(i, joblist[i],reg_complete_dict,reg_rerun_dict,reg_incompletefile_dict,reg_missingfile_dict))
+			p = Process(target=CheckReg, args=(i, joblist[i],reg_complete_dict,reg_rerun_dict,reg_incompletefile_dict,reg_missingfile_dict,reg_nomarkers_dict))
 			jobs.append(p)
 			p.start()
 		for job in jobs:
@@ -236,15 +251,17 @@ def CheckResults(file_dict, out, overwrite, cpus=1):
 		reg_rerun = []
 		reg_incompletefile = []
 		reg_missingfile = []
+		reg_nomarkers = []
 		for i in range(len(joblist)):
 			reg_complete.extend(reg_complete_dict[i])
 			reg_rerun.extend(reg_rerun_dict[i])
 			reg_incompletefile.extend(reg_incompletefile_dict[i])
 			reg_missingfile.extend(reg_missingfile_dict[i])
+			reg_nomarkers.extend(reg_nomarkers_dict[i])
 		if cpus == 1:
 			pbar.finish()
 		print "verification status ... "
-		print "   " + str(len(reg_complete)) + " of " + str(n) + " complete"
+		print "   " + str(len(reg_complete) + len(reg_nomarkers)) + " of " + str(n) + " complete"
 		if len(reg_incompletefile) > 0:
 			print "   " + str(len(reg_incompletefile)) + " of " + str(n) + " incomplete"
 			f = open(out + '.files.incomplete', 'w')
@@ -257,17 +274,24 @@ def CheckResults(file_dict, out, overwrite, cpus=1):
 			f.write('\n'.join(reg_missingfile))
 			f.close()
 			print "      written to file " + out + ".files.missing"
+		if len(reg_nomarkers) > 0:
+			print "   " + str(len(reg_nomarkers)) + " of " + str(n) + " contained no markers"
+			f = open(out + '.no_markers', 'w')
+			f.write('\n'.join(reg_nomarkers))
+			f.close()
+			print "      written to file " + out + ".no_markers"
 		if len(reg_rerun) > 0:
 			print "   " + str(len(reg_rerun)) + " of " + str(n) + " total regions to rerun"
 			f = open(out + '.regions.rerun', 'w')
 			f.write('\n'.join(reg_rerun))
 			f.close()
 			print "      written to file " + out + ".regions.rerun"
-		if len(reg_complete) != n:
-			return False
+		if len(reg_complete) + len(reg_nomarkers) != n:
+			return False, reg_complete
 		else:
-			return True
+			return True, reg_complete
 	else:
+		reg = file_dict.values()[0].split(":")[0] + ':' + file_dict.values()[0].split(":")[1].split("-")[0] + '-' + file_dict.values()[0].split(":")[1].split("-")[1]
 		resfile = file_basename + '.chr' + file_dict.values()[0].split(":")[0] + 'bp' + file_dict.values()[0].split(":")[1].split("-")[0] + '-' + file_dict.values()[0].split(":")[1].split("-")[1]
 		logfile = resfile + ".log"
 		resfile = resfile + ".gz"
@@ -277,17 +301,24 @@ def CheckResults(file_dict, out, overwrite, cpus=1):
 				complete = p.communicate()[0]
 				complete = int(complete.strip())
 				if complete == 0:
-					print "analysis complete"
-					return True
+					p = subprocess.Popen(['grep','-cw','no markers found',logfile[0]], stdout=subprocess.PIPE)	
+					no_makers = p.communicate()[0]
+					no_makers = int(no_makers.strip())
+					if no_makers != 0:
+						print "analysis complete"
+						return True, reg
+					else:
+						print "analysis incomplete"
+						return False, reg
 				else:
 					print "analysis incomplete"
-					return False
+					return False, reg
 			else:
 				print "analysis incomplete ... no log file found"
-				return False
+				return False, reg
 		else:
 			print "analysis incomplete ... no out file found"
-			return False
+			return False, reg
 
 def CompileResults(out_files, out, overwrite):
 	print "compiling results"

@@ -19,6 +19,7 @@ pd.options.mode.chained_assignment = None
 def Explore(data, 
 			out, 
 			qq = False, 
+			qq_n = False, 
 			mht = False, 
 			color = False, 
 			ext = 'tiff', 
@@ -124,11 +125,8 @@ def Explore(data,
 				else:
 					pvals = pvals.append(chunk)
 			print "   processed " + str((i-1)*1000000 + lines) + " lines: " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
-
 		pvals.columns = [a.replace('#','') for a in pvals.columns]
 		chr = 'chr'
-		pvals[[x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]] = pvals[[x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]].astype(float)
-		pvals[['chr','pos']] = pvals[['chr','pos']].astype(int)
 	else:
 		try:
 			h = subprocess.Popen(['tabix','-h',data,'0'], stdout=subprocess.PIPE)
@@ -158,8 +156,8 @@ def Explore(data,
 						pvals = pvals.append(chunk)
 			print "   processed region " + str(r+1) + "/" + str(len(marker_list.index)) + " (" + str(marker_list['reg_id'][r]) + " " + str(marker_list['region'][r]) + "): " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
 		pvals[pvals == 'NA'] = float('nan')
-		pvals[[x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]] = pvals[[x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]].astype(float)
-		pvals[['chr','pos']] = pvals[['chr','pos']].astype(int)
+	pvals[[x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]] = pvals[[x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]].astype(float)
+	pvals[['chr','pos']] = pvals[['chr','pos']].astype(int)
 
 	##### filter data #####
 	if rsq_thresh:
@@ -245,7 +243,8 @@ def Explore(data,
 			ci_lower.sort()
 
 			df = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(pvals['logp']), 'MAF': ro.StrVector(pvals['MAF']), 'ci_upper': ro.FloatVector(ci_upper), 'ci_lower': ro.FloatVector(ci_lower)})
-			dftext = ro.DataFrame({'x': a[-1] * 0.80, 'y': 0, 'lab': 'lambda %~~% ' + str(round(l,3))})
+			dftext_label = 'lambda %~~% ' + str(round(l,3))
+			dftext = ro.DataFrame({'x': ro.r('Inf'), 'y': 0.5, 'lab': dftext_label})
 
 			print "generating qq plot"
 			if ext == 'tiff':
@@ -263,9 +262,13 @@ def Explore(data,
 					ggplot2.geom_abline(intercept=0, slope=1, alpha=0.5) + \
 					ggplot2.scale_x_continuous(ro.r('expression(Expected~~-log[10](italic(p)))')) + \
 					ggplot2.scale_y_continuous(ro.r('expression(Observed~~-log[10](italic(p)))')) + \
-					ggplot2.theme_bw(base_size = 8) + \
-					ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext, colour="black", size = 3, parse=ro.r('TRUE')) + \
-					ggplot2.theme(**{'legend.title': ggplot2.element_blank(), 'legend.key.height': ro.r.unit(0.1,"in"), 'legend.text': ggplot2.element_text(size=5), 'legend.key': ggplot2.element_blank(), 'legend.justification': ro.r('c(0,1)'), 'legend.position': ro.r('c(0,1)'), 'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=8), 'axis.text': ggplot2.element_text(size=6)})
+					ggplot2.theme_bw(base_size = 12) + \
+					ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext, colour="black", vjust=0, hjust=1, size = 4, parse=ro.r('TRUE'))
+			if qq_n:
+				dftext2_label = '~~~ n == ' + str(len(pvals))
+				dftext2 = ro.DataFrame({'x': ro.r('Inf'), 'y': 0, 'lab': dftext2_label})
+				pp = pp + ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext2, colour="black", vjust=0, hjust=1, size = 4, parse=ro.r('TRUE'))
+			pp = pp + ggplot2.theme(**{'axis.title.x': ggplot2.element_text(vjust=-0.5,size=14), 'axis.title.y': ggplot2.element_text(vjust=1,angle=90,size=14), 'legend.title': ggplot2.element_blank(), 'legend.key.height': ro.r.unit(0.1,"in"), 'legend.text': ggplot2.element_text(size=5), 'legend.key': ggplot2.element_blank(), 'legend.justification': ro.r('c(0,1)'), 'legend.position': ro.r('c(0,1)'), 'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.text': ggplot2.element_text(size=12)})
 			pp.plot()
 			grdevices.dev_off()
 		elif qq:
@@ -281,7 +284,8 @@ def Explore(data,
 			ci_lower.sort()
 
 			df = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(pvals['logp']), 'ci_upper': ro.FloatVector(ci_upper), 'ci_lower': ro.FloatVector(ci_lower)})
-			dftext = ro.DataFrame({'x': a[-1] * 0.80, 'y': 0, 'lab': 'lambda %~~% ' + str(round(l,3))})
+			dftext_label = 'lambda %~~% ' + str(round(l,3))
+			dftext = ro.DataFrame({'x': ro.r('Inf'), 'y': 0.5, 'lab': dftext_label})
 
 			print "generating qq plot"
 			if ext == 'tiff':
@@ -298,9 +302,13 @@ def Explore(data,
 					ggplot2.geom_abline(intercept=0, slope=1, alpha=0.5) + \
 					ggplot2.scale_x_continuous(ro.r('expression(Expected~~-log[10](italic(p)))')) + \
 					ggplot2.scale_y_continuous(ro.r('expression(Observed~~-log[10](italic(p)))')) + \
-					ggplot2.theme_bw(base_size = 8) + \
-					ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext, colour="black", size = 3, parse=ro.r('TRUE')) + \
-					ggplot2.theme(**{'legend.position': 'none', 'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=8), 'axis.text': ggplot2.element_text(size=6)})
+					ggplot2.theme_bw(base_size = 12) + \
+					ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext, colour="black", vjust=0, hjust=1, size = 4, parse=ro.r('TRUE'))
+			if qq_n:
+				dftext2_label = '~~~ n == ' + str(len(pvals))
+				dftext2 = ro.DataFrame({'x': ro.r('Inf'), 'y': 0, 'lab': dftext2_label})
+				pp = pp + ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext2, colour="black", vjust=0, hjust=1, size = 4, parse=ro.r('TRUE'))
+			pp = pp + ggplot2.theme(**{'axis.title.x': ggplot2.element_text(vjust=-0.5,size=14), 'axis.title.y': ggplot2.element_text(vjust=1,angle=90,size=14), 'legend.position': 'none', 'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.text': ggplot2.element_text(size=12)})
 			pp.plot()
 			grdevices.dev_off()
 		
@@ -390,7 +398,7 @@ def Explore(data,
 						ggplot2.scale_x_continuous(ro.r('expression(Chromosome~~' + str(df[chr][0]) + '~~(kb))'),breaks=ro.FloatVector(ticks),labels=ro.Vector(["{:,}".format(x/1000) for x in ticks])) + \
 						ggplot2.scale_y_continuous(ro.r('expression(-log[10](italic(p)))'),limits=ro.r('c(0,' + str(maxy) + ')')) + \
 						ggplot2.theme_bw(base_size = 8) + \
-						ggplot2.theme(**{'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=10), 'axis.text': ggplot2.element_text(size=8), 'legend.position': 'none'})
+						ggplot2.theme(**{'axis.title.x': ggplot2.element_text(vjust=-0.5,size=14), 'axis.title.y': ggplot2.element_text(vjust=1,angle=90,size=14), 'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=10), 'axis.text': ggplot2.element_text(size=8), 'legend.position': 'none', 'axis.text': ggplot2.element_text(size=12)})
 				pp.plot()
 			else:
 				gp = ggplot2.ggplot(rdf)
@@ -402,7 +410,7 @@ def Explore(data,
 						ggplot2.scale_x_continuous(ro.r('expression(Chromosome)'),breaks=ro.FloatVector(ticks),labels=ro.FloatVector(chrs)) + \
 						ggplot2.scale_y_continuous(ro.r('expression(-log[10](italic(p)))'),limits=ro.r('c(0,' + str(maxy) + ')')) + \
 						ggplot2.theme_bw(base_size = 8) + \
-						ggplot2.theme(**{'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=8), 'axis.text': ggplot2.element_text(size=6), 'legend.position': 'none'})
+						ggplot2.theme(**{'axis.title.x': ggplot2.element_text(vjust=-0.5,size=14), 'axis.title.y': ggplot2.element_text(vjust=1,angle=90,size=14), 'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=8), 'axis.text': ggplot2.element_text(size=6), 'legend.position': 'none', 'axis.text': ggplot2.element_text(size=12)})
 				pp.plot()
 			grdevices.dev_off()
 

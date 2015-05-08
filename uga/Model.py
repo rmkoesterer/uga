@@ -54,7 +54,7 @@ def Model(out = None,
 			freq = None, 
 			rsq = None, 
 			hwe = None,
-			skat_o_rho = [None], 
+			skat_o_rho = [1], 
 			geeboss_thresh = 1e-7, 
 			case = [1], 
 			ctrl = [0], 
@@ -75,6 +75,8 @@ def Model(out = None,
 				cfg['data_info'][k]['fxn'] = None
 			if not 'sex' in cfg['data_info'][k].keys():
 				cfg['data_info'][k]['sex'] = None
+			if not 'skat_o_rho' in cfg['data_info'][k].keys():
+				cfg['data_info'][k]['skat_o_rho'] = 1
 			if not 'case' in cfg['data_info'][k].keys():
 				cfg['data_info'][k]['case'] = None
 			if not 'ctrl' in cfg['data_info'][k].keys():
@@ -245,14 +247,15 @@ def Model(out = None,
 					if cfg['data_info'][k]['marker_list_handle'] is not None:
 						marker_list = cfg['data_info'][k]['marker_list_handle'].querys(region_list['region'][i])
 						marker_list = pd.DataFrame([x for x in marker_list if int(x[1]) >= int(region_list['start'][i]) and int(x[1]) <= int(region_list['end'][i])])
-						marker_list.columns = ['chr','pos','marker','a1','a2']
-						marker_list['chr'] = marker_list['chr'].astype(np.int64)
-						marker_list['pos'] = marker_list['pos'].astype(np.int64)
+						if marker_list.shape[0] > 0:
+							marker_list.columns = ['chr','pos','marker','a1','a2']
+							marker_list['chr'] = marker_list['chr'].astype(np.int64)
+							marker_list['pos'] = marker_list['pos'].astype(np.int64)
 					try:
 						records = cfg['data_info'][k]['data_it'].querys(region_list['region'][i])
 						region_list[k][i] = countNonPlinkRegion(records, cfg['data_info'][k]['format'], int(region_list['start'][i]), int(region_list['end'][i]), marker_list)
 					except:
-						region_list[k][i] = 'n'
+						region_list[k][i] = 0
 				else:
 					region_list[k][i] = 'n'
 	region_list = region_list[(region_list[cfg['data_order']].T != 0).any()].reset_index(drop=True)

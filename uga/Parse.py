@@ -382,6 +382,9 @@ def Parser():
 	explore_parser.add_argument('--qq', 
 						action='store_true', 
 						help='print qq plot')
+	explore_parser.add_argument('--qq-n', 
+						action='store_true', 
+						help='print number of markers on qq plot')
 	explore_parser.add_argument('--mht', 
 						action='store_true', 
 						help='print manhattan plot')
