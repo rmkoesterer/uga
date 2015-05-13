@@ -20,7 +20,6 @@ from StatsFxns import *
 from FileFxns import Coordinates
 from plinkio import plinkfile
 import collections
-import pysam
 import vcf as VCF
 		
 #from memory_profiler import profile, memory_usage
@@ -488,7 +487,7 @@ def Model(out = None,
 						else:
 							cfg['reg_model_df'] = pd.merge(cfg['reg_model_df'],model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1),how='outer',copy=False)
 							cfg['reg_marker_info'] = cfg['reg_marker_info'].append(marker_info[marker_info['filter'] == 0],ignore_index=True)
-
+					print cfg['reg_marker_info']
 				##### UPDATE LOOP STATUS #####
 				cur_markers = str(min(i*cfg['buffer'],region_list[k][r])) if region_list['start'][r] != 'NA' else str(i*cfg['buffer'])
 				tot_markers = str(region_list[k][r]) if region_list['start'][r] != 'NA' else '> 0'
@@ -524,7 +523,7 @@ def Model(out = None,
 
 			##### CALCULATE PREPSCORES AND INDIVIDUAL MODELS FOR GENE BASED TESTS #####
 			elif cfg['data_info'][k]['method'] in seqmeta_tests:
-				if not cfg['reg_marker_info'] is None and cfg['reg_marker_info'].shape[0] > 1:
+				if not cfg['reg_marker_info'] is None and cfg['reg_marker_info'].shape[0] > 0:
 					cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': region_list['reg_id'][r]})
 					z = cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])]
 					pheno = cfg['reg_model_df'][list(set(cfg['data_info'][k]['model_vars_dict'].keys() + [cfg['data_info'][k]['iid'],cfg['data_info'][k]['fid']]))]

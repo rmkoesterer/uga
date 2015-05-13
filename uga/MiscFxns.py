@@ -5,7 +5,6 @@ from SystemFxns import Error
 from multi_key_dict import multi_key_dict
 from itertools import islice,takewhile,ifilter
 from plinkio import plinkfile
-import pysam
 import vcf as VCF
 import tabix
 import gzip

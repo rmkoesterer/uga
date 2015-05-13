@@ -8,7 +8,6 @@ from multiprocessing import Process, Manager, cpu_count
 from plinkio import plinkfile
 from itertools import islice,groupby
 from operator import attrgetter
-import pysam
 import vcf as VCF
 
 def Map(out, 
