@@ -51,6 +51,7 @@ def Model(out = None,
 			buffer = 100, 
 			miss = None, 
 			freq = None, 
+			max_freq = None, 
 			rsq = None, 
 			hwe = None,
 			skat_o_rho = [1], 
@@ -84,7 +85,9 @@ def Model(out = None,
 				cfg['data_info'][k]['corstr'] = 'exchangeable'
 			if not 'pheno_sep' in cfg['data_info'][k].keys():
 				cfg['data_info'][k]['pheno_sep'] = '\t'
-		for arg in ['cfg','out','sig','buffer','miss','freq','skat_o_rho','rsq','hwe','nofail','region_list','region','region_id']:
+			if not 'marker_list' in cfg['data_info'][k].keys():
+				cfg['data_info'][k]['marker_list'] = None
+		for arg in ['cfg','out','sig','buffer','miss','freq','max_freq','skat_o_rho','rsq','hwe','nofail','region_list','region','region_id']:
 			if not str(locals()[arg]) in ['None','False']:
 				print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 	else:
@@ -94,7 +97,7 @@ def Model(out = None,
 
 	##### populate configuration #####
 	if cfg is None:
-		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'meta': [], 'freq': freq, 'miss': miss, 'rsq': rsq, 'sig': int(sig), 'nofail': nofail, 
+		cfg={'out': out, 'buffer': int(buffer), 'hwe': hwe, 'data_order': ['NA'], 'meta': [], 'freq': freq, 'max_freq': max_freq, 'miss': miss, 'rsq': rsq, 'sig': int(sig), 'nofail': nofail, 
 				'region': region, 'region_list': region_list, 'region_id': region_id,
 				'data_info': {'NA': {'data': data[0], 'format': format[0], 'samples': samples[0], 'pheno': pheno[0], 'marker_list': marker_list[0], 'model': model[0], 'fid': fid[0], 'iid': iid[0],
 					'method': method[0], 'focus': focus[0], 'skat_o_rho': skat_o_rho[0], 'pedigree': pedigree[0], 'sex': sex[0], 'male': male[0], 'female': female[0], 'case': case[0], 'ctrl': ctrl[0], 
@@ -431,9 +434,9 @@ def Model(out = None,
 					marker_info['hwe.unrel.ctrl']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
 					marker_info['hwe.unrel.case']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: CalcHWE(marker=col, chr=chr, female_idx=female_idx), 0)
 				if cfg['data_info'][k]['method'] in seqmeta_tests:
-					marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, no_mono=True, miss=cfg['miss'], freq=cfg['freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
+					marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, no_mono=False, miss=cfg['miss'], freq=cfg['freq'], max_freq=cfg['max_freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
 				else:
-					marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, miss=cfg['miss'], freq=cfg['freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
+					marker_info['filter']=marker_info.apply(lambda row: GenerateFilterCode(marker_info=row, miss=cfg['miss'], freq=cfg['freq'], max_freq=cfg['max_freq'], rsq=cfg['rsq'], hwe=cfg['hwe']), 1)
 				marker_info['samples'] = str(cfg['data_info'][k]['samples']) + '/' + str(cfg['data_info'][k]['samples_unique']) + '/' + str(cfg['data_info'][k]['clusters']) + '/' + str(cfg['data_info'][k]['cases']) + '/' + str(cfg['data_info'][k]['ctrls']) + '/' + str(cfg['data_info'][k]['nmale']) + '/' + str(cfg['data_info'][k]['nfemale'])
 
 				##### CONVERT ALL COLUMNS TO APPROPRIATE FORMAT FOR ANALYSIS #####
@@ -487,7 +490,7 @@ def Model(out = None,
 						else:
 							cfg['reg_model_df'] = pd.merge(cfg['reg_model_df'],model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1),how='outer',copy=False)
 							cfg['reg_marker_info'] = cfg['reg_marker_info'].append(marker_info[marker_info['filter'] == 0],ignore_index=True)
-					print cfg['reg_marker_info']
+
 				##### UPDATE LOOP STATUS #####
 				cur_markers = str(min(i*cfg['buffer'],region_list[k][r])) if region_list['start'][r] != 'NA' else str(i*cfg['buffer'])
 				tot_markers = str(region_list[k][r]) if region_list['start'][r] != 'NA' else '> 0'

@@ -82,7 +82,11 @@ def Parser():
 	model_parser.add_argument('--freq', 
 						action='store', 
 						type=float, 
-						help='threshold value for allele frequency (ie. FREQ=0.03 filters out markers with MAF < 0.03)')
+						help='threshold value for minimum allele frequency (ie. FREQ=0.03 filters out markers with MAF < 0.03)')
+	model_parser.add_argument('--max-freq', 
+						action='store', 
+						type=float, 
+						help='threshold value for maximum allele frequency (ie. FREQ=0.01 filters out markers with MAF >= 0.01)')
 	model_parser.add_argument('--rsq', 
 						action='store', 
 						type=float, 

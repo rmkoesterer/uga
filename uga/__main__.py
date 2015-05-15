@@ -134,8 +134,7 @@ def main(args=None):
 			if not complete:
 				print Error("results could not be verified")
 				return
-			complete_reg = [int(x) for x in complete_reg]
-			out_files =  OrderedDict([(x, out_files[x]) for x in out_files.keys() if x in complete_reg])
+			out_files = OrderedDict([(x, out_files[x]) for x in out_files.keys() if x in complete_reg])
 			if not CompileResults(out_files, args.out, args.overwrite):
 				print Error("results could not be compiled")
 				return

@@ -21,12 +21,42 @@ rclass = ro.r('class')
 rglm = ro.r('glm')
 base=py2r.importr('base')
 
-def GenerateFilterCode(marker_info, no_mono=True, miss = None, freq = None, rsq = None, hwe = None):
+def GenerateFilterCode(marker_info, no_mono=True, miss = None, freq = None, max_freq = None, rsq = None, hwe = None):
 	filter = 0
-	if (not miss is None and not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) < float(miss)) or (not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) == 0 and no_mono) or (math.isnan(marker_info['callrate'])):
+	if (not miss is None and not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) < float(miss)) or (not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) == 0) or (math.isnan(marker_info['callrate'])):
 		filter += 1000
-	if (not freq is None and not math.isnan(marker_info['freq']) and ((float(marker_info['freq']) < float(freq) or float(marker_info['freq']) > 1-float(freq) or float(marker_info['freq']) == 0 or float(marker_info['freq']) == 1) and (float(marker_info['freq.unrel']) < float(freq) or float(marker_info['freq.unrel']) > 1-float(freq) or float(marker_info['freq.unrel']) == 0 or float(marker_info['freq.unrel']) == 1))) or (math.isnan(marker_info['freq'])):
-		filter += 100
+	if not math.isnan(marker_info['freq']): 
+		if no_mono and (float(marker_info['freq']) == 0 or float(marker_info['freq']) == 1):
+			filter += 100
+		else:
+			if ((	not freq is None
+				and 
+					(		float(marker_info['freq']) < float(freq)
+						 or float(marker_info['freq']) > 1-float(freq)
+					)
+				and 
+					(		float(marker_info['freq.unrel']) < float(freq)
+						 or float(marker_info['freq.unrel']) > 1-float(freq)
+					)
+			   ) 
+			  or
+			   (	not max_freq is None
+				and 
+					(	   
+						(		float(marker_info['freq']) > float(max_freq)
+							and float(marker_info['freq']) < 1-float(max_freq)
+						)
+					)
+				and
+					(
+						(		float(marker_info['freq.unrel']) > float(max_freq)
+							and float(marker_info['freq.unrel']) < 1-float(max_freq)
+						)
+						or float(marker_info['freq.unrel']) == 0 
+						or float(marker_info['freq.unrel']) == 1
+					)
+			   )):
+				filter += 100
 	if not rsq is None and not math.isnan(marker_info['rsq']) and (float(marker_info['rsq']) < float(rsq) and float(marker_info['rsq.unrel']) < float(rsq)):
 		filter += 10
 	if not hwe is None and not math.isnan(marker_info['hwe']) and (float(marker_info['hwe']) < float(hwe) and float(marker_info['hwe.unrel']) < float(hwe)):

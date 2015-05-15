@@ -65,7 +65,7 @@ class Cfg(object):
 						config_temp[key] = val
 			return config
 		elif self.module == 'model':
-			config = {'out': None, 'sig': 5, 'buffer': 100, 'miss': None, 'freq': None, 'rsq': None, 'hwe': None, 'mem': 3, 'nofail': False, 
+			config = {'out': None, 'sig': 5, 'buffer': 100, 'miss': None, 'freq': None, 'max_freq': None, 'rsq': None, 'hwe': None, 'mem': 3, 'nofail': False, 
 						'merge': False, 'data_info': {}, 'data_order': [], 'meta': []}
 			config_temp = {}
 			with open(self.filename) as f:
@@ -77,7 +77,7 @@ class Cfg(object):
 						line = line.replace('[' + k + ']', self.vars[k])
 					key = str(line.split()[0])
 					val = " ".join(line.split()[1:])
-					if key in ['out','sig','buffer','miss','freq','rsq','hwe','mem']:
+					if key in ['out','sig','buffer','miss','freq','max_freq','rsq','hwe','mem']:
 						config[key] = val
 					if key in ['nofail','merge']:
 						config[key] = True
