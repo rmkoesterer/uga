@@ -43,16 +43,16 @@ def GenerateFilterCode(marker_info, no_mono=True, miss = None, freq = None, max_
 			   (	not max_freq is None
 				and 
 					(	   
-						(		float(marker_info['freq']) > float(max_freq)
-							and float(marker_info['freq']) < 1-float(max_freq)
+						(		float(marker_info['freq']) >= float(max_freq)
+							and float(marker_info['freq']) <= 1-float(max_freq)
 						)
 					)
 				and
 					(
-						(		float(marker_info['freq.unrel']) > float(max_freq)
-							and float(marker_info['freq.unrel']) < 1-float(max_freq)
+						(		float(marker_info['freq.unrel']) >= float(max_freq)
+							and float(marker_info['freq.unrel']) <= 1-float(max_freq)
 						)
-						or float(marker_info['freq.unrel']) == 0 
+						or float(marker_info['freq.unrel']) == 0
 						or float(marker_info['freq.unrel']) == 1
 					)
 			   )):
@@ -410,6 +410,9 @@ def SkatOMeta(cmd, snp_info, rho = 1):
 	ro.globalenv['r_rho'] = ro.r('seq(0,1,' + str(rho) + ')')
 	try:
 		result = rtry(ro.reval(cmd),silent=ro.r('TRUE'))
+		f1=open('test.result', 'w+')
+		f1.write(str(result))
+		f1.close()
 	except RRuntimeError:
 		result_df = pd.DataFrame({'p': ['NA'], 'pmin': ['NA'], 'rho': ['NA'], 'cmaf': ['NA'], 'nmiss': ['NA'], 'nsnps': ['NA'], 'errflag': ['100']})
 		result_df.index = [1]
@@ -460,20 +463,35 @@ def BurdenMeta(cmd, snp_info):
 	return result_df
 
 
-def SkatOMetaEmpty(chr, start, end, reg_id):
-	results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],
+def SkatOMetaEmpty(chr, start, end, reg_id, meta_incl_string = None):
+	if meta_incl_string is not None:
+		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],'incl': [meta_incl_string],
+								'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
+								'nsnps': ['NA'],'errflag': ['NA']})
+	else:
+		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],
 								'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
 								'nsnps': ['NA'],'errflag': ['NA']})
 	return results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
 
-def SkatMetaEmpty(chr, start, end, reg_id):
-	results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],
+def SkatMetaEmpty(chr, start, end, reg_id, meta_incl_string = None):
+	if meta_incl_string is not None:
+		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],'incl': [meta_incl_string],
+								'p': ['NA'],'Qmeta': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
+								'nsnps': ['NA']})
+	else:
+		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],
 								'p': ['NA'],'Qmeta': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
 								'nsnps': ['NA']})
 	return results[['chr','start','end','reg_id','p','Qmeta','cmaf','nmiss','nsnps']]
 
-def BurdenMetaEmpty(chr, start, end, reg_id):
-	results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],
+def BurdenMetaEmpty(chr, start, end, reg_id, meta_incl_string = None):
+	if meta_incl_string is not None:
+		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],'incl': [meta_incl_string],
+								'p': ['NA'],'beta': ['NA'],'se': ['NA'],'cmafTotal': ['NA'],'cmafUsed': ['NA'],
+								'nsnpsTotal': ['NA'],'nsnpsUsed': ['NA'],'nmiss': ['NA']})
+	else:
+		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'reg_id': [reg_id],
 								'p': ['NA'],'beta': ['NA'],'se': ['NA'],'cmafTotal': ['NA'],'cmafUsed': ['NA'],
 								'nsnpsTotal': ['NA'],'nsnpsUsed': ['NA'],'nmiss': ['NA']})
 	return results[['chr','start','end','reg_id','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]

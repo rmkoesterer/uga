@@ -386,6 +386,9 @@ def Parser():
 	explore_parser.add_argument('--qq', 
 						action='store_true', 
 						help='print qq plot')
+	explore_parser.add_argument('--qq-strat', 
+						action='store_true', 
+						help='print frequency stratified qq plot')
 	explore_parser.add_argument('--qq-n', 
 						action='store_true', 
 						help='print number of markers on qq plot')
@@ -402,6 +405,10 @@ def Parser():
 						action='store', 
 						type=float, 
 						help='set genomic inflation value instead of calculating it')
+	explore_parser.add_argument('--top-p', 
+						action='store', 
+						type=float, 
+						help='set minimum p-value for top results file (default = 1e-4; will print at least top 100')
 	explore_parser.add_argument('--stat', 
 						action='store', 
 						help='string indicating prefix for statistics to be summarized, not including tag (default: STAT=\'marker\')')

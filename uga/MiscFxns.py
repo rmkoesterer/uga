@@ -371,6 +371,15 @@ class MarkerRefDb(object):
 		newrow['a2']=refa2
 		return newrow
 
+	def Print(self):
+		print "\nReference"
+		for k in self.ref.keys():
+			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref.keys()],key=len))) + ": " + str(self.ref[k[0]])
+		print "Reference alleles"
+		for k in self.ref_alleles.keys():
+			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref_alleles.keys()],key=len))) + ": " + str(self.ref_alleles[k[0]])
+		print ""
+
 class ChunkRefDb(object):
 
 	def __init__(self):
@@ -402,3 +411,12 @@ class ChunkRefDb(object):
 		else:
 			self.ref[record_markers] = [marker]
 			self.ref_alleles[record_markers] = [a1,a2]
+
+	def Print(self):
+		print "\nReference"
+		for k in self.ref.keys():
+			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref.keys()],key=len))) + ": " + str(self.ref[k[0]])
+		print "Reference alleles"
+		for k in self.ref_alleles.keys():
+			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref_alleles.keys()],key=len))) + ": " + str(self.ref_alleles[k[0]])
+		print ""

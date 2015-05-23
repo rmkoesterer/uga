@@ -18,7 +18,8 @@ pd.options.mode.chained_assignment = None
 #@profile
 def Explore(data, 
 			out, 
-			qq = False, 
+			qq = False,
+			qq_strat = False, 
 			qq_n = False, 
 			mht = False, 
 			color = False, 
@@ -31,6 +32,7 @@ def Explore(data,
 			region = None, 
 			region_id = None, 
 			region_list = None, 
+			top_p = 1e-4,  
 			tag = None, 
 			unrel = False, 
 			f_dist_dfn = None, 
@@ -224,8 +226,12 @@ def Explore(data,
 			print "genomic inflation (3% <= MAF < 5%, n=" + str(lC_n) + ") = " + str(lC)
 			print "genomic inflation (1% <= MAF < 3%, n=" + str(lD_n) + ") = " + str(lD)
 			print "genomic inflation (MAF < 1%, n=" + str(lE_n) + ") = " + str(lE)
+		else:
+			if qq_strat:
+				print freq + " not found in data file, skipping frequency stratified qq plot"
 
-		if qq and freq in pvals:
+		if qq and freq in pvals and qq_strat:
+			"""
 			a = -1 * np.log10(ro.r('ppoints(' + str(len(pvals.index)) + ')'))
 			a.sort()
 			
@@ -245,33 +251,85 @@ def Explore(data,
 			df = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(pvals['logp']), 'MAF': ro.StrVector(pvals['MAF']), 'ci_upper': ro.FloatVector(ci_upper), 'ci_lower': ro.FloatVector(ci_lower)})
 			dftext_label = 'lambda %~~% ' + str(round(l,3))
 			dftext = ro.DataFrame({'x': ro.r('Inf'), 'y': 0.5, 'lab': dftext_label})
+			"""
+			pvals['logp'] = -1 * np.log10(pvals[p])
+			pvals.sort(columns=['logp'], inplace=True)
+			pvals['MAF'] = 'E'
+			pvals['MAF'][(pvals[freq] >= 0.01) & (pvals[freq] <= 0.99)] = 'D'
+			pvals['MAF'][(pvals[freq] >= 0.03) & (pvals[freq] <= 0.97)] = 'C'
+			pvals['MAF'][(pvals[freq] >= 0.05) & (pvals[freq] <= 0.95)] = 'B'
+			pvals['MAF'][(pvals[freq] >= 0.1) & (pvals[freq] <= 0.9)] = 'A'
+			a = np.array([])
+			b = np.array([])
+			c = np.array([])
+			if len(pvals[pvals['MAF'] == 'E'].index) > 0:
+				aa = -1 * np.log10(ro.r('ppoints(' + str(len(pvals[pvals['MAF'] == 'E'].index)) + ')'))
+				aa.sort()
+				bb = pvals['logp'][pvals['MAF'] == 'E']
+				bb.sort()
+				cc = pvals['MAF'][pvals['MAF'] == 'E']
+				a = np.append(a,aa)
+				b = np.append(b,bb)
+				c = np.append(c,cc)
+			if len(pvals[pvals['MAF'] == 'D'].index) > 0:
+				aa = -1 * np.log10(ro.r('ppoints(' + str(len(pvals[pvals['MAF'] == 'D'].index)) + ')'))
+				aa.sort()
+				bb = pvals['logp'][pvals['MAF'] == 'D']
+				bb.sort()
+				cc = pvals['MAF'][pvals['MAF'] == 'D']
+				a = np.append(a,aa)
+				b = np.append(b,bb)
+				c = np.append(c,cc)
+			if len(pvals[pvals['MAF'] == 'C'].index) > 0:
+				aa = -1 * np.log10(ro.r('ppoints(' + str(len(pvals[pvals['MAF'] == 'C'].index)) + ')'))
+				aa.sort()
+				bb = pvals['logp'][pvals['MAF'] == 'C']
+				bb.sort()
+				cc = pvals['MAF'][pvals['MAF'] == 'C']
+				a = np.append(a,aa)
+				b = np.append(b,bb)
+				c = np.append(c,cc)
+			if len(pvals[pvals['MAF'] == 'B'].index) > 0:
+				aa = -1 * np.log10(ro.r('ppoints(' + str(len(pvals[pvals['MAF'] == 'B'].index)) + ')'))
+				aa.sort()
+				bb = pvals['logp'][pvals['MAF'] == 'B']
+				bb.sort()
+				cc = pvals['MAF'][pvals['MAF'] == 'B']
+				a = np.append(a,aa)
+				b = np.append(b,bb)
+				c = np.append(c,cc)
+			if len(pvals[pvals['MAF'] == 'A'].index) > 0:
+				aa = -1 * np.log10(ro.r('ppoints(' + str(len(pvals[pvals['MAF'] == 'A'].index)) + ')'))
+				aa.sort()
+				bb = pvals['logp'][pvals['MAF'] == 'A']
+				bb.sort()
+				cc = pvals['MAF'][pvals['MAF'] == 'A']
+				a = np.append(a,aa)
+				b = np.append(b,bb)
+				c = np.append(c,cc)
+			df = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(b), 'MAF': ro.StrVector(c)})
 
-			print "generating qq plot"
+			print "generating frequency stratified qq plot"
 			if ext == 'tiff':
-				grdevices.tiff(out + '.qq.' + ext,width=4,height=4,units="in",bg="white",compression="lzw",res=300)
+				grdevices.tiff(out + '.qq_strat.' + ext,width=4,height=4,units="in",bg="white",compression="lzw",res=300)
 			elif ext == 'eps':
-				grdevices.postscript(out + '.qq.' + ext,width=4,height=4,bg="white",horizontal=False)
+				grdevices.postscript(out + '.qq_strat.' + ext,width=4,height=4,bg="white",horizontal=False)
 			else:
-				grdevices.pdf(out + '.qq.' + ext,width=4,height=4,bg="white")
+				grdevices.pdf(out + '.qq_strat.' + ext,width=4,height=4,bg="white")
 			gp = ggplot2.ggplot(df)
 			pp = gp + \
 					ggplot2.aes_string(x='a',y='b') + \
-					ggplot2.geom_ribbon(ggplot2.aes_string(x='a',ymin='ci_lower',ymax='ci_upper'), data=df, alpha=0.15, fill='black') + \
 					ggplot2.geom_point(ggplot2.aes_string(color='MAF'), size=2) + \
 					ggplot2.scale_colour_manual(values=ro.r('c("E"="#a8ddb5", "D"="#7bccc4", "C"="#4eb3d3", "B"="#2b8cbe", "A"="#08589e")'), labels=ro.r('c("E"="MAF < 1%","D"="1% <= MAF < 3%","C"="3% <= MAF < 5%","B"="5% <= MAF < 10%","A"="MAF >= 10%")')) + \
 					ggplot2.geom_abline(intercept=0, slope=1, alpha=0.5) + \
 					ggplot2.scale_x_continuous(ro.r('expression(Expected~~-log[10](italic(p)))')) + \
 					ggplot2.scale_y_continuous(ro.r('expression(Observed~~-log[10](italic(p)))')) + \
-					ggplot2.theme_bw(base_size = 12) + \
-					ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext, colour="black", vjust=0, hjust=1, size = 4, parse=ro.r('TRUE'))
-			if qq_n:
-				dftext2_label = '~~~ n == ' + str(len(pvals))
-				dftext2 = ro.DataFrame({'x': ro.r('Inf'), 'y': 0, 'lab': dftext2_label})
-				pp = pp + ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext2, colour="black", vjust=0, hjust=1, size = 4, parse=ro.r('TRUE'))
+					ggplot2.theme_bw(base_size = 12)
 			pp = pp + ggplot2.theme(**{'axis.title.x': ggplot2.element_text(vjust=-0.5,size=14), 'axis.title.y': ggplot2.element_text(vjust=1,angle=90,size=14), 'legend.title': ggplot2.element_blank(), 'legend.key.height': ro.r.unit(0.1,"in"), 'legend.text': ggplot2.element_text(size=5), 'legend.key': ggplot2.element_blank(), 'legend.justification': ro.r('c(0,1)'), 'legend.position': ro.r('c(0,1)'), 'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.text': ggplot2.element_text(size=12)})
 			pp.plot()
 			grdevices.dev_off()
-		elif qq:
+
+		if qq:
 			a = -1 * np.log10(ro.r('ppoints(' + str(len(pvals.index)) + ')'))
 			a.sort()
 			
@@ -428,6 +486,20 @@ def Explore(data,
 		if set_gc is not None:
 			print "adjusting p-values for genomic inflation"
 			pvals[p]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*pvals[p]) / math.sqrt(set_gc)))
+
+	##### PRINT TOP RESULTS TO FILE #####
+	print 'writing top results file'
+	if pvals[pvals[p] < top_p].shape[0] > 100:
+		pvals_out = pvals[pvals[p] < top_p].sort(columns=[p])
+	else:
+		pvals_out = pvals.sort(columns=[p]).head(100)
+	pvals_out.rename(columns={'chr':'#chr'},inplace=True)
+	pvals_out[p] = pvals_out[p].map('{:,.2e}'.format)
+	if 'logp' in pvals_out:
+		pvals_out.drop('logp',axis=1,inplace=True)
+	if 'MAF' in pvals_out:
+		pvals_out.drop('MAF',axis=1,inplace=True)
+	pvals_out.to_csv(out + '.top_results', header=True, index=False, sep="\t")
 
 	if len(regions) > 0:
 		print "generating regional plots"

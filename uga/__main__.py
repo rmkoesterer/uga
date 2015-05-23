@@ -144,9 +144,13 @@ def main(args=None):
 
 	elif args.which == 'explore':
 		check_files = [args.out + '.explore.log']
+		check_files = [args.out + '.top_results']
 		check_files = check_files + [args.out + '.qq.tiff'] if 'qq' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'tiff' else check_files
+		check_files = check_files + [args.out + '.qq_strat.tiff'] if 'qq_strat' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'tiff' else check_files
 		check_files = check_files + [args.out + '.qq.eps'] if 'qq' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'eps' else check_files
+		check_files = check_files + [args.out + '.qq_strat.eps'] if 'qq_strat' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'eps' else check_files
 		check_files = check_files + [args.out + '.qq.pdf'] if 'qq' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'pdf' else check_files
+		check_files = check_files + [args.out + '.qq_strat.pdf'] if 'qq_strat' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'pdf' else check_files
 		check_files = check_files + [args.out + '.mht.tiff'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'tiff' else check_files
 		check_files = check_files + [args.out + '.mht.eps'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'eps' else check_files
 		check_files = check_files + [args.out + '.mht.pdf'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'pdf' else check_files
@@ -166,7 +170,7 @@ def main(args=None):
 			print Error("above files already exist (use --overwrite flag to replace)")
 			return
 		cmd = 'Explore(data="' + args.data + '",out="' + args.out + '"'
-		for x in ['qq','qq_n','mht','color','ext','sig','gc','set_gc','lz_source','lz_build','lz_pop','regional_n','region_list','region_id','region','stat','tag','unrel','f_dist_dfn','f_dist_dfd','callrate_thresh','rsq_thresh','freq_thresh','hwe_thresh','effect_thresh','stderr_thresh','or_thresh','df_thresh']:
+		for x in ['qq','qq_n','qq_strat','mht','color','ext','sig','gc','set_gc','lz_source','lz_build','lz_pop','regional_n','region_list','region_id','region','stat','top_p','tag','unrel','f_dist_dfn','f_dist_dfd','callrate_thresh','rsq_thresh','freq_thresh','hwe_thresh','effect_thresh','stderr_thresh','or_thresh','df_thresh']:
 			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 				if type(vars(args)[x]) is str:
 					cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
