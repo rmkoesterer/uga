@@ -1,9 +1,4 @@
-import subprocess		
-import tabix
-import math
-import pandas as pd
-import numpy as np
-from SystemFxns import Error
+from __main__ import *
 from multiprocessing import Process, Manager, cpu_count
 from plinkio import plinkfile
 from itertools import islice,groupby
@@ -25,8 +20,8 @@ def Map(out,
 		shift_kb = None, 
 		shift_b = None):
 
-	assert not oxford is None or not dos1 is None or not dos2 is None or not plink is None or not vcf is None, Error("a genotype data file must be specified")
-	assert not b is None or not kb is None or not mb is None or not n is None, Error("a region size or number of markers must be specified")
+	assert not oxford is None or not dos1 is None or not dos2 is None or not plink is None or not vcf is None, SystemFxns.Error("a genotype data file must be specified")
+	assert not b is None or not kb is None or not mb is None or not n is None, SystemFxns.Error("a region size or number of markers must be specified")
 
 	s = int(b) if b else None
 	s = int(kb) * 1000 if kb else s
@@ -42,7 +37,7 @@ def Map(out,
 
 	if not chr is None:
 		if not int(chr) in range(1,27):
-			print Error("chromosome " + str(chr) + " is an invalid choice")
+			print SystemFxns.Error("chromosome " + str(chr) + " is an invalid choice")
 			return
 		chrs = [int(chr)]
 	else:

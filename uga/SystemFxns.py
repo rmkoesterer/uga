@@ -1,6 +1,5 @@
+from __main__ import *
 import psutil
-import subprocess
-import sys
 
 def Error(m):
 	return "\n   *** Error: " + m + "\n"

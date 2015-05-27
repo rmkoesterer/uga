@@ -1,18 +1,7 @@
-import pandas as pd
-import numpy as np
-import subprocess
-import math
-import tabix
-from SystemFxns import Error
-from FileFxns import Coordinates
+from __main__ import *
 import scipy.stats as scipy
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
-import re
-import os
-from Bio import bgzf
-
-pd.options.mode.chained_assignment = None
 
 #from memory_profiler import profile, memory_usage
 #@profile
@@ -100,7 +89,7 @@ def Explore(data,
 	regions = None
 	if not region_list is None:
 		print "loading region list"
-		marker_list = Coordinates(region_list).Load()
+		marker_list = FileFxns.LoadCoordinates(region_list)
 		regions = list(marker_list['region'])
 	elif not region is None:
 		if len(region.split(':')) > 1:
@@ -133,7 +122,7 @@ def Explore(data,
 		try:
 			h = subprocess.Popen(['tabix','-h',data,'0'], stdout=subprocess.PIPE)
 		except:
-			usage(Error("process_file " + data + " has incorrect format"))
+			usage(SystemFxns.Error("process_file " + data + " has incorrect format"))
 		header = h.communicate()[0]
 		header = header.replace("#","")
 		header = header.strip()
@@ -494,7 +483,7 @@ def Explore(data,
 	else:
 		pvals_out = pvals.sort(columns=[p]).head(100)
 	pvals_out.rename(columns={'chr':'#chr'},inplace=True)
-	pvals_out[p] = pvals_out[p].map('{:,.2e}'.format)
+	pvals_out[p] = pvals_out[p].map('{:,.4e}'.format)
 	if 'logp' in pvals_out:
 		pvals_out.drop('logp',axis=1,inplace=True)
 	if 'MAF' in pvals_out:

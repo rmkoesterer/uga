@@ -11,3 +11,4 @@ biopython
 plinkio
 pysam
 PyVCF
+Cython

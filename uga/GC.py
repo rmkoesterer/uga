@@ -1,26 +1,14 @@
-import pandas as pd
-import numpy as np
-import subprocess
-import psutil
-import resource
-import math
-from SystemFxns import Error
-from FileFxns import Coordinates
+from __main__ import *
 import scipy.stats as scipy
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
-import re
-import os
-from Bio import bgzf
-
-pd.options.mode.chained_assignment = None
 
 #from memory_profiler import profile, memory_usage
 #@profile
 def GC(data, 
-			out, 
-			gc, 
-			):
+		out, 
+		gc, 
+		):
 
 	print "gc options ..."
 	for arg in locals().keys():
@@ -64,6 +52,6 @@ def GC(data,
 	try:
 		p = subprocess.check_call(cmd)
 	except subprocess.CalledProcessError:
-		print Error("file mapping failed")
+		print SystemFxns.Error("file mapping failed")
 	else:
 		print 'process complete'

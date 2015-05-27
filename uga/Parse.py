@@ -1,7 +1,6 @@
+from __main__ import *
 import argparse
-import os
-import sys
-from __version__ import version
+from __init__ import version
 
 def Parser():
 	parser = argparse.ArgumentParser(add_help=False)
@@ -49,11 +48,6 @@ def Parser():
 						action='store', 
 						nargs=1, 
 						help='comma separated list of variables for which stats will be reported (default: report all stats)')
-	model_parser.add_argument('--sig', 
-						action='store', 
-						type=int, 
-						default=5, 
-						help='significant digits reported for float type stats (default: SIG=5)')
 	model_parser.add_argument('--sex', 
 						action='store', 
 						nargs=1, 
@@ -113,9 +107,6 @@ def Parser():
 						choices=['exchangeable','independence','ar1','unstructured'], 
 						default=['exchangeable'], 
 						help='correlation structure for gee analyses (default: exchangeable)')
-	model_parser.add_argument('--nofail', 
-						action='store_true', 
-						help='exclude filtered/failed analyses from results (if not set, full results are reported with filtered marker stats set to NA)')
 	model_parser.add_argument('--geeboss-thresh', 
 						nargs=1, 
 						action='store', 
@@ -460,7 +451,7 @@ def Parser():
 	explore_parser.add_argument('--sig', 
 						action='store', 
 						type=float, 
-						help='significant digits reported for float type stats (default: SIG=5)')
+						help='line of significance p value (default: SIG=5.4e-8)')
 	explore_parser.add_argument('--ext', 
 						action='store', 
 						default='tiff', 

@@ -2,6 +2,7 @@ from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
 from codecs import open
 import os
+from Cython.Build import cythonize
 
 execfile("uga/__version__.py")
 
@@ -16,6 +17,7 @@ setup(
     url='',
     author='Ryan Koesterer',
 	author_email='uga-feedback@gmail.com', 
+	ext_modules = cythonize(["uga/MiscFxnsCy.pyx"]), 
 	install_requires=['singledispatch', 
 						'rpy2', 
 						'multi-key-dict', 
@@ -28,7 +30,8 @@ setup(
 						'biopython', 
 						'plinkio', 
 						'pysam', 
-						'PyVCF'], 
+						'PyVCF', 
+						'Cython'], 
     entry_points={
        'console_scripts': [
 			'uga = uga.__main__:main',

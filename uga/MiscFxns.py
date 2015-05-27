@@ -1,13 +1,4 @@
-import numpy as np
-import pandas as pd
-import re
-from SystemFxns import Error
-from multi_key_dict import multi_key_dict
-from itertools import islice,takewhile,ifilter
-from plinkio import plinkfile
-import vcf as VCF
-import tabix
-import gzip
+from Model import *
 	
 def LoadPlink(data):
 	plink_handle = plinkfile.open(data)
@@ -331,8 +322,8 @@ def GetFocus(method,model,vars_df,model_vars_dict):
 class MarkerRefDb(object):
 
 	def __init__(self):
-		self.ref = multi_key_dict()
-		self.ref_alleles = multi_key_dict()
+		self.ref = multi_key_dict.multi_key_dict()
+		self.ref_alleles = multi_key_dict.multi_key_dict()
 
 	def Update(self, row):
 		newrow=row
@@ -383,8 +374,8 @@ class MarkerRefDb(object):
 class ChunkRefDb(object):
 
 	def __init__(self):
-		self.ref = multi_key_dict()
-		self.ref_alleles = multi_key_dict()
+		self.ref = multi_key_dict.multi_key_dict()
+		self.ref_alleles = multi_key_dict.multi_key_dict()
 
 	def ListKeys(self):
 		return [b for t in self.ref.keys() for b in t]

@@ -4,17 +4,19 @@ import gzip
 import sys
 import string
 import math
-import time
 import subprocess
-import os.path
 import numpy as np
 import pandas as pd
-from collections import OrderedDict
+import collections
 import re
 import glob
-from FileFxns import *
-from SystemFxns import *
+import tabix
+from Bio import bgzf
 from Parse import Parse,Parser
+import multi_key_dict
+import FileFxns
+import SystemFxns
+pd.options.mode.chained_assignment = None
 
 def main(args=None):
 	parser=Parser()
@@ -23,12 +25,16 @@ def main(args=None):
 	##### read cfg file into dictionary #####
 	if args.which == 'meta':
 		print "reading configuration from file"
-		config = Cfg(args.cfg, args.which, args.vars).Load()
+		config = FileFxns.LoadMetaCfg(args.cfg, args.which, args.vars)
 		args.out = config['out']
 	elif  args.which == 'model' and not args.cfg is None:
 		print "reading configuration from file"
-		config = Cfg(args.cfg, args.which).Load()
+		config = FileFxns.LoadModelCfg(args.cfg, args.which)
 		args.out = config['out']
+	elif args.which == 'model':
+		print "preparing configuration"
+		config = FileFxns.GenerateSingleModelCfg(vars(args))
+		args.cfg = 1
 
 	##### define region list #####
 	if args.which in ['model','meta','compile']:
@@ -36,7 +42,7 @@ def main(args=None):
 		dist_mode = 'full'
 		if args.region_list:
 			print "generating list of genomic regions ...", 
-			region_df = Coordinates(args.region_list).Load()
+			region_df = FileFxns.LoadCoordinates(args.region_list)
 			if args.split or args.split_n:
 				if not args.split_n or args.split_n > len(region_df.index):
 					n = len(region_df.index)
@@ -88,9 +94,9 @@ def main(args=None):
 		out_files = {}
 		if dist_mode in ['chr','region','split-list','split-list-n']:
 			if args.which == "compile":
-				out_files = GenerateSubFiles(region_df = region_df, f = args.data, dist_mode = dist_mode, n = n)
+				out_files = FileFxns.GenerateSubFiles(region_df = region_df, f = args.data, dist_mode = dist_mode, n = n)
 			else:
-				out_files = GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
+				out_files = FileFxns.GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
 
 	##### get user home directory #####
 	home_dir = os.path.expanduser("~")
@@ -113,33 +119,33 @@ def main(args=None):
 		else:
 			for f in [args.out, args.out + '.map.log']:
 				if os.path.exists(f):
-					print Error("1 or more output files already exists (use --overwrite flag to replace)")
+					print SystemFxns.Error("1 or more output files already exists (use --overwrite flag to replace)")
 					return
-		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
+		SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
 
 	elif args.which == 'compile':
 		if len(out_files.keys()) > 1:
 			existing_files = glob.glob(args.out + '*')
 			if len(existing_files) > 0:
 				if not args.overwrite:
-					print Error("1 or more output files or files with similar basename already exists (use --overwrite flag to replace)")
+					print SystemFxns.Error("1 or more output files or files with similar basename already exists (use --overwrite flag to replace)")
 					return
 				else:
 					for f in existing_files:
 						try:
 							os.remove(f)
 						except OSError:
-							continue		
-			complete, complete_reg = CheckResults(file_dict=out_files, out=args.out + '.verify', overwrite=args.overwrite)
+							continue
+			complete, complete_reg = FileFxns.CheckResults(file_dict=out_files, out=args.out + '.verify', overwrite=args.overwrite)
 			if not complete:
-				print Error("results could not be verified")
+				print SystemFxns.Error("results could not be verified")
 				return
-			out_files = OrderedDict([(x, out_files[x]) for x in out_files.keys() if x in complete_reg])
-			if not CompileResults(out_files, args.out, args.overwrite):
-				print Error("results could not be compiled")
+			out_files = collections.OrderedDict([(x, out_files[x]) for x in out_files.keys() if x in complete_reg])
+			if not FileFxns.CompileResults(out_files, args.out):
+				print SystemFxns.Error("results could not be compiled")
 				return
 		else:
-			print Error("no split results to compile")
+			print SystemFxns.Error("no split results to compile")
 			return
 
 	elif args.which == 'explore':
@@ -167,7 +173,7 @@ def main(args=None):
 					except OSError:
 						continue
 		if len(existing_files) > 0:
-			print Error("above files already exist (use --overwrite flag to replace)")
+			print SystemFxns.Error("above files already exist (use --overwrite flag to replace)")
 			return
 		cmd = 'Explore(data="' + args.data + '",out="' + args.out + '"'
 		for x in ['qq','qq_n','qq_strat','mht','color','ext','sig','gc','set_gc','lz_source','lz_build','lz_pop','regional_n','region_list','region_id','region','stat','top_p','tag','unrel','f_dist_dfn','f_dist_dfd','callrate_thresh','rsq_thresh','freq_thresh','hwe_thresh','effect_thresh','stderr_thresh','or_thresh','df_thresh']:
@@ -177,7 +183,7 @@ def main(args=None):
 				else:
 					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 		cmd = cmd + ')'
-		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.explore.log')
+		SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.explore.log')
 
 	elif args.which == 'gc':
 		check_files = [args.out + '.gc.log']
@@ -195,19 +201,19 @@ def main(args=None):
 					except OSError:
 						continue
 		if len(existing_files) > 0:
-			print Error("above files already exist (use --overwrite flag to replace)")
+			print SystemFxns.Error("above files already exist (use --overwrite flag to replace)")
 			return
 		cmd = 'GC(data="' + args.data + '",out="' + args.out + '"'
 		if args.gc:
 			cmd = cmd + ',gc=' + str(dict(args.gc)) + ')'
-		Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.gc.log')
+		SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.gc.log')
 
 	elif args.which in ['model','meta']:
 		print "preparing output directories"
 		if dist_mode == 'split-list' and n > 1:
-			PrepareChrDirs(region_df['region'], directory)
+			FileFxns.PrepareChrDirs(region_df['region'], directory)
 		elif dist_mode == 'split-list-n' and n > 1:
-			PrepareListDirs(n, directory)
+			FileFxns.PrepareListDirs(n, directory)
 		if args.qsub:
 			print "submitting jobs\n"
 		joblist = []
@@ -219,61 +225,31 @@ def main(args=None):
 			joblist.extend(range(n))
 		for i in joblist:
 			if dist_mode in ['split-list', 'region']:
-				out = out_files['%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))]
+				config['out'] = out_files['%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))]
 				if n > 1:
-					vars(args)['region'] = '%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))
-					vars(args)['region_list'] = None
+					config['region'] = '%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))
+					config['region_list'] = None
 			elif dist_mode == 'split-list-n':
-				out = out_files[i]
-				rlist = out + '.regions'
+				config['out'] = out_files[i]
+				rlist = config['out'] + '.regions'
 				region_df.loc[np.array_split(np.array(region_df.index), n)[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'reg_id'])
-				vars(args)['region_list'] = rlist
+				config['region_list'] = rlist
 			elif dist_mode == 'chr':
-				out = out_files['%s' % (str(region_df['chr'][i]))]
-			else:
-				out = args.out
+				config['out'] = out_files['%s' % (str(region_df['chr'][i]))]
 			if args.overwrite:
-				for f in [out, out + '.' + args.which + '.log',out + '.gz', out + '.gz.tbi']:
+				for f in [config['out'], config['out'] + '.' + args.which + '.log',config['out'] + '.gz', config['out'] + '.gz.tbi']:
 					try:
 						os.remove(f)
 					except OSError:
 						continue
 			else:
-				for f in [out, out + '.log',out + '.gz', out + '.gz.tbi']:
+				for f in [config['out'],config['out'] + '.log',config['out'] + '.gz', config['out'] + '.gz.tbi']:
 					if os.path.exists(f):
-						print Error("1 or more output files already exists (use --overwrite flag to replace)")
+						print SystemFxns.Error("1 or more output files already exists (use --overwrite flag to replace)")
 						return
 			if args.which == 'model':
-				if not args.cfg is None:
-					config['out'] = out
-					cmd = args.which.capitalize() + '(cfg=' + str(config)
-					for x in ['region_list', 'region', 'region_id']:
-						if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-							if type(vars(args)[x]) is str:
-								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
-							else:
-								cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-					cmd = cmd + ')'
-				else:
-					cmd = args.which.capitalize() + '(out=\'' + out + '\''
-					for x in ['oxford','dos1','dos2','plink','vcf','samples','pheno','marker_list','skat_o_rho','fid','iid','focus','sig','region_list','gee_gaussian','gee_binomial',
-								'geeboss_gaussian','geeboss_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','famskat_o','skat_o_gaussian','skat_o_binomial',
-								'famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial',
-								'region','region_id','sex','male','female','buffer','corstr','miss','freq','rsq','hwe','case','ctrl','nofail','geeboss_thresh',
-								'pedigree','pheno_sep']:
-						if x in vars(args).keys() and not str(vars(args)[x]) in ['False','None']:
-							if x in ['oxford','dos1','dos2','plink','vcf']:
-								cmd = cmd + ',data=[\'' + str(vars(args)[x]) + '\'],format=[\'' + x + '\']'
-							elif x in ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests','geeboss_gaussian','geeboss_binomial',
-											'famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']:
-								cmd = cmd + ',model=[\'' + str(vars(args)[x]) + '\'],method=[\'' + x + '\']'
-							elif type(vars(args)[x]) is str:
-								cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
-							else:
-								cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-					cmd = cmd + ')'
+					cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
 			elif args.which == 'meta':
-				config['out'] = out
 				cmd = args.which.capitalize() + '(cfg=' + str(config)
 				for x in ['region_list', 'region']:
 					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
@@ -283,14 +259,15 @@ def main(args=None):
 							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 				cmd = cmd + ')'
 			if args.qsub:
-				Qsub('qsub ' + args.qsub + ' -o ' + out + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
+				SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
 			else:
-				Interactive(home_dir + '/.uga_wrapper.py', cmd, out + '.' + args.which + '.log')
-
+				SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, config['out'] + '.' + args.which + '.log')
 	else:
-		print Error(args.which + " not a module")
+		print SystemFxns.Error(args.which + " not a module")
 
 	print ''
 
 if __name__ == "__main__":
 	main()
+	os._exit(0)
+

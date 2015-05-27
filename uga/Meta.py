@@ -1,38 +1,22 @@
-import os
-import sys
-import subprocess
-import tabix
-import math
-import gzip
-import time
-import pandas as pd
-import numpy as np
-pd.options.mode.chained_assignment = None
-import re
-from MiscFxns import Complement,ListCompatibleMarkers
-from FileFxns import Coordinates
-from SystemFxns import Error
-from multi_key_dict import multi_key_dict
-from Bio import bgzf
+from __main__ import *
+import MiscFxns
 import scipy.stats as scipy
 
-def Meta(cfg=None, 
-			region=None, 
-			region_list=None):
+def Meta(cfg):
 
 	print "meta options ..."
 	for arg in locals().keys():
 		if not locals()[arg] in [None, False]:
 			print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
 
-	assert cfg, Error("no configuration file specified")
+	assert cfg, SystemFxns.Error("no configuration file specified")
 
 	##### get headers from process files #####
 	for tag in cfg['data_info'].keys():
 		try:
 			p = subprocess.Popen(['tabix','-h',cfg['data_info'][tag]['process_file'],'0'], stdout=subprocess.PIPE)
 		except:
-			usage(Error("process_file " + cfg['data_info'][tag]['process_file'] + " has incorrect format"))
+			usage(SystemFxns.Error("process_file " + cfg['data_info'][tag]['process_file'] + " has incorrect format"))
 		cfg['data_info'][tag]['header'] = p.communicate()[0]
 		cfg['data_info'][tag]['header'] = cfg['data_info'][tag]['header'].replace("#","")
 		cfg['data_info'][tag]['header'] = cfg['data_info'][tag]['header'].strip()
@@ -52,7 +36,7 @@ def Meta(cfg=None,
 	##### determine markers to be analyzed #####
 	print "generating region list"
 	if region_list:
-		region_list = Coordinates(region_list).Load()
+		region_list = FileFxns.LoadCoordinates(region_list)
 	elif region:
 		region_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
 	else:
@@ -69,7 +53,7 @@ def Meta(cfg=None,
 				region_list['n'][i] = region_list['n'][i] + 1
 				break
 	if region_list['n'].sum() == 0:
-		print Error("no markers found")
+		print SystemFxns.Error("no markers found")
 		return()
 
 	cfg['sig'] = int(cfg['sig']) if 'sig' in cfg.keys() else 5
@@ -105,7 +89,7 @@ def Meta(cfg=None,
 				for record in records:
 					filtered = 0
 					records_count[tag] = records_count[tag] + 1
-					record_markers = ListCompatibleMarkers(record[chr],record[pos],record[a1],record[a2],delim)
+					record_markers = MiscFxns.ListCompatibleMarkers(record[chr],record[pos],record[a1],record[a2],delim)
 					if len([r for r in record_markers if ref.has_key(r)]) > 0:
 						temp_ref = ref[[r for r in record_markers if ref.has_key(r)][1]]
 						temp_alleles = ref_alleles[[r for r in record_markers if ref_alleles.has_key(r)][1]]
@@ -128,7 +112,7 @@ def Meta(cfg=None,
 					keymarkers = ref[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]]
 					refa1 = ref_alleles[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]][0]
 					refa2 = ref_alleles[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]][1]
-					if (refa1 + refa2 == Complement(record[a2]) + Complement(record[a1]) or refa1 + refa2 == record[a2] + record[a1]) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+					if (refa1 + refa2 == MiscFxns.Complement(record[a2]) + MiscFxns.Complement(record[a1]) or refa1 + refa2 == record[a2] + record[a1]) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
 						if effect:
 							record[effect] = str(-1 * float(record[effect])) if record[effect] != "NA" else float('nan')
 						if freq:
@@ -291,7 +275,7 @@ def Meta(cfg=None,
 		output_df[meta + '.effect'] = output_df[meta + '.effect'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
 		output_df[meta + '.stderr'] = output_df[meta + '.stderr'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
 		output_df[meta + '.z'] = output_df[meta + '.z'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
-		output_df[meta + '.p'] = output_df[meta + '.p'].map(lambda x: '%.2e' % x if not math.isnan(x) else x)
+		output_df[meta + '.p'] = output_df[meta + '.p'].map(lambda x: '%.4e' % x if not math.isnan(x) else x)
 		header.append(meta + '.z')
 		header.append(meta + '.p')
 		header.append(meta + '.dir')
@@ -308,13 +292,13 @@ def Meta(cfg=None,
 		if 'z' in cfg['data_info'][tag].keys():
 			output_df[tag + '.z'] = output_df[tag + '.z'].map(lambda x: '%.5g' % x if not math.isnan(x) else x)
 		if 'p' in cfg['data_info'][tag].keys():
-			output_df[tag + '.p'] = output_df[tag + '.p'].map(lambda x: '%.2e' % x if not math.isnan(x) else x)
+			output_df[tag + '.p'] = output_df[tag + '.p'].map(lambda x: '%.4e' % x if not math.isnan(x) else x)
 		if 'n' in cfg['data_info'][tag].keys():
-			output_df[tag + '.n'] = output_df[tag + '.n'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
-		output_df[tag + '.filtered'] = output_df[tag + '.filtered'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
+			output_df[tag + '.n'] = output_df[tag + '.n'].map(lambda x: '%d' % x if not math.isnan(x) else x)
+		output_df[tag + '.filtered'] = output_df[tag + '.filtered'].map(lambda x: '%d' % x if not math.isnan(x) else x)
 	for meta in cfg['meta_order']:
 		if meta + '.n' in list(output_df.columns.values):
-			output_df[meta + '.n'] = output_df[meta + '.n'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
+			output_df[meta + '.n'] = output_df[meta + '.n'].map(lambda x: '%d' % x if not math.isnan(x) else x)
 
 	##### extract efftest corrected top p values #####
 	if cfg['method'] == 'efftest':
@@ -332,8 +316,8 @@ def Meta(cfg=None,
 			header.append(tag + '.min_snp')
 			header.append(tag + '.min_pos')
 			header.append(tag + '.min_p')
-			out_efftest_df[tag + '.min_pos'] = out_efftest_df[tag + '.min_pos'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
-			out_efftest_df[tag + '.min_p'] = out_efftest_df[tag + '.min_p'].map(lambda x: '%.2e' % x if not math.isnan(x) else x)
+			out_efftest_df[tag + '.min_pos'] = out_efftest_df[tag + '.min_pos'].map(lambda x: '%d' % x if not math.isnan(x) else x)
+			out_efftest_df[tag + '.min_p'] = out_efftest_df[tag + '.min_p'].map(lambda x: '%.4e' % x if not math.isnan(x) else x)
 		for meta in cfg['meta_order']:
 			out_efftest_df[meta + '.min_snp'] = float('nan')
 			out_efftest_df[meta + '.min_pos'] = float('nan')
@@ -349,8 +333,8 @@ def Meta(cfg=None,
 			header.append(meta + '.min_pos')
 			header.append(meta + '.min_dir')
 			header.append(meta + '.min_p')
-			out_efftest_df[meta + '.min_pos'] = out_efftest_df[meta + '.min_pos'].map(lambda x: '%.0f' % x if not math.isnan(x) else x)
-			out_efftest_df[meta + '.min_p'] = out_efftest_df[meta + '.min_p'].map(lambda x: '%.2e' % x if not math.isnan(x) else x)
+			out_efftest_df[meta + '.min_pos'] = out_efftest_df[meta + '.min_pos'].map(lambda x: '%d' % x if not math.isnan(x) else x)
+			out_efftest_df[meta + '.min_p'] = out_efftest_df[meta + '.min_p'].map(lambda x: '%.4e' % x if not math.isnan(x) else x)
 		out_efftest_df = out_efftest_df[header]
 		out_efftest_df.fillna('NA',inplace=True)
 		out_efftest_df.rename(columns=lambda x: x.replace('chr','#chr'),inplace=True)
@@ -368,6 +352,6 @@ def Meta(cfg=None,
 	try:
 		p = subprocess.check_call(cmd)
 	except subprocess.CalledProcessError:
-		print Error("file mapping failed")
+		print SystemFxns.Error("file mapping failed")
 	else:
 		print 'process complete'

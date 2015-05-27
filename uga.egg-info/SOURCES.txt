@@ -1,12 +1,13 @@
 README.rst
 setup.cfg
 setup.py
-bin/uga_wrapper.py
 uga/Explore.py
 uga/FileFxns.py
+uga/GC.py
 uga/Map.py
 uga/Meta.py
 uga/MiscFxns.py
+uga/MiscFxnsCy.c
 uga/Model.py
 uga/Parse.py
 uga/StatsFxns.py
