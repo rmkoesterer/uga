@@ -3,6 +3,44 @@ rtry = ro.r('try')
 rsummary = ro.r('summary')
 rclass = ro.r('class')
 
+def CalcGEE(marker_info, model_df, model_vars_dict, model, method, iid, fid, fxn, focus, dep_var, corstr):
+	valid = False
+	ro.globalenv['cols'] = list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))
+	cmd = 'geeglm(' + model.replace('marker',marker_info['marker_unique']) + ',id=' + fid + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + fxn + ',corstr="' + corstr + '")'
+	try:
+		ro.globalenv['model_out']=rtry(rsummary(ro.r(cmd)))
+	except RRuntimeError:
+		cmd = 'geeglm(' + model.replace('marker',marker_info['marker_unique']) + ',id=' + fid + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + fxn + ',corstr="independence")'
+		try:
+			ro.globalenv['model_out']=rtry(rsummary(ro.r(cmd)))
+		except RRuntimeError:
+			marker_info['status'] = '%d' % (-5)
+		else:
+			if ro.r('model_out$error') != 1:
+				marker_info['status'] = '%d' % (2)
+				valid = True
+			else:
+				marker_info['status'] = '%d' % (-4)
+	else:
+		if ro.r('model_out$error') != 1:
+			marker_info['status'] = '%d' % (1)
+			valid = True
+		else:
+			marker_info['status'] = '%d' % (-3)
+	if valid:
+		coef = py2r.convert_robj(ro.r('model_out$coefficients'))
+		coef.index.values[coef.index.values == marker_info['marker_unique']] = 'marker'
+		for x in focus:
+			xt = x.replace('*',':') if x.replace('*',':') in coef.index.values else x.replace('*',':').split(':')[1] + ':' + x.replace('*',':').split(':')[0]
+			if xt in coef.index.values:
+				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
+				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std.err'])
+				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
+				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+				marker_info[x + '.p'] = '%.4e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+		marker_info['n'] = '%d' % (len(model_df[list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))].dropna()[iid].unique()))
+	return marker_info
+"""
 def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, geepack, corstr = 'exchangeable'):
 	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
 	notes = 'NA'
@@ -63,8 +101,8 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	marker_info['status'] = status
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
 	return marker_info
-
-def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, fxn, focus, dep_var, rglm):
+"""
+def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, fxn, focus, dep_var):
 	ro.globalenv['cols'] = list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))
 	cmd = 'glm(' + model.replace('marker',marker_info['marker_unique']) + ',data=na.omit(model_df[,names(model_df) %in% cols]),family="' + fxn + '")'
 	model_out=ro.r(cmd)
@@ -80,7 +118,7 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, fxn, focus,
 				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
 				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 				marker_info[x + '.p'] = '%.4e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-				marker_info['n'] = '%d' % (len(model_df[list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))].dropna()[iid].unique()))
+		marker_info['n'] = '%d' % (len(model_df[list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))].dropna()[iid].unique()))
 	else:
 		marker_info['status'] = '%d' % (-3)
 	return marker_info

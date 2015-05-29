@@ -3,6 +3,7 @@ from __main__ import *
 import rpy2.robjects as ro
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
+from rpy2.rinterface import RRuntimeError
 import pandas.rpy.common as py2r
 from itertools import islice,takewhile,ifilter
 from Bio import bgzf
@@ -34,19 +35,17 @@ def Model(cfg):
 		methods.append(cfg['data_info'][k]['method'])
 	for method in list(set(methods)):
 		if method in ['gee_gaussian','gee_binomial','geeboss_gaussian','geeboss_binomial']:
-			geepack = importr('geepack')
+			importr('geepack')
 			if method in ['geeboss_gaussian','geeboss_binomial']:
-				boss = importr('boss')
-		elif method in ['glm_gaussian','glm_binomial']:
-			rglm = ro.r('glm')
+				importr('boss')
 		elif method in ['lme_gaussian','lme_binomial']:
-			lme4 = importr('lme4')
+			importr('lme4')
 		elif method == 'coxph':
-			survival = importr('survival')
+			importr('survival')
 		elif method in ['famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']:
-			seqmeta = importr('seqMeta')
+			importr('seqMeta')
 			if method in ['famskat_o','famskat','famburden']:
-				kinship2 = importr('kinship2')
+				importr('kinship2')
 
 	##### READ model VARIABLES FROM FILE #####
 	vars_df_dict = {}
@@ -130,8 +129,8 @@ def Model(cfg):
 				print "loading pedigree for model " + k if len(cfg['data_info'].keys()) > 1 else "loading pedigree"
 				cfg['data_info'][k]['ped_df'] = pd.read_table(cfg['data_info'][k]['pedigree'],sep='\t',dtype='str',usecols=['FID','IID','PAT','MAT'])
 				cfg['data_info'][k]['ped_df'] = cfg['data_info'][k]['ped_df'][cfg['data_info'][k]['ped_df']['IID'].isin(list(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].values))]
-				rpedigree = py2r.convert_to_r_dataframe(cfg['data_info'][k]['ped_df'], strings_as_factors=False)
-				cfg['data_info'][k]['kins'] = kinship2.makekinship(rpedigree.rx2('FID'),rpedigree.rx2('IID'),rpedigree.rx2('PAT'),rpedigree.rx2('MAT'))
+				ro.globalenv['pedigree'] = py2r.convert_to_r_dataframe(cfg['data_info'][k]['ped_df'], strings_as_factors=False)
+				cfg['data_info'][k]['kins'] = ro.r("makekinship(pedigree.rx2('FID'),pedigree.rx2('IID'),pedigree.rx2('PAT'),pedigree.rx2('MAT'))")
 
 	##### GENERATE REGION LIST #####
 	if not cfg['region_list'] is None:
@@ -349,7 +348,10 @@ def Model(cfg):
 					marker_info_filtered['n'] = '%d' % (0)
 					marker_info_filtered['status'] = '%d' % (-1)
 					model_df = model_df[[c for c in model_df.columns if not c in marker_info_filtered['marker_unique']]]
-					ro.globalenv['model_df'] = model_df
+					model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
+					model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
+					ro.globalenv['model_df'] = py2r.convert_to_r_dataframe(model_df, strings_as_factors=False)
+					ro.r('model_df[,names(model_df) == "' + cfg['data_info'][k]['fid'] + '"]<-as.factor(model_df[,names(model_df) == "' + cfg['data_info'][k]['fid'] + '"])')
 					for x in cfg['data_info'][k]['focus']:
 						marker_info_passed[x + '.effect'] = float('nan')
 						marker_info_passed[x + '.stderr'] = float('nan')
@@ -359,17 +361,12 @@ def Model(cfg):
 					marker_info_passed['n'] = '%d' % (0)
 					marker_info_passed['status'] = '%d' % (0)
 					if cfg['data_info'][k]['method'].split('_')[0] == 'gee':
-						results = marker_info.apply(lambda row: StatsFxns.CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
+						results = marker_info_passed.apply(lambda row: StatsFxns.CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
 																					model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
 																					method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], 
-																					dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr'], geepack=geepack), 1)
+																					dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr']), 1)
 						
-						#model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
-						#model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
-						#results = marker_info.apply(lambda row: StatsFxns.CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
-						#															model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
-						#															method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], 
-						#															dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr'], geepack=geepack), 1)
+						results = pd.merge(results,marker_info_filtered,how='outer')
 					elif cfg['data_info'][k]['method'].split('_')[0] == 'geeboss':
 						model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
 						model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
@@ -383,7 +380,7 @@ def Model(cfg):
 						results = marker_info_passed.apply(lambda row: StatsFxns.CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
 																								model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
 																								fxn=cfg['data_info'][k]['fxn'], 
-																								focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var'], rglm=rglm), 1)
+																								focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var']), 1)
 						results = pd.merge(results,marker_info_filtered,how='outer')
 					elif cfg['data_info'][k]['method'].split('_')[0] == 'lme':
 						results = marker_info.apply(lambda row: StatsFxns.CalcLME(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
