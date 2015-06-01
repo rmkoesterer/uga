@@ -305,14 +305,14 @@ def GetFocus(method,model,vars_df,model_vars_dict):
 					if model_vars_dict[a]['class'] == 'factor':
 						for v in vars_df[a].unique().astype(np.int64) - min(vars_df[a].unique().astype(np.int64)):
 							if v != min(vars_df[a].unique().astype(np.int64) - min(vars_df[a].unique().astype(np.int64))):
-								interact.append(a + str(v))
+								interact.append('factor(' + a + ')' + str(v))
 					else:
 						interact.append(a)
 				focus.append(interact[0] + '*' + interact[1])
 			elif model_vars_dict[x]['class'] == 'factor':
 				for v in vars_df[x].unique().astype(np.int64) - min(vars_df[x].unique().astype(np.int64)):
 					if v != min(vars_df[x].unique().astype(np.int64) - min(vars_df[x].unique().astype(np.int64))):
-						focus.append(x + str(v))
+						focus.append('factor(' + x + ')' + str(v))
 			elif x.find('*') != -1:
 				focus.append('*'.join(sorted(x.split('*'))))
 			else:

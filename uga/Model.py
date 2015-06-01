@@ -16,6 +16,7 @@ import MiscFxnsCy
 import StatsFxns
 
 pandas2ri.activate()
+ro.r('options(warn=1)')
 
 def Model(cfg):
 	print "model options ..."
@@ -39,7 +40,9 @@ def Model(cfg):
 			if method in ['geeboss_gaussian','geeboss_binomial']:
 				importr('boss')
 		elif method in ['lme_gaussian','lme_binomial']:
-			importr('lme4')
+			importr('lmerTest')
+			if method == 'lme_gaussian':
+				importr('pbkrtest')
 		elif method == 'coxph':
 			importr('survival')
 		elif method in ['famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']:
@@ -69,9 +72,9 @@ def Model(cfg):
 			cfg['data_info'][k]['focus'] = MiscFxns.GetFocus(method=cfg['data_info'][k]['method'],model=cfg['data_info'][k]['model'],vars_df=cfg['data_info'][k]['vars_df'],model_vars_dict=cfg['data_info'][k]['model_vars_dict'])
 
 	##### REMOVE FACTOR() FROM MODEL STRING #####
-	for k in cfg['data_order']:
-		for v in cfg['data_info'][k]['model_vars_dict'].keys():
-			cfg['data_info'][k]['model'] = cfg['data_info'][k]['model'].replace('factor(' + v + ')',v)
+	#for k in cfg['data_order']:
+		#for v in cfg['data_info'][k]['model_vars_dict'].keys():
+			#cfg['data_info'][k]['model'] = cfg['data_info'][k]['model'].replace('factor(' + v + ')',v)
 
 	##### LOAD ITERATORS AND SAMPLE LISTS #####
 	for k in cfg['data_order']:
@@ -352,15 +355,15 @@ def Model(cfg):
 					model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
 					ro.globalenv['model_df'] = py2r.convert_to_r_dataframe(model_df, strings_as_factors=False)
 					ro.r('model_df[,names(model_df) == "' + cfg['data_info'][k]['fid'] + '"]<-as.factor(model_df[,names(model_df) == "' + cfg['data_info'][k]['fid'] + '"])')
-					for x in cfg['data_info'][k]['focus']:
-						marker_info_passed[x + '.effect'] = float('nan')
-						marker_info_passed[x + '.stderr'] = float('nan')
-						marker_info_passed[x + '.or'] = float('nan')
-						marker_info_passed[x + '.z'] = float('nan')
-						marker_info_passed[x + '.p'] = float('nan')
-					marker_info_passed['n'] = '%d' % (0)
-					marker_info_passed['status'] = '%d' % (0)
 					if cfg['data_info'][k]['method'].split('_')[0] == 'gee':
+						for x in cfg['data_info'][k]['focus']:
+							marker_info_passed[x + '.effect'] = float('nan')
+							marker_info_passed[x + '.stderr'] = float('nan')
+							marker_info_passed[x + '.or'] = float('nan')
+							marker_info_passed[x + '.z'] = float('nan')
+							marker_info_passed[x + '.p'] = float('nan')
+						marker_info_passed['n'] = '%d' % (0)
+						marker_info_passed['status'] = '%d' % (0)
 						results = marker_info_passed.apply(lambda row: StatsFxns.CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
 																					model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
 																					method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], 
@@ -368,6 +371,14 @@ def Model(cfg):
 						
 						results = pd.merge(results,marker_info_filtered,how='outer')
 					elif cfg['data_info'][k]['method'].split('_')[0] == 'geeboss':
+						for x in cfg['data_info'][k]['focus']:
+							marker_info_passed[x + '.effect'] = float('nan')
+							marker_info_passed[x + '.stderr'] = float('nan')
+							marker_info_passed[x + '.or'] = float('nan')
+							marker_info_passed[x + '.z'] = float('nan')
+							marker_info_passed[x + '.p'] = float('nan')
+						marker_info_passed['n'] = '%d' % (0)
+						marker_info_passed['status'] = '%d' % (0)
 						model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
 						model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
 						model_df['id'] = model_df[cfg['data_info'][k]['fid']] if cfg['data_info'][k]['fid'] != 'id' else model_df['id']
@@ -377,17 +388,68 @@ def Model(cfg):
 																						dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr'], 
 																						thresh=cfg['data_info'][k]['geeboss_thresh'], boss=boss), 1)
 					elif cfg['data_info'][k]['method'].split('_')[0] == 'glm':
+						for x in cfg['data_info'][k]['focus']:
+							marker_info_passed[x + '.effect'] = float('nan')
+							marker_info_passed[x + '.stderr'] = float('nan')
+							marker_info_passed[x + '.or'] = float('nan')
+							marker_info_passed[x + '.z'] = float('nan')
+							marker_info_passed[x + '.p'] = float('nan')
+						marker_info_passed['n'] = '%d' % (0)
+						marker_info_passed['status'] = '%d' % (0)
 						results = marker_info_passed.apply(lambda row: StatsFxns.CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
 																								model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
 																								fxn=cfg['data_info'][k]['fxn'], 
 																								focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var']), 1)
 						results = pd.merge(results,marker_info_filtered,how='outer')
-					elif cfg['data_info'][k]['method'].split('_')[0] == 'lme':
-						results = marker_info.apply(lambda row: StatsFxns.CalcLME(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
+					elif cfg['data_info'][k]['method'] == 'lme_binomial':
+						for x in cfg['data_info'][k]['focus']:
+							marker_info_passed[x + '.effect'] = float('nan')
+							marker_info_passed[x + '.stderr'] = float('nan')
+							marker_info_passed[x + '.or'] = float('nan')
+							marker_info_passed[x + '.z'] = float('nan')
+							marker_info_passed[x + '.p'] = float('nan')
+							if cfg['data_info'][k]['lme_anova'] and x != '(Intercept)':
+								marker_info_passed[x + '.anova.chisq'] = float('nan')
+								marker_info_passed[x + '.anova.p'] = float('nan')
+						marker_info_passed['n'] = '%d' % (0)
+						marker_info_passed['status'] = '%d' % (0)
+						results = marker_info_passed.apply(lambda row: StatsFxns.CalcLMEBinomial(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
 																					model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
-																					method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], 
-																					dep_var=cfg['data_info'][k]['dep_var'], lme4=lme4), 1)
+																					method=cfg['data_info'][k]['method'], focus=cfg['data_info'][k]['focus'], 
+																					dep_var=cfg['data_info'][k]['dep_var'], glmer_control=cfg['data_info'][k]['glmer_control'],
+																					lme_anova=cfg['data_info'][k]['lme_anova']), 1)
+						results = pd.merge(results,marker_info_filtered,how='outer')
+					elif cfg['data_info'][k]['method'] == 'lme_gaussian':
+						for x in cfg['data_info'][k]['focus']:
+							marker_info_passed[x + '.effect'] = float('nan')
+							marker_info_passed[x + '.stderr'] = float('nan')
+							marker_info_passed[x + '.or'] = float('nan')
+							marker_info_passed[x + '.z'] = float('nan')
+							marker_info_passed[x + '.p'] = float('nan')
+							marker_info_passed[x + '.satt.df'] = float('nan')
+							marker_info_passed[x + '.satt.t'] = float('nan')
+							marker_info_passed[x + '.satt.p'] = float('nan')
+							marker_info_passed[x + '.kenrog.p'] = float('nan')
+							if cfg['data_info'][k]['lme_anova'] and x != '(Intercept)':
+								marker_info_passed[x + '.anova.chisq'] = float('nan')
+								marker_info_passed[x + '.anova.p'] = float('nan')
+						marker_info_passed['n'] = '%d' % (0)
+						marker_info_passed['status'] = '%d' % (0)
+						results = marker_info_passed.apply(lambda row: StatsFxns.CalcLMEGaussian(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
+																					model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
+																					method=cfg['data_info'][k]['method'], focus=cfg['data_info'][k]['focus'], 
+																					dep_var=cfg['data_info'][k]['dep_var'], lmer_control=cfg['data_info'][k]['lmer_control'],
+																					lme_reml=cfg['data_info'][k]['lme_reml'],lme_anova=cfg['data_info'][k]['lme_anova']), 1)
+						results = pd.merge(results,marker_info_filtered,how='outer')
 					elif cfg['data_info'][k]['method'] == 'coxph':
+						for x in cfg['data_info'][k]['focus']:
+							marker_info_passed[x + '.effect'] = float('nan')
+							marker_info_passed[x + '.stderr'] = float('nan')
+							marker_info_passed[x + '.or'] = float('nan')
+							marker_info_passed[x + '.z'] = float('nan')
+							marker_info_passed[x + '.p'] = float('nan')
+						marker_info_passed['n'] = '%d' % (0)
+						marker_info_passed['status'] = '%d' % (0)
 						results = marker_info.apply(lambda row: StatsFxns.CalcCoxPH(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
 																						model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
 																						method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], 

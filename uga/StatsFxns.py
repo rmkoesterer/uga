@@ -10,23 +10,25 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, method, iid, fid, fxn
 	try:
 		ro.globalenv['model_out']=rtry(rsummary(ro.r(cmd)))
 	except RRuntimeError:
+		print "      " + marker_info['marker_unique'] + ": RRuntimeError for function geeglm with corstr=" + corstr
 		cmd = 'geeglm(' + model.replace('marker',marker_info['marker_unique']) + ',id=' + fid + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + fxn + ',corstr="independence")'
 		try:
 			ro.globalenv['model_out']=rtry(rsummary(ro.r(cmd)))
 		except RRuntimeError:
-			marker_info['status'] = '%d' % (-5)
+			print "      " + marker_info['marker_unique'] + ": RRuntimeError for function geeglm with corstr=independence"
+			marker_info['status'] = '%d' % (-4)
 		else:
 			if ro.r('model_out$error') != 1:
 				marker_info['status'] = '%d' % (2)
 				valid = True
 			else:
-				marker_info['status'] = '%d' % (-4)
+				marker_info['status'] = '%d' % (-3)
 	else:
 		if ro.r('model_out$error') != 1:
 			marker_info['status'] = '%d' % (1)
 			valid = True
 		else:
-			marker_info['status'] = '%d' % (-3)
+			marker_info['status'] = '%d' % (-2)
 	if valid:
 		coef = py2r.convert_robj(ro.r('model_out$coefficients'))
 		coef.index.values[coef.index.values == marker_info['marker_unique']] = 'marker'
@@ -40,126 +42,108 @@ def CalcGEE(marker_info, model_df, model_vars_dict, model, method, iid, fid, fxn
 				marker_info[x + '.p'] = '%.4e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 		marker_info['n'] = '%d' % (len(model_df[list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))].dropna()[iid].unique()))
 	return marker_info
-"""
-def CalcGEE(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, geepack, corstr = 'exchangeable'):
-	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
-	notes = 'NA'
-	status = 0
-	n = 0
-	valid = False
-	if model.find('*') != -1:
-		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[1]]			
-	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().stack().value_counts()[1] != model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().shape[0]):
-		status = -2
-	else:
-		if marker_info['filter'] == 0:
-			rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(), strings_as_factors=False)
-			rmodel_df = ro.r.subset(rmodel_df,rmodel_df.rx('marker').ro != "NA")
-			n = len(py2r.convert_robj(ro.r.unique(rmodel_df.rx(iid))))
-			for x in model_vars_dict.keys():
-				if model_vars_dict[x]['class'] == 'factor':
-					rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])
-					rmodel_df=ro.r.cbind(rmodel_df,ugaConvert=ro.r('factor')(rmodel_df.rx2(x + '_ugaFactored')))
-					rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
-			model_out=rtry(rsummary(geepack.geeglm(ro.r(model),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr=corstr)),silent=ro.r('TRUE'))
-			if 'try-error' in rclass(model_out):
-				model_out=rtry(rsummary(geepack.geeglm(ro.r(model),data=rmodel_df,id=rmodel_df.rx2(fid),family=fxn,corstr='independence')),silent=ro.r('TRUE'))
-				if 'try-error' in rclass(model_out):
-					status = -5
-				else:
-					status = 2 if model_out.rx2('error')[0] != 1 else -4
-					valid = True if model_out.rx2('error')[0] != 1 else False
-			else:
-				status = 1 if model_out.rx2('error')[0] != 1 else -3
-				valid = True if model_out.rx2('error')[0] != 1 else False
-		else:
-			status = -1
-	if valid:
-		coef = py2r.convert_robj(model_out.rx('coefficients'))['coefficients']
-		for x in focus:
-			xt = x.replace('*',':') if x.replace('*',':') in coef.index.values else x.replace('*',':').split(':')[1] + ':' + x.replace('*',':').split(':')[0]
-			if xt in coef.index.values:
-				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
-				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std.err'])
-				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
-				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-				marker_info[x + '.p'] = '%.2e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std.err']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-			else:
-				marker_info[x + '.effect'] = 'NA'
-				marker_info[x + '.stderr'] = 'NA'
-				marker_info[x + '.or'] = 'NA'
-				marker_info[x + '.z'] = 'NA'
-				marker_info[x + '.p'] = 'NA'
-	else:
-		for x in focus:
-			marker_info[x + '.effect'] = 'NA'
-			marker_info[x + '.stderr'] = 'NA'
-			marker_info[x + '.or'] = 'NA'
-			marker_info[x + '.z'] = 'NA'
-			marker_info[x + '.p'] = 'NA'
-	marker_info['n'] = n
-	marker_info['status'] = status
-	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
-	return marker_info
-"""
+
 def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, fxn, focus, dep_var):
 	ro.globalenv['cols'] = list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))
 	cmd = 'glm(' + model.replace('marker',marker_info['marker_unique']) + ',data=na.omit(model_df[,names(model_df) %in% cols]),family="' + fxn + '")'
-	model_out=ro.r(cmd)
-	if model_out.rx2('converged')[0] and not model_out.rx2('boundary')[0] and not 'try-error' in rclass(rsummary(model_out)):
+	try:
+		model_out=ro.r(cmd)
+	except RRuntimeError:
+		print "      " + marker_info['marker_unique'] + ": RRuntimeError for function glm"
+		marker_info['status'] = '%d' % (-3)
+	else:
+		if model_out.rx2('converged')[0] and not model_out.rx2('boundary')[0]:
+			marker_info['status'] = '%d' % (1)
+			coef = py2r.convert_robj(rsummary(model_out).rx('coefficients'))['coefficients']
+			coef.index.values[coef.index.values == marker_info['marker_unique']] = 'marker'
+			for x in focus:
+				xt = x.replace('*',':') if x.replace('*',':') in coef.index.values else x.replace('*',':').split(':')[1] + ':' + x.replace('*',':').split(':')[0]
+				if xt in coef.index.values:
+					marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
+					marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
+					marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
+					marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+					marker_info[x + '.p'] = '%.4e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			marker_info['n'] = '%d' % (len(model_df[list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))].dropna()[iid].unique()))
+		else:
+			marker_info['status'] = '%d' % (-2)
+	return marker_info
+
+def CalcLMEBinomial(marker_info,model_df,model_vars_dict,model,method,iid,fid,focus,dep_var,glmer_control,lme_anova):
+	ro.globalenv['cols'] = list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))
+	cmd = 'glmer(' + model.replace('marker',marker_info['marker_unique']) + ',data=na.omit(model_df[,names(model_df) %in% cols]),family="binomial",control=' + glmer_control + ')'
+	try:
+		ro.globalenv['model_out']=ro.r(cmd)
+	except RRuntimeError:
+		print '      ' + marker_info['marker_unique'] + ': RRuntimeError for function glmer with family="binomial"'
+		marker_info['status'] = '%d' % (-2)
+	else:
 		marker_info['status'] = '%d' % (1)
-		coef = py2r.convert_robj(rsummary(model_out).rx('coefficients'))['coefficients']
+		coef = py2r.convert_robj(ro.r('summary(model_out)$coefficients'))
 		coef.index.values[coef.index.values == marker_info['marker_unique']] = 'marker'
 		for x in focus:
 			xt = x.replace('*',':') if x.replace('*',':') in coef.index.values else x.replace('*',':').split(':')[1] + ':' + x.replace('*',':').split(':')[0]
 			if xt in coef.index.values:
 				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
-				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
-				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-				marker_info[x + '.p'] = '%.4e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'z value']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+				marker_info[x + '.p'] = '%.4e' % (coef.loc[xt,'Pr(>|z|)']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
+			if lme_anova and x != '(Intercept)':
+				xx = x.split(')')[0] + ')' if x.find('factor(') != -1 else x
+				cmd2 = 'glmer(' + model.replace(xx + '+','').replace('+' + xx,'').replace('marker',marker_info['marker_unique']) + ',data=na.omit(model_df[,names(model_df) %in% cols]),family="binomial",control=' + glmer_control + ')'
+				try:
+					ro.globalenv['model_out2']=ro.r(cmd2)
+				except RRuntimeError:
+					print '      ' + marker_info['marker_unique'] + ': RRuntimeError for function glmer with family="binomial" and reduced model (model - ' + xx + ')'
+					marker_info['status'] = '%d' % (-3)
+				else:
+					anova_out = py2r.convert_robj(ro.r('anova(model_out,model_out2)'))
+					marker_info[x + '.anova.chisq'] = '%.5g' % (anova_out['Chisq'][1])
+					marker_info[x + '.anova.p'] = '%.4e' % (anova_out['Pr(>Chisq)'][1])
 		marker_info['n'] = '%d' % (len(model_df[list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))].dropna()[iid].unique()))
-	else:
-		marker_info['status'] = '%d' % (-3)
 	return marker_info
 
-"""
-def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, rglm):
-	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
-	valid = False
-	if model.find('*') != -1:
-		model_df['ugaInter'] = model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[0]]*model_df[[x for x in re.split('\+|-',model) if x.replace('factor(','').replace(')','').find('*') != -1][0].replace('factor(','').replace(')','').split('*')[1]]			
-	if (fxn == 'binomial' and (marker_info['freq.ctrl'] == 'NA' or marker_info['freq.ctrl'] < 0.001 or marker_info['freq.ctrl'] > 0.999 or marker_info['freq.case'] < 0.001 or marker_info['freq.case'] > 0.999 or (len(model_df['marker'].unique()) < 3 and 0 in pd.crosstab(model_df['marker'],model_df[dep_var])))) or (model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().stack().value_counts()[1] != model_df[[x for x in model_df if x in list(set(model_vars_dict.keys() + ['ugaInter'])) and (x == 'ugaInter' or model_vars_dict[x]['type'] != "dependent")]].corr().abs().shape[0]):
-		marker_info['status'] = -2
+def CalcLMEGaussian(marker_info,model_df,model_vars_dict,model,method,iid,fid,focus,dep_var,lmer_control,lme_reml,lme_anova):
+	ro.globalenv['cols'] = list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))
+	cmd = 'lmer(' + model.replace('marker',marker_info['marker_unique']) + ',data=na.omit(model_df[,names(model_df) %in% cols]),REML=' + lme_reml + ',control=' + lmer_control + ')'
+	try:
+		ro.globalenv['model_out']=ro.r(cmd)
+	except RRuntimeError:
+		print '      ' + marker_info['marker_unique'] + ': RRuntimeError for function lmer with family="gaussian"'
+		marker_info['status'] = '%d' % (-2)
 	else:
-		rmodel_df = py2r.convert_to_r_dataframe(model_df[list(set(model_vars_dict.keys() + [iid,fid]))].dropna(), strings_as_factors=False)
-		rmodel_df = ro.r.subset(rmodel_df,rmodel_df.rx('marker').ro != "NA")
-		for x in model_vars_dict.keys():
-			if model_vars_dict[x]['class'] == 'factor':
-				rmodel_df.colnames=ro.StrVector([x + '_ugaFactored' if a == x else a for a in list(rmodel_df.colnames)])
-				rmodel_df=ro.r.cbind(rmodel_df,ugaConvert=ro.r('factor')(rmodel_df.rx2(x + '_ugaFactored')))
-				rmodel_df.colnames=ro.StrVector([x if a == 'ugaConvert' else a for a in list(rmodel_df.colnames)])
-		model_out=rglm(ro.r(model),data=rmodel_df,family=fxn)
-		if model_out.rx2('converged')[0] and not model_out.rx2('boundary')[0] and not 'try-error' in rclass(rsummary(model_out)):
-			valid = True
-			marker_info['status'] = 1
-		else:
-			marker_info['status'] = -3
-	if valid:
-		coef = py2r.convert_robj(rsummary(model_out).rx('coefficients'))['coefficients']
+		marker_info['status'] = '%d' % (1)
+		coef = py2r.convert_robj(ro.r('summary(model_out)$coefficients'))
+		coef.index.values[coef.index.values == marker_info['marker_unique']] = 'marker'
 		for x in focus:
 			xt = x.replace('*',':') if x.replace('*',':') in coef.index.values else x.replace('*',':').split(':')[1] + ':' + x.replace('*',':').split(':')[0]
 			if xt in coef.index.values:
 				marker_info[x + '.effect'] = '%.5g' % (coef.loc[xt,'Estimate'])
 				marker_info[x + '.stderr'] = '%.5g' % (coef.loc[xt,'Std. Error'])
-				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 and fxn == 'binomial' else float('nan')
+				marker_info[x + '.or'] = '%.5g' % (math.exp(coef.loc[xt,'Estimate'])) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 				marker_info[x + '.z'] = '%.5g' % (coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
 				marker_info[x + '.p'] = '%.4e' % (2 * norm.cdf(-1 * abs(coef.loc[xt,'Estimate'] / coef.loc[xt,'Std. Error']))) if not coef.loc[xt,'Estimate'] > 709.782712893384 and not coef.loc[xt,'Estimate'] < -709.782712893384 else float('nan')
-				marker_info['n'] = len(py2r.convert_robj(ro.r.unique(rmodel_df.rx(iid))))
-	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
+				marker_info[x + '.satt.df'] = '%.5g' % (coef.loc[xt,'df'])
+				marker_info[x + '.satt.t'] = '%.5g' % (coef.loc[xt,'t value'])
+				marker_info[x + '.satt.p'] = '%.4e' % (coef.loc[xt,'Pr(>|t|)'])
+				marker_info[x + '.kenrog.p'] = '%.4e' % (t.sf(coef.loc[xt,'t value'], ro.r('get_ddf_Lb(model_out, fixef(model_out))')))
+			if lme_anova and x != '(Intercept)':
+				xx = x.split(')')[0] + ')' if x.find('factor(') != -1 else x
+				cmd2 = 'lmer(' + model.replace(xx + '+','').replace('+' + xx,'').replace('marker',marker_info['marker_unique']) + ',data=na.omit(model_df[,names(model_df) %in% cols]),REML=' + lme_reml + ',control=' + lmer_control + ')'
+				try:
+					ro.globalenv['model_out2']=ro.r(cmd2)
+				except RRuntimeError:
+					print '      ' + marker_info['marker_unique'] + ': RRuntimeError for function glmer with family="binomial" and reduced model (model - ' + xx + ')'
+					marker_info['status'] = '%d' % (-3)
+				else:
+					anova_out = py2r.convert_robj(ro.r('anova(model_out,model_out2)'))
+					marker_info[x + '.anova.chisq'] = '%.5g' % (anova_out['Chisq'][1])
+					marker_info[x + '.anova.p'] = '%.4e' % (anova_out['Pr(>Chisq)'][1])
+		marker_info['n'] = '%d' % (len(model_df[list(set([a for a in model_vars_dict.keys() if a != 'marker'] + [iid,fid] + [marker_info['marker_unique']]))].dropna()[iid].unique()))
 	return marker_info
-"""
 
+"""
 def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, lme4):
 	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)
 	notes = 'NA'
@@ -215,6 +199,7 @@ def CalcLME(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn
 	marker_info['status'] = status
 	model_df.rename(columns={'marker': marker_info['marker_unique']}, inplace=True)
 	return marker_info
+"""
 
 def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, method, fxn, focus, dep_var, survival):
 	model_df.rename(columns={marker_info['marker_unique']: 'marker'}, inplace=True)

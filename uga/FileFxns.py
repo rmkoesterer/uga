@@ -75,7 +75,8 @@ def GenerateSingleModelCfg(args):
 					'data_info': {'NA': {}}, 'data_order': ['NA'], 'meta': []}
 	for key in args:
 		if key in ['out','samples','pheno','marker_list','fid','iid','focus','region_list','region','region_id','pedigree','sex', 
-					'male','female','buffer','miss','freq','max_freq','rsq','hwe','skat_o_rho','geeboss_thresh','case','ctrl','corstr','pheno_sep',
+					'male','female','buffer','miss','freq','max_freq','rsq','hwe','skat_o_rho','geeboss_thresh','case','ctrl','corstr','pheno_sep','lmer_control','glmer_control',
+					'lme_reml','lme_anova',
 					'gee_gaussian','geeboss_gaussian','gee_binomial','geeboss_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests',
 					'famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial',
 					'oxford','vcf','plink','dos1','dos2']:
@@ -93,16 +94,31 @@ def GenerateSingleModelCfg(args):
 				config['data_info']['NA']['data'] = args[key]
 				config['data_info']['NA']['format'] = key
 			elif key in ['samples','pheno','marker_list','fid','iid','focus','pedigree','sex', 
-					'male','female','skat_o_rho','geeboss_thresh','case','ctrl','corstr','pheno_sep']:
+					'male','female','skat_o_rho','lmer_control','glmer_control','lme_reml','lme_anova','geeboss_thresh','case','ctrl','corstr','pheno_sep']:
 				config['data_info']['NA'][key] = args[key]
 	if config['data_info']['NA']['model'] in ['skat_o_gaussian','skat_o_binomial','famskat_o']:
-		if 'skat_o_rho' in args and config['data_info']['NA']['skat_o_rho'] is not None:
-			config['data_info']['NA']['skat_o_rho'] = args[key]
-		else:
+		if 'skat_o_rho' in args and config['data_info']['NA']['skat_o_rho'] is None:
 			config['data_info']['NA']['skat_o_rho'] = 1
 	else:
 		if 'skat_o_rho' in config['data_info']['NA']:
 			del config['data_info']['NA']['skat_o_rho']
+	if not config['data_info']['NA']['method'] in ['lme_gaussian','lme_binomial']:
+		if 'glmer_control' in config['data_info']['NA']:
+			del config['data_info']['NA']['glmer_control']
+		if 'lmer_control' in config['data_info']['NA']:
+			del config['data_info']['NA']['lmer_control']
+		if 'lme_reml' in config['data_info']['NA']:
+			del config['data_info']['NA']['lme_reml']
+		if 'lme_anova' in config['data_info']['NA']:
+			del config['data_info']['NA']['lme_anova']
+	if config['data_info']['NA']['method'] == 'lme_gaussian':
+		if 'glmer_control' in config['data_info']['NA']:
+			del config['data_info']['NA']['glmer_control']
+	if config['data_info']['NA']['method'] == 'lme_binomial':
+		if 'lmer_control' in config['data_info']['NA']:
+			del config['data_info']['NA']['lmer_control']
+		if 'lme_reml' in config['data_info']['NA']:
+			del config['data_info']['NA']['lme_reml']
 	if config['data_info']['NA']['model'] in ['geeboss_gaussian','geeboss_binomial']:
 		if 'geeboss_thresh' in args and config['data_info']['NA']['geeboss_thresh'] is not None:
 			config['data_info']['NA']['geeboss_thresh'] = args[key]

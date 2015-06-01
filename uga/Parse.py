@@ -193,6 +193,21 @@ def Parser():
 	model_parser_split_group5.add_argument('--lme-binomial', 
 						action='store', 
 						help='model string for lme binomial analysis')
+	model_parser.add_argument('--glmer-control', 
+						action='store', 
+						default='glmerControl(check.nobs.vs.rankZ="stop",check.nlev.gtreq.5="stop",check.rankX="stop.deficient",check.scaleX="stop",check.conv.grad=.makeCC("stop",tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action="stop",tol=1e-4),check.conv.hess=.makeCC(action="stop",tol=1e-6))', 
+						help='glmerControl parameters for binomial lme models; use double quotes for string values (default: glmerControl(check.nobs.vs.rankZ="stop",check.nlev.gtreq.5="stop",check.rankX="stop.deficient",check.scaleX="stop",check.conv.grad=.makeCC("stop",tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action="stop",tol=1e-4),check.conv.hess=.makeCC(action="stop",tol=1e-6)))')
+	model_parser.add_argument('--lmer-control', 
+						action='store', 
+						default='lmerControl(check.nobs.vs.rankZ="stop",check.nlev.gtreq.5="stop",check.rankX="stop.deficient",check.scaleX="stop",check.conv.grad=.makeCC("stop",tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action="stop",tol=1e-4),check.conv.hess=.makeCC(action="stop",tol=1e-6))', 
+						help='lmerControl parameters for gaussian lme models; use double quotes for string values (default: lmerControl(check.nobs.vs.rankZ="stop",check.nlev.gtreq.5="stop",check.rankX="stop.deficient",check.scaleX="stop",check.conv.grad=.makeCC("stop",tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action="stop",tol=1e-4),check.conv.hess=.makeCC(action="stop",tol=1e-6)))')
+	model_parser.add_argument('--lme-reml', 
+						action='store', 
+						default='TRUE', 
+						help='REML value for lmer function')
+	model_parser.add_argument('--lme-anova', 
+						action='store_true', 
+						help='calculate glmer p values for model comparison in anova with chi-square statistic')
 	model_parser_split_group5.add_argument('--coxph', 
 						action='store', 
 						help='model string for coxph analysis')
