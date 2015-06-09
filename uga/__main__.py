@@ -12,37 +12,33 @@ import re
 import glob
 import tabix
 from Bio import bgzf
-from Parse import Parse,Parser
+import Parse
 import multi_key_dict
 import FileFxns
 import SystemFxns
 pd.options.mode.chained_assignment = None
 
 def main(args=None):
-	parser=Parser()
-	args=Parse(parser)
+	parser=Parse.Parser()
+	args=Parse.Parse(parser)
 
 	##### read cfg file into dictionary #####
 	if args.which == 'meta':
 		print "reading configuration from file"
-		config = FileFxns.LoadMetaCfg(args.cfg, args.which, args.vars)
-		args.out = config['out']
-	elif  args.which == 'model' and not args.cfg is None:
-		print "reading configuration from file"
-		config = FileFxns.LoadModelCfg(args.cfg, args.which)
+		config = FileFxns.LoadMetaCfg(args.cfg, args.which, args.varlist)
 		args.out = config['out']
 	elif args.which == 'model':
-		print "preparing configuration"
-		config = FileFxns.GenerateSingleModelCfg(vars(args))
+		print "preparing model configuration"
+		config = Parse.GenerateModelCfg(args.ordered_args)
 		args.cfg = 1
 
 	##### define region list #####
 	if args.which in ['model','meta','compile']:
 		n = 1
 		dist_mode = 'full'
-		if args.region_list:
+		if args.reglist:
 			print "generating list of genomic regions ...", 
-			region_df = FileFxns.LoadCoordinates(args.region_list)
+			region_df = FileFxns.LoadCoordinates(args.reglist)
 			if args.split or args.split_n:
 				if not args.split_n or args.split_n > len(region_df.index):
 					n = len(region_df.index)
@@ -64,11 +60,10 @@ def main(args=None):
 		else:
 			region_df = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
 			n = 1
-
 		##### get job list from file #####
-		if 'job_list' in vars(args).keys() and args.job_list is not None:
+		if 'jobs' in vars(args).keys() and args.jobs is not None:
 			jobs = []
-			with open(args.job_list) as f:
+			with open(args.jobs) as f:
 				lines = (line.rstrip() for line in f)
 				lines = (line for line in lines if line)
 				for line in lines:
@@ -110,7 +105,7 @@ def main(args=None):
 				else:
 					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
 		cmd = cmd + ')'
-		if args.overwrite:
+		if args.replace:
 			for f in [args.out, args.out + '.map.log']:
 				try:
 					os.remove(f)
@@ -119,7 +114,7 @@ def main(args=None):
 		else:
 			for f in [args.out, args.out + '.map.log']:
 				if os.path.exists(f):
-					print SystemFxns.Error("1 or more output files already exists (use --overwrite flag to replace)")
+					print SystemFxns.Error("1 or more output files already exists (use --replace flag to replace)")
 					return
 		SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
 
@@ -127,8 +122,8 @@ def main(args=None):
 		if len(out_files.keys()) > 1:
 			existing_files = glob.glob(args.out + '*')
 			if len(existing_files) > 0:
-				if not args.overwrite:
-					print SystemFxns.Error("1 or more output files or files with similar basename already exists (use --overwrite flag to replace)")
+				if not args.replace:
+					print SystemFxns.Error("1 or more output files or files with similar basename already exists (use --replace flag to replace)")
 					return
 				else:
 					for f in existing_files:
@@ -136,11 +131,11 @@ def main(args=None):
 							os.remove(f)
 						except OSError:
 							continue
-			complete, complete_reg = FileFxns.CheckResults(file_dict=out_files, out=args.out + '.verify', overwrite=args.overwrite)
+			complete, complete_reg = FileFxns.CheckResults(file_dict=out_files, out=args.out + '.verify')
 			if not complete:
 				print SystemFxns.Error("results could not be verified")
 				return
-			out_files = collections.OrderedDict([(x, out_files[x]) for x in out_files.keys() if x in complete_reg])
+			out_files = collections.OrderedDict([(x, out_files[x]) for x in out_files.keys() if str(x) in complete_reg])
 			if not FileFxns.CompileResults(out_files, args.out):
 				print SystemFxns.Error("results could not be compiled")
 				return
@@ -160,11 +155,10 @@ def main(args=None):
 		check_files = check_files + [args.out + '.mht.tiff'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'tiff' else check_files
 		check_files = check_files + [args.out + '.mht.eps'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'eps' else check_files
 		check_files = check_files + [args.out + '.mht.pdf'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'pdf' else check_files
-		#check_files = check_files + glob.glob(args.out + '.rgnl.*') if 'region_list' in vars(args).keys() or 'region' in vars(args).keys() or 'regional_n' in vars(args).keys() else check_files
 		existing_files = []
 		for f in check_files:
 			if os.path.exists(f):
-				if not args.overwrite:
+				if not args.replace:
 					existing_files = existing_files + [f]
 					print "found file " + str(f)
 				else:
@@ -173,10 +167,10 @@ def main(args=None):
 					except OSError:
 						continue
 		if len(existing_files) > 0:
-			print SystemFxns.Error("above files already exist (use --overwrite flag to replace)")
+			print SystemFxns.Error("above files already exist (use --replace flag to replace)")
 			return
 		cmd = 'Explore(data="' + args.data + '",out="' + args.out + '"'
-		for x in ['qq','qq_n','qq_strat','mht','color','ext','sig','gc','set_gc','lz_source','lz_build','lz_pop','regional_n','region_list','region_id','region','stat','top_p','tag','unrel','f_dist_dfn','f_dist_dfd','callrate_thresh','rsq_thresh','freq_thresh','hwe_thresh','effect_thresh','stderr_thresh','or_thresh','df_thresh']:
+		for x in ['qq','qq_n','qq_strat','mht','color','ext','sig','gc','set_gc','lz_source','lz_build','lz_pop','regions_top','reglist','id','region','stat','pmin','tag','unrel','f_dist_dfn','f_dist_dfd','callrate','rsq','maf','hwe','effect','stderr','or','df']:
 			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 				if type(vars(args)[x]) is str:
 					cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
@@ -192,7 +186,7 @@ def main(args=None):
 		existing_files = []
 		for f in check_files:
 			if os.path.exists(f):
-				if not args.overwrite:
+				if not args.replace:
 					existing_files = existing_files + [f]
 					print "found file " + str(f)
 				else:
@@ -201,7 +195,7 @@ def main(args=None):
 					except OSError:
 						continue
 		if len(existing_files) > 0:
-			print SystemFxns.Error("above files already exist (use --overwrite flag to replace)")
+			print SystemFxns.Error("above files already exist (use --replace flag to replace)")
 			return
 		cmd = 'GC(data="' + args.data + '",out="' + args.out + '"'
 		if args.gc:
@@ -219,7 +213,7 @@ def main(args=None):
 		joblist = []
 		if not args.job is None:
 			joblist.append(args.job)
-		elif not args.job_list is None:
+		elif not args.jobs is None:
 			joblist.extend(jobs)
 		else:
 			joblist.extend(range(n))
@@ -228,15 +222,15 @@ def main(args=None):
 				config['out'] = out_files['%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))]
 				if n > 1:
 					config['region'] = '%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))
-					config['region_list'] = None
+					config['reglist'] = None
 			elif dist_mode == 'split-list-n':
 				config['out'] = out_files[i]
-				rlist = config['out'] + '.regions'
-				region_df.loc[np.array_split(np.array(region_df.index), n)[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'reg_id'])
-				config['region_list'] = rlist
+				rlist = config['out'] + '.reglist'
+				region_df.loc[np.array_split(np.array(region_df.index), n)[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'id'])
+				config['reglist'] = rlist
 			elif dist_mode == 'chr':
 				config['out'] = out_files['%s' % (str(region_df['chr'][i]))]
-			if args.overwrite:
+			if args.replace:
 				for f in [config['out'], config['out'] + '.' + args.which + '.log',config['out'] + '.gz', config['out'] + '.gz.tbi']:
 					try:
 						os.remove(f)
@@ -245,13 +239,13 @@ def main(args=None):
 			else:
 				for f in [config['out'],config['out'] + '.log',config['out'] + '.gz', config['out'] + '.gz.tbi']:
 					if os.path.exists(f):
-						print SystemFxns.Error("1 or more output files already exists (use --overwrite flag to replace)")
+						print SystemFxns.Error("1 or more output files already exists (use --replace flag to replace)")
 						return
 			if args.which == 'model':
 					cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
 			elif args.which == 'meta':
 				cmd = args.which.capitalize() + '(cfg=' + str(config)
-				for x in ['region_list', 'region']:
+				for x in ['reglist', 'region']:
 					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 						if type(vars(args)[x]) is str:
 							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''

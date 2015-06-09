@@ -7,6 +7,17 @@ from libc.string cimport strtok
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+def GetDelimiterCy(str delimiter):
+	if delimiter == 'tab':
+		delimiter = '\t'
+	elif delimiter == 'space':
+		delimiter = ' '
+	else:
+		delimiter = ','
+	return delimiter
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
 def GetRowCallsCy(np.ndarray row):
 	cdef unsigned int i = row[8].split(':').index('GT')
 	cdef unsigned int j = 0
@@ -21,17 +32,6 @@ def GetRowCallsCy(np.ndarray row):
 		row[j+9] = '1' if str(row[j+9]) == het1 or str(row[j+9]) == het2 else row[j+9]
 		row[j+9] = '0' if str(row[j+9]) == hom2 else row[j+9]
 	return row
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-def GetDelimiterCy(str delimiter):
-	if delimiter == 'tab':
-		delimiter = '\t'
-	elif delimiter == 'space':
-		delimiter = ' '
-	else:
-		delimiter = ','
-	return delimiter
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -68,7 +68,7 @@ def CalcFreq23Cy(np.ndarray male, np.ndarray female):
 @cython.cdivision(True)
 def CalcRsqCy(np.ndarray x):
 	x = x[~np.isnan(x)]
-	cdef double rsq = x.var(ddof=1) / (2 * (x.mean() / 2) * (1 - (x.mean() / 2)))
+	cdef double rsq = x.var(ddof=1) / (2 * (x.mean() / 2) * (1 - (x.mean() / 2))) if x.var(ddof=1) != 0 else 0
 	return 1 / rsq if rsq > 1 else rsq
 
 @cython.boundscheck(False)
@@ -83,74 +83,45 @@ def CalcHWECy(np.ndarray x):
 	cdef unsigned int rare_copies
 	cdef unsigned int genotypes
 	x = x[~np.isnan(x)]
-	if list(set(x)) == [0,1,2]:
+	if set(x).issubset(set([0,1,2])):
 		obs_hets = np.sum(x == 1)
 		obs_hom1 = np.sum(x == 2)
 		obs_hom2 = np.sum(x == 0)
-		if not (obs_hets == 0 and obs_hom1 == 0 and obs_hom2 == 0):
-			obs_homc = obs_hom2 if obs_hom1 < obs_hom2 else obs_hom1
-			obs_homr = obs_hom1 if obs_hom1 < obs_hom2 else obs_hom2
+		if not (obs_hets < 0 and obs_hom1 < 0 and obs_hom2 < 0):
+			rare   = 2*min(obs_hom1,obs_hom2)+obs_hets
+			common = 2*max(obs_hom1,obs_hom2)+obs_hets
+			if not rare:
+				return 1.0
 
-			rare_copies = 2 * obs_homr + obs_hets
-			genotypes   = obs_hets + obs_homc + obs_homr
+			# expected heterogygotes
+			hets = rare*common/(rare+common)
 
-			het_probs = [0.0] * (rare_copies + 1)
+			# check for non-matching parity of rare and hets
+			if rare%2 != hets%2:
+				hets += 1
 
-			#start at midpoint
-			mid = rare_copies * (2 * genotypes - rare_copies) / (2 * genotypes)
+			# expected rare and common homozygotes
+			hom_r = (rare-hets)/2
+			hom_c = (common-hets)/2
 
-			#check to ensure that midpoint and rare alleles have same parity
-			if (rare_copies & 1) ^ (mid & 1):
-				mid += 1
+			# initialize heterozygote probability vector
+			probs = [0]*(rare/2+1)
 
-			curr_hets = mid
-			curr_homr = (rare_copies - mid) / 2
-			curr_homc = genotypes - curr_hets - curr_homr
+			# Set P(expected hets)=1
+			probs[hets/2] = 1.0
 
-			het_probs[mid] = 1.0
-			sum = float(het_probs[mid])
+			# fill in relative probabilities for less than the expected hets
+			for i,h in enumerate(xrange(hets,1,-2)):
+				probs[h/2-1] = probs[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
 
-			for curr_hets in xrange(mid, 1, -2):
-				het_probs[curr_hets - 2] = het_probs[curr_hets] * curr_hets * (curr_hets - 1.0) / (4.0 * (curr_homr + 1.0) * (curr_homc + 1.0))
-				sum += het_probs[curr_hets - 2]
-				# 2 fewer heterozygotes for next iteration -> add one rare, one common homozygote
-				curr_homr += 1
-				curr_homc += 1
+			# fill in relative probabilities for greater than the expected hets
+			for i,h in enumerate(xrange(hets,rare-1,2)):
+				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
 
-			curr_hets = mid
-			curr_homr = (rare_copies - mid) / 2
-			curr_homc = genotypes - curr_hets - curr_homr
-
-			for curr_hets in xrange(mid, rare_copies - 1, 2):
-				het_probs[curr_hets + 2] = het_probs[curr_hets] * 4.0 * curr_homr * curr_homc / ((curr_hets + 2.0) * (curr_hets + 1.0))
-				sum += het_probs[curr_hets + 2]
-				#add 2 heterozygotes for next iteration -> subtract one rare, one common homozygote
-				curr_homr -= 1
-				curr_homc -= 1
-
-			for i in xrange(0, rare_copies + 1):
-				het_probs[i] /= sum
-
-			#alternate p-value calculation for p_hi/p_lo
-			p_hi = float(het_probs[obs_hets])
-			for i in xrange(obs_hets, rare_copies+1):
-				p_hi += het_probs[i]
-
-			p_lo = float(het_probs[obs_hets])
-			for i in xrange(obs_hets-1, -1, -1):
-				p_lo += het_probs[i]
-
-			p_hi_lo = 2.0 * p_hi if p_hi < p_lo else 2.0 * p_lo
-
-			p_hwe = 0.0
-			#  p-value calculation for p_hwe
-			for i in xrange(0, rare_copies + 1):
-				if het_probs[i] > het_probs[obs_hets]:
-					continue
-				p_hwe += het_probs[i]
-
-			p_hwe = 1.0 if p_hwe > 1.0 else p_hwe
-
+			# compute the pvalue by summing the probabilities <= to that of the
+			# observed number of heterogygotes and normalize by the total
+			p_obs = probs[obs_hets/2]
+			p_hwe = sum(p for p in probs if p <= p_obs)/sum(probs)
 			return p_hwe
 		else:
 			return float('NaN')
@@ -159,7 +130,7 @@ def CalcHWECy(np.ndarray x):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def GenerateFilterCodeCy(np.float row_callrate, np.float row_freq, np.float row_freq_unrel, np.float row_rsq, np.float row_rsq_unrel, np.float row_hwe, np.float row_hwe_unrel, np.float miss_thresh, np.float freq_thresh, np.float max_freq_thresh, np.float rsq_thresh, np.float hwe_thresh, no_mono=True):
+def GenerateFilterCodeCy(np.float row_callrate, np.float row_freq, np.float row_freq_unrel, np.float row_rsq, np.float row_rsq_unrel, np.float row_hwe, np.float row_hwe_unrel, np.float miss_thresh=None, np.float maf_thresh=None, np.float maf_max_thresh=None, np.float rsq_thresh=None, np.float hwe_thresh=None, no_mono=True):
 	cdef unsigned int filter = 0
 	if (not miss_thresh is None and not np.isnan(row_callrate) and row_callrate < miss_thresh) or (not np.isnan(row_callrate) and row_callrate == 0) or np.isnan(row_callrate):
 		filter += 1000
@@ -167,28 +138,28 @@ def GenerateFilterCodeCy(np.float row_callrate, np.float row_freq, np.float row_
 		if no_mono and (row_freq == 0 or row_freq == 1):
 			filter += 100
 		else:
-			if ((	not freq_thresh is None
+			if ((	not maf_thresh is None
 				and 
-					(		row_freq < freq_thresh
-						 or row_freq > 1-freq_thresh
+					(		row_freq < maf_thresh
+						 or row_freq > 1-maf_thresh
 					)
 				and 
-					(		row_freq_unrel < freq_thresh
-						 or row_freq_unrel > 1-freq_thresh
+					(		row_freq_unrel < maf_thresh
+						 or row_freq_unrel > 1-maf_thresh
 					)
 			   ) 
 			  or
-			   (	not max_freq_thresh is None
+			   (	not maf_max_thresh is None
 				and 
 					(	   
-						(		row_freq >= max_freq_thresh
-							and row_freq <= 1-max_freq_thresh
+						(		row_freq >= maf_max_thresh
+							and row_freq <= 1-maf_max_thresh
 						)
 					)
 				and
 					(
-						(		row_freq_unrel >= max_freq_thresh
-							and row_freq_unrel <= 1-max_freq_thresh
+						(		row_freq_unrel >= maf_max_thresh
+							and row_freq_unrel <= 1-maf_max_thresh
 						)
 						or row_freq_unrel == 0
 						or row_freq_unrel == 1

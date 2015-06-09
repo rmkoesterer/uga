@@ -17,10 +17,10 @@ def Explore(data,
 			gc = False, 
 			set_gc = None, 
 			stat = 'marker', 
-			regional_n = None, 
+			regions_top = None, 
 			region = None, 
 			region_id = None, 
-			region_list = None, 
+			reglist = None, 
 			top_p = 1e-4,  
 			tag = None, 
 			unrel = False, 
@@ -87,17 +87,17 @@ def Explore(data,
 
 	##### GENERATE REGION LIST #####
 	regions = None
-	if not region_list is None:
+	if not reglist is None:
 		print "loading region list"
-		marker_list = FileFxns.LoadCoordinates(region_list)
-		regions = list(marker_list['region'])
+		varlist = FileFxns.LoadCoordinates(reglist)
+		regions = list(varlist['region'])
 	elif not region is None:
 		if len(region.split(':')) > 1:
-			marker_list = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
+			varlist = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
 		else:
-			marker_list = pd.DataFrame({'chr': [region],'start': ['NA'],'end': ['NA'],'region': [region]})
-		marker_list['reg_id'] = region_id if not region_id is None else 'NA'
-		regions = list(marker_list['region'])
+			varlist = pd.DataFrame({'chr': [region],'start': ['NA'],'end': ['NA'],'region': [region]})
+		varlist['id'] = region_id if not region_id is None else 'NA'
+		regions = list(varlist['region'])
 
 	##### read data from file #####
 	print "loading results from file"
@@ -128,8 +128,8 @@ def Explore(data,
 		header = header.strip()
 		header = header.split()		
 		reader = tabix.open(data)
-		for r in range(len(marker_list.index)):
-			reg = marker_list['region'][r]
+		for r in range(len(varlist.index)):
+			reg = varlist['region'][r]
 			try:
 				records = reader.querys(reg)
 			except:
@@ -145,7 +145,7 @@ def Explore(data,
 						pvals = chunk
 					else:
 						pvals = pvals.append(chunk)
-			print "   processed region " + str(r+1) + "/" + str(len(marker_list.index)) + " (" + str(marker_list['reg_id'][r]) + " " + str(marker_list['region'][r]) + "): " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
+			print "   processed region " + str(r+1) + "/" + str(len(varlist.index)) + " (" + str(varlist['id'][r]) + " " + str(varlist['region'][r]) + "): " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
 		pvals[pvals == 'NA'] = float('nan')
 	pvals[[x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]] = pvals[[x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]].astype(float)
 	pvals[['chr','pos']] = pvals[['chr','pos']].astype(int)
@@ -464,10 +464,10 @@ def Explore(data,
 		##### DETERMINE TOP REGIONS #####
 		regions = []
 		pvals_top = pvals.copy()
-		if regional_n is not None:
+		if regions_top is not None:
 			print "determining top regions for regional manhattan plots"
 			pvals_top.sort(columns=[p], inplace=True)
-			while len(regions) < regional_n:
+			while len(regions) < regions_top:
 				region_temp = str(pvals_top['chr'].iloc[0]) + ':' + str(pvals_top['pos'].iloc[0] - 100000) + '-' + str(pvals_top['pos'].iloc[0] + 100000)
 				regions.append(region_temp)
 				pvals_top = pvals_top[~((pvals_top['chr'] == int(region_temp.split(':')[0])) & (pvals_top['pos'] >= int(region_temp.split(':')[1].split('-')[0])) & (pvals_top['pos'] <= int(region_temp.split(':')[1].split('-')[1])))]

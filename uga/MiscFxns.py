@@ -137,7 +137,7 @@ def CalcRsq(x):
 
 def CalcHWE(marker, chr = None, female_idx = None):
 	marker = marker.dropna().astype(float)
-	if list(set(marker)) == [0,1,2]:
+	if list(set(marker)).issubset(set([0,1,2])):
 		if not chr is None and int(chr) == 23:
 			if not female_idx is None:
 				obs_hets = len(marker.loc[female_idx][marker.loc[female_idx].isin([1])])
@@ -228,11 +228,11 @@ def GetRowCalls(row):
 	newrow[9:] = newrow[9:].apply(lambda x: 'NaN' if not x in ['0/0','0/1','1/1','1/0'] else x.replace('0/0','2').replace('0/1','1').replace('1/1','0').replace('1/0','1'))
 	return newrow
 
-def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,pheno_sep='\t'):
+def ExtractModelVars(pheno,model,fid,iid,family=None,sex=None,case=None,ctrl=None,sep='\t'):
 	model_vars_dict = {}
 	dependent = re.split('\\~',model)[0]
 	independent = re.split('\\~',model)[1]
-	vars_df = pd.read_table(pheno,sep=pheno_sep,dtype='str')
+	vars_df = pd.read_table(pheno,sep=sep,dtype='str')
 	vars_df[vars_df == "."] = None
 	for x in [a for a in list(set(re.split('Surv\(|,|\)|~|\+|cluster\(|\(1\||\*|factor\(',dependent))) if a != '']:
 		mtype = 'dependent'
@@ -257,7 +257,7 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,p
 			print "   %s variable %s skipped" % (model_vars_dict[x]['type'], x)
 		else:
 			print "   %s variable %s not found" % (model_vars_dict[x]['type'], x)
-			print Error("model variable missing from phenotype file")
+			print SystemFxns.Error("model variable missing from phenotype file")
 			return
 	
 	if sex:
@@ -265,7 +265,7 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,p
 			print "   sex column %s found" % sex
 		else:
 			print "   sex column %s not found" % sex
-			print Error("sex column missing from phenotype file")
+			print SystemFxns.Error("sex column missing from phenotype file")
 			return
 
 	vars_df = vars_df[list(set([a for a in [fid,iid,sex] if a] + list([a for a in model_vars_dict.keys() if a != 'marker'])))]
@@ -273,14 +273,14 @@ def ExtractModelVars(pheno,model,fid,iid,fxn=None,sex=None,case=None,ctrl=None,p
 	vars_df[fid] = vars_df[fid].astype(str)
 	vars_df[iid] = vars_df[iid].astype(str)
 	
-	##### EXTRACT CASE/CTRL IF BINOMIAL fxn #####
+	##### EXTRACT CASE/CTRL IF BINOMIAL family #####
 	for x in model_vars_dict.keys():
-		if model_vars_dict[x]['type'] == 'dependent' and fxn == 'binomial':
+		if model_vars_dict[x]['type'] == 'dependent' and family == 'binomial':
 			vars_df = vars_df[vars_df[x].isin([str(case),str(ctrl)])]
 			vars_df[x] = vars_df[x].map({str(ctrl): '0', str(case): '1'})
 	vars_df.dropna(inplace = True)
 	if len(vars_df.index) == 0:
-		print Error("no data left for analysis")
+		print SystemFxns.Error("no data left for analysis")
 		return
 	return vars_df, model_vars_dict
 
@@ -293,8 +293,8 @@ def GetDelimiter(delimiter):
 		delimiter = ','
 	return delimiter
 
-def GetFocus(method,model,vars_df,model_vars_dict):
-	focus = ['(Intercept)'] if method.split('_')[0] in ['gee','geeboss','glm','lme'] else []
+def GetFocus(model_fxn,model,vars_df,model_vars_dict):
+	focus = ['(Intercept)'] if model_fxn.split('_')[0] in ['gee','geeboss','glm','lme'] else []
 	for x in re.sub("\+|\~|\-",",",model.split('~')[1]).split(','):
 		if not x[0] == '(' and x.find('cluster(') == -1:
 			if x.find('factor(') != -1:
@@ -318,6 +318,48 @@ def GetFocus(method,model,vars_df,model_vars_dict):
 			else:
 				focus.append(x)
 	return focus
+
+def GenerateFilterCode(marker_info, no_mono=True, miss = None, freq = None, max_freq = None, rsq = None, hwe = None):
+	filter = 0
+	if (not miss is None and not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) < float(miss)) or (not math.isnan(marker_info['callrate']) and float(marker_info['callrate']) == 0) or (math.isnan(marker_info['callrate'])):
+		filter += 1000
+	if not math.isnan(marker_info['freq']): 
+		if no_mono and (float(marker_info['freq']) == 0 or float(marker_info['freq']) == 1):
+			filter += 100
+		else:
+			if ((	not freq is None
+				and 
+					(		float(marker_info['freq']) < float(freq)
+						 or float(marker_info['freq']) > 1-float(freq)
+					)
+				and 
+					(		float(marker_info['freq.unrel']) < float(freq)
+						 or float(marker_info['freq.unrel']) > 1-float(freq)
+					)
+			   ) 
+			  or
+			   (	not max_freq is None
+				and 
+					(	   
+						(		float(marker_info['freq']) >= float(max_freq)
+							and float(marker_info['freq']) <= 1-float(max_freq)
+						)
+					)
+				and
+					(
+						(		float(marker_info['freq.unrel']) >= float(max_freq)
+							and float(marker_info['freq.unrel']) <= 1-float(max_freq)
+						)
+						or float(marker_info['freq.unrel']) == 0
+						or float(marker_info['freq.unrel']) == 1
+					)
+			   )):
+				filter += 100
+	if not rsq is None and not math.isnan(marker_info['rsq']) and (float(marker_info['rsq']) < float(rsq) and float(marker_info['rsq.unrel']) < float(rsq)):
+		filter += 10
+	if not hwe is None and not math.isnan(marker_info['hwe']) and (float(marker_info['hwe']) < float(hwe) and float(marker_info['hwe.unrel']) < float(hwe)):
+		filter += 1
+	return filter
 
 class MarkerRefDb(object):
 

@@ -71,19 +71,19 @@ def LoadModelCfg(filename, module, vars = None):
 	return config
 
 def GenerateSingleModelCfg(args):
-	config = {'out': None, 'buffer': 100, 'miss': None, 'freq': None, 'max_freq': None, 'rsq': None, 'hwe': None, 'region_list': None, 'region': None,'region_id': None,
+	config = {'out': None, 'buffer': 100, 'miss': None, 'freq': None, 'max_freq': None, 'rsq': None, 'hwe': None, 'reglist': None, 'region': None,'region_id': None,
 					'data_info': {'NA': {}}, 'data_order': ['NA'], 'meta': []}
 	for key in args:
-		if key in ['out','samples','pheno','marker_list','fid','iid','focus','region_list','region','region_id','pedigree','sex', 
+		if key in ['out','samples','pheno','varlist','fid','iid','focus','reglist','region','region_id','pedigree','sex', 
 					'male','female','buffer','miss','freq','max_freq','rsq','hwe','skat_o_rho','geeboss_thresh','case','ctrl','corstr','pheno_sep','lmer_control','glmer_control',
-					'lme_reml','lme_anova',
+					'lme_reml','lrt',
 					'gee_gaussian','geeboss_gaussian','gee_binomial','geeboss_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests',
 					'famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial',
 					'oxford','vcf','plink','dos1','dos2']:
 			if isinstance(args[key],list):
 				args[key] = args[key][0]
 			config_temp = {}
-			if key in ['out','buffer','miss','freq','max_freq','rsq','hwe','region_list','region','region_id']:
+			if key in ['out','buffer','miss','freq','max_freq','rsq','hwe','reglist','region','region_id']:
 				config[key] = args[key]
 			elif key in ['gee_gaussian','geeboss_gaussian','gee_binomial','geeboss_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','efftests',
 							'famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial'] and args[key] is not None:
@@ -93,8 +93,8 @@ def GenerateSingleModelCfg(args):
 				config['data_info']['NA']['tag']='NA'
 				config['data_info']['NA']['data'] = args[key]
 				config['data_info']['NA']['format'] = key
-			elif key in ['samples','pheno','marker_list','fid','iid','focus','pedigree','sex', 
-					'male','female','skat_o_rho','lmer_control','glmer_control','lme_reml','lme_anova','geeboss_thresh','case','ctrl','corstr','pheno_sep']:
+			elif key in ['samples','pheno','varlist','fid','iid','focus','pedigree','sex', 
+					'male','female','skat_o_rho','lmer_control','glmer_control','lme_reml','lrt','geeboss_thresh','case','ctrl','corstr','pheno_sep']:
 				config['data_info']['NA'][key] = args[key]
 	if config['data_info']['NA']['model'] in ['skat_o_gaussian','skat_o_binomial','famskat_o']:
 		if 'skat_o_rho' in args and config['data_info']['NA']['skat_o_rho'] is None:
@@ -109,8 +109,8 @@ def GenerateSingleModelCfg(args):
 			del config['data_info']['NA']['lmer_control']
 		if 'lme_reml' in config['data_info']['NA']:
 			del config['data_info']['NA']['lme_reml']
-		if 'lme_anova' in config['data_info']['NA']:
-			del config['data_info']['NA']['lme_anova']
+		if 'lrt' in config['data_info']['NA']:
+			del config['data_info']['NA']['lrt']
 	if config['data_info']['NA']['method'] == 'lme_gaussian':
 		if 'glmer_control' in config['data_info']['NA']:
 			del config['data_info']['NA']['glmer_control']
@@ -139,23 +139,23 @@ def GenerateSingleModelCfg(args):
 	if config['data_info']['NA']['ctrl'] is None:
 		config['data_info']['NA']['ctrl'] = 0
 	if '_gaussian' in config['data_info']['NA']['method'] or '_binomial' in config['data_info']['NA']['method']:
-		config['data_info']['NA']['fxn'] = config['data_info']['NA']['method'].split('_')[-1]
+		config['data_info']['NA']['family'] = config['data_info']['NA']['method'].split('_')[-1]
 	else:
-		config['data_info']['NA']['fxn'] = None
+		config['data_info']['NA']['family'] = None
 	return config
 
 def LoadCoordinates(filename):
 	with open(filename) as f:
 		regions = pd.read_table(f, header=None)
 	if regions.shape[1] == 2:
-		regions.columns=['region','reg_id']
+		regions.columns=['region','id']
 	elif regions.shape[1] == 1:
 		regions.columns=['region']
 	else:
 		print SystemFxns.Error("too many columns in region list")
 		return
-	if not 'reg_id' in regions.columns:
-		regions['reg_id'] = 'NA'
+	if not 'id' in regions.columns:
+		regions['id'] = 'NA'
 	regions['chr'] = regions['region'].apply(lambda row: int(row.split(':')[0]),1)
 	regions['start'] = regions['region'].apply(lambda row: int(row.split(':')[1].split('-')[0]),1)
 	regions['end'] = regions['region'].apply(lambda row: int(row.split(':')[1].split('-')[1]),1)
@@ -204,7 +204,7 @@ def GenerateSubFiles(region_df, f, dist_mode, n):
 			return
 	return out_files
 
-def CheckResults(file_dict, out, overwrite, cpus=1):
+def CheckResults(file_dict, out, cpus=1):
 	print "verifying results"
 	cpus = cpu_count() if cpu_count() < cpus else cpus	
 	n = len(file_dict.keys())
@@ -395,6 +395,7 @@ def CompileResults(out_files, out):
 	p8 = subprocess.Popen(['head','-1'], stdin=p7.stdout, stdout=subprocess.PIPE)
 	header = p8.communicate()[0]
 	header = header.split()
+
 	if 'pos' in header:
 		b = header.index('pos') + 1
 		e = b

@@ -2,6 +2,31 @@ from __main__ import *
 import argparse
 from __init__ import version
 
+class AddString(argparse.Action):
+	def __call__(self, parser, namespace, values, option_string=None):
+		if not 'ordered_args' in namespace:
+			setattr(namespace, 'ordered_args', [])
+		previous = namespace.ordered_args
+		previous.append((self.dest, values))
+		setattr(namespace, 'ordered_args', previous)
+
+class AddTrue(argparse.Action):
+	def __call__(self, parser, namespace, values, option_string=None):
+		if not 'ordered_args' in namespace:
+			setattr(namespace, 'ordered_args', [])
+		previous = namespace.ordered_args
+		previous.append((self.dest, True))
+		setattr(namespace, 'ordered_args', previous)
+
+class AddFalse(argparse.Action):
+	def __call__(self, parser, namespace, values, option_string=None):
+		if not 'ordered_args' in namespace:
+			setattr(namespace, 'ordered_args', [])
+		previous = namespace.ordered_args
+		previous.append((self.dest, False))
+		setattr(namespace, 'ordered_args', previous)
+
+
 def Parser():
 	parser = argparse.ArgumentParser(add_help=False)
 	top_parser = argparse.ArgumentParser(parents=[parser])
@@ -12,550 +37,518 @@ def Parser():
 						version='Universal Genome Analyst: %(prog)s v' + version, 
 						help='display version information and exit')
 
-	model_parser = subparsers.add_parser('model', help='marker and locus-based statistical modeling', parents=[parser])
+	##### MODEL PARSER #####
+	model_parser = subparsers.add_parser('model', help='marker and region-based statistical modeling', parents=[parser])
 	model_parser.add_argument('--out', 
-						action='store', 
-						help='base output file name (basename only: do not include path)')
+						action=AddString, 
+						help='output file basename (do not include path or extension)')
 	model_parser.add_argument('--pheno', 
-						nargs=1, 
-						action='store', 
-						help='phenotype file (see documentation for required formatting)')
-	model_parser.add_argument('--marker-list', 
-						nargs=1, 
-						action='store', 
-						help='marker list file (see documentation for required formatting)')
+						action=AddString, 
+						help='phenotype file')
+	model_parser.add_argument('--varlist', 
+						action=AddString, 
+						help='variant list file')
 	model_parser.add_argument('--fid', 
-						nargs=1, 
-						action='store', 
+						action=AddString, 
 						help='column name with family ID')
 	model_parser.add_argument('--iid', 
-						action='store', 
-						nargs=1, 
+						action=AddString, 
 						help='column name with sample ID (The IDs in this column must match the --samples file)')
-	model_parser.add_argument('--cfg', 
-						action='store', 
-						help='configuration file name (see documentation)')
-	model_parser.add_argument('--pheno-sep', 
-						action='store', 
-						nargs=1, 
+	model_parser.add_argument('--sep', 
+						action=AddString, 
 						choices=['tab','space','comma'], 
 						help='phenotype file delimiter (default: tab)')
-	model_parser.add_argument('--samples', 
-						action='store', 
-						nargs=1, 
-						help='sample file (single column list of IDs in same order as --data file, only required if format != plink)')
+	model_parser.add_argument('--sample', 
+						action=AddString, 
+						help='sample file (not required for Plink format files)')
 	model_parser.add_argument('--focus', 
-						action='store', 
-						nargs=1, 
+						action=AddString, 
 						help='comma separated list of variables for which stats will be reported (default: report all stats)')
 	model_parser.add_argument('--sex', 
-						action='store', 
-						nargs=1, 
+						action=AddString, 
 						help='name of the column containing male/female status (requires --male and --female)')
 	model_parser.add_argument('--male', 
-						action='store', 
-						nargs=1, 
+						action=AddString, 
 						type=int, 
-						default=1, 
-						help='code for male (default: MALE=1; requires --sex and --female)')
+						help='code for male (default: 1; requires --sex and --female)')
 	model_parser.add_argument('--female', 
-						nargs=1, 
-						action='store', 
+						action=AddString, 
 						type=int, 
-						default=2, 
-						help='code for female (default: FEMALE=2; requires --sex and --male)')
+						help='code for female (default: 2; requires --sex and --male)')
 	model_parser.add_argument('--buffer', 
-						action='store', 
+						action=AddString, 
 						type=int, 
-						default=100, 
-						help='value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: BUFFER=100)')
+						help='value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
 	model_parser.add_argument('--miss', 
-						action='store', 
+						action=AddString, 
 						type=float, 
-						help='threshold value for missingness (ie. MISS=0.95 allows for up to 5%% missingness)')
-	model_parser.add_argument('--freq', 
-						action='store', 
+						help='threshold value for missingness (ie. 0.95 allows for up to 5%% missingness)')
+	model_parser.add_argument('--maf', 
+						action=AddString, 
 						type=float, 
-						help='threshold value for minimum allele frequency (ie. FREQ=0.03 filters out markers with MAF < 0.03)')
-	model_parser.add_argument('--max-freq', 
-						action='store', 
+						help='threshold value for minimum minor allele frequency (ie. 0.03 filters out markers with maf < 0.03)')
+	model_parser.add_argument('--maf-max', 
+						action=AddString, 
 						type=float, 
-						help='threshold value for maximum allele frequency (ie. FREQ=0.01 filters out markers with MAF >= 0.01)')
+						help='threshold value for maximum minor allele frequency (ie. 0.01 filters out markers with maf >= 0.01)')
 	model_parser.add_argument('--rsq', 
-						action='store', 
+						action=AddString, 
 						type=float, 
-						help='threshold value for imputation quality (ie. RSQ=0.8 filters out markers with r-squared < 0.8)')
+						help='threshold value for imputation quality (ie. 0.8 filters out markers with rsq < 0.8)')
 	model_parser.add_argument('--hwe', 
-						action='store', 
+						action=AddString, 
 						type=float, 
-						help='threshold value for Hardy Weinberg p-value (ie. HWE=1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
+						help='threshold value for Hardy Weinberg p-value (ie. 1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
 	model_parser.add_argument('--case', 
-						nargs=1, 
-						action='store', 
+						action=AddString, 
 						type=int, 
-						default=[1], 
-						help='code for case in the dependent variable column (requires --ctrl; binomial fxn family only; default: CASE=1)')
+						help='code for case in the dependent variable column (requires --ctrl; binomial fxn family only; default: 1)')
 	model_parser.add_argument('--ctrl', 
-						nargs=1, 
-						action='store', 
+						action=AddString, 
 						type=int, 
-						default=[0], 
-						help='code for control in the dependent variable column (requires --case; binomial fxn family only; default: CTRL=0)')
+						help='code for control in the dependent variable column (requires --case; binomial fxn family only; default: 0)')
 	model_parser.add_argument('--corstr', 
-						nargs=1, 
-						action='store', 
+						action=AddString, 
 						choices=['exchangeable','independence','ar1','unstructured'], 
-						default=['exchangeable'], 
 						help='correlation structure for gee analyses (default: exchangeable)')
-	model_parser.add_argument('--geeboss-thresh', 
-						nargs=1, 
-						action='store', 
+	model_parser.add_argument('--thresh', 
+						action=AddString, 
 						type=float, 
-						default=1e-7, 
-						help='p-value threshold for boss.fit thresh option (see CRAN R boss package documentation)')
-	model_parser.add_argument('--pedigree', 
-						nargs=1, 
-						action='store', 
+						help='p-value threshold for boss.fit thresh option (default: 1e-7)')
+	model_parser.add_argument('--ped', 
+						action=AddString, 
 						help='pedigree file')
-	model_parser.add_argument('-o', '--overwrite', 
-						action='store_true', 
-						help='overwrite existing output files')
-	model_parser.add_argument('-q', '--qsub', 
-						action='store', 
-						help='string indicating all qsub options to be added to the qsub command')
-	model_parser.add_argument('--region-id', 
-						action='store', 
+	model_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
+	model_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (trigger adds jobs to cluster queue')
+	model_parser.add_argument('--id', 
+						action=AddString, 
 						help='add region id to results (for use with --region option)')
+	model_parser.add_argument('--tag', 
+						action=AddString, 
+						help='add tag to column names (mainly for distinguishing multiple analyses)')
+	model_parser.add_argument('--lmer-ctrl', 
+						action=AddString, 
+						default='check.nobs.vs.rankZ="stop",check.nlev.gtreq.5="stop",check.rankX="stop.deficient",check.scaleX="stop",check.conv.grad=.makeCC("stop",tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action="stop",tol=1e-4),check.conv.hess=.makeCC(action="stop",tol=1e-6)', 
+						help='lmerControl parameters for gaussian lme models; use double quotes for string values (default: check.nobs.vs.rankZ="stop",check.nlev.gtreq.5="stop",check.rankX="stop.deficient",check.scaleX="stop",check.conv.grad=.makeCC("stop",tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action="stop",tol=1e-4),check.conv.hess=.makeCC(action="stop",tol=1e-6))')
+	model_parser.add_argument('--reml', 
+						nargs=0, 
+						action=AddTrue, 
+						help='REML value for lmer function')
+	model_parser.add_argument('--meta', 
+						action=AddString, 
+						help='a meta analysis string')
+	model_parser.add_argument('--lrt', 
+						nargs=0, 
+						action=AddTrue, 
+						help='calculate likelihood ratio test p values using chi-square statistic')
+	model_parser.add_argument('--boss', 
+						action=AddString, 
+						help='update p-values with Boosted One Step Statistics (R package)')
+	model_parser.add_argument('--rho', 
+						action=AddString, 
+						help='rho value in (0,1] for seqMeta skat-o models (default: 1; ex. 0.25 sets rho=c(0,0.25,0.5,0.75,1))')
 	model_parser_split_group1 = model_parser.add_mutually_exclusive_group()
-	model_parser_split_group1.add_argument('-r', '--region', 
-						action='store', 
-						help='region specified in Tabix format (ie. 1:10583-1010582).')
-	model_parser_split_group1.add_argument('--region-list', 
-						action='store', 
+	model_parser_split_group1.add_argument('--region', 
+						action=AddString, 
+						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
+	model_parser_split_group1.add_argument('--reglist', 
+						action=AddString, 
 						help='filename for a list of tabix format regions')
 	model_parser_split_group2 = model_parser.add_mutually_exclusive_group()
-	model_parser_split_group2.add_argument('-s', '--split', 
-						action='store_true', 
-						help='split region list into a single job for each line in file (requires --region-list)')
-	model_parser_split_group2.add_argument('-n', '--split-n', 
-						action='store', 
+	model_parser_split_group2.add_argument('--split', 
+						nargs=0, 
+						action=AddTrue, 
+						help='split reglist into an individual job for each line in file (requires --reglist)')
+	model_parser_split_group2.add_argument('--split-n', 
+						action=AddString, 
 						type=int, 
-						help='split region list into SPLIT_N jobs (requires --region-list)')
+						help='split reglist into n individual jobs each with a subset of regions in the file (requires --reglist)')
 	model_parser_split_group2.add_argument('--split-chr', 
-						action='store_true', 
-						help='split into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
+						nargs=0, 
+						action=AddTrue,  
+						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
 	model_parser_split_group3 = model_parser.add_mutually_exclusive_group()
-	model_parser_split_group3.add_argument('-j', '--job', 
-						action='store', 
+	model_parser_split_group3.add_argument('--job', 
+						action=AddString, 
 						type=int, 
-						help='run a particular job (use with --region-list and --split/--split-n)')
-	model_parser_split_group3.add_argument('--job-list', 
-						action='store', 
-						help='filename for a list of jobs (use with --region-list and --split/--split-n)')
-	model_parser_split_group4 = model_parser.add_mutually_exclusive_group()
-	model_parser_split_group4.add_argument('--oxford', 
-						action='store', 
+						help='run a particular job (use with --reglist and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	model_parser_split_group3.add_argument('--jobs', 
+						action=AddString, 
+						help='filename for a list of jobs to run (use with --reglist and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+	model_parser.add_argument('--oxford', 
+						action=AddString, 
 						help='oxford format genotype data file')
-	model_parser_split_group4.add_argument('--dos1', 
-						action='store', 
-						help='dos1 format genotype data file (see documentation)')
-	model_parser_split_group4.add_argument('--dos2', 
-						action='store', 
-						help='dos2 format genotype data file (see documentation)')
-	model_parser_split_group4.add_argument('--plink', 
-						action='store', 
-						help='plink binary format genotype data file (without extension)')
-	model_parser_split_group4.add_argument('--vcf', 
-						action='store', 
+	model_parser.add_argument('--dos1', 
+						action=AddString, 
+						help='dos1 format genotype data file')
+	model_parser.add_argument('--dos2', 
+						action=AddString, 
+						help='dos2 format genotype data file')
+	model_parser.add_argument('--plink', 
+						action=AddString, 
+						help='Plink binary format genotype data file (without extension)')
+	model_parser.add_argument('--vcf', 
+						action=AddString, 
 						help='vcf 4.1/4.2 format genotype data file')
-	model_parser_split_group5 = model_parser.add_mutually_exclusive_group()
-	model_parser_split_group5.add_argument('--gee-gaussian', 
-						action='store', 
+	model_parser.add_argument('--ggee', 
+						action=AddString, 
 						help='model string for gee gaussian analysis')
-	model_parser_split_group5.add_argument('--gee-binomial', 
-						action='store', 
+	model_parser.add_argument('--bgee', 
+						action=AddString, 
 						help='model string for gee binomial analysis')
-	model_parser_split_group5.add_argument('--geeboss-gaussian', 
-						action='store', 
-						help='model string for gee boss.fit gaussian analysis')
-	model_parser_split_group5.add_argument('--geeboss-binomial', 
-						action='store', 
-						help='model string for gee boss.fit binomial analysis')
-	model_parser_split_group5.add_argument('--glm-gaussian', 
-						action='store', 
+	model_parser.add_argument('--gglm', 
+						action=AddString, 
 						help='model string for glm gaussian analysis')
-	model_parser_split_group5.add_argument('--glm-binomial', 
-						action='store', 
+	model_parser.add_argument('--bglm', 
+						action=AddString, 
 						help='model string for glm binomial analysis')
-	model_parser_split_group5.add_argument('--lme-gaussian', 
-						action='store', 
+	model_parser.add_argument('--glme', 
+						action=AddString, 
 						help='model string for lme gaussian analysis')
-	model_parser_split_group5.add_argument('--lme-binomial', 
-						action='store', 
+	model_parser.add_argument('--blme', 
+						action=AddString, 
 						help='model string for lme binomial analysis')
-	model_parser.add_argument('--glmer-control', 
-						action='store', 
-						default='glmerControl(check.nobs.vs.rankZ="stop",check.nlev.gtreq.5="stop",check.rankX="stop.deficient",check.scaleX="stop",check.conv.grad=.makeCC("stop",tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action="stop",tol=1e-4),check.conv.hess=.makeCC(action="stop",tol=1e-6))', 
-						help='glmerControl parameters for binomial lme models; use double quotes for string values (default: glmerControl(check.nobs.vs.rankZ="stop",check.nlev.gtreq.5="stop",check.rankX="stop.deficient",check.scaleX="stop",check.conv.grad=.makeCC("stop",tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action="stop",tol=1e-4),check.conv.hess=.makeCC(action="stop",tol=1e-6)))')
-	model_parser.add_argument('--lmer-control', 
-						action='store', 
-						default='lmerControl(check.nobs.vs.rankZ="stop",check.nlev.gtreq.5="stop",check.rankX="stop.deficient",check.scaleX="stop",check.conv.grad=.makeCC("stop",tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action="stop",tol=1e-4),check.conv.hess=.makeCC(action="stop",tol=1e-6))', 
-						help='lmerControl parameters for gaussian lme models; use double quotes for string values (default: lmerControl(check.nobs.vs.rankZ="stop",check.nlev.gtreq.5="stop",check.rankX="stop.deficient",check.scaleX="stop",check.conv.grad=.makeCC("stop",tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action="stop",tol=1e-4),check.conv.hess=.makeCC(action="stop",tol=1e-6)))')
-	model_parser.add_argument('--lme-reml', 
-						action='store', 
-						default='TRUE', 
-						help='REML value for lmer function')
-	model_parser.add_argument('--lme-anova', 
-						action='store_true', 
-						help='calculate glmer p values for model comparison in anova with chi-square statistic')
-	model_parser_split_group5.add_argument('--coxph', 
-						action='store', 
+	model_parser.add_argument('--cph', 
+						action=AddString, 
 						help='model string for coxph analysis')
-	model_parser_split_group5.add_argument('--efftests', 
-						action='store', 
+	model_parser.add_argument('--neff', 
+						action=AddString, 
 						help='model string for efftests analysis')
-	model_parser_split_group5.add_argument('--famskat-o', 
-						action='store', 
+	model_parser.add_argument('--fskato', 
+						action=AddString, 
 						help='model string for family based skat-o analysis')
-	model_parser_split_group5.add_argument('--skat-o-gaussian', 
-						action='store', 
+	model_parser.add_argument('--gskato', 
+						action=AddString, 
 						help='model string for skat-o gaussian analysis')
-	model_parser_split_group5.add_argument('--skat-o-binomial', 
-						action='store', 
+	model_parser.add_argument('--bskato', 
+						action=AddString, 
 						help='model string for skat-o binomial analysis')
-	model_parser.add_argument('--skat-o-rho', 
-						action='store', 
-						nargs=1, 
-						help='rho value in (0,1] for seqMeta skat-o models (default: 1; ex. SKAT_O_RHO = 0.25 sets rho=c(0,0.25,0.5,0.75,1))')
-	model_parser_split_group5.add_argument('--famskat', 
-						action='store', 
+	model_parser.add_argument('--fskat', 
+						action=AddString, 
 						help='model string for family based skat analysis')
-	model_parser_split_group5.add_argument('--skat-gaussian', 
-						action='store', 
+	model_parser.add_argument('--gskat', 
+						action=AddString, 
 						help='model string for skat gaussian analysis')
-	model_parser_split_group5.add_argument('--skat-binomial', 
-						action='store', 
+	model_parser.add_argument('--bskat', 
+						action=AddString, 
 						help='model string for skat binomial analysis')
-	model_parser_split_group5.add_argument('--famburden', 
-						action='store', 
+	model_parser.add_argument('--fburden', 
+						action=AddString, 
 						help='model string for family based burden analysis')
-	model_parser_split_group5.add_argument('--burden-gaussian', 
-						action='store', 
+	model_parser.add_argument('--gburden', 
+						action=AddString, 
 						help='model string for burden  gaussian analysis')
-	model_parser_split_group5.add_argument('--burden-binomial', 
-						action='store', 
+	model_parser.add_argument('--bburden', 
+						action=AddString, 
 						help='model string for burden binomial analysis')
 
+	##### META PARSER #####
 	meta_parser = subparsers.add_parser('meta', help='meta-analysis', parents=[parser])
-	meta_required = meta_parser.add_argument_group('required arguments')	
-	meta_required.add_argument('-c', '--cfg', 
-						action='store', 
-						required=True, 
-						help='configuration file name (see documentation)')
-	meta_parser.add_argument('-v', '--vars', 
-						action='append', 
-						help='declaration of the form A=B, C=D, E=F, ... to replace [A] with B, [C] with D, [E] with F, ... in any line of the cfg file')	
+	meta_required = meta_parser.add_argument_group('required arguments')
+
+	##### ADD ALL POSSIBLE CFG FILE OPTIONS FOR META #####
+
 	meta_parser.add_argument('--method', 
-						action='store', 
-						default='sample_size', 
+						action=AddString, 
 						choices=['sample_size', 'stderr', 'efftest'], 
 						help='meta-analysis method (default: sample_size)')
-	meta_parser.add_argument('-o', '--overwrite', 
-						action='store_true', 
-						help='overwrite existing output files')
-	meta_parser.add_argument('-q', '--qsub', 
-						action='store', 
+	meta_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace existing output files')
+	meta_parser.add_argument('--qsub', 
+						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command')
-	meta_parser.add_argument('--region-id', 
-						action='store', 
+	meta_parser.add_argument('id', 
+						action=AddString, 
 						help='add region id to results (for use with --region option)')
 	meta_parser_split_group1 = meta_parser.add_mutually_exclusive_group()
-	meta_parser_split_group1.add_argument('-r', '--region', 
-						action='store', 
-						help='region specified in Tabix format (ie. 1:10583-1010582).')
-	meta_parser_split_group1.add_argument('--region-list', 
-						action='store', 
+	meta_parser_split_group1.add_argument('--region', 
+						action=AddString, 
+						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
+	meta_parser_split_group1.add_argument('--reglist', 
+						action=AddString, 
 						help='filename for a list of tabix format regions')
 	meta_parser_split_group2 = meta_parser.add_mutually_exclusive_group()
-	meta_parser_split_group2.add_argument('-s', '--split', 
-						action='store_true', 
-						help='split region list into 1 job for each line in file (requires --region-list)')
-	meta_parser_split_group2.add_argument('-n', '--split-n', 
-						action='store', 
+	meta_parser_split_group2.add_argument('--split', 
+						nargs=0, 
+						action=AddTrue, 
+						help='split reglist into an individual job for each line in file (requires --reglist)')
+	meta_parser_split_group2.add_argument('--split-n', 
+						action=AddString, 
 						type=int, 
-						help='split region list into SPLIT_N jobs (requires --region-list)')
+						help='split reglist into n individual jobs each with a subset of regions in the file (requires --reglist)')
 	meta_parser_split_group2.add_argument('--split-chr', 
-						action='store_true', 
-						help='split jobs into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
+						nargs=0, 
+						action=AddTrue,  
+						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
 	meta_parser_split_group3 = meta_parser.add_mutually_exclusive_group()
-	meta_parser_split_group3.add_argument('-j', '--job', 
-						action='store', 
+	meta_parser_split_group3.add_argument('--job', 
+						action=AddString, 
 						type=int, 
-						help='run a particular job (use with --region-list and --split/--split-n)')
-	meta_parser_split_group3.add_argument('--job-list', 
-						action='store', 
-						help='filename for a list of jobs (use with --region-list and --split/--split-n)')
+						help='run a particular job (use with --reglist and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	meta_parser_split_group3.add_argument('--jobs', 
+						action=AddString, 
+						help='filename for a list of jobs to run (use with --reglist and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 
+	##### MAP PARSER ######
 	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype data files', parents=[parser])
 	map_required = map_parser.add_argument_group('required arguments')
 	map_required.add_argument('--out', 
-						action='store', 
+						action=AddString, 
 						required=True, 
 						help='output file name')
-	map_parser.add_argument('-c','--chr', 
-						action='store', 
+	map_parser.add_argument('--chr', 
+						action=AddString, 
 						type=int,  
 						help='chromosome number from 1-26')
-	map_parser.add_argument('-o', '--overwrite', 
-						action='store_true', 
-						help='overwrite existing out file')
+	map_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing out files')
 	map_split_group1 = map_parser.add_mutually_exclusive_group()
 	map_split_group1.add_argument('--mb', 
-						action='store', 
+						action=AddString, 
 						help='region size (megabase)')
 	map_split_group1.add_argument('--kb', 
-						action='store', 
+						action=AddString, 
 						help='region size (kilobase)')
 	map_split_group1.add_argument('--b', 
-						action='store', 
+						action=AddString, 
 						help='region size (base)')
 	map_split_group1.add_argument('--n', 
-						action='store', 
+						action=AddString, 
 						help='number of markers to be included in each region')
 	map_split_group2 = map_parser.add_mutually_exclusive_group()
 	map_split_group2.add_argument('--oxford', 
-						action='store', 
+						action=AddString, 
 						help='oxford format genotype data file')
 	map_split_group2.add_argument('--dos1', 
-						action='store', 
-						help='dos1 format genotype data file (see documentation)')
+						action=AddString, 
+						help='dos1 format genotype data file')
 	map_split_group2.add_argument('--dos2', 
-						action='store', 
-						help='dos2 format genotype data file (see documentation)')
+						action=AddString, 
+						help='dos2 format genotype data file')
 	map_split_group2.add_argument('--plink', 
-						action='store', 
-						help='plink binary format genotype data file (without extension)')					
+						action=AddString, 
+						help='Plink binary format genotype data file (without extension)')					
 	map_split_group2.add_argument('--vcf', 
-						action='store', 
+						action=AddString, 
 						help='vcf 4.1/4.2 format genotype data file')
 	map_split_group3 = map_parser.add_mutually_exclusive_group()
 	map_split_group3.add_argument('--shift-mb', 
-						action='store', 
+						action=AddString, 
 						help='shift size (megabase)')
 	map_split_group3.add_argument('--shift-kb', 
-						action='store', 
+						action=AddString, 
 						help='shift size (kilobase)')
 	map_split_group3.add_argument('--shift-b', 
-						action='store', 
+						action=AddString, 
 						help='shift size (base)')
 
+	##### COMPILE PARSER #####
 	compile_parser = subparsers.add_parser('compile', help='verify and compile plot results files', parents=[parser])
 	compile_required = compile_parser.add_argument_group('required arguments')
 	compile_required.add_argument('--out', 
-						action='store', 
+						action=AddString, 
 						required=True, 
-						help='filename for compiled results (basename only: do not include path)')
+						help='filename for compiled results')
 	compile_required.add_argument('--data', 
-						action='store', 
+						action=AddString, 
 						required=True, 
-						help='base filename of existing results (basename only: do not include path)')
-	compile_required.add_argument('--region-list', 
-						action='store', 
+						help='base filename of existing results (basename only: do not include path or extension)')
+	compile_required.add_argument('--reglist', 
+						action=AddString, 
 						required=True, 
 						help='filename for a list of tabix format regions')
-	compile_parser.add_argument('-o', '--overwrite', 
-						action='store_true', 
-						help='overwrite existing output files')
+	compile_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
 	compile_parser_split_group = compile_parser.add_mutually_exclusive_group()
-	compile_parser_split_group.add_argument('-s', '--split', 
-						action='store_true', 
-						help='split region list into 1 job for each line in file (requires --region-list)')
-	compile_parser_split_group.add_argument('-n', '--split-n', 
-						action='store', 
+	compile_parser_split_group.add_argument('--split', 
+						nargs=0, 
+						action=AddTrue, 
+						help='split reglist into an individual job for each line in file (requires --reglist)')
+	compile_parser_split_group.add_argument('--split-n', 
+						action=AddString, 
 						type=int, 
-						help='split region list into SPLIT_N jobs (requires --region-list)')
+						help='split reglist into n individual jobs each with a subset of regions in the file (requires --reglist)')
 	compile_parser_split_group.add_argument('--split-chr', 
-						action='store_true', 
-						help='split jobs into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	
+						nargs=0, 
+						action=AddTrue,  
+						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
 
+	##### EXPLORE PARSER #####
 	explore_parser = subparsers.add_parser('explore', help='filter and/or plot results files', parents=[parser])
 	explore_required = explore_parser.add_argument_group('required arguments')
 	explore_required.add_argument('--data', 
-						action='store', 
+						action=AddString, 
 						required=True, 
 						help='filename for compiled results')
 	explore_required.add_argument('--out', 
-						action='store', 
+						action=AddString, 
 						required=True, 
-						help='filename for compiled results (basename only: do not include path)')
+						help='output filename (basename only: do not include path)')
 	explore_parser.add_argument('--qq', 
-						action='store_true', 
+						nargs=0, 
+						action=AddTrue, 
 						help='print qq plot')
 	explore_parser.add_argument('--qq-strat', 
-						action='store_true', 
+						nargs=0, 
+						action=AddTrue, 
 						help='print frequency stratified qq plot')
 	explore_parser.add_argument('--qq-n', 
-						action='store_true', 
+						nargs=0, 
+						action=AddTrue, 
 						help='print number of markers on qq plot')
 	explore_parser.add_argument('--mht', 
-						action='store_true', 
+						nargs=0, 
+						action=AddTrue, 
 						help='print manhattan plot')
 	explore_parser.add_argument('--color', 
-						action='store_true', 
+						nargs=0, 
+						action=AddTrue, 
 						help='plot in color')
 	explore_parser.add_argument('--gc', 
-						action='store_true', 
+						nargs=0, 
+						action=AddTrue, 
 						help='print manhattan plots with genomic inflation corrected p-values')
 	explore_parser.add_argument('--set-gc', 
-						action='store', 
+						action=AddString, 
 						type=float, 
 						help='set genomic inflation value instead of calculating it')
-	explore_parser.add_argument('--top-p', 
-						action='store', 
+	explore_parser.add_argument('--pmin', 
+						action=AddString, 
 						type=float, 
 						help='set minimum p-value for top results file (default = 1e-4; will print at least top 100')
 	explore_parser.add_argument('--stat', 
-						action='store', 
+						action=AddString, 
 						help='string indicating prefix for statistics to be summarized, not including tag (default: STAT=\'marker\')')
-	explore_parser.add_argument('--regional-n', 
-						action='store', 
+	explore_parser.add_argument('--regions-top', 
+						action=AddString, 
 						type=int, 
-						help='print regional plots for top REGIONAL_N markers')
+						help='print regional plots for top n regions')
 	explore_parser.add_argument('--tag', 
-						action='store', 
+						action=AddString, 
 						help='string indicating tag for stats to be summarized, if tag exists (example: TAG=aa and STAT=marker -> aa.marker.p)')
 	explore_parser.add_argument('--unrel', 
-						action='store_true', 
+						nargs=0, 
+						action=AddTrue, 
 						help='filter based on unrel columns')	
 	explore_parser.add_argument('--meta-dir', 
-						action='store', 
-						help='column name meta analysis direction (default: META_DIR=meta.dir)')
-	explore_parser.add_argument('--rsq-thresh', 
-						action='store', 
+						action=AddString, 
+						help='column name meta analysis direction (default: meta.dir)')
+	explore_parser.add_argument('--rsq', 
+						action=AddString, 
 						type=float, 
-						help='threshold for imputation quality (ie. RSQ_THRESH=0.8 filters out markers with r-squared < 0.8)')
-	explore_parser.add_argument('--freq-thresh', 
-						action='store', 
+						help='threshold for imputation quality (ie. 0.8 filters out markers with r-squared < 0.8)')
+	explore_parser.add_argument('--maf', 
+						action=AddString, 
 						type=float, 
-						help='threshold for allele frequency (ie. FREQ_THRESH=0.03 filters out markers with MAF < 0.03)')
-	explore_parser.add_argument('--hwe-thresh', 
-						action='store', 
+						help='threshold for allele frequency (ie. 0.03 filters out markers with MAF < 0.03)')
+	explore_parser.add_argument('--hwe', 
+						action=AddString, 
 						type=float, 
-						help='threshold for Hardy Weinberg p-value (ie. HWE_THRESH=1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
-	explore_parser.add_argument('--callrate-thresh', 
-						action='store', 
+						help='threshold for Hardy Weinberg p-value (ie. 1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
+	explore_parser.add_argument('--callrate', 
+						action=AddString, 
 						type=float, 
-						help='threshold for callrate (ie. CALLRATE_THRESH=0.95 filters out markers with callrate < 0.95)')
-	explore_parser.add_argument('--effect-thresh', 
-						action='store', 
+						help='threshold for callrate (ie. 0.95 filters out markers with callrate < 0.95)')
+	explore_parser.add_argument('--effect', 
+						action=AddString, 
 						type=float, 
-						help='threshold for effect estimate (ie. EFFECT_THRESH=1.7 filters out markers with effect estimate > 1.7 and < -1.7)')
-	explore_parser.add_argument('--stderr-thresh', 
-						action='store', 
+						help='threshold for effect estimate (ie. 1.7 filters out markers with effect estimate > 1.7 and < -1.7)')
+	explore_parser.add_argument('--stderr', 
+						action=AddString, 
 						type=float, 
-						help='threshold for standard error (ie. STDERR_THRESH=5 filters out markers with standard error > 5)')
-	explore_parser.add_argument('--or-thresh', 
-						action='store', 
+						help='threshold for standard error (ie. 5 filters out markers with standard error > 5)')
+	explore_parser.add_argument('--or', 
+						action=AddString, 
 						type=float, 
-						help='threshold for odds ratio (ie. OR_THRESH=1.3 filters out markers with odds ratio > 1.25 and < 1/1.25 = 0.8)')
-	explore_parser.add_argument('--df-thresh', 
-						action='store', 
+						help='threshold for odds ratio (ie. 1.3 filters out markers with odds ratio > 1.25 and < 1/1.25 = 0.8)')
+	explore_parser.add_argument('--df', 
+						action=AddString, 
 						type=int, 
-						help='threshold for meta analysis degrees of freedom (ie. DF_THRESH=4 filters out markers less than 5 datasets included in the meta analysis; requires --meta-dir)')
+						help='threshold for meta analysis degrees of freedom (ie. 4 filters out markers less than 5 datasets included in the meta analysis; requires --meta-dir)')
 	explore_parser.add_argument('--sig', 
-						action='store', 
+						action=AddString, 
 						type=float, 
-						help='line of significance p value (default: SIG=5.4e-8)')
+						help='line of significance p value (default: 5.4e-8)')
 	explore_parser.add_argument('--ext', 
-						action='store', 
-						default='tiff', 
+						action=AddString, 
 						choices=['tiff','eps','pdf'], 
-						help='file type extension for plot files')
-	explore_parser.add_argument('-o', '--overwrite', 
-						action='store_true', 
-						help='overwrite existing output files')
-	explore_parser.add_argument('--f-dist-dfn', 
-						action='store', 
-						type=int, 
-						help='f-distribution p-value dfn (see python scipy.stats.f.cdf documentation)')
-	explore_parser.add_argument('--f-dist-dfd', 
-						action='store', 
-						type=int, 
-						help='f-distribution p-value dfd (see python scipy.stats.f.cdf documentation)')
+						help='file type extension for plot files (default: tiff)')
+	explore_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
 	explore_parser_split_group = explore_parser.add_mutually_exclusive_group()
-	explore_parser_split_group.add_argument('-r', '--region', 
-						action='store', 
-						help='region specified in Tabix format (ie. 1:10583-1010582).')
-	explore_parser_split_group.add_argument('--region-list', 
-						action='store', 
+	explore_parser_split_group.add_argument('--region', 
+						action=AddString, 
+						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
+	explore_parser_split_group.add_argument('--reglist', 
+						action=AddString, 
 						help='filename for a list of tabix format regions')
-	explore_parser.add_argument('--region-id', 
-						action='store', 
+	explore_parser.add_argument('--id', 
+						action=AddString, 
 						help='add region id to results (for use with --region option)')
 	explore_parser.add_argument('--lz-source', 
-						action='store', 
-						help='locuszoom source option (default: None)')
+						action=AddString, 
+						help='locuszoom source option')
 	explore_parser.add_argument('--lz-build', 
-						action='store', 
-						help='locuszoom build option (default: None)')
+						action=AddString, 
+						help='locuszoom build option')
 	explore_parser.add_argument('--lz-pop', 
-						action='store', 
-						help='locuszoom pop option (default: None)')
+						action=AddString, 
+						help='locuszoom pop option')
 
+	##### GC PARSER #####
 	gc_parser = subparsers.add_parser('gc', help='apply genomic control to 1 or more columns in a results file', parents=[parser])
 	gc_required = gc_parser.add_argument_group('required arguments')
 	gc_required.add_argument('--out', 
-						action='store', 
+						action=AddString, 
 						required=True, 
-						help='filename for corrected results (basename only: do not include path)')
+						help='filename for corrected results (basename only: do not include path or extension)')
 	gc_required.add_argument('--data', 
-						action='store', 
+						action=AddString, 
 						required=True, 
 						help='filename of existing results')
 	gc_required.add_argument('--gc', 
-						nargs=2, 
 						required=True, 
-						action='append', 
+						action=AddString, 
 						help='apply genomic control to a 1 or more p-value columns (ex. --gc meta.p 1.0123 --gc meta.aa.p 1.002123)')
-	gc_parser.add_argument('-o', '--overwrite', 
-						action='store_true', 
-						help='overwrite existing output files')
+	gc_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
 
 	return top_parser
 	
 def Parse(top_parser):
 	args=top_parser.parse_args()
+	for k in args.ordered_args:
+		vars(args).update({k[0]: k[1]})
 	if args.which in ['model','meta']:
 		if args.region:
 			assert not args.split, top_parser.error("argument -s/--split: not allowed with argument --region")
 			assert not args.split_n, top_parser.error("argument -n/--split-n: not allowed with argument --region")
 			assert not args.job, top_parser.error("argument -j/--job: not allowed with argument --region")
-			assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument --region")
+			assert not args.jobs, top_parser.error("argument --jobs: not allowed with argument --region")
 			assert not args.split_chr, top_parser.error("argument --split-chr: not allowed with argument --region")
-		if args.region_list:
-			assert os.path.exists(args.region_list), top_parser.error("argument --region-list: file does not exist")
-			#if args.split:
-			#	assert not args.job, top_parser.error("argument --job: not allowed with argument -s/--split")
-			#	assert not args.job_list, top_parser.error("argument --job-list: not allowed with argument -s/--split")
-		if args.job_list:
-			assert os.path.exists(args.job_list), top_parser.error("argument --job-list: file does not exist")
-	if args.which == 'meta' and args.method == 'efftest' and not args.region_list:
-		top_parser.error("missing argument: --region-list required in module meta with --method efftest")
+		if args.reglist:
+			assert os.path.exists(args.reglist), top_parser.error("argument --reglist: file does not exist")
+		if args.jobs:
+			assert os.path.exists(args.jobs), top_parser.error("argument --jobs: file does not exist")
 	if args.which == 'map' and not (args.b or args.kb or args.mb or args.n):
 		top_parser.error("missing argument: --b, --kb, --mb, or --n required in module map")
-	if args.which == 'model' and args.cfg is None and (args.out is None or args.pheno is None or args.fid is None or args.iid is None or 
-															(args.gee_gaussian is None and args.gee_binomial is None and
-															args.glm_gaussian is None and args.glm_binomial is None and
-															args.lme_gaussian is None and args.lme_binomial is None and
-															args.coxph is None and args.efftests is None and
-															args.famskat_o is None and args.skat_o_gaussian is None and args.skat_o_binomial is None and
-															args.famskat is None and args.skat_gaussian is None and args.skat_binomial is None and
-															args.famburden is None and args.burden_gaussian is None and args.burden_binomial is None and
-															args.geeboss_gaussian is None and args.geeboss_binomial is None)):
-		top_parser.error("missing argument: --out, --pheno, --fid, --iid, and a model string (ie. --gee-gaussian, etc.) required in module model without --cfg")
-	if args.which == 'model' and not (args.famskat_o is None or args.famskat is None or args.famburden is None) and args.pedigree is None:
-		top_parser.error("missing argument: --pedigree required for gene based modelling of family data")
+	if args.which == 'model' and not (args.fskato is None or args.fskat is None or args.fburden is None) and args.ped is None:
+		top_parser.error("missing argument: --ped required for fskato, fskat, or fburden models using data with family structure")
 	if args.which == 'compile' and not (args.split or args.split_n or args.split_chr):
 		top_parser.error("missing argument: --split, --split-n, or --split-chr required for compile module")
 	print ''
@@ -563,3 +556,159 @@ def Parse(top_parser):
 	print ''
 	print 'active module: ' + args.which
 	return args
+
+def GenerateModelCfg(args):
+	config = {'out': None, 'buffer': 100, 'reglist': None, 'region': None,'id': None,
+					'models': {}, 'model_order': [], 'meta': []}
+
+	##### add top level variables to config
+	top_args = [a for a in args if a[0] in ['out','buffer','reglist','region','id']]
+	for arg in top_args:
+		config[arg[0]] = arg[1]
+
+	# list all possible model level arguments
+	model_vars = ['tag','sample','pheno','varlist','fid','iid','focus','ped','sex', 
+					'male','female','buffer','miss','maf','maf_max','rsq','hwe','rho','boss','case','ctrl','corstr','sep','lmer_control',
+					'reml','lrt','wald','no_z','satt','kr','cph_ctrl','skat_wts','burden_wts','wts',
+					'ggee','bgee','gglm','bglm','glme','blme','cph','neff',
+					'fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden',
+					'oxford','vcf','plink','dos1','dos2']
+	pre_tag_idx = [a[0] for a in args if a[0] in model_vars].index('tag')
+
+	# extract global model arguments
+	model_args_global = dict([a for a in args if a[0] in model_vars][:pre_tag_idx])
+	for k in model_args_global.keys():
+		if k in ['ggee','bgee','gglm','bglm','glme','blme','cph','neff',
+						'fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden'] and model_args_global[k] is not None:
+			model_args_global['model'] = k
+			model_args_global['model_fxn'] = model_args_global[k]
+		elif k in ['oxford','vcf','plink','dos1','dos2'] and model_args_global[k] is not None:
+			model_args_global['data'] = model_args_global[k]
+			model_args_global['format'] = k
+			if not 'varlist' in model_args_global:
+				model_args_global['varlist'] = None
+			if not 'sample' in model_args_global:
+				model_args_global['sample'] = None
+		else:
+			model_args_global[k] = model_args_global[k]
+
+	# extract local model arguments
+	model_args_local = [a for a in args if a[0] in model_vars][pre_tag_idx:]
+	local_tag_idx = [a for a, b in enumerate(model_args_local) if b[0] == 'tag']
+	if len(local_tag_idx) == 0:
+		local_tag_idx = [0]
+	local_args = [model_args_local[i:j] for i, j in zip([0]+local_tag_idx[1:], local_tag_idx[1:]+[None])]
+	# extract meta arguments
+	meta_args = [a for a in args if a[0] == 'meta']
+
+	# loop over model argument sets and add to config['models']
+	for l in local_args:
+		if l[0][0] != 'tag':
+			tag = 'NA'
+		else:
+			tag = l[0][1]
+		config['model_order'].append(tag)
+		config['models'][tag] = {'tag': tag}
+		config['models'][tag].update(model_args_global)
+		for i in xrange(1,len(l)):
+			config['models'][tag][l[i][0]] = l[i][1]
+			if l[i][0] in ['ggee','bgee','gglm','bglm','glme','blme','cph','neff',
+							'fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden'] and l[i][1] is not None:
+				for k in [x for x in ['ggee','bgee','gglm','bglm','glme','blme','cph','neff',
+							'fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden'] if x != l[i][0]]:
+					if k in config['models'][tag]:
+						del config['models'][tag][k]
+				config['models'][tag]['model'] = l[i][1]
+				config['models'][tag]['model_fxn'] = l[i][0]
+			elif l[i][0] in ['oxford','vcf','plink','dos1','dos2'] and l[i][1] is not None:
+				for k in [x for x in ['oxford','vcf','plink','dos1','dos2'] if x != l[i][0]]:
+					if k in config['models'][tag]:
+						del config['models'][tag][k]
+				config['models'][tag]['data'] = l[i][1]
+				config['models'][tag]['format'] = l[i][0]
+				if not 'varlist' in model_args_local:
+					config['models'][tag]['varlist'] = None
+				if not 'sample' in model_args_local:
+					config['models'][tag]['sample'] = None
+
+	# loop over meta arguments and add to config['meta']
+	for m in meta_args:
+		config['meta'].append(m[1])
+
+	# update all defaults and remove any extra settings
+	for x in config['models']:
+		if config['models'][x]['model_fxn'] in ['ggee','bgee']:
+			if 'corstr' in args and config['models'][x]['corstr'] is not None:
+				config['models'][x]['corstr'] = key[1]
+			else:
+				config['models'][x]['corstr'] = 'exchangeable'
+		if config['models'][x]['model_fxn'] in ['ggee','bgee','gglm','bglm']:
+			if 'boss' in config['models'][x]:
+				if 'thresh' in config['models'][x]:
+					config['models'][x]['thresh'] = args[1]
+				else:
+					config['models'][x]['thresh'] = 1e-7
+			else:
+				if 'thresh' in config['models'][x]:
+					del config['models'][x]['thresh']
+		if config['models'][x]['model_fxn'] in ['gskato','bskato','fskato']:
+			if not 'rho' in config['models'][x]:
+				config['models'][x]['rho'] = 1
+		else:
+			if 'rho' in config['models'][x]:
+				del config['models'][x]['rho']
+		if config['models'][x]['model_fxn'] in ['glme','blme']:
+			if not 'lmer_control' in config['models'][x]:
+				config['models'][x]['lmer_control'] = "check.nobs.vs.rankZ='stop',check.nlev.gtreq.5='stop',check.rankX='stop.deficient',check.scaleX='stop',check.conv.grad=.makeCC('stop',tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action='stop',tol=1e-4),check.conv.hess=.makeCC(action='stop',tol=1e-6)"
+			if not 'lrt' in config['models'][x]:
+				config['models'][x]['lrt'] = False	
+		if config['models'][x]['model_fxn'] == 'glme':
+			if not 'reml' in config['models'][x]:
+				config['models'][x]['reml'] = False
+		if not 'miss' in config['models'][x]:
+			config['models'][x]['miss'] = None
+		if not 'maf' in config['models'][x]:
+			config['models'][x]['maf'] = None
+		if not 'maf_max' in config['models'][x]:
+			config['models'][x]['maf_max'] = None
+		if not 'hwe' in config['models'][x]:
+			config['models'][x]['hwe'] = None
+		if not 'rsq' in config['models'][x]:
+			config['models'][x]['rsq'] = None
+		if not 'sep' in config['models'][x]:
+			config['models'][x]['sep'] = 'tab'
+		if not 'case' in config['models'][x]:
+			config['models'][x]['case'] = 1
+		if not 'ctrl' in config['models'][x]:
+			config['models'][x]['ctrl'] = 0
+		if not 'sex' in config['models'][x]:
+			config['models'][x]['sex'] = None
+		if not 'male' in config['models'][x]:
+			config['models'][x]['male'] = 1
+		if not 'female' in config['models'][x]:
+			config['models'][x]['female'] = 2
+		if config['models'][x]['model_fxn'] in ['ggee','gglm','glme']:
+			config['models'][x]['family'] = 'gaussian'
+		elif config['models'][x]['model_fxn'] in ['bgee','bglm','blme']:
+			config['models'][x]['family'] = 'binomial'
+	return config
+
+def PrintModelOptions(cfg):
+	print "main options"
+	for k in cfg:
+		if not k in ['models','model_order','meta']:
+			if cfg[k] is not None and cfg[k] is not False:
+				if cfg[k] is True:
+					print "   {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+				else:
+					print "   {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+	for m in cfg['models']:
+		print 'model ' + str(m) + ' options'
+		cfg['models'][m][cfg['models'][m]['model_fxn']] = cfg['models'][m]['model']
+		for n in cfg['models'][m]:
+			if not n in ['model_fxn','model','family','format','data']:
+				if cfg['models'][m][n] is not None and cfg['models'][m][n] is not False:
+					if cfg['models'][m][n] is True:
+						print "   {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len)))
+					else:
+						print "   {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m][n])

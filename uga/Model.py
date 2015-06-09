@@ -19,144 +19,174 @@ pandas2ri.activate()
 ro.r('options(warn=1)')
 
 def Model(cfg):
-	print "model options ..."
-	for k in cfg:
-		if cfg[k] is not None and cfg[k] is not False:
-			print "   {0:>{1}}".format(str(k), len(max(cfg.keys(),key=len))) + ": " + str(cfg[k])
-	cfg['data_info']['NA']['pheno_sep'] = MiscFxnsCy.GetDelimiterCy(cfg['data_info']['NA']['pheno_sep'])
+	Parse.PrintModelOptions(cfg)
+
+	for k in cfg['models']:
+		cfg['models'][k]['sep'] = MiscFxnsCy.GetDelimiterCy(cfg['models'][k]['sep'])
+	file_sets = dict()
+	for t,f in [(k, cfg['models'][k]['data']) for k in cfg['model_order']]:
+		if file_sets.get(f) is None:
+			file_sets[f] = [t]
+		else:
+			file_sets[f] = file_sets.get(f) + [t]
 
 	##### DEFINE MODEL TYPES #####
-	marker_tests = ['gee_gaussian','gee_binomial','glm_gaussian','glm_binomial','lme_gaussian','lme_binomial','coxph','geeboss_gaussian','geeboss_binomial']
-	seqmeta_tests = ['famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']
+	marker_tests = ['bgee','ggee','bglm','gglm','blme','glme','cph']
+	seqmeta_tests = ['fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden']
 	efftests=['efftests']
 
+	##### STOP IF MODEL TYPES IN META ANALYSIS ARE INCOMPATIBLE #####
+	for x in cfg['meta']:
+		if not set(x.split(':')[1].split('+')) & set(seqmeta_tests):
+			print SystemFxns.Error("only seqMeta models may be meta-analyzed")
+			return()
+
 	##### LOAD NECESSARY R PACKAGES #####
-	methods = []
-	for k in cfg['data_order']:
-		methods.append(cfg['data_info'][k]['method'])
-	for method in list(set(methods)):
-		if method in ['gee_gaussian','gee_binomial','geeboss_gaussian','geeboss_binomial']:
+	model_fxns = []
+	for k in cfg['model_order']:
+		model_fxns.append(cfg['models'][k]['model_fxn'])
+	for model_fxn in list(set(model_fxns)):
+		if model_fxn in ['ggee','bgee']:
 			importr('geepack')
-			if method in ['geeboss_gaussian','geeboss_binomial']:
+			if 'boss' in model_fxn in cfg['models'][k]:
 				importr('boss')
-		elif method in ['lme_gaussian','lme_binomial']:
+		elif model_fxn in ['glme','blme']:
 			importr('lmerTest')
-			if method == 'lme_gaussian':
+			if model_fxn == 'glme':
 				importr('pbkrtest')
-		elif method == 'coxph':
+		elif model_fxn == 'coxph':
 			importr('survival')
-		elif method in ['famskat_o','skat_o_gaussian','skat_o_binomial','famskat','skat_gaussian','skat_binomial','famburden','burden_gaussian','burden_binomial']:
+		elif model_fxn in ['fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden']:
 			importr('seqMeta')
-			if method in ['famskat_o','famskat','famburden']:
+			if model_fxn in ['fskato','fskat','fburden']:
 				importr('kinship2')
 
 	##### READ model VARIABLES FROM FILE #####
 	vars_df_dict = {}
 	model_vars_dict_dict = {}
-	for k in cfg['data_order']:
-		if len(cfg['data_info'].keys()) > 1:
+	for k in cfg['model_order']:
+		if len(cfg['models'].keys()) > 1:
 			print "extracting model variables for model " + k + " and removing missing/invalid samples ..."
 		else:
 			print "extracting model variables and removing missing/invalid samples ..."
-		cfg['data_info'][k]['vars_df'], cfg['data_info'][k]['model_vars_dict'] = MiscFxns.ExtractModelVars(pheno=cfg['data_info'][k]['pheno'], model=cfg['data_info'][k]['model'],
-																										fid=cfg['data_info'][k]['fid'], iid=cfg['data_info'][k]['iid'],
-																										fxn=cfg['data_info'][k]['fxn'], sex=cfg['data_info'][k]['sex'],
-																										case=cfg['data_info'][k]['case'], ctrl=cfg['data_info'][k]['ctrl'],
-																										pheno_sep=cfg['data_info'][k]['pheno_sep'])
+		cfg['models'][k]['vars_df'], cfg['models'][k]['model_vars_dict'] = MiscFxns.ExtractModelVars(pheno=cfg['models'][k]['pheno'], model=cfg['models'][k]['model'],
+																										fid=cfg['models'][k]['fid'], iid=cfg['models'][k]['iid'],
+																										family=cfg['models'][k]['family'], sex=cfg['models'][k]['sex'],
+																										case=cfg['models'][k]['case'], ctrl=cfg['models'][k]['ctrl'],
+																										sep=cfg['models'][k]['sep'])
 
 	##### DETERMINE MODEL STATS TO BE EXTRACTED #####
-	for k in cfg['data_order']:
-		if 'focus' in cfg['data_info'][k].keys() and not cfg['data_info'][k]['focus'] is None:
-			cfg['data_info'][k]['focus'] = cfg['data_info'][k]['focus'].split(',')
+	for k in cfg['model_order']:
+		if 'focus' in cfg['models'][k].keys() and not cfg['models'][k]['focus'] is None:
+			cfg['models'][k]['focus'] = cfg['models'][k]['focus'].split(',')
 		else:
-			cfg['data_info'][k]['focus'] = MiscFxns.GetFocus(method=cfg['data_info'][k]['method'],model=cfg['data_info'][k]['model'],vars_df=cfg['data_info'][k]['vars_df'],model_vars_dict=cfg['data_info'][k]['model_vars_dict'])
-
-	##### REMOVE FACTOR() FROM MODEL STRING #####
-	#for k in cfg['data_order']:
-		#for v in cfg['data_info'][k]['model_vars_dict'].keys():
-			#cfg['data_info'][k]['model'] = cfg['data_info'][k]['model'].replace('factor(' + v + ')',v)
+			cfg['models'][k]['focus'] = MiscFxns.GetFocus(model_fxn=cfg['models'][k]['model_fxn'],model=cfg['models'][k]['model'],vars_df=cfg['models'][k]['vars_df'],model_vars_dict=cfg['models'][k]['model_vars_dict'])
 
 	##### LOAD ITERATORS AND SAMPLE LISTS #####
-	for k in cfg['data_order']:
-		if cfg['data_info'][k]['format'] == 'plink':
-			print "reading Plink binary files for model " + k if len(cfg['data_info'].keys()) > 1 else "reading Plink binary files"
-			cfg['data_info'][k]['plink_handle'],cfg['data_info'][k]['plink_locus_it'],cfg['data_info'][k]['plink_sample_it'],cfg['data_info'][k]['sample_ids'] = MiscFxns.LoadPlink(cfg['data_info'][k]['data'])
-			cfg['data_info'][k]['plink_zip'] = zip(cfg['data_info'][k]['plink_locus_it'],cfg['data_info'][k]['plink_handle'])
-		elif cfg['data_info'][k]['format'] == 'vcf':
-			print "reading vcf file for model " + k if len(cfg['data_info'].keys()) > 1 else "reading vcf file"
-			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = MiscFxns.LoadVcf(cfg['data_info'][k]['data'])
+	"""
+	for f in file_sets:
+		if file_sets[f]['format'] == 'plink':
+			print "loading Plink binary files for models " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ') if len(file_sets[f]['tag']) > 1 else "loading Plink binary files for model " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ')
+			file_sets[f]['plink_handle'],file_sets[f]['plink_locus_it'],file_sets[f]['plink_sample_it'],file_sets[f]['sample_ids'] = MiscFxns.LoadPlink(f)
+			file_sets[f]['plink_zip'] = zip(file_sets[f]['plink_locus_it'],file_sets[f]['plink_handle'])
+		elif file_sets[f]['format'] == 'vcf':
+			print "loading vcf file for models " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ') if len(file_sets[f]['tag']) > 1 else "loading vcf file for model " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ')
+			file_sets[f]['data_it'], file_sets[f]['sample_ids'] = MiscFxns.LoadVcf(f)
 		else:
-			print "reading data and sample files for model " + k if len(cfg['data_info'].keys()) > 1 else "reading data and sample files"
-			cfg['data_info'][k]['data_it'], cfg['data_info'][k]['sample_ids'] = MiscFxns.LoadDos(cfg['data_info'][k]['data'], cfg['data_info'][k]['samples'])
-		if len(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].isin(cfg['data_info'][k]['sample_ids'])]) == 0:
-			print Error("phenotype file and data file contain no common samples")
+			print "loading data and sample files for models " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ') if len(file_sets[f]['tag']) > 1 else "loading data and sample files for model " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ')
+			file_sets[f]['data_it'], file_sets[f]['sample_ids'] = MiscFxns.LoadDos(f, s)
+		for k in file_sets[f]['tag']:
+			if len(cfg['models'][k]['vars_df'][cfg['models'][k]['vars_df'][cfg['models'][k]['iid']].isin(file_sets[f]['sample_ids'])]) == 0:
+				print SystemFxns.Error("phenotype file and data file contain no common samples")
+				return
+		file_sets[f]['varlist_handle'] = None
+		print file_sets
+		if 'varlist' in file_sets[f]:
+			if file_sets[f]['varlist'] is not None:
+				file_sets[f]['varlist_handle'] = tabix.open(file_sets[f]['varlist'])
+
+	"""
+	for k in cfg['model_order']:
+		if cfg['models'][k]['format'] == 'plink':
+			print "loading Plink binary files for model " + k if len(cfg['models'].keys()) > 1 else "loading Plink binary files"
+			cfg['models'][k]['plink_handle'],cfg['models'][k]['plink_locus_it'],cfg['models'][k]['plink_sample_it'],cfg['models'][k]['sample_ids'] = MiscFxns.LoadPlink(cfg['models'][k]['data'])
+			cfg['models'][k]['plink_zip'] = zip(cfg['models'][k]['plink_locus_it'],cfg['models'][k]['plink_handle'])
+		elif cfg['models'][k]['format'] == 'vcf':
+			print "loading vcf file for model " + k if len(cfg['models'].keys()) > 1 else "loading vcf file"
+			cfg['models'][k]['data_it'], cfg['models'][k]['sample_ids'] = MiscFxns.LoadVcf(cfg['models'][k]['data'])
+		else:
+			print "loading data and sample files for model " + k if len(cfg['models'].keys()) > 1 else "loading data and sample files"
+			cfg['models'][k]['data_it'], cfg['models'][k]['sample_ids'] = MiscFxns.LoadDos(cfg['models'][k]['data'], cfg['models'][k]['sample'])
+		if len(cfg['models'][k]['vars_df'][cfg['models'][k]['vars_df'][cfg['models'][k]['iid']].isin(cfg['models'][k]['sample_ids'])]) == 0:
+			print SystemFxns.Error("phenotype file and data file contain no common samples")
 			return
-		cfg['data_info'][k]['marker_list_handle'] = None
-		if cfg['data_info'][k]['marker_list'] is not None:
-			cfg['data_info'][k]['marker_list_handle'] = tabix.open(cfg['data_info'][k]['marker_list'])
+		cfg['models'][k]['varlist_handle'] = None
+		if 'varlist' in cfg['models'][k]:
+			if cfg['models'][k]['varlist'] is not None:
+				cfg['models'][k]['varlist_handle'] = tabix.open(cfg['models'][k]['varlist'])
 
 	##### REDUCE PHENO DATA TO GENOTYPE IDs #####
-	for k in cfg['data_order']:
-		cfg['data_info'][k]['vars_df'] = cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].isin(cfg['data_info'][k]['sample_ids'])]
+	for k in cfg['model_order']:
+		cfg['models'][k]['vars_df'] = cfg['models'][k]['vars_df'][cfg['models'][k]['vars_df'][cfg['models'][k]['iid']].isin(cfg['models'][k]['sample_ids'])]
 
 	##### CREATE SUMMARY FOR DATA TO BE ANALYZED #####
-	for k in cfg['data_order']:
-		cfg['data_info'][k]['samples'] = len(cfg['data_info'][k]['vars_df'].index)
-		cfg['data_info'][k]['vars_df_nodup'] = cfg['data_info'][k]['vars_df'].drop_duplicates(subset=[cfg['data_info'][k]['iid']])
-		cfg['data_info'][k]['samples_unique'] = len(cfg['data_info'][k]['vars_df_nodup'].index)
-		cfg['data_info'][k]['clusters'] = len(cfg['data_info'][k]['vars_df_nodup'].drop_duplicates(subset=[cfg['data_info'][k]['fid']]).index)
-		cfg['data_info'][k]['families'] = len(cfg['data_info'][k]['vars_df_nodup'][cfg['data_info'][k]['vars_df_nodup'].duplicated(subset=[cfg['data_info'][k]['fid']])][cfg['data_info'][k]['fid']].unique())
-		cfg['data_info'][k]['dep_var'] = [key for key in cfg['data_info'][k]['model_vars_dict'] if cfg['data_info'][k]['model_vars_dict'][key]['type'] == 'dependent']
-		cfg['data_info'][k]['cases'] = len(cfg['data_info'][k]['vars_df_nodup'][cfg['data_info'][k]['dep_var'][0]][cfg['data_info'][k]['vars_df_nodup'][cfg['data_info'][k]['dep_var'][0]].isin(['1'])]) if cfg['data_info'][k]['fxn'] == 'binomial' else 'NA'
-		cfg['data_info'][k]['ctrls'] = len(cfg['data_info'][k]['vars_df_nodup'][cfg['data_info'][k]['dep_var'][0]][cfg['data_info'][k]['vars_df_nodup'][cfg['data_info'][k]['dep_var'][0]].isin(['0'])]) if cfg['data_info'][k]['fxn'] == 'binomial' else 'NA'
-		cfg['data_info'][k]['nmale'] = len(cfg['data_info'][k]['vars_df_nodup'][cfg['data_info'][k]['vars_df_nodup'][cfg['data_info'][k]['sex']].isin([str(cfg['data_info'][k]['male'])])].index.values) if not cfg['data_info'][k]['sex'] is None and not cfg['data_info'][k]['male'] is None and not cfg['data_info'][k]['female'] is None else 'NA'
-		cfg['data_info'][k]['nfemale'] = len(cfg['data_info'][k]['vars_df_nodup'][cfg['data_info'][k]['vars_df_nodup'][cfg['data_info'][k]['sex']].isin([str(cfg['data_info'][k]['female'])])].index.values) if not cfg['data_info'][k]['sex'] is None and not cfg['data_info'][k]['male'] is None and not cfg['data_info'][k]['female'] is None else 'NA'
-		if len(cfg['data_info'].keys()) > 1:
+	for k in cfg['model_order']:
+		cfg['models'][k]['sample'] = len(cfg['models'][k]['vars_df'].index)
+		cfg['models'][k]['vars_df_nodup'] = cfg['models'][k]['vars_df'].drop_duplicates(subset=[cfg['models'][k]['iid']])
+		cfg['models'][k]['samples_unique'] = len(cfg['models'][k]['vars_df_nodup'].index)
+		cfg['models'][k]['clusters'] = len(cfg['models'][k]['vars_df_nodup'].drop_duplicates(subset=[cfg['models'][k]['fid']]).index)
+		cfg['models'][k]['families'] = len(cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['vars_df_nodup'].duplicated(subset=[cfg['models'][k]['fid']])][cfg['models'][k]['fid']].unique())
+		cfg['models'][k]['dep_var'] = [key for key in cfg['models'][k]['model_vars_dict'] if cfg['models'][k]['model_vars_dict'][key]['type'] == 'dependent']
+		cfg['models'][k]['cases'] = len(cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['dep_var'][0]][cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['dep_var'][0]].isin(['1'])]) if cfg['models'][k]['family'] == 'binomial' else 'NA'
+		cfg['models'][k]['ctrls'] = len(cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['dep_var'][0]][cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['dep_var'][0]].isin(['0'])]) if cfg['models'][k]['family'] == 'binomial' else 'NA'
+		cfg['models'][k]['nmale'] = len(cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['sex']].isin([str(cfg['models'][k]['male'])])].index.values) if not cfg['models'][k]['sex'] is None and not cfg['models'][k]['male'] is None and not cfg['models'][k]['female'] is None else 'NA'
+		cfg['models'][k]['nfemale'] = len(cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['sex']].isin([str(cfg['models'][k]['female'])])].index.values) if not cfg['models'][k]['sex'] is None and not cfg['models'][k]['male'] is None and not cfg['models'][k]['female'] is None else 'NA'
+		if len(cfg['models'].keys()) > 1:
 			print "data summary for model " + k + " ..."
 		else:
 			print "data summary ..."
-		print "   " + str(cfg['data_info'][k]['samples']) + " total observations"
-		print "   " + str(cfg['data_info'][k]['samples_unique']) + " unique samples"
-		print "   " + str(cfg['data_info'][k]['clusters']) + " clusters"
-		print "   " + str(cfg['data_info'][k]['families']) + " clusters of size > 1"
-		print "   " + str(cfg['data_info'][k]['cases']) + " case"
-		print "   " + str(cfg['data_info'][k]['ctrls']) + " control"
-		print "   " + str(cfg['data_info'][k]['nmale']) + " male"
-		print "   " + str(cfg['data_info'][k]['nfemale']) + " female"
+		print "   " + str(cfg['models'][k]['sample']) + " total observations"
+		print "   " + str(cfg['models'][k]['samples_unique']) + " unique samples"
+		print "   " + str(cfg['models'][k]['clusters']) + " clusters"
+		print "   " + str(cfg['models'][k]['families']) + " clusters of size > 1"
+		print "   " + str(cfg['models'][k]['cases']) + " case"
+		print "   " + str(cfg['models'][k]['ctrls']) + " control"
+		print "   " + str(cfg['models'][k]['nmale']) + " male"
+		print "   " + str(cfg['models'][k]['nfemale']) + " female"
 
 	##### READ PEDIGREE FROM FILE FOR FAMILY BASED SKAT TEST #####
 	kinship2 = None
-	for k in cfg['data_order']:
-		if 'pedigree' in cfg['data_info'][k].keys():
-			if cfg['data_info'][k]['pedigree'] is not None:
-				print "loading pedigree for model " + k if len(cfg['data_info'].keys()) > 1 else "loading pedigree"
-				cfg['data_info'][k]['ped_df'] = pd.read_table(cfg['data_info'][k]['pedigree'],sep='\t',dtype='str',usecols=['FID','IID','PAT','MAT'])
-				cfg['data_info'][k]['ped_df'] = cfg['data_info'][k]['ped_df'][cfg['data_info'][k]['ped_df']['IID'].isin(list(cfg['data_info'][k]['vars_df'][cfg['data_info'][k]['iid']].values))]
-				ro.globalenv['pedigree'] = py2r.convert_to_r_dataframe(cfg['data_info'][k]['ped_df'], strings_as_factors=False)
-				cfg['data_info'][k]['kins'] = ro.r("makekinship(pedigree.rx2('FID'),pedigree.rx2('IID'),pedigree.rx2('PAT'),pedigree.rx2('MAT'))")
+	for k in cfg['model_order']:
+		if 'pedigree' in cfg['models'][k].keys():
+			if cfg['models'][k]['pedigree'] is not None:
+				print "loading pedigree for model " + k if len(cfg['models'].keys()) > 1 else "loading pedigree"
+				cfg['models'][k]['ped_df'] = pd.read_table(cfg['models'][k]['pedigree'],sep='\t',dtype='str',usecols=['FID','IID','PAT','MAT'])
+				cfg['models'][k]['ped_df'] = cfg['models'][k]['ped_df'][cfg['models'][k]['ped_df']['IID'].isin(list(cfg['models'][k]['vars_df'][cfg['models'][k]['iid']].values))]
+				ro.globalenv['pedigree'] = py2r.convert_to_r_dataframe(cfg['models'][k]['ped_df'], strings_as_factors=False)
+				cfg['models'][k]['kins'] = ro.r("makekinship(pedigree.rx2('FID'),pedigree.rx2('IID'),pedigree.rx2('PAT'),pedigree.rx2('MAT'))")
 
 	##### GENERATE REGION LIST #####
-	if not cfg['region_list'] is None:
+	if not cfg['reglist'] is None:
 		print "loading region list"
-		region_list = FileFxns.LoadCoordinates(cfg['region_list'])
+		reglist = FileFxns.LoadCoordinates(cfg['reglist'])
 	elif not cfg['region'] is None:
 		if len(cfg['region'].split(':')) > 1:
-			region_list = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
+			reglist = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
 		else:
-			region_list = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
-		region_list['reg_id'] = cfg['region_id'] if not cfg['region_id'] is None else 'NA'
+			reglist = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
+		reglist['id'] = cfg['id'] if not cfg['id'] is None else 'NA'
 	else:
-		region_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)],'reg_id': ['NA' for i in range(26)]})
+		reglist = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)],'id': ['NA' for i in range(26)]})
 
 	##### DETERMINE ANALYSIS TYPE AND SETUP FILE HANDLES #####
-	for k in cfg['data_order']:
-		if cfg['data_info'][k]['method'] in marker_tests:
-			cfg['data_info'][k]['method_type'] = 'marker'
+	for k in cfg['model_order']:
+		if cfg['models'][k]['model_fxn'] in marker_tests:
+			cfg['models'][k]['model_fxn_type'] = 'marker'
 		else:
-			cfg['data_info'][k]['method_type'] = 'gene'
-		cfg['data_info'][k]['written'] = False
-	if len(list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))) > 1:
-		print Error("mixing gene based and marker based methods not available")
+			cfg['models'][k]['model_fxn_type'] = 'gene'
+		cfg['models'][k]['written'] = False
+	if len(list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))) > 1:
+		print SystemFxns.Error("mixing gene based and marker based model_fxns not available")
 		return()
 	bgzfile = bgzf.BgzfWriter(cfg['out'] + '.gz', 'wb')
 	if 'meta' in cfg.keys():
@@ -170,56 +200,58 @@ def Model(cfg):
 	print "modelling data ..."
 
 	##### LOOP OVER REGIONS #####
-	for r in range(len(region_list.index)):
+	for r in range(len(reglist.index)):
 		mdb = MiscFxns.MarkerRefDb()
-		reg = region_list['region'][r]
+		reg = reglist['region'][r]
 		chr = int(reg.split(':')[0])
 
 		##### LOOP OVER DATASETS #####
-		for k in cfg['data_order']:
+		for k in cfg['model_order']:
 			i = 0
 			cfg['reg_model_df'] = None
 			cfg['reg_marker_info'] = None
-			marker_list = None
-			if cfg['data_info'][k]['marker_list_handle'] is not None:
-				marker_list = cfg['data_info'][k]['marker_list_handle'].querys(reg)
-				marker_list = pd.DataFrame([x for x in marker_list if int(x[1]) >= int(region_list['start'][r]) and int(x[1]) <= int(region_list['end'][r])])
-				marker_list.columns = ['chr','pos','marker','a1','a2']
-				marker_list['chr'] = marker_list['chr'].astype(np.int64)
-				marker_list['pos'] = marker_list['pos'].astype(np.int64)
-			if cfg['data_info'][k]['format'] == 'plink':
+			varlist = None
+			if cfg['models'][k]['varlist_handle'] is not None:
+				varlist = cfg['models'][k]['varlist_handle'].querys(reg)
+				varlist = pd.DataFrame([x for x in varlist if int(x[1]) >= int(reglist['start'][r]) and int(x[1]) <= int(reglist['end'][r])])
+				varlist.columns = ['chr','pos','marker','a1','a2']
+				varlist['chr'] = varlist['chr'].astype(np.int64)
+				varlist['pos'] = varlist['pos'].astype(np.int64)
+			if cfg['models'][k]['format'] == 'plink':
 				if reg == str(chr):
 					try:
-						records = (x for x in cfg['data_info'][k]['plink_zip'] if x[0].chromosome == chr and not ',' in x[0].allele2)
+						records = (x for x in cfg['models'][k]['plink_zip'] if x[0].chromosome == chr and not ',' in x[0].allele2)
 					except:
 						break
 				else:
 					try:
-						records = (x for x in cfg['data_info'][k]['plink_zip'] if x[0].chromosome == chr and x[0].bp_position >= int(region_list['start'][r]) and x[0].bp_position <= int(region_list['end'][r]) and not ',' in x[0].allele2)
+						records = (x for x in cfg['models'][k]['plink_zip'] if x[0].chromosome == chr and x[0].bp_position >= int(reglist['start'][r]) and x[0].bp_position <= int(reglist['end'][r]) and not ',' in x[0].allele2)
 					except:
 						break
-				if marker_list is not None:
-					records = (x for x in records if marker_list[(marker_list['chr'] == x[0].chromosome) & (marker_list['pos'] == x[0].bp_position) & (marker_list['a1'] == x[0].allele1) & (marker_list['a2'] == x[0].allele2)].shape[0] > 0)
+				if varlist is not None:
+					records = (x for x in records if varlist[(varlist['chr'] == x[0].chromosome) & (varlist['pos'] == x[0].bp_position) & (varlist['a1'] == x[0].allele1) & (varlist['a2'] == x[0].allele2)].shape[0] > 0)
 			else:
-				pos_ind = 1 if cfg['data_info'][k]['format'] in ['dos2','vcf'] else 2
+				pos_ind = 1 if cfg['models'][k]['format'] in ['dos2','vcf'] else 2
 				try:
-					records = cfg['data_info'][k]['data_it'].querys(reg)
+					records = cfg['models'][k]['data_it'].querys(reg)
 					if reg != str(chr):
-						records = (x for x in records if int(x[pos_ind]) >= int(region_list['start'][r]) and int(x[pos_ind]) <= int(region_list['end'][r]) and not ',' in str(x[4]))
+						records = (x for x in records if int(x[pos_ind]) >= int(reglist['start'][r]) and int(x[pos_ind]) <= int(reglist['end'][r]) and not ',' in str(x[4]))
 				except:
 					break
-				if marker_list is not None:
-					records = (x for x in records if marker_list[(marker_list['chr'] == int(x[0])) & (marker_list['pos'] == int(x[pos_ind])) & (marker_list['a1'] == x[3]) & (marker_list['a2'] == x[4])].shape[0] > 0)
+				if varlist is not None:
+					records = (x for x in records if varlist[(varlist['chr'] == int(x[0])) & (varlist['pos'] == int(x[pos_ind])) & (varlist['a1'] == x[3]) & (varlist['a2'] == x[4])].shape[0] > 0)
 
 			##### CONTINUE SLICING UNTIL NO RECORDS LEFT #####
 			chunk_db = MiscFxns.ChunkRefDb()
+
 			while True:
 				i = i + 1
 				chunk=list(islice(records, cfg['buffer']))
 				if not chunk:
 					break
+
 				##### READ IN CHUNK AND CREATE STANDARD DATA FRAME #####
-				if cfg['data_info'][k]['format'] == 'plink':
+				if cfg['models'][k]['format'] == 'plink':
 					marker_info=collections.OrderedDict()
 					marker_info['chr'] = collections.OrderedDict()
 					marker_info['pos'] = collections.OrderedDict()
@@ -236,7 +268,7 @@ def Model(cfg):
 						marker_info['pos'][marker_unique] = str(locus.bp_position)
 						marker_info['a1'][marker_unique] = str(locus.allele2)
 						marker_info['a2'][marker_unique] = str(locus.allele1)
-						for sample, geno in zip(cfg['data_info'][k]['plink_sample_it'], row):
+						for sample, geno in zip(cfg['models'][k]['plink_sample_it'], row):
 							if not marker_unique in marker_data.keys():
 								marker_data[marker_unique] = collections.OrderedDict({sample.iid: geno})
 							else:
@@ -244,24 +276,24 @@ def Model(cfg):
 					marker_info = pd.DataFrame(marker_info)
 					marker_data = pd.DataFrame(marker_data)
 					marker_data = marker_data.convert_objects(convert_numeric=True)
-					marker_data[cfg['data_info'][k]['iid']] = marker_data.index
+					marker_data[cfg['models'][k]['iid']] = marker_data.index
 					chunkdf = marker_info.join(marker_data.transpose())
 				else:
-					if cfg['data_info'][k]['format'] == 'vcf':
+					if cfg['models'][k]['format'] == 'vcf':
 						chunkdf = pd.DataFrame(chunk)
 						chunkdf = chunkdf.apply(MiscFxnsCy.GetRowCallsCy,axis=1,raw=True)
 						chunkdf.drop(chunkdf.columns[5:9],axis=1,inplace=True)
-					elif cfg['data_info'][k]['format'] == 'oxford':
+					elif cfg['models'][k]['format'] == 'oxford':
 						chunk = [MiscFxns.ConvertDosage(row) for row in chunk]
 						chunkdf = pd.DataFrame(chunk)
 						chunkdf = chunkdf[[0,2,1] + range(3,len(chunkdf.columns))]
-					elif cfg['data_info'][k]['format'] == 'dos1':
+					elif cfg['models'][k]['format'] == 'dos1':
 						chunkdf = pd.DataFrame(chunk)
 						chunkdf = chunkdf[[0,2,1] + range(3,len(chunkdf.columns))]
-					elif cfg['data_info'][k]['format'] == 'dos2':
+					elif cfg['models'][k]['format'] == 'dos2':
 						chunkdf = pd.DataFrame(chunk)
-					chunkdf.columns = ['chr','pos','marker','a1','a2'] + cfg['data_info'][k]['sample_ids']
-				if len(cfg['data_order']) > 1:
+					chunkdf.columns = ['chr','pos','marker','a1','a2'] + cfg['models'][k]['sample_ids']
+				if len(cfg['model_order']) > 1:
 					chunkdf = chunkdf.drop_duplicates(subset=['chr','pos','a1','a2'])
 					chunkdf.index=chunkdf['chr'].astype(str) + '><' + chunkdf['pos'].astype(str) + '><'  + chunkdf['a1'].astype(str) + '><'  + chunkdf['a2'].astype(str)
 					chunkdf = chunkdf[~chunkdf.index.isin(chunk_db.ListKeys())]
@@ -271,92 +303,92 @@ def Model(cfg):
 				##### EXTRACT MARKER INFO AND MARKER DATA #####
 				marker_info = chunkdf.ix[:,:5]
 				marker_info.replace('.','NA',inplace=True)
-				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '_'  + marker_info['marker'].astype(str).str.replace('-','_').str.replace(':','.') + '_'  + marker_info['a1'].astype(str) + '_'  + marker_info['a2'].astype(str)
+				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '_'  + marker_info['marker'].astype(str).str.replace('-','_').str.replace(':','.') + '_'  + marker_info['a1'].astype(str).str.replace('-','_') + '_'  + marker_info['a2'].astype(str).str.replace('-','_')
 				marker_info.index = marker_info['marker_unique']
 				marker_data = chunkdf.ix[:,5:].transpose()
 				marker_data = marker_data.convert_objects(convert_numeric=True)
 				marker_data.columns = marker_info['marker_unique']
-				marker_data[cfg['data_info'][k]['iid']] = marker_data.index
+				marker_data[cfg['models'][k]['iid']] = marker_data.index
 
 				##### MERGE PHENO DATAFRAME AND MARKER DATA #####
-				model_df = pd.merge(cfg['data_info'][k]['vars_df'], marker_data, on = [cfg['data_info'][k]['iid']], how='left').sort([cfg['data_info'][k]['fid']])
+				model_df = pd.merge(cfg['models'][k]['vars_df'], marker_data, on = [cfg['models'][k]['iid']], how='left').sort([cfg['models'][k]['fid']])
 
 				##### EXTRACT UNIQUE SAMPLES AND CALCULATE DESCRIPTIVE STATS #####
-				model_df_nodup=model_df.drop_duplicates(subset=[cfg['data_info'][k]['iid']]).reset_index(drop=True)
-				marker_info['callrate']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcCallrateCy(col.astype(np.float)), raw=True)
-				model_df_nodup_unrel=model_df_nodup.drop_duplicates(subset=[cfg['data_info'][k]['fid']]).reset_index(drop=True)
-				if not cfg['data_info'][k]['sex'] is None and not cfg['data_info'][k]['male'] is None and not cfg['data_info'][k]['female']:
-					male_idx = model_df_nodup[model_df_nodup[cfg['data_info'][k]['sex']].isin([cfg['data_info'][k]['male']])].index.values
-					female_idx = model_df_nodup[model_df_nodup[cfg['data_info'][k]['sex']].isin([cfg['data_info'][k]['female']])].index.values
+				model_df_nodup=model_df.drop_duplicates(subset=[cfg['models'][k]['iid']]).reset_index(drop=True)
+				marker_info['callrate']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcCallrateCy(np.array(col).astype(np.float)), raw=True)
+				model_df_nodup_unrel=model_df_nodup.drop_duplicates(subset=[cfg['models'][k]['fid']]).reset_index(drop=True)
+				if not cfg['models'][k]['sex'] is None and not cfg['models'][k]['male'] is None and not cfg['models'][k]['female']:
+					male_idx = model_df_nodup[model_df_nodup[cfg['models'][k]['sex']].isin([cfg['models'][k]['male']])].index.values
+					female_idx = model_df_nodup[model_df_nodup[cfg['models'][k]['sex']].isin([cfg['models'][k]['female']])].index.values
 				else:
 					male_idx = None
 					female_idx = None
 				if chr == 23:
-					marker_info['freq']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcFreq23Cy(marker_male=col[male_idx].astype(np.float), marker_female=col[female_idx].astype(np.float)), raw=True)
-					marker_info['freq.unrel']=model_df_nodup_unrel[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcFreq23Cy(marker_male=col[male_idx].astype(np.float), marker_female=col[female_idx].astype(np.float)), raw=True)
+					marker_info['freq']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcFreq23Cy(marker_male=np.array(col[male_idx]).astype(np.float), marker_female=np.array(col[female_idx]).astype(np.float)), raw=True)
+					marker_info['freq.unrel']=model_df_nodup_unrel[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcFreq23Cy(marker_male=np.array(col[male_idx]).astype(np.float), marker_female=np.array(col[female_idx]).astype(np.float)), raw=True)
 				else:
-					marker_info['freq']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcFreqCy(col.astype(np.float)), raw=True)
-					marker_info['freq.unrel']=model_df_nodup_unrel[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcFreqCy(col.astype(np.float)), raw=True)
-				if cfg['data_info'][k]['fxn'] == 'binomial':
-					marker_info['freq.ctrl']=model_df_nodup[model_df_nodup[cfg['data_info'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcFreqCy(col.astype(np.float)), raw=True)
-					marker_info['freq.case']=model_df_nodup[model_df_nodup[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcFreqCy(col.astype(np.float)), raw=True)
-					marker_info['freq.unrel.ctrl']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcFreqCy(col.astype(np.float)), raw=True)
-					marker_info['freq.unrel.case']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcFreqCy(col.astype(np.float)), raw=True)
-				marker_info['rsq']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcRsqCy(col.astype(np.float)), raw=True)
-				marker_info['rsq.unrel']=model_df_nodup_unrel[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcRsqCy(col.astype(np.float)), raw=True)
-				if cfg['data_info'][k]['fxn'] == 'binomial':
-					marker_info['rsq.ctrl']=model_df_nodup[model_df_nodup[cfg['data_info'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcRsqCy(col.astype(np.float)), raw=True)
-					marker_info['rsq.case']=model_df_nodup[model_df_nodup[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcRsqCy(col.astype(np.float)), raw=True)
-					marker_info['rsq.unrel.ctrl']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcRsqCy(col.astype(np.float)), raw=True)
-					marker_info['rsq.unrel.case']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcRsqCy(col.astype(np.float)), raw=True)
-				marker_info['hwe']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcHWECy(col.astype(np.float)), raw=True)
-				marker_info['hwe.unrel']=model_df_nodup_unrel[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcHWECy(col.astype(np.float)), raw=True)
-				if cfg['data_info'][k]['fxn'] == 'binomial':
-					marker_info['hwe.ctrl']=model_df_nodup[model_df_nodup[cfg['data_info'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcHWECy(col.astype(np.float)), raw=True)
-					marker_info['hwe.case']=model_df_nodup[model_df_nodup[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcHWECy(col.astype(np.float)), raw=True)
-					marker_info['hwe.unrel.ctrl']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcHWECy(col.astype(np.float)), raw=True)
-					marker_info['hwe.unrel.case']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['data_info'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcHWECy(col.astype(np.float)), raw=True)
-				if cfg['data_info'][k]['method'] in seqmeta_tests:
+					marker_info['freq']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcFreqCy(np.array(col).astype(np.float)), raw=True)
+					marker_info['freq.unrel']=model_df_nodup_unrel[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcFreqCy(np.array(col).astype(np.float)), raw=True)
+				if cfg['models'][k]['family'] == 'binomial':
+					marker_info['freq.ctrl']=model_df_nodup[model_df_nodup[cfg['models'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcFreqCy(np.array(col).astype(np.float)), raw=True)
+					marker_info['freq.case']=model_df_nodup[model_df_nodup[cfg['models'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcFreqCy(np.array(col).astype(np.float)), raw=True)
+					marker_info['freq.unrel.ctrl']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['models'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcFreqCy(np.array(col).astype(np.float)), raw=True)
+					marker_info['freq.unrel.case']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['models'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcFreqCy(np.array(col).astype(np.float)), raw=True)
+				marker_info['rsq']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcRsqCy(np.array(col).astype(np.float)), raw=True)
+				marker_info['rsq.unrel']=model_df_nodup_unrel[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcRsqCy(np.array(col).astype(np.float)), raw=True)
+				if cfg['models'][k]['family'] == 'binomial':
+					marker_info['rsq.ctrl']=model_df_nodup[model_df_nodup[cfg['models'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcRsqCy(np.array(col).astype(np.float)), raw=True)
+					marker_info['rsq.case']=model_df_nodup[model_df_nodup[cfg['models'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcRsqCy(np.array(col).astype(np.float)), raw=True)
+					marker_info['rsq.unrel.ctrl']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['models'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcRsqCy(np.array(col).astype(np.float)), raw=True)
+					marker_info['rsq.unrel.case']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['models'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcRsqCy(np.array(col).astype(np.float)), raw=True)
+				marker_info['hwe']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcHWECy(np.array(col).astype(np.float)), raw=True)
+				marker_info['hwe.unrel']=model_df_nodup_unrel[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcHWECy(np.array(col).astype(np.float)), raw=True)
+				if cfg['models'][k]['family'] == 'binomial':
+					marker_info['hwe.ctrl']=model_df_nodup[model_df_nodup[cfg['models'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcHWECy(np.array(col).astype(np.float)), raw=True)
+					marker_info['hwe.case']=model_df_nodup[model_df_nodup[cfg['models'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcHWECy(np.array(col).astype(np.float)), raw=True)
+					marker_info['hwe.unrel.ctrl']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['models'][k]['dep_var'][0]] == '0'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcHWECy(np.array(col).astype(np.float)), raw=True)
+					marker_info['hwe.unrel.case']=model_df_nodup_unrel[model_df_nodup_unrel[cfg['models'][k]['dep_var'][0]] == '1'][list(marker_info['marker_unique'])].apply(lambda col: MiscFxnsCy.CalcHWECy(np.array(col).astype(np.float)), raw=True)
+				if cfg['models'][k]['model_fxn'] in seqmeta_tests:
 					marker_info['filter']=marker_info.apply(lambda row: MiscFxnsCy.GenerateFilterCodeCy(row_callrate=row['callrate'], no_mono=False, 
 																											row_freq=row['freq'], row_freq_unrel=row['freq.unrel'], 
 																											row_rsq=row['rsq'], row_rsq_unrel=row['rsq.unrel'], 
 																											row_hwe=row['hwe'], row_hwe_unrel=row['hwe.unrel'], 
-																											miss_thresh=cfg['miss'], freq_thresh=cfg['freq'], 
-																											max_freq_thresh=cfg['max_freq'], rsq_thresh=cfg['rsq'], 
-																											hwe_thresh=cfg['hwe']), axis=1, raw=True)
+																											miss_thresh=cfg['models'][k]['miss'], maf_thresh=cfg['models'][k]['maf'], 
+																											maf_max_thresh=cfg['models'][k]['maf_max'], rsq_thresh=cfg['models'][k]['rsq'], 
+																											hwe_thresh=cfg['models'][k]['hwe']), axis=1, raw=True)
 				else:
 					marker_info['filter']=marker_info.apply(lambda row: MiscFxnsCy.GenerateFilterCodeCy(row_callrate=row['callrate'], 
 																											row_freq=row['freq'], row_freq_unrel=row['freq.unrel'], 
 																											row_rsq=row['rsq'], row_rsq_unrel=row['rsq.unrel'], 
 																											row_hwe=row['hwe'], row_hwe_unrel=row['hwe.unrel'], 
-																											miss_thresh=cfg['miss'], freq_thresh=cfg['freq'], 
-																											max_freq_thresh=cfg['max_freq'], rsq_thresh=cfg['rsq'], 
-																											hwe_thresh=cfg['hwe']), axis=1, raw=True)
-				marker_info['samples'] = str(cfg['data_info'][k]['samples']) + '/' + str(cfg['data_info'][k]['samples_unique']) + '/' + str(cfg['data_info'][k]['clusters']) + '/' + str(cfg['data_info'][k]['cases']) + '/' + str(cfg['data_info'][k]['ctrls']) + '/' + str(cfg['data_info'][k]['nmale']) + '/' + str(cfg['data_info'][k]['nfemale'])
+																											miss_thresh=cfg['models'][k]['miss'], maf_thresh=cfg['models'][k]['maf'], 
+																											maf_max_thresh=cfg['models'][k]['maf_max'], rsq_thresh=cfg['models'][k]['rsq'], 
+																											hwe_thresh=cfg['models'][k]['hwe']), axis=1, raw=True)
+				marker_info['sample'] = str(cfg['models'][k]['sample']) + '/' + str(cfg['models'][k]['samples_unique']) + '/' + str(cfg['models'][k]['clusters']) + '/' + str(cfg['models'][k]['cases']) + '/' + str(cfg['models'][k]['ctrls']) + '/' + str(cfg['models'][k]['nmale']) + '/' + str(cfg['models'][k]['nfemale'])
 
 				##### CONVERT ALL COLUMNS TO APPROPRIATE FORMAT FOR ANALYSIS #####
 				markercols = [col for col in model_df.columns if 'chr' in col]
 				model_df[markercols] = model_df[markercols].astype(float)
-				for x in cfg['data_info'][k]['model_vars_dict'].keys():
-					if cfg['data_info'][k]['model_vars_dict'][x]['class'] == 'factor':
+				for x in cfg['models'][k]['model_vars_dict'].keys():
+					if cfg['models'][k]['model_vars_dict'][x]['class'] == 'factor':
 						model_df[x] = pd.Categorical.from_array(model_df[x]).codes.astype(np.int64)
-				for x in [a for a in cfg['data_info'][k]['model_vars_dict'].keys() if a != 'marker']:
-					if cfg['data_info'][k]['model_vars_dict'][x]['class'] not in ['factor','random','cluster']:
+				for x in [a for a in cfg['models'][k]['model_vars_dict'].keys() if a != 'marker']:
+					if cfg['models'][k]['model_vars_dict'][x]['class'] not in ['factor','random','cluster']:
 						model_df[x] = model_df[x].astype(float)
 
 				##### MARKER ANALYSIS #####
-				if cfg['data_info'][k]['method'].split('_')[0] in ['gee','geeboss','glm','lme','coxph']:
+				if cfg['models'][k]['model_fxn'] in ['bgee','ggee','bglm','gglm','blme','glme','cph']:
 					marker_info_passed = marker_info[marker_info['filter'] == 0]
 					marker_info_filtered = marker_info[marker_info['filter'] > 0]
 					marker_info_filtered['n'] = '%d' % (0)
 					marker_info_filtered['status'] = '%d' % (-1)
 					model_df = model_df[[c for c in model_df.columns if not c in marker_info_filtered['marker_unique']]]
-					model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
-					model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
+					model_df[cfg['models'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['models'][k]['fid']]).codes.astype(np.int64)
+					model_df.sort([cfg['models'][k]['fid']],inplace = True)
 					ro.globalenv['model_df'] = py2r.convert_to_r_dataframe(model_df, strings_as_factors=False)
-					ro.r('model_df[,names(model_df) == "' + cfg['data_info'][k]['fid'] + '"]<-as.factor(model_df[,names(model_df) == "' + cfg['data_info'][k]['fid'] + '"])')
-					if cfg['data_info'][k]['method'].split('_')[0] == 'gee':
-						for x in cfg['data_info'][k]['focus']:
+					ro.r('model_df[,names(model_df) == "' + cfg['models'][k]['fid'] + '"]<-as.factor(model_df[,names(model_df) == "' + cfg['models'][k]['fid'] + '"])')
+					if cfg['models'][k]['model_fxn'] in ['bgee','ggee']:
+						for x in cfg['models'][k]['focus']:
 							marker_info_passed[x + '.effect'] = float('nan')
 							marker_info_passed[x + '.stderr'] = float('nan')
 							marker_info_passed[x + '.or'] = float('nan')
@@ -364,14 +396,31 @@ def Model(cfg):
 							marker_info_passed[x + '.p'] = float('nan')
 						marker_info_passed['n'] = '%d' % (0)
 						marker_info_passed['status'] = '%d' % (0)
-						results = marker_info_passed.apply(lambda row: StatsFxns.CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
-																					model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
-																					method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], 
-																					dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr']), 1)
+						results = marker_info_passed.apply(lambda row: StatsFxns.CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
+																					model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
+																					model_fxn=cfg['models'][k]['model_fxn'], family=cfg['models'][k]['family'], focus=cfg['models'][k]['focus'], 
+																					dep_var=cfg['models'][k]['dep_var'], corstr=cfg['models'][k]['corstr']), 1)
 						
 						results = pd.merge(results,marker_info_filtered,how='outer')
-					elif cfg['data_info'][k]['method'].split('_')[0] == 'geeboss':
-						for x in cfg['data_info'][k]['focus']:
+					#elif cfg['models'][k]['model_fxn'].split('_')[0] == 'geeboss':
+					#	for x in cfg['models'][k]['focus']:
+					#		marker_info_passed[x + '.effect'] = float('nan')
+					#		marker_info_passed[x + '.stderr'] = float('nan')
+					#		marker_info_passed[x + '.or'] = float('nan')
+					#		marker_info_passed[x + '.z'] = float('nan')
+					#		marker_info_passed[x + '.p'] = float('nan')
+					#	marker_info_passed['n'] = '%d' % (0)
+					#	marker_info_passed['status'] = '%d' % (0)
+					#	model_df[cfg['models'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['models'][k]['fid']]).codes.astype(np.int64)
+					#	model_df.sort([cfg['models'][k]['fid']],inplace = True)
+					#	model_df['id'] = model_df[cfg['models'][k]['fid']] if cfg['models'][k]['fid'] != 'id' else model_df['id']
+					#	results = marker_info.apply(lambda row: StatsFxns.CalcGEEBoss(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
+					#																	model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
+					#																	model_fxn=cfg['models'][k]['model_fxn'], family=cfg['models'][k]['family'], focus=cfg['models'][k]['focus'], 
+					#																	dep_var=cfg['models'][k]['dep_var'], corstr=cfg['models'][k]['corstr'], 
+					#																	thresh=cfg['models'][k]['geeboss_thresh'], boss=boss), 1)
+					elif cfg['models'][k]['model_fxn'] in ['bglm','gglm']:
+						for x in cfg['models'][k]['focus']:
 							marker_info_passed[x + '.effect'] = float('nan')
 							marker_info_passed[x + '.stderr'] = float('nan')
 							marker_info_passed[x + '.or'] = float('nan')
@@ -379,48 +428,31 @@ def Model(cfg):
 							marker_info_passed[x + '.p'] = float('nan')
 						marker_info_passed['n'] = '%d' % (0)
 						marker_info_passed['status'] = '%d' % (0)
-						model_df[cfg['data_info'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['data_info'][k]['fid']]).codes.astype(np.int64)
-						model_df.sort([cfg['data_info'][k]['fid']],inplace = True)
-						model_df['id'] = model_df[cfg['data_info'][k]['fid']] if cfg['data_info'][k]['fid'] != 'id' else model_df['id']
-						results = marker_info.apply(lambda row: StatsFxns.CalcGEEBoss(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
-																						model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
-																						method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], 
-																						dep_var=cfg['data_info'][k]['dep_var'], corstr=cfg['data_info'][k]['corstr'], 
-																						thresh=cfg['data_info'][k]['geeboss_thresh'], boss=boss), 1)
-					elif cfg['data_info'][k]['method'].split('_')[0] == 'glm':
-						for x in cfg['data_info'][k]['focus']:
-							marker_info_passed[x + '.effect'] = float('nan')
-							marker_info_passed[x + '.stderr'] = float('nan')
-							marker_info_passed[x + '.or'] = float('nan')
-							marker_info_passed[x + '.z'] = float('nan')
-							marker_info_passed[x + '.p'] = float('nan')
-						marker_info_passed['n'] = '%d' % (0)
-						marker_info_passed['status'] = '%d' % (0)
-						results = marker_info_passed.apply(lambda row: StatsFxns.CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
-																								model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
-																								fxn=cfg['data_info'][k]['fxn'], 
-																								focus=cfg['data_info'][k]['focus'], dep_var=cfg['data_info'][k]['dep_var']), 1)
+						results = marker_info_passed.apply(lambda row: StatsFxns.CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
+																								model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
+																								family=cfg['models'][k]['family'], 
+																								focus=cfg['models'][k]['focus'], dep_var=cfg['models'][k]['dep_var']), 1)
 						results = pd.merge(results,marker_info_filtered,how='outer')
-					elif cfg['data_info'][k]['method'] == 'lme_binomial':
-						for x in cfg['data_info'][k]['focus']:
+					elif cfg['models'][k]['model_fxn'] == 'blme':
+						for x in cfg['models'][k]['focus']:
 							marker_info_passed[x + '.effect'] = float('nan')
 							marker_info_passed[x + '.stderr'] = float('nan')
 							marker_info_passed[x + '.or'] = float('nan')
 							marker_info_passed[x + '.z'] = float('nan')
 							marker_info_passed[x + '.p'] = float('nan')
-							if cfg['data_info'][k]['lme_anova'] and x != '(Intercept)':
+							if cfg['models'][k]['lrt'] and x != '(Intercept)':
 								marker_info_passed[x + '.anova.chisq'] = float('nan')
 								marker_info_passed[x + '.anova.p'] = float('nan')
 						marker_info_passed['n'] = '%d' % (0)
 						marker_info_passed['status'] = '%d' % (0)
-						results = marker_info_passed.apply(lambda row: StatsFxns.CalcLMEBinomial(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
-																					model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
-																					method=cfg['data_info'][k]['method'], focus=cfg['data_info'][k]['focus'], 
-																					dep_var=cfg['data_info'][k]['dep_var'], glmer_control=cfg['data_info'][k]['glmer_control'],
-																					lme_anova=cfg['data_info'][k]['lme_anova']), 1)
+						results = marker_info_passed.apply(lambda row: StatsFxns.CalcLMEBinomial(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
+																					model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
+																					model_fxn=cfg['models'][k]['model_fxn'], focus=cfg['models'][k]['focus'], 
+																					dep_var=cfg['models'][k]['dep_var'], lmer_control=cfg['models'][k]['lmer_control'],
+																					lrt=cfg['models'][k]['lrt']), 1)
 						results = pd.merge(results,marker_info_filtered,how='outer')
-					elif cfg['data_info'][k]['method'] == 'lme_gaussian':
-						for x in cfg['data_info'][k]['focus']:
+					elif cfg['models'][k]['model_fxn'] == 'glme':
+						for x in cfg['models'][k]['focus']:
 							marker_info_passed[x + '.effect'] = float('nan')
 							marker_info_passed[x + '.stderr'] = float('nan')
 							marker_info_passed[x + '.or'] = float('nan')
@@ -430,19 +462,19 @@ def Model(cfg):
 							marker_info_passed[x + '.satt.t'] = float('nan')
 							marker_info_passed[x + '.satt.p'] = float('nan')
 							marker_info_passed[x + '.kenrog.p'] = float('nan')
-							if cfg['data_info'][k]['lme_anova'] and x != '(Intercept)':
+							if cfg['models'][k]['lrt'] and x != '(Intercept)':
 								marker_info_passed[x + '.anova.chisq'] = float('nan')
 								marker_info_passed[x + '.anova.p'] = float('nan')
 						marker_info_passed['n'] = '%d' % (0)
 						marker_info_passed['status'] = '%d' % (0)
-						results = marker_info_passed.apply(lambda row: StatsFxns.CalcLMEGaussian(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
-																					model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
-																					method=cfg['data_info'][k]['method'], focus=cfg['data_info'][k]['focus'], 
-																					dep_var=cfg['data_info'][k]['dep_var'], lmer_control=cfg['data_info'][k]['lmer_control'],
-																					lme_reml=cfg['data_info'][k]['lme_reml'],lme_anova=cfg['data_info'][k]['lme_anova']), 1)
+						results = marker_info_passed.apply(lambda row: StatsFxns.CalcLMEGaussian(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
+																					model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
+																					model_fxn=cfg['models'][k]['model_fxn'], focus=cfg['models'][k]['focus'], 
+																					dep_var=cfg['models'][k]['dep_var'], lmer_control=cfg['models'][k]['lmer_control'],
+																					reml=cfg['models'][k]['reml'],lrt=cfg['models'][k]['lrt']), 1)
 						results = pd.merge(results,marker_info_filtered,how='outer')
-					elif cfg['data_info'][k]['method'] == 'coxph':
-						for x in cfg['data_info'][k]['focus']:
+					elif cfg['models'][k]['model_fxn'] == 'cph':
+						for x in cfg['models'][k]['focus']:
 							marker_info_passed[x + '.effect'] = float('nan')
 							marker_info_passed[x + '.stderr'] = float('nan')
 							marker_info_passed[x + '.or'] = float('nan')
@@ -450,25 +482,25 @@ def Model(cfg):
 							marker_info_passed[x + '.p'] = float('nan')
 						marker_info_passed['n'] = '%d' % (0)
 						marker_info_passed['status'] = '%d' % (0)
-						results = marker_info.apply(lambda row: StatsFxns.CalcCoxPH(marker_info=row, model_df=model_df, model_vars_dict=cfg['data_info'][k]['model_vars_dict'], 
-																						model=cfg['data_info'][k]['model'], iid=cfg['data_info'][k]['iid'], fid=cfg['data_info'][k]['fid'], 
-																						method=cfg['data_info'][k]['method'], fxn=cfg['data_info'][k]['fxn'], focus=cfg['data_info'][k]['focus'], 
-																						dep_var=cfg['data_info'][k]['dep_var'], survival=survival), 1)
-					if 'reg_id' in region_list.columns and not region_list['reg_id'][r] is None:
-						results['reg_id'] = region_list['reg_id'][r]
+						results = marker_info.apply(lambda row: StatsFxns.CalcCoxPH(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
+																						model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
+																						model_fxn=cfg['models'][k]['model_fxn'], family=cfg['models'][k]['family'], focus=cfg['models'][k]['focus'], 
+																						dep_var=cfg['models'][k]['dep_var'], survival=survival), 1)
+					if 'id' in reglist.columns and not reglist['id'][r] is None:
+						results['id'] = reglist['id'][r]
 					if 'marker_unique' in results.columns.values:
 						results.drop('marker_unique',axis=1,inplace=True)
-					if cfg['data_info'][k]['written'] == False:
+					if cfg['models'][k]['written'] == False:
 						results.columns = [k + '.' + a if not a in ['chr','pos','a1','a2'] and k != 'NA' else a for a in results.columns]
-						cfg['data_info'][k]['results'] = results.copy()
-						cfg['data_info'][k]['written'] = True
+						cfg['models'][k]['results'] = results.copy()
+						cfg['models'][k]['written'] = True
 					else:
 						results.columns = [k + '.' + a if not a in ['chr','pos','a1','a2'] and k != 'NA' else a for a in results.columns]
-						cfg['data_info'][k]['results'] = cfg['data_info'][k]['results'].append(results).reset_index(drop=True)
+						cfg['models'][k]['results'] = cfg['models'][k]['results'].append(results).reset_index(drop=True)
 
 				##### PREPARE DATA FOR GENE BASED ANALYSIS #####
 				else:
-					if cfg['data_info'][k]['method_type'] == 'gene':
+					if cfg['models'][k]['model_fxn_type'] == 'gene':
 						if i == 1:
 							cfg['reg_model_df'] = model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1)
 							cfg['reg_marker_info'] = marker_info[marker_info['filter'] == 0]
@@ -478,98 +510,98 @@ def Model(cfg):
 
 				##### UPDATE LOOP STATUS #####
 				cur_markers = str(min(i*cfg['buffer'],(i-1)*cfg['buffer'] + len(marker_info.index)))
-				status_reg = region_list['region'][r] + ': ' + region_list['reg_id'][r] if 'reg_id' in region_list.columns and region_list['reg_id'][r] != 'NA' else region_list['region'][r]
-				status = '   processed ' + cur_markers + ' markers from region ' + str(r+1) + '/' + str(len(region_list.index)) + ' (' + status_reg + ')' if len(cfg['data_info'].keys()) == 1 else '   processed ' + cur_markers + ' markers from region ' + str(r+1) + '/' + str(len(region_list.index)) + ' (' + status_reg + ')' + " for cohort " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
+				status_reg = reglist['region'][r] + ': ' + reglist['id'][r] if 'id' in reglist.columns and reglist['id'][r] != 'NA' else reglist['region'][r]
+				status = '   processed ' + cur_markers + ' markers from region ' + str(r+1) + '/' + str(len(reglist.index)) + ' (' + status_reg + ')' if len(cfg['models'].keys()) == 1 else '   processed ' + cur_markers + ' markers from region ' + str(r+1) + '/' + str(len(reglist.index)) + ' (' + status_reg + ')' + " for cohort " + str(cfg['model_order'].index(k) + 1) + '/' + str(len(cfg['model_order'])) + ' (' + k + ')'
 				print status
 
 			##### CALCULATE EFFECTIVE TESTS #####
-			if cfg['data_info'][k]['method'] == 'efftests':
+			if cfg['models'][k]['model_fxn'] == 'efftests':
 				tot_tests = cfg['reg_marker_info'].shape[0]
 				if tot_tests > 0:
 					n_eff = StatsFxns.CalcEffTests(model_df=cfg['reg_model_df'][cfg['reg_marker_info']['marker_unique']])
 					status = 0
 				else:
 					n_eff, tot_tests, status = (0, 0, 1)
-				results = pd.DataFrame({'chr': [region_list['chr'][r]], 'start': [region_list['start'][r]], 'end': [region_list['end'][r]], 'reg_id': [region_list['reg_id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','reg_id','n_total','n_eff','status']]
-				if 'reg_id' in region_list.columns:
-					results['reg_id'] = region_list['reg_id'][r]
+				results = pd.DataFrame({'chr': [reglist['chr'][r]], 'start': [reglist['start'][r]], 'end': [reglist['end'][r]], 'id': [reglist['id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','id','n_total','n_eff','status']]
+				if 'id' in reglist.columns:
+					results['id'] = reglist['id'][r]
 				if 'marker_unique' in results.columns.values:
 					results.drop('marker_unique',axis=1,inplace=True)
-				if cfg['data_info'][k]['written'] == False:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
-					cfg['data_info'][k]['results'] = results.copy()
-					cfg['data_info'][k]['written'] = True
+				if cfg['models'][k]['written'] == False:
+					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
+					cfg['models'][k]['results'] = results.copy()
+					cfg['models'][k]['written'] = True
 				else:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
-					cfg['data_info'][k]['results'] = cfg['data_info'][k]['results'].append(results).reset_index(drop=True)
-				status = '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(region_list.index)) if len(cfg['data_info'].keys()) == 1 else '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(region_list.index)) + " for model " + str(cfg['data_order'].index(k) + 1) + '/' + str(len(cfg['data_order'])) + ' (' + k + ')'
+					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
+					cfg['models'][k]['results'] = cfg['models'][k]['results'].append(results).reset_index(drop=True)
+				status = '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(reglist.index)) if len(cfg['models'].keys()) == 1 else '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(reglist.index)) + " for model " + str(cfg['model_order'].index(k) + 1) + '/' + str(len(cfg['model_order'])) + ' (' + k + ')'
 				print status
 
 			##### CALCULATE PREPSCORES AND INDIVIDUAL MODELS FOR GENE BASED TESTS #####
-			elif cfg['data_info'][k]['method'] in seqmeta_tests:
+			elif cfg['models'][k]['model_fxn'] in seqmeta_tests:
 				if not cfg['reg_marker_info'] is None and cfg['reg_marker_info'].shape[0] > 0:
-					cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': region_list['reg_id'][r]})
+					cfg['models'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': reglist['id'][r]})
 					z = cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])]
-					pheno = cfg['reg_model_df'][list(set(cfg['data_info'][k]['model_vars_dict'].keys() + [cfg['data_info'][k]['iid'],cfg['data_info'][k]['fid']]))]
+					pheno = cfg['reg_model_df'][list(set(cfg['models'][k]['model_vars_dict'].keys() + [cfg['models'][k]['iid'],cfg['models'][k]['fid']]))]
 
 					##### PREPSCORES #####
-					if cfg['data_info'][k]['method'] in ['famskat_o','famskat','famburden']:
-						ro.globalenv['ps' + k] = StatsFxns.PrepScoresFam(snp_info=cfg['data_info'][k]['snp_info'], z=z, model=cfg['data_info'][k]['model'], pheno=pheno, kinship=cfg['data_info'][k]['kins'], seqmeta=seqmeta)
+					if cfg['models'][k]['model_fxn'] in ['famskat_o','famskat','famburden']:
+						ro.globalenv['ps' + k] = StatsFxns.PrepScoresFam(snp_info=cfg['models'][k]['snp_info'], z=z, model=cfg['models'][k]['model'], pheno=pheno, kinship=cfg['models'][k]['kins'], seqmeta=seqmeta)
 					else:
-						ro.globalenv['ps' + k] = StatsFxns.PrepScores(snp_info=cfg['data_info'][k]['snp_info'], z=z, model=cfg['data_info'][k]['model'], pheno=pheno, family=cfg['data_info'][k]['fxn'], seqmeta=seqmeta)
+						ro.globalenv['ps' + k] = StatsFxns.PrepScores(snp_info=cfg['models'][k]['snp_info'], z=z, model=cfg['models'][k]['model'], pheno=pheno, family=cfg['models'][k]['family'], seqmeta=seqmeta)
 
 					##### SKAT-O #####
-					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
-						results_pre = StatsFxns.SkatOMeta('skatOMeta(ps' + k + ', SNPInfo=rsnp_info, rho=r_rho)', cfg['data_info'][k]['snp_info'], cfg['data_info'][k]['skat_o_rho'], seqmeta=seqmeta)
-						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
+					if cfg['models'][k]['model_fxn'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
+						results_pre = StatsFxns.SkatOMeta('skatOMeta(ps' + k + ', SNPInfo=rsnp_info, rho=r_rho)', cfg['models'][k]['snp_info'], cfg['models'][k]['skat_o_rho'], seqmeta=seqmeta)
+						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],
 											'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
-						results = results[['chr','start','end','reg_id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+						results = results[['chr','start','end','id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
 
 					##### SKAT #####
-					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
-						results_pre = StatsFxns.SkatMeta('skatMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'], seqmeta=seqmeta)
-						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
+					elif cfg['models'][k]['model_fxn'] in ['famskat','skat_gaussian','skat_binomial']:
+						results_pre = StatsFxns.SkatMeta('skatMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['models'][k]['snp_info'], seqmeta=seqmeta)
+						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],
 											'p': [results_pre['p'][1]],'Qmeta': [results_pre['Qmeta'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]]})
-						results = results[['chr','start','end','reg_id','p','Qmeta','cmaf','nmiss','nsnps']]
+						results = results[['chr','start','end','id','p','Qmeta','cmaf','nmiss','nsnps']]
 
 					##### BURDEN #####
-					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
-						results_pre = StatsFxns.BurdenMeta('burdenMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'], seqmeta=seqmeta)
-						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],
+					elif cfg['models'][k]['model_fxn'] in ['famburden','burden_gaussian','burden_binomial']:
+						results_pre = StatsFxns.BurdenMeta('burdenMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['models'][k]['snp_info'], seqmeta=seqmeta)
+						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],
 											'p': [results_pre['p'][1]],'beta': [results_pre['beta'][1]],'se': [results_pre['se'][1]],'cmafTotal': [results_pre['cmafTotal'][1]],
 											'cmafUsed': [results_pre['cmafUsed'][1]],'nsnpsTotal': [results_pre['nsnpsTotal'][1]],'nsnpsUsed': [results_pre['nsnpsUsed'][1]],
 											'nmiss': [results_pre['nmiss'][1]]})
-						results = results[['chr','start','end','reg_id','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
+						results = results[['chr','start','end','id','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
 				else:
 
 					##### EMPTY SNP_INFO DF #####
-					cfg['data_info'][k]['snp_info'] = pd.DataFrame({'Name': [], 'gene': []})
+					cfg['models'][k]['snp_info'] = pd.DataFrame({'Name': [], 'gene': []})
 
 					##### EMPTY SKAT-O DF #####
-					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
-						results = StatsFxns.SkatOMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r])
+					if cfg['models'][k]['model_fxn'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
+						results = StatsFxns.SkatOMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r])
 
 					##### EMPTY SKAT DF #####
-					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
-						results = StatsFxns.SkatMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r])
+					elif cfg['models'][k]['model_fxn'] in ['famskat','skat_gaussian','skat_binomial']:
+						results = StatsFxns.SkatMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r])
 
 					##### EMPTY BURDEN DF #####
-					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
-						results = StatsFxns.BurdenMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r])
+					elif cfg['models'][k]['model_fxn'] in ['famburden','burden_gaussian','burden_binomial']:
+						results = StatsFxns.BurdenMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r])
 					
 				##### APPEND TO RESULTS DF #####
-				if cfg['data_info'][k]['written'] == False:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
-					cfg['data_info'][k]['results'] = results.copy()
-					cfg['data_info'][k]['written'] = True
+				if cfg['models'][k]['written'] == False:
+					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
+					cfg['models'][k]['results'] = results.copy()
+					cfg['models'][k]['written'] = True
 				else:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
-					cfg['data_info'][k]['results'] = cfg['data_info'][k]['results'].append(results).reset_index(drop=True)
+					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
+					cfg['models'][k]['results'] = cfg['models'][k]['results'].append(results).reset_index(drop=True)
 
 		##### PERFORM GENE BASED TEST META ANALYSIS #####
-		if cfg['data_info'][cfg['data_order'][0]]['method'] in seqmeta_tests and len(cfg['meta']) > 0:
+		if cfg['models'][cfg['model_order'][0]]['model_fxn'] in seqmeta_tests and len(cfg['meta']) > 0:
 			for meta in cfg['meta']:
 				meta_tag = meta.split(':')[0]
 				meta_incl = meta.split(':')[1].split('+')
@@ -577,12 +609,12 @@ def Model(cfg):
 				snp_info_meta = None
 				meta_incl_string = ''
 				for k in meta_incl:
-					if 'ps' + k in ro.globalenv and cfg['data_info'][k]['results'].loc[r][k + '.p'] != 'NA':
+					if 'ps' + k in ro.globalenv and cfg['models'][k]['results'].loc[r][k + '.p'] != 'NA':
 						meta_incl_string = meta_incl_string + '+'
 						if snp_info_meta is None:
-							snp_info_meta = cfg['data_info'][k]['snp_info']
+							snp_info_meta = cfg['models'][k]['snp_info']
 						else:
-							snp_info_meta = snp_info_meta.merge(cfg['data_info'][k]['snp_info'], how='outer')
+							snp_info_meta = snp_info_meta.merge(cfg['models'][k]['snp_info'], how='outer')
 						if seqmeta_cmd == '':
 							seqmeta_cmd = 'ps' + k
 						else:
@@ -592,113 +624,114 @@ def Model(cfg):
 
 				if snp_info_meta is not None and snp_info_meta.shape[0] > 1:
 					##### SKAT-O #####
-					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
-						results_pre = StatsFxns.SkatOMeta('skatOMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info, rho=r_rho)', snp_info_meta, cfg['data_info'][k]['skat_o_rho'], seqmeta=seqmeta)
-						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],'incl': [meta_incl_string],
+					if cfg['models'][k]['model_fxn'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
+						results_pre = StatsFxns.SkatOMeta('skatOMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info, rho=r_rho)', snp_info_meta, cfg['models'][k]['skat_o_rho'], seqmeta=seqmeta)
+						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],'incl': [meta_incl_string],
 													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
-						results = results[['chr','start','end','reg_id','incl','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+						results = results[['chr','start','end','id','incl','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
 
 					##### SKAT #####
-					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
+					elif cfg['models'][k]['model_fxn'] in ['famskat','skat_gaussian','skat_binomial']:
 						results_pre = StatsFxns.SkatMeta('skatMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info)', snp_info_meta, seqmeta=seqmeta)
-						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],'meta_incl': [meta_incl_string],
+						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],'meta_incl': [meta_incl_string],
 													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
-						results = results[['chr','start','end','reg_id','incl','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+						results = results[['chr','start','end','id','incl','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
 
 					##### BURDEN #####
-					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
-						results_pre = StatsFxns.BurdenMeta('burdenMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['data_info'][k]['snp_info'], seqmeta=seqmeta)
-						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'reg_id': [region_list['reg_id'][r]],'meta_incl': [meta_incl_string],
+					elif cfg['models'][k]['model_fxn'] in ['famburden','burden_gaussian','burden_binomial']:
+						results_pre = StatsFxns.BurdenMeta('burdenMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['models'][k]['snp_info'], seqmeta=seqmeta)
+						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],'meta_incl': [meta_incl_string],
 											'p': [results_pre['p'][1]],'beta': [results_pre['beta'][1]],'se': [results_pre['se'][1]],'cmafTotal': [results_pre['cmafTotal'][1]],
 											'cmafUsed': [results_pre['cmafUsed'][1]],'nsnpsTotal': [results_pre['nsnpsTotal'][1]],'nsnpsUsed': [results_pre['nsnpsUsed'][1]],
 											'nmiss': [results_pre['nmiss'][1]]})
-						results = results[['chr','start','end','reg_id','incl','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
+						results = results[['chr','start','end','id','incl','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
 				else:
 
 					##### EMPTY SKAT-O DF #####
-					if cfg['data_info'][k]['method'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
-						results = StatsFxns.SkatOMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r],meta_incl_string)
+					if cfg['models'][k]['model_fxn'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
+						results = StatsFxns.SkatOMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r],meta_incl_string)
 
 					##### EMPTY SKAT DF #####
-					elif cfg['data_info'][k]['method'] in ['famskat','skat_gaussian','skat_binomial']:
-						results = StatsFxns.SkatMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r],meta_incl_string)
+					elif cfg['models'][k]['model_fxn'] in ['famskat','skat_gaussian','skat_binomial']:
+						results = StatsFxns.SkatMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r],meta_incl_string)
 
 					##### EMPTY BURDEN DF #####
-					elif cfg['data_info'][k]['method'] in ['famburden','burden_gaussian','burden_binomial']:
-						results = StatsFxns.BurdenMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['reg_id'][r],meta_incl_string)
+					elif cfg['models'][k]['model_fxn'] in ['famburden','burden_gaussian','burden_binomial']:
+						results = StatsFxns.BurdenMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r],meta_incl_string)
 
 				##### APPEND TO META DF #####
 				if cfg['meta_written'][meta_tag] == False:
-					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
+					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
 					cfg['meta_results'][meta_tag] = results.copy()
 					cfg['meta_written'][meta_tag] = True
 				else:
-					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','reg_id'] and k != 'NA' else a for a in results.columns]
+					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
 					cfg['meta_results'][meta_tag] = cfg['meta_results'][meta_tag].merge(results, how='outer', copy=False)
 
 			##### REMOVE PREPSCORES OBJECTS FROM R GLOBAL ENVIRONMENT #####
-			for k in cfg['data_order']:
+			for k in cfg['model_order']:
 				if 'ps' + k in ro.globalenv:
 					ro.r['rm']('ps' + k)
 
 	##### COMPILE ALL RESULTS #####
-	header = ['chr','start','end','reg_id'] if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'gene' else ['chr','pos','a1','a2']
+	header = ['chr','start','end','id'] if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] == 'gene' else ['chr','pos','a1','a2']
 	if len(cfg['meta']) > 0:
 		for meta in cfg['meta']:
 			meta_tag = meta.split(':')[0]
 			if meta == cfg['meta'][0]:
-				results = cfg['meta_results'][meta_tag]
+				results_out = cfg['meta_results'][meta_tag]
 			else:
-				results = results.merge(cfg['meta_results'][meta_tag], how='outer', copy=False)
+				results_out = results_out.merge(cfg['meta_results'][meta_tag], how='outer', copy=False)
 			header = header + [a for a in cfg['meta_results'][meta_tag].columns.values.tolist() if not a in header]
 
-	for k in cfg['data_order']:
-		if 'reg_id' in cfg['data_info'][k]['results'].keys() and len(list(cfg['data_info'][k]['results']['reg_id'].unique())) == 1 and list(cfg['data_info'][k]['results']['reg_id'].unique())[0] == 'NA':
-			cfg['data_info'][k]['results'].drop('reg_id',axis=1,inplace=True)
-		if k + '.reg_id' in cfg['data_info'][k]['results'].keys() and len(list(cfg['data_info'][k]['results'][k + '.reg_id'].unique())) == 1 and list(cfg['data_info'][k]['results'][k + '.reg_id'].unique())[0] == 'NA':
-			cfg['data_info'][k]['results'].drop(k + '.reg_id',axis=1,inplace=True)
-		if cfg['data_info'][k]['fxn'] is not None and cfg['data_info'][k]['fxn'] == 'gaussian':
-			cfg['data_info'][k]['results'].drop([x for x in cfg['data_info'][k]['results'].columns if '.or' in x], axis=1,inplace=True)
-		if k == cfg['data_order'][0] and len(cfg['meta']) == 0:
-			results = cfg['data_info'][k]['results']
-		else:
-			results = results.merge(cfg['data_info'][k]['results'], how='outer', copy=False)
-		header = header + [a for a in cfg['data_info'][k]['results'].columns.values.tolist() if not a in header]
+	for k in cfg['model_order']:
+		if 'results' in cfg['models'][k]:
+			if 'id' in cfg['models'][k]['results'].keys() and len(list(cfg['models'][k]['results']['id'].unique())) == 1 and list(cfg['models'][k]['results']['id'].unique())[0] == 'NA':
+				cfg['models'][k]['results'].drop('id',axis=1,inplace=True)
+			if k + '.id' in cfg['models'][k]['results'].keys() and len(list(cfg['models'][k]['results'][k + '.id'].unique())) == 1 and list(cfg['models'][k]['results'][k + '.id'].unique())[0] == 'NA':
+				cfg['models'][k]['results'].drop(k + '.id',axis=1,inplace=True)
+			if cfg['models'][k]['family'] is not None and cfg['models'][k]['family'] == 'gaussian':
+				cfg['models'][k]['results'].drop([x for x in cfg['models'][k]['results'].columns if '.or' in x], axis=1,inplace=True)
+			if (k == cfg['model_order'][0] and len(cfg['meta']) == 0) or not 'results_out' in locals():
+				results_out = cfg['models'][k]['results']
+			else:
+				results_out = results_out.merge(cfg['models'][k]['results'], how='outer', copy=False)
+			header = header + [a for a in cfg['models'][k]['results'].columns.values.tolist() if not a in header]
 
 	##### SORT RESULTS AND CONVERT CHR, POS, AND START COLUMNS TO INT #####
-	if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'marker':
-		results[['chr','pos']] = results[['chr','pos']].astype(int)
-		results.sort(columns=['chr','pos'],inplace=True)
+	if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] == 'marker':
+		results_out[['chr','pos']] = results_out[['chr','pos']].astype(int)
+		results_out.sort(columns=['chr','pos'],inplace=True)
 	else:
-		results[['chr','start','end']] = results[['chr','start','end']].astype(int)
-		results.sort(columns=['chr','start'],inplace=True)
-	results[[x for x in results.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]] = results[[x for x in results.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]].astype(float)
-	results[[x for x in results.columns if x.endswith(('filter','n','status'))]] = results[[x for x in results.columns if x.endswith(('filter','n','status'))]].astype(int)
-	for c in [x for x in results.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case'))]:
-		results[c] = results[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
-		results[c] = results[c].astype(object)
-	for c in [x for x in results.columns if x.endswith(('callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]:
-		results[c] = results[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
-		results[c] = results[c].astype(object)
+		results_out[['chr','start','end']] = results_out[['chr','start','end']].astype(int)
+		results_out.sort(columns=['chr','start'],inplace=True)
+	results_out[[x for x in results_out.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]] = results_out[[x for x in results_out.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]].astype(float)
+	results_out[[x for x in results_out.columns if x.endswith(('filter','n','status'))]] = results_out[[x for x in results_out.columns if x.endswith(('filter','n','status'))]].astype(int)
+	for c in [x for x in results_out.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case'))]:
+		results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
+		results_out[c] = results_out[c].astype(object)
+	for c in [x for x in results_out.columns if x.endswith(('callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]:
+		results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
+		results_out[c] = results_out[c].astype(object)
 
 	##### FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
-	results.fillna('NA',inplace=True)
-	results = results[header]
-	bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in results.columns.values.tolist()]) + '\n')
+	results_out.fillna('NA',inplace=True)
+	results_out = results_out[header]
+	bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in results_out.columns.values.tolist()]) + '\n')
 	bgzfile.flush()
-	results.to_csv(bgzfile, header=False, sep='\t', index=False)
+	results_out.to_csv(bgzfile, header=False, sep='\t', index=False)
 	bgzfile.close()
 
 	##### MAP OUTPUT FILES FOR TABIX #####
-	if list(set([cfg['data_info'][k]['method_type'] for k in cfg['data_order']]))[0] == 'marker':
+	if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] == 'marker':
 		cmd = ['tabix','-b','2','-e','2',cfg['out'] + '.gz']
 	else:
 		cmd = ['tabix','-b','2','-e','3',cfg['out'] + '.gz']
 	try:
 		p = subprocess.check_call(cmd)
-	except subprocess.CalledProcessError:
-		print Error("file mapping failed")
+	except subprocess.CalledProcessSystemFxns.Error:
+		print SystemFxns.Error("file mapping failed")
 	else:
 		print "process complete"
