@@ -20,15 +20,8 @@ ro.r('options(warn=1)')
 
 def Model(cfg):
 	Parse.PrintModelOptions(cfg)
-
 	for k in cfg['models']:
 		cfg['models'][k]['sep'] = MiscFxnsCy.GetDelimiterCy(cfg['models'][k]['sep'])
-	file_sets = dict()
-	for t,f in [(k, cfg['models'][k]['data']) for k in cfg['model_order']]:
-		if file_sets.get(f) is None:
-			file_sets[f] = [t]
-		else:
-			file_sets[f] = file_sets.get(f) + [t]
 
 	##### DEFINE MODEL TYPES #####
 	marker_tests = ['bgee','ggee','bglm','gglm','blme','glme','cph']
@@ -48,13 +41,11 @@ def Model(cfg):
 	for model_fxn in list(set(model_fxns)):
 		if model_fxn in ['ggee','bgee']:
 			importr('geepack')
-			if 'boss' in model_fxn in cfg['models'][k]:
-				importr('boss')
 		elif model_fxn in ['glme','blme']:
 			importr('lmerTest')
 			if model_fxn == 'glme':
 				importr('pbkrtest')
-		elif model_fxn == 'coxph':
+		elif model_fxn == 'cph':
 			importr('survival')
 		elif model_fxn in ['fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden']:
 			importr('seqMeta')
@@ -83,29 +74,6 @@ def Model(cfg):
 			cfg['models'][k]['focus'] = MiscFxns.GetFocus(model_fxn=cfg['models'][k]['model_fxn'],model=cfg['models'][k]['model'],vars_df=cfg['models'][k]['vars_df'],model_vars_dict=cfg['models'][k]['model_vars_dict'])
 
 	##### LOAD ITERATORS AND SAMPLE LISTS #####
-	"""
-	for f in file_sets:
-		if file_sets[f]['format'] == 'plink':
-			print "loading Plink binary files for models " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ') if len(file_sets[f]['tag']) > 1 else "loading Plink binary files for model " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ')
-			file_sets[f]['plink_handle'],file_sets[f]['plink_locus_it'],file_sets[f]['plink_sample_it'],file_sets[f]['sample_ids'] = MiscFxns.LoadPlink(f)
-			file_sets[f]['plink_zip'] = zip(file_sets[f]['plink_locus_it'],file_sets[f]['plink_handle'])
-		elif file_sets[f]['format'] == 'vcf':
-			print "loading vcf file for models " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ') if len(file_sets[f]['tag']) > 1 else "loading vcf file for model " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ')
-			file_sets[f]['data_it'], file_sets[f]['sample_ids'] = MiscFxns.LoadVcf(f)
-		else:
-			print "loading data and sample files for models " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ') if len(file_sets[f]['tag']) > 1 else "loading data and sample files for model " + str(file_sets[f]['tag']).replace('[','').replace(']','').replace("'","").replace(', ',' and ')
-			file_sets[f]['data_it'], file_sets[f]['sample_ids'] = MiscFxns.LoadDos(f, s)
-		for k in file_sets[f]['tag']:
-			if len(cfg['models'][k]['vars_df'][cfg['models'][k]['vars_df'][cfg['models'][k]['iid']].isin(file_sets[f]['sample_ids'])]) == 0:
-				print SystemFxns.Error("phenotype file and data file contain no common samples")
-				return
-		file_sets[f]['varlist_handle'] = None
-		print file_sets
-		if 'varlist' in file_sets[f]:
-			if file_sets[f]['varlist'] is not None:
-				file_sets[f]['varlist_handle'] = tabix.open(file_sets[f]['varlist'])
-
-	"""
 	for k in cfg['model_order']:
 		if cfg['models'][k]['format'] == 'plink':
 			print "loading Plink binary files for model " + k if len(cfg['models'].keys()) > 1 else "loading Plink binary files"
@@ -354,7 +322,7 @@ def Model(cfg):
 																											row_rsq=row['rsq'], row_rsq_unrel=row['rsq.unrel'], 
 																											row_hwe=row['hwe'], row_hwe_unrel=row['hwe.unrel'], 
 																											miss_thresh=cfg['models'][k]['miss'], maf_thresh=cfg['models'][k]['maf'], 
-																											maf_max_thresh=cfg['models'][k]['maf_max'], rsq_thresh=cfg['models'][k]['rsq'], 
+																											maxmaf_thresh=cfg['models'][k]['maxmaf'], rsq_thresh=cfg['models'][k]['rsq'], 
 																											hwe_thresh=cfg['models'][k]['hwe']), axis=1, raw=True)
 				else:
 					marker_info['filter']=marker_info.apply(lambda row: MiscFxnsCy.GenerateFilterCodeCy(row_callrate=row['callrate'], 
@@ -362,7 +330,7 @@ def Model(cfg):
 																											row_rsq=row['rsq'], row_rsq_unrel=row['rsq.unrel'], 
 																											row_hwe=row['hwe'], row_hwe_unrel=row['hwe.unrel'], 
 																											miss_thresh=cfg['models'][k]['miss'], maf_thresh=cfg['models'][k]['maf'], 
-																											maf_max_thresh=cfg['models'][k]['maf_max'], rsq_thresh=cfg['models'][k]['rsq'], 
+																											maxmaf_thresh=cfg['models'][k]['maxmaf'], rsq_thresh=cfg['models'][k]['rsq'], 
 																											hwe_thresh=cfg['models'][k]['hwe']), axis=1, raw=True)
 				marker_info['sample'] = str(cfg['models'][k]['sample']) + '/' + str(cfg['models'][k]['samples_unique']) + '/' + str(cfg['models'][k]['clusters']) + '/' + str(cfg['models'][k]['cases']) + '/' + str(cfg['models'][k]['ctrls']) + '/' + str(cfg['models'][k]['nmale']) + '/' + str(cfg['models'][k]['nfemale'])
 
@@ -402,23 +370,6 @@ def Model(cfg):
 																					dep_var=cfg['models'][k]['dep_var'], corstr=cfg['models'][k]['corstr']), 1)
 						
 						results = pd.merge(results,marker_info_filtered,how='outer')
-					#elif cfg['models'][k]['model_fxn'].split('_')[0] == 'geeboss':
-					#	for x in cfg['models'][k]['focus']:
-					#		marker_info_passed[x + '.effect'] = float('nan')
-					#		marker_info_passed[x + '.stderr'] = float('nan')
-					#		marker_info_passed[x + '.or'] = float('nan')
-					#		marker_info_passed[x + '.z'] = float('nan')
-					#		marker_info_passed[x + '.p'] = float('nan')
-					#	marker_info_passed['n'] = '%d' % (0)
-					#	marker_info_passed['status'] = '%d' % (0)
-					#	model_df[cfg['models'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['models'][k]['fid']]).codes.astype(np.int64)
-					#	model_df.sort([cfg['models'][k]['fid']],inplace = True)
-					#	model_df['id'] = model_df[cfg['models'][k]['fid']] if cfg['models'][k]['fid'] != 'id' else model_df['id']
-					#	results = marker_info.apply(lambda row: StatsFxns.CalcGEEBoss(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
-					#																	model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
-					#																	model_fxn=cfg['models'][k]['model_fxn'], family=cfg['models'][k]['family'], focus=cfg['models'][k]['focus'], 
-					#																	dep_var=cfg['models'][k]['dep_var'], corstr=cfg['models'][k]['corstr'], 
-					#																	thresh=cfg['models'][k]['geeboss_thresh'], boss=boss), 1)
 					elif cfg['models'][k]['model_fxn'] in ['bglm','gglm']:
 						for x in cfg['models'][k]['focus']:
 							marker_info_passed[x + '.effect'] = float('nan')
@@ -448,7 +399,7 @@ def Model(cfg):
 						results = marker_info_passed.apply(lambda row: StatsFxns.CalcLMEBinomial(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
 																					model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
 																					model_fxn=cfg['models'][k]['model_fxn'], focus=cfg['models'][k]['focus'], 
-																					dep_var=cfg['models'][k]['dep_var'], lmer_control=cfg['models'][k]['lmer_control'],
+																					dep_var=cfg['models'][k]['dep_var'], lmer_ctrl=cfg['models'][k]['lmer_ctrl'],
 																					lrt=cfg['models'][k]['lrt']), 1)
 						results = pd.merge(results,marker_info_filtered,how='outer')
 					elif cfg['models'][k]['model_fxn'] == 'glme':
@@ -470,32 +421,36 @@ def Model(cfg):
 						results = marker_info_passed.apply(lambda row: StatsFxns.CalcLMEGaussian(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
 																					model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
 																					model_fxn=cfg['models'][k]['model_fxn'], focus=cfg['models'][k]['focus'], 
-																					dep_var=cfg['models'][k]['dep_var'], lmer_control=cfg['models'][k]['lmer_control'],
+																					dep_var=cfg['models'][k]['dep_var'], lmer_ctrl=cfg['models'][k]['lmer_ctrl'],
 																					reml=cfg['models'][k]['reml'],lrt=cfg['models'][k]['lrt']), 1)
 						results = pd.merge(results,marker_info_filtered,how='outer')
 					elif cfg['models'][k]['model_fxn'] == 'cph':
 						for x in cfg['models'][k]['focus']:
 							marker_info_passed[x + '.effect'] = float('nan')
-							marker_info_passed[x + '.stderr'] = float('nan')
 							marker_info_passed[x + '.or'] = float('nan')
+							marker_info_passed[x + '.ci_lower'] = float('nan')
+							marker_info_passed[x + '.ci_upper'] = float('nan')
+							marker_info_passed[x + '.stderr'] = float('nan')
+							marker_info_passed[x + '.robust_stderr'] = float('nan')
 							marker_info_passed[x + '.z'] = float('nan')
 							marker_info_passed[x + '.p'] = float('nan')
 						marker_info_passed['n'] = '%d' % (0)
 						marker_info_passed['status'] = '%d' % (0)
-						results = marker_info.apply(lambda row: StatsFxns.CalcCoxPH(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
+						results = marker_info_passed.apply(lambda row: StatsFxns.CalcCoxPH(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
 																						model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
-																						model_fxn=cfg['models'][k]['model_fxn'], family=cfg['models'][k]['family'], focus=cfg['models'][k]['focus'], 
-																						dep_var=cfg['models'][k]['dep_var'], survival=survival), 1)
+																						model_fxn=cfg['models'][k]['model_fxn'], focus=cfg['models'][k]['focus'], 
+																						dep_var=cfg['models'][k]['dep_var'],cph_ctrl=cfg['models'][k]['cph_ctrl']), 1)
+						results = pd.merge(results,marker_info_filtered,how='outer')
 					if 'id' in reglist.columns and not reglist['id'][r] is None:
 						results['id'] = reglist['id'][r]
 					if 'marker_unique' in results.columns.values:
 						results.drop('marker_unique',axis=1,inplace=True)
+					if len(cfg['model_order']) > 1:
+						results.columns = [k + '.' + a if not a in ['chr','pos','a1','a2'] else a for a in results.columns]
 					if cfg['models'][k]['written'] == False:
-						results.columns = [k + '.' + a if not a in ['chr','pos','a1','a2'] and k != 'NA' else a for a in results.columns]
 						cfg['models'][k]['results'] = results.copy()
 						cfg['models'][k]['written'] = True
 					else:
-						results.columns = [k + '.' + a if not a in ['chr','pos','a1','a2'] and k != 'NA' else a for a in results.columns]
 						cfg['models'][k]['results'] = cfg['models'][k]['results'].append(results).reset_index(drop=True)
 
 				##### PREPARE DATA FOR GENE BASED ANALYSIS #####
@@ -527,12 +482,12 @@ def Model(cfg):
 					results['id'] = reglist['id'][r]
 				if 'marker_unique' in results.columns.values:
 					results.drop('marker_unique',axis=1,inplace=True)
+				if len(cfg['model_order']) > 1:
+					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] else a for a in results.columns]
 				if cfg['models'][k]['written'] == False:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
 					cfg['models'][k]['results'] = results.copy()
 					cfg['models'][k]['written'] = True
 				else:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
 					cfg['models'][k]['results'] = cfg['models'][k]['results'].append(results).reset_index(drop=True)
 				status = '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(reglist.index)) if len(cfg['models'].keys()) == 1 else '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(reglist.index)) + " for model " + str(cfg['model_order'].index(k) + 1) + '/' + str(len(cfg['model_order'])) + ' (' + k + ')'
 				print status
@@ -592,12 +547,12 @@ def Model(cfg):
 						results = StatsFxns.BurdenMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r])
 					
 				##### APPEND TO RESULTS DF #####
+				if len(cfg['model_order']) > 1:
+					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] else a for a in results.columns]
 				if cfg['models'][k]['written'] == False:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
 					cfg['models'][k]['results'] = results.copy()
 					cfg['models'][k]['written'] = True
 				else:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
 					cfg['models'][k]['results'] = cfg['models'][k]['results'].append(results).reset_index(drop=True)
 
 		##### PERFORM GENE BASED TEST META ANALYSIS #####
@@ -662,12 +617,12 @@ def Model(cfg):
 						results = StatsFxns.BurdenMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r],meta_incl_string)
 
 				##### APPEND TO META DF #####
+				if len(cfg['model_order']) > 1:
+					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','id'] else a for a in results.columns]
 				if cfg['meta_written'][meta_tag] == False:
-					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
 					cfg['meta_results'][meta_tag] = results.copy()
 					cfg['meta_written'][meta_tag] = True
 				else:
-					results.columns = [meta_tag + '.' + a if not a in ['chr','start','end','id'] and k != 'NA' else a for a in results.columns]
 					cfg['meta_results'][meta_tag] = cfg['meta_results'][meta_tag].merge(results, how='outer', copy=False)
 
 			##### REMOVE PREPSCORES OBJECTS FROM R GLOBAL ENVIRONMENT #####

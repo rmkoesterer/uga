@@ -68,7 +68,7 @@ def CalcFreq23Cy(np.ndarray male, np.ndarray female):
 @cython.cdivision(True)
 def CalcRsqCy(np.ndarray x):
 	x = x[~np.isnan(x)]
-	cdef double rsq = x.var(ddof=1) / (2 * (x.mean() / 2) * (1 - (x.mean() / 2))) if x.var(ddof=1) != 0 else 0
+	cdef double rsq = x.var(ddof=1) / (2 * (x.mean() / 2) * (1 - (x.mean() / 2))) if x.mean() != 0 and x.mean() != 2 else 0.0
 	return 1 / rsq if rsq > 1 else rsq
 
 @cython.boundscheck(False)
@@ -130,7 +130,7 @@ def CalcHWECy(np.ndarray x):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def GenerateFilterCodeCy(np.float row_callrate, np.float row_freq, np.float row_freq_unrel, np.float row_rsq, np.float row_rsq_unrel, np.float row_hwe, np.float row_hwe_unrel, np.float miss_thresh=None, np.float maf_thresh=None, np.float maf_max_thresh=None, np.float rsq_thresh=None, np.float hwe_thresh=None, no_mono=True):
+def GenerateFilterCodeCy(np.float row_callrate, np.float row_freq, np.float row_freq_unrel, np.float row_rsq, np.float row_rsq_unrel, np.float row_hwe, np.float row_hwe_unrel, np.float miss_thresh=None, np.float maf_thresh=None, np.float maxmaf_thresh=None, np.float rsq_thresh=None, np.float hwe_thresh=None, no_mono=True):
 	cdef unsigned int filter = 0
 	if (not miss_thresh is None and not np.isnan(row_callrate) and row_callrate < miss_thresh) or (not np.isnan(row_callrate) and row_callrate == 0) or np.isnan(row_callrate):
 		filter += 1000
@@ -149,17 +149,17 @@ def GenerateFilterCodeCy(np.float row_callrate, np.float row_freq, np.float row_
 					)
 			   ) 
 			  or
-			   (	not maf_max_thresh is None
+			   (	not maxmaf_thresh is None
 				and 
 					(	   
-						(		row_freq >= maf_max_thresh
-							and row_freq <= 1-maf_max_thresh
+						(		row_freq >= maxmaf_thresh
+							and row_freq <= 1-maxmaf_thresh
 						)
 					)
 				and
 					(
-						(		row_freq_unrel >= maf_max_thresh
-							and row_freq_unrel <= 1-maf_max_thresh
+						(		row_freq_unrel >= maxmaf_thresh
+							and row_freq_unrel <= 1-maxmaf_thresh
 						)
 						or row_freq_unrel == 0
 						or row_freq_unrel == 1

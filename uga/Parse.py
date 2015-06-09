@@ -87,7 +87,7 @@ def Parser():
 						action=AddString, 
 						type=float, 
 						help='threshold value for minimum minor allele frequency (ie. 0.03 filters out markers with maf < 0.03)')
-	model_parser.add_argument('--maf-max', 
+	model_parser.add_argument('--maxmaf', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for maximum minor allele frequency (ie. 0.01 filters out markers with maf >= 0.01)')
@@ -139,6 +139,10 @@ def Parser():
 						nargs=0, 
 						action=AddTrue, 
 						help='REML value for lmer function')
+	model_parser.add_argument('--cph-ctrl', 
+						action=AddString, 
+						default='eps=1e-09,toler.chol=.Machine$double.eps^0.75,iter.max=20,toler.inf=sqrt(1e-09),outer.max=10', 
+						help='coxph.control parameters for coxph models; use double quotes for string values (default: eps=1e-09,toler.chol=.Machine$double.eps^0.75,iter.max=20,toler.inf=sqrt(1e-09),outer.max=10)')
 	model_parser.add_argument('--meta', 
 						action=AddString, 
 						help='a meta analysis string')
@@ -568,11 +572,13 @@ def GenerateModelCfg(args):
 
 	# list all possible model level arguments
 	model_vars = ['tag','sample','pheno','varlist','fid','iid','focus','ped','sex', 
-					'male','female','buffer','miss','maf','maf_max','rsq','hwe','rho','boss','case','ctrl','corstr','sep','lmer_control',
+					'male','female','buffer','miss','maf','maxmaf','rsq','hwe','rho','boss','case','ctrl','corstr','sep','lmer_ctrl',
 					'reml','lrt','wald','no_z','satt','kr','cph_ctrl','skat_wts','burden_wts','wts',
 					'ggee','bgee','gglm','bglm','glme','blme','cph','neff',
 					'fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden',
 					'oxford','vcf','plink','dos1','dos2']
+	if not 'tag' in args:
+		args = [('tag', 'A')] + args
 	pre_tag_idx = [a[0] for a in args if a[0] in model_vars].index('tag')
 
 	# extract global model arguments
@@ -658,19 +664,22 @@ def GenerateModelCfg(args):
 			if 'rho' in config['models'][x]:
 				del config['models'][x]['rho']
 		if config['models'][x]['model_fxn'] in ['glme','blme']:
-			if not 'lmer_control' in config['models'][x]:
-				config['models'][x]['lmer_control'] = "check.nobs.vs.rankZ='stop',check.nlev.gtreq.5='stop',check.rankX='stop.deficient',check.scaleX='stop',check.conv.grad=.makeCC('stop',tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action='stop',tol=1e-4),check.conv.hess=.makeCC(action='stop',tol=1e-6)"
+			if not 'lmer_ctrl' in config['models'][x]:
+				config['models'][x]['lmer_ctrl'] = "check.nobs.vs.rankZ='stop',check.nlev.gtreq.5='stop',check.rankX='stop.deficient',check.scaleX='stop',check.conv.grad=.makeCC('stop',tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action='stop',tol=1e-4),check.conv.hess=.makeCC(action='stop',tol=1e-6)"
 			if not 'lrt' in config['models'][x]:
-				config['models'][x]['lrt'] = False	
+				config['models'][x]['lrt'] = False
 		if config['models'][x]['model_fxn'] == 'glme':
 			if not 'reml' in config['models'][x]:
 				config['models'][x]['reml'] = False
+		if config['models'][x]['model_fxn'] == 'cph':
+			if not 'cph_ctrl' in config['models'][x]:
+				config['models'][x]['cph_ctrl'] = "eps=1e-09,toler.chol=.Machine$double.eps^0.75,iter.max=20,toler.inf=sqrt(1e-09),outer.max=10"
 		if not 'miss' in config['models'][x]:
 			config['models'][x]['miss'] = None
 		if not 'maf' in config['models'][x]:
 			config['models'][x]['maf'] = None
-		if not 'maf_max' in config['models'][x]:
-			config['models'][x]['maf_max'] = None
+		if not 'maxmaf' in config['models'][x]:
+			config['models'][x]['maxmaf'] = None
 		if not 'hwe' in config['models'][x]:
 			config['models'][x]['hwe'] = None
 		if not 'rsq' in config['models'][x]:
@@ -691,10 +700,12 @@ def GenerateModelCfg(args):
 			config['models'][x]['family'] = 'gaussian'
 		elif config['models'][x]['model_fxn'] in ['bgee','bglm','blme']:
 			config['models'][x]['family'] = 'binomial'
+		else:
+			config['models'][x]['family'] = None
 	return config
 
 def PrintModelOptions(cfg):
-	print "main options"
+	print "main options ..."
 	for k in cfg:
 		if not k in ['models','model_order','meta']:
 			if cfg[k] is not None and cfg[k] is not False:
@@ -703,7 +714,7 @@ def PrintModelOptions(cfg):
 				else:
 					print "   {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 	for m in cfg['models']:
-		print 'model ' + str(m) + ' options'
+		print 'model ' + str(m) + ' options ...'
 		cfg['models'][m][cfg['models'][m]['model_fxn']] = cfg['models'][m]['model']
 		for n in cfg['models'][m]:
 			if not n in ['model_fxn','model','family','format','data']:
