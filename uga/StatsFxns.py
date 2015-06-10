@@ -55,7 +55,6 @@ def CalcGLM(marker_info, model_df, model_vars_dict, model, iid, fid, family, foc
 		if model_out.rx2('converged')[0] and not model_out.rx2('boundary')[0]:
 			marker_info['status'] = '%d' % (1)
 			coef = py2r.convert_robj(rsummary(model_out).rx('coefficients'))['coefficients']
-			coef.index.values[coef.index.values == marker_info['marker_unique']] = 'marker'
 			for x in focus:
 				xt = x.replace('marker',marker_info['marker_unique'])
 				xt = xt.replace('*',':') if xt.replace('*',':') in coef.index.values else xt.replace('*',':').split(':')[1] + ':' + xt.replace('*',':').split(':')[0]
@@ -81,7 +80,6 @@ def CalcLMEBinomial(marker_info,model_df,model_vars_dict,model,model_fxn,iid,fid
 	else:
 		marker_info['status'] = '%d' % (1)
 		coef = py2r.convert_robj(ro.r('summary(model_out)$coefficients'))
-		coef.index.values[coef.index.values == marker_info['marker_unique']] = 'marker'
 		for x in focus:
 			xt = x.replace('marker',marker_info['marker_unique'])
 			xt = xt.replace('*',':') if xt.replace('*',':') in coef.index.values else xt.replace('*',':').split(':')[1] + ':' + xt.replace('*',':').split(':')[0]
@@ -117,7 +115,6 @@ def CalcLMEGaussian(marker_info,model_df,model_vars_dict,model,model_fxn,iid,fid
 	else:
 		marker_info['status'] = '%d' % (1)
 		coef = py2r.convert_robj(ro.r('summary(model_out)$coefficients'))
-		coef.index.values[coef.index.values == marker_info['marker_unique']] = 'marker'
 		for x in focus:
 			xt = x.replace('marker',marker_info['marker_unique'])
 			xt = xt.replace('*',':') if xt.replace('*',':') in coef.index.values else xt.replace('*',':').split(':')[1] + ':' + xt.replace('*',':').split(':')[0]
@@ -182,36 +179,16 @@ def CalcEffTests(model_df):
 		n_eff = 1
 	return '%.5g' % n_eff
 
-def PrepScores(snp_info, z, model, pheno, seqmeta, family=None):
-	family = ro.r('gaussian()') if family is None or family == 'gaussian' else ro.r('binomial()')
-	rsnp_info = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
-	rz = ro.r('as.matrix')(py2r.convert_to_r_dataframe(z, strings_as_factors=False))
-	rpheno = py2r.convert_to_r_dataframe(pheno, strings_as_factors=False)
-	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, family=family)
-	return ro.globalenv['ps']
-
-def PrepScoresFam(snp_info, z, model, pheno, seqmeta, kinship):
-	rsnp_info = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
-	rz = ro.r('as.matrix')(py2r.convert_to_r_dataframe(z, strings_as_factors=False))
-	rpheno = py2r.convert_to_r_dataframe(pheno, strings_as_factors=False)
-	ro.globalenv['ps'] = seqmeta.prepScores(Z = rz, formula = ro.r(model), SNPInfo = rsnp_info, data = rpheno, kins = kinship, sparse=ro.r('FALSE'))
-	return ro.globalenv['ps']
-
-def SkatOMeta(cmd, snp_info, seqmeta, rho = 1):
-	ro.globalenv['rsnp_info'] = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
-	ro.globalenv['r_rho'] = ro.r('seq(0,1,' + str(rho) + ')')
+def SkatOMeta(cmd):
 	try:
 		result = rtry(ro.reval(cmd),silent=ro.r('TRUE'))
-		f1=open('test.result', 'w+')
-		f1.write(str(result))
-		f1.close()
 	except RRuntimeError:
-		result_df = pd.DataFrame({'p': ['NA'], 'pmin': ['NA'], 'rho': ['NA'], 'cmaf': ['NA'], 'nmiss': ['NA'], 'nsnps': ['NA'], 'errflag': ['100']})
+		result_df = pd.DataFrame({'p': [float('nan')], 'pmin': [float('nan')], 'rho': [float('nan')], 'cmaf': [float('nan')], 'nmiss': [float('nan')], 'nsnps': [float('nan')], 'errflag': ['100']})
 		result_df.index = [1]
 	else:
 		result_df = py2r.convert_robj(result)
-		result_df['p'] = '%.2e' % (result_df['p']) if result_df['p'][1] != 0 and result_df['errflag'][1] == 0 else 'NA'
-		result_df['pmin'] = '%.2e' % (result_df['pmin']) if result_df['pmin'][1] != 0 and result_df['errflag'][1] == 0 else 'NA'
+		result_df['p'] = '%.4e' % (result_df['p']) if result_df['p'][1] != 0 and result_df['errflag'][1] == 0 else float('nan')
+		result_df['pmin'] = '%.4e' % (result_df['pmin']) if result_df['pmin'][1] != 0 and result_df['errflag'][1] == 0 else float('nan')
 		result_df['rho'] = '%.5g' % (result_df['rho'])
 		result_df['cmaf'] = '%.5g' % (result_df['cmaf'])
 		result_df['nmiss'] = '%d' % (result_df['nmiss'])
@@ -219,32 +196,31 @@ def SkatOMeta(cmd, snp_info, seqmeta, rho = 1):
 		result_df['errflag'] = '%d' % (result_df['errflag'])
 	return result_df
 
-def SkatMeta(cmd, snp_info, seqmeta):
-	ro.globalenv['rsnp_info'] = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
+def SkatMeta(cmd):
 	try:
 		result = rtry(ro.reval(cmd),silent=ro.r('TRUE'))
 	except RRuntimeError:
-		result_df = pd.DataFrame({'p': ['NA'], 'Qmeta': ['NA'], 'cmaf': ['NA'], 'nmiss': ['NA'], 'nsnps': ['NA']})
+		result_df = pd.DataFrame({'p': [float('nan')], 'Qmeta': [float('nan')], 'cmaf': [float('nan')], 'nmiss': [float('nan')], 'nsnps': [float('nan')]})
 		result_df.index = [1]
 	else:
 		result_df = py2r.convert_robj(result)
-		result_df['p'] = '%.2e' % (result_df['p']) if result_df['p'][1] != 0 else 'NA'
+		result_df['p'] = '%.4e' % (result_df['p']) if result_df['p'][1] != 0 else float('nan')
 		result_df['Qmeta'] = '%.5g' % (result_df['Qmeta'])
 		result_df['cmaf'] = '%.5g' % (result_df['cmaf'])
 		result_df['nmiss'] = '%d' % (result_df['nmiss'])
 		result_df['nsnps'] = '%d' % (result_df['nsnps'])
 	return result_df
 
-def BurdenMeta(cmd, snp_info, seqmeta):
-	ro.globalenv['rsnp_info'] = py2r.convert_to_r_dataframe(snp_info, strings_as_factors=False)
+def BurdenMeta(cmd):
 	try:
 		result = rtry(ro.reval(cmd),silent=ro.r('TRUE'))
 	except RRuntimeError:
-		result_df = pd.DataFrame({'p': ['NA'], 'beta': ['NA'], 'se': ['NA'], 'cmafTotal': ['NA'], 'cmafUsed': ['NA'], 'nsnpsTotal': ['NA'], 'nsnpsUsed': ['NA'], 'nmiss': ['NA']})
+		result_df = pd.DataFrame({'p': [float('nan')], 'beta': [float('nan')], 'se': [float('nan')], 'cmafTotal': [float('nan')], 'cmafUsed': [float('nan')], 
+										'nsnpsTotal': [float('nan')], 'nsnpsUsed': [float('nan')], 'nmiss': [float('nan')]})
 		result_df.index = [1]
 	else:
 		result_df = py2r.convert_robj(result)
-		result_df['p'] = '%.2e' % (result_df['p']) if result_df['p'][1] != 0 else 'NA'
+		result_df['p'] = '%.4e' % (result_df['p']) if result_df['p'][1] != 0 else float('nan')
 		result_df['beta'] = '%.5g' % (result_df['beta'])
 		result_df['se'] = '%.5g' % (result_df['se'])
 		result_df['cmafTotal'] = '%.5g' % (result_df['cmafTotal'])
@@ -258,32 +234,32 @@ def BurdenMeta(cmd, snp_info, seqmeta):
 def SkatOMetaEmpty(chr, start, end, id, meta_incl_string = None):
 	if meta_incl_string is not None:
 		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'id': [id],'incl': [meta_incl_string],
-								'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
-								'nsnps': ['NA'],'errflag': ['NA']})
+								'p': [float('nan')],'pmin': [float('nan')],'rho': [float('nan')],'cmaf': [float('nan')],'nmiss': [float('nan')],
+								'nsnps': [float('nan')],'errflag': [float('nan')]})
 	else:
 		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'id': [id],
-								'p': ['NA'],'pmin': ['NA'],'rho': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
-								'nsnps': ['NA'],'errflag': ['NA']})
+								'p': [float('nan')],'pmin': [float('nan')],'rho': [float('nan')],'cmaf': [float('nan')],'nmiss': [float('nan')],
+								'nsnps': [float('nan')],'errflag': [float('nan')]})
 	return results[['chr','start','end','id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
 
 def SkatMetaEmpty(chr, start, end, id, meta_incl_string = None):
 	if meta_incl_string is not None:
 		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'id': [id],'incl': [meta_incl_string],
-								'p': ['NA'],'Qmeta': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
-								'nsnps': ['NA']})
+								'p': [float('nan')],'Qmeta': [float('nan')],'cmaf': [float('nan')],'nmiss': [float('nan')],
+								'nsnps': [float('nan')]})
 	else:
 		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'id': [id],
-								'p': ['NA'],'Qmeta': ['NA'],'cmaf': ['NA'],'nmiss': ['NA'],
-								'nsnps': ['NA']})
+								'p': [float('nan')],'Qmeta': [float('nan')],'cmaf': [float('nan')],'nmiss': [float('nan')],
+								'nsnps': [float('nan')]})
 	return results[['chr','start','end','id','p','Qmeta','cmaf','nmiss','nsnps']]
 
 def BurdenMetaEmpty(chr, start, end, id, meta_incl_string = None):
 	if meta_incl_string is not None:
 		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'id': [id],'incl': [meta_incl_string],
-								'p': ['NA'],'beta': ['NA'],'se': ['NA'],'cmafTotal': ['NA'],'cmafUsed': ['NA'],
-								'nsnpsTotal': ['NA'],'nsnpsUsed': ['NA'],'nmiss': ['NA']})
+								'p': [float('nan')],'beta': [float('nan')],'se': [float('nan')],'cmafTotal': [float('nan')],'cmafUsed': [float('nan')],
+								'nsnpsTotal': [float('nan')],'nsnpsUsed': [float('nan')],'nmiss': [float('nan')]})
 	else:
 		results = pd.DataFrame({'chr': [chr],'start': [start],'end': [end],'id': [id],
-								'p': ['NA'],'beta': ['NA'],'se': ['NA'],'cmafTotal': ['NA'],'cmafUsed': ['NA'],
-								'nsnpsTotal': ['NA'],'nsnpsUsed': ['NA'],'nmiss': ['NA']})
+								'p': [float('nan')],'beta': [float('nan')],'se': [float('nan')],'cmafTotal': [float('nan')],'cmafUsed': [float('nan')],
+								'nsnpsTotal': [float('nan')],'nsnpsUsed': [float('nan')],'nmiss': [float('nan')]})
 	return results[['chr','start','end','id','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]

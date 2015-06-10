@@ -111,10 +111,6 @@ def Parser():
 						action=AddString, 
 						choices=['exchangeable','independence','ar1','unstructured'], 
 						help='correlation structure for gee analyses (default: exchangeable)')
-	model_parser.add_argument('--thresh', 
-						action=AddString, 
-						type=float, 
-						help='p-value threshold for boss.fit thresh option (default: 1e-7)')
 	model_parser.add_argument('--ped', 
 						action=AddString, 
 						help='pedigree file')
@@ -150,9 +146,6 @@ def Parser():
 						nargs=0, 
 						action=AddTrue, 
 						help='calculate likelihood ratio test p values using chi-square statistic')
-	model_parser.add_argument('--boss', 
-						action=AddString, 
-						help='update p-values with Boosted One Step Statistics (R package)')
 	model_parser.add_argument('--rho', 
 						action=AddString, 
 						help='rho value in (0,1] for seqMeta skat-o models (default: 1; ex. 0.25 sets rho=c(0,0.25,0.5,0.75,1))')
@@ -222,10 +215,23 @@ def Parser():
 						help='model string for coxph analysis')
 	model_parser.add_argument('--neff', 
 						action=AddString, 
-						help='model string for efftests analysis')
+						help='model string for li and ji effective test calculation (ensures that correct samples are included for relevant model)')
 	model_parser.add_argument('--fskato', 
 						action=AddString, 
 						help='model string for family based skat-o analysis')
+	model_parser.add_argument('--skat-method', 
+						action=AddString,
+						default='saddlepoint', 
+						choices=['saddlepoint','integration','liu'], 
+						help='seqMeta skatOMeta method (default: saddlepoint)')
+	model_parser.add_argument('--skat-wts', 
+						action=AddString,
+						default='function(maf){dbeta(maf,1,25)}', 
+						help='seqMeta skat weights (default: beta weights function(maf){dbeta(maf,1,25)})')
+	model_parser.add_argument('--burden-wts', 
+						action=AddString,
+						default='function(maf){as.numeric(maf<0.01)}', 
+						help='seqMeta burden weights (default: T1 weights function(maf){as.numeric(maf<0.01)})')
 	model_parser.add_argument('--gskato', 
 						action=AddString, 
 						help='model string for skat-o gaussian analysis')
@@ -572,12 +578,12 @@ def GenerateModelCfg(args):
 
 	# list all possible model level arguments
 	model_vars = ['tag','sample','pheno','varlist','fid','iid','focus','ped','sex', 
-					'male','female','buffer','miss','maf','maxmaf','rsq','hwe','rho','boss','case','ctrl','corstr','sep','lmer_ctrl',
-					'reml','lrt','wald','no_z','satt','kr','cph_ctrl','skat_wts','burden_wts','wts',
+					'male','female','buffer','miss','maf','maxmaf','rsq','hwe','rho','case','ctrl','corstr','sep','lmer_ctrl',
+					'reml','lrt','cph_ctrl','skat_wts','burden_wts','skat_method',
 					'ggee','bgee','gglm','bglm','glme','blme','cph','neff',
 					'fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden',
 					'oxford','vcf','plink','dos1','dos2']
-	if not 'tag' in args:
+	if not 'tag' in [a[0] for a in args]:
 		args = [('tag', 'A')] + args
 	pre_tag_idx = [a[0] for a in args if a[0] in model_vars].index('tag')
 
@@ -648,21 +654,20 @@ def GenerateModelCfg(args):
 				config['models'][x]['corstr'] = key[1]
 			else:
 				config['models'][x]['corstr'] = 'exchangeable'
-		if config['models'][x]['model_fxn'] in ['ggee','bgee','gglm','bglm']:
-			if 'boss' in config['models'][x]:
-				if 'thresh' in config['models'][x]:
-					config['models'][x]['thresh'] = args[1]
-				else:
-					config['models'][x]['thresh'] = 1e-7
-			else:
-				if 'thresh' in config['models'][x]:
-					del config['models'][x]['thresh']
 		if config['models'][x]['model_fxn'] in ['gskato','bskato','fskato']:
 			if not 'rho' in config['models'][x]:
 				config['models'][x]['rho'] = 1
 		else:
 			if 'rho' in config['models'][x]:
 				del config['models'][x]['rho']
+		if config['models'][x]['model_fxn'] in ['gskato','bskato','fskato','fskat','gskat','bskat']:
+			if not 'skat_wts' in config['models'][x]:
+				config['models'][x]['skat_wts'] = 'function(maf){dbeta(maf,1,25)}'
+			if not 'skat_method' in config['models'][x]:
+				config['models'][x]['skat_method'] = 'saddlepoint'
+		if config['models'][x]['model_fxn'] in ['gskato','bskato','fskato','fburden','gburden','bburden']:
+			if not 'burden_wts' in config['models'][x]:
+				config['models'][x]['burden_wts'] = 'function(maf){as.numeric(maf<0.01)}'
 		if config['models'][x]['model_fxn'] in ['glme','blme']:
 			if not 'lmer_ctrl' in config['models'][x]:
 				config['models'][x]['lmer_ctrl'] = "check.nobs.vs.rankZ='stop',check.nlev.gtreq.5='stop',check.rankX='stop.deficient',check.scaleX='stop',check.conv.grad=.makeCC('stop',tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action='stop',tol=1e-4),check.conv.hess=.makeCC(action='stop',tol=1e-6)"
@@ -705,21 +710,29 @@ def GenerateModelCfg(args):
 	return config
 
 def PrintModelOptions(cfg):
-	print "main options ..."
+	print ''
+	print "options in effect ..."
 	for k in cfg:
 		if not k in ['models','model_order','meta']:
 			if cfg[k] is not None and cfg[k] is not False:
 				if cfg[k] is True:
-					print "   {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
 				else:
-					print "   {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 	for m in cfg['models']:
-		print 'model ' + str(m) + ' options ...'
+		print '   model ' + str(m) + ' ...'
 		cfg['models'][m][cfg['models'][m]['model_fxn']] = cfg['models'][m]['model']
 		for n in cfg['models'][m]:
 			if not n in ['model_fxn','model','family','format','data']:
 				if cfg['models'][m][n] is not None and cfg['models'][m][n] is not False:
 					if cfg['models'][m][n] is True:
-						print "   {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len)))
+						print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len)))
 					else:
-						print "   {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m][n])
+						print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m][n])
+	if 'meta' in cfg:
+		print '   meta analysis ...'
+		metas = [(x.split(':')[0],x.split(':')[1]) for x in cfg['meta']]
+		for m in metas:
+			print "      {0:>{1}}".format(str('--meta ' + m[0]), len(max(['--' + k[0] for k in metas],key=len))) + ":" + str(m[1])
+	print ''
+

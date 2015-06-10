@@ -30,8 +30,8 @@ def Model(cfg):
 
 	##### STOP IF MODEL TYPES IN META ANALYSIS ARE INCOMPATIBLE #####
 	for x in cfg['meta']:
-		if not set(x.split(':')[1].split('+')) & set(seqmeta_tests):
-			print SystemFxns.Error("only seqMeta models may be meta-analyzed")
+		if not len(set([cfg['models'][k]['model_fxn'] for k in x.split(':')[1].split('+')])) == 1 or not set([cfg['models'][k]['model_fxn'] for k in x.split(':')[1].split('+')]) & set(seqmeta_tests):
+			print SystemFxns.Error("only matching seqMeta models may be meta-analyzed")
 			return()
 
 	##### LOAD NECESSARY R PACKAGES #####
@@ -130,8 +130,8 @@ def Model(cfg):
 				print "loading pedigree for model " + k if len(cfg['models'].keys()) > 1 else "loading pedigree"
 				cfg['models'][k]['ped_df'] = pd.read_table(cfg['models'][k]['pedigree'],sep='\t',dtype='str',usecols=['FID','IID','PAT','MAT'])
 				cfg['models'][k]['ped_df'] = cfg['models'][k]['ped_df'][cfg['models'][k]['ped_df']['IID'].isin(list(cfg['models'][k]['vars_df'][cfg['models'][k]['iid']].values))]
-				ro.globalenv['pedigree'] = py2r.convert_to_r_dataframe(cfg['models'][k]['ped_df'], strings_as_factors=False)
-				cfg['models'][k]['kins'] = ro.r("makekinship(pedigree.rx2('FID'),pedigree.rx2('IID'),pedigree.rx2('PAT'),pedigree.rx2('MAT'))")
+				#ro.globalenv['pedigree'] = py2r.convert_to_r_dataframe(cfg['models'][k]['ped_df'], strings_as_factors=False)
+				#cfg['models'][k]['kins'] = ro.r("makekinship(pedigree.rx2('FID'),pedigree.rx2('IID'),pedigree.rx2('PAT'),pedigree.rx2('MAT'))")
 
 	##### GENERATE REGION LIST #####
 	if not cfg['reglist'] is None:
@@ -470,7 +470,7 @@ def Model(cfg):
 				print status
 
 			##### CALCULATE EFFECTIVE TESTS #####
-			if cfg['models'][k]['model_fxn'] == 'efftests':
+			if cfg['models'][k]['model_fxn'] == 'neff':
 				tot_tests = cfg['reg_marker_info'].shape[0]
 				if tot_tests > 0:
 					n_eff = StatsFxns.CalcEffTests(model_df=cfg['reg_model_df'][cfg['reg_marker_info']['marker_unique']])
@@ -496,34 +496,41 @@ def Model(cfg):
 			elif cfg['models'][k]['model_fxn'] in seqmeta_tests:
 				if not cfg['reg_marker_info'] is None and cfg['reg_marker_info'].shape[0] > 0:
 					cfg['models'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': reglist['id'][r]})
-					z = cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])]
-					pheno = cfg['reg_model_df'][list(set(cfg['models'][k]['model_vars_dict'].keys() + [cfg['models'][k]['iid'],cfg['models'][k]['fid']]))]
+					ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': reglist['id'][r]}), strings_as_factors=False)
+					ro.globalenv['z'] = py2r.convert_to_r_dataframe(cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])], strings_as_factors=False)
+					ro.globalenv['pheno'] = py2r.convert_to_r_dataframe(cfg['reg_model_df'][list(set(cfg['models'][k]['model_vars_dict'].keys() + [cfg['models'][k]['iid'],cfg['models'][k]['fid']]))], strings_as_factors=False)
 
 					##### PREPSCORES #####
 					if cfg['models'][k]['model_fxn'] in ['famskat_o','famskat','famburden']:
-						ro.globalenv['ps' + k] = StatsFxns.PrepScoresFam(snp_info=cfg['models'][k]['snp_info'], z=z, model=cfg['models'][k]['model'], pheno=pheno, kinship=cfg['models'][k]['kins'], seqmeta=seqmeta)
+						ro.globalenv['pedigree'] = py2r.convert_to_r_dataframe(cfg['models'][k]['ped_df'], strings_as_factors=False)
+						ro.globalenv['kins'] = ro.r("makekinship(pedigree.rx2('FID'),pedigree.rx2('IID'),pedigree.rx2('PAT'),pedigree.rx2('MAT'))")
+						cmd = 'prepScores(Z=z,formula=' + cfg['models'][k]['model'] + ',SNPInfo=snp_info,data=pheno,kins=kins,sparse=TRUE)'
+						ro.globalenv['ps' + k] = ro.r(cmd)
 					else:
-						ro.globalenv['ps' + k] = StatsFxns.PrepScores(snp_info=cfg['models'][k]['snp_info'], z=z, model=cfg['models'][k]['model'], pheno=pheno, family=cfg['models'][k]['family'], seqmeta=seqmeta)
+						ro.globalenv['family'] = ro.r('gaussian()') if cfg['models'][k]['family'] is None or cfg['models'][k]['family'] == 'gaussian' else ro.r('binomial()')
+						cmd = 'prepScores(Z=z,formula=' + cfg['models'][k]['model'] + ',SNPInfo=snp_info,data=pheno,family=family)'
+						ro.globalenv['ps' + k] = ro.r(cmd)
 
 					##### SKAT-O #####
-					if cfg['models'][k]['model_fxn'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
-						results_pre = StatsFxns.SkatOMeta('skatOMeta(ps' + k + ', SNPInfo=rsnp_info, rho=r_rho)', cfg['models'][k]['snp_info'], cfg['models'][k]['skat_o_rho'], seqmeta=seqmeta)
+					if cfg['models'][k]['model_fxn'] in ['fskato','gskato','bskato']:
+						ro.globalenv['rho'] = ro.r('seq(0,1,' + str(cfg['models'][k]['rho']) + ')')
+						results_pre = StatsFxns.SkatOMeta('skatOMeta(ps' + k + ',SNPInfo=snp_info,rho=rho,skat.wts=' + cfg['models'][k]['skat_wts'] + ',burden.wts=' + cfg['models'][k]['burden_wts'] + ',method="' + cfg['models'][k]['skat_method'] + '")')
 						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],
 											'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
 						results = results[['chr','start','end','id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
 
 					##### SKAT #####
-					elif cfg['models'][k]['model_fxn'] in ['famskat','skat_gaussian','skat_binomial']:
-						results_pre = StatsFxns.SkatMeta('skatMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['models'][k]['snp_info'], seqmeta=seqmeta)
+					elif cfg['models'][k]['model_fxn'] in ['fskat','gskat','bskat']:
+						results_pre = StatsFxns.SkatMeta('skatMeta(ps' + k + ',SNPInfo=snp_info,wts=' + cfg['models'][k]['skat_wts'] + ',method="' + cfg['models'][k]['skat_method'] + '")')
 						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],
 											'p': [results_pre['p'][1]],'Qmeta': [results_pre['Qmeta'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]]})
 						results = results[['chr','start','end','id','p','Qmeta','cmaf','nmiss','nsnps']]
 
 					##### BURDEN #####
-					elif cfg['models'][k]['model_fxn'] in ['famburden','burden_gaussian','burden_binomial']:
-						results_pre = StatsFxns.BurdenMeta('burdenMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['models'][k]['snp_info'], seqmeta=seqmeta)
+					elif cfg['models'][k]['model_fxn'] in ['fburden','gburden','bburden']:
+						results_pre = StatsFxns.BurdenMeta('burdenMeta(ps' + k + ',SNPInfo=snp_info,wts=' + cfg['models'][k]['burden_wts'] + ')')
 						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],
 											'p': [results_pre['p'][1]],'beta': [results_pre['beta'][1]],'se': [results_pre['se'][1]],'cmafTotal': [results_pre['cmafTotal'][1]],
 											'cmafUsed': [results_pre['cmafUsed'][1]],'nsnpsTotal': [results_pre['nsnpsTotal'][1]],'nsnpsUsed': [results_pre['nsnpsUsed'][1]],
@@ -535,15 +542,15 @@ def Model(cfg):
 					cfg['models'][k]['snp_info'] = pd.DataFrame({'Name': [], 'gene': []})
 
 					##### EMPTY SKAT-O DF #####
-					if cfg['models'][k]['model_fxn'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
+					if cfg['models'][k]['model_fxn'] in ['fskato','gskato','bskato']:
 						results = StatsFxns.SkatOMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r])
 
 					##### EMPTY SKAT DF #####
-					elif cfg['models'][k]['model_fxn'] in ['famskat','skat_gaussian','skat_binomial']:
+					elif cfg['models'][k]['model_fxn'] in ['fskat','gskat','bskat']:
 						results = StatsFxns.SkatMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r])
 
 					##### EMPTY BURDEN DF #####
-					elif cfg['models'][k]['model_fxn'] in ['famburden','burden_gaussian','burden_binomial']:
+					elif cfg['models'][k]['model_fxn'] in ['fburden','gburden','bburden']:
 						results = StatsFxns.BurdenMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r])
 					
 				##### APPEND TO RESULTS DF #####
@@ -576,44 +583,44 @@ def Model(cfg):
 							seqmeta_cmd = seqmeta_cmd + ', ps' + k
 					else:
 						meta_incl_string = meta_incl_string + 'x'
-
-				if snp_info_meta is not None and snp_info_meta.shape[0] > 1:
+				if snp_info_meta is not None and snp_info_meta.shape[0] > 0:
+					ro.globalenv['snp_info_meta'] = py2r.convert_to_r_dataframe(snp_info_meta, strings_as_factors=False)
 					##### SKAT-O #####
-					if cfg['models'][k]['model_fxn'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
-						results_pre = StatsFxns.SkatOMeta('skatOMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info, rho=r_rho)', snp_info_meta, cfg['models'][k]['skat_o_rho'], seqmeta=seqmeta)
+					if cfg['models'][cfg['model_order'][0]]['model_fxn'] in ['fskato','gskato','bskato']:
+						results_pre = StatsFxns.SkatOMeta('skatOMeta(' + seqmeta_cmd + ',SNPInfo=snp_info_meta,rho=rho,skat.wts=' + cfg['models'][cfg['model_order'][0]]['skat_wts'] + ',burden.wts=' + cfg['models'][cfg['model_order'][0]]['burden_wts'] + ',method="' + cfg['models'][cfg['model_order'][0]]['skat_method'] + '")')
 						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],'incl': [meta_incl_string],
-													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
-													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
+											'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
+											'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
 						results = results[['chr','start','end','id','incl','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
 
 					##### SKAT #####
-					elif cfg['models'][k]['model_fxn'] in ['famskat','skat_gaussian','skat_binomial']:
-						results_pre = StatsFxns.SkatMeta('skatMeta(' + seqmeta_cmd + ', SNPInfo=rsnp_info)', snp_info_meta, seqmeta=seqmeta)
+					elif cfg['models'][cfg['model_order'][0]]['model_fxn'] in ['fskat','gskat','bskat']:
+						results_pre = StatsFxns.SkatMeta('skatMeta(' + seqmeta_cmd + ', SNPInfo=snp_info_meta,wts=' + cfg['models'][cfg['model_order'][0]]['skat_wts'] + ',method="' + cfg['models'][cfg['model_order'][0]]['skat_method'] + '")')
 						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],'meta_incl': [meta_incl_string],
-													'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
-													'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
-						results = results[['chr','start','end','id','incl','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+													'p': [results_pre['p'][1]],'Qmeta': [results_pre['Qmeta'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
+													'nsnps': [results_pre['nsnps'][1]]})
+						results = results[['chr','start','end','id','p','Qmeta','cmaf','nmiss','nsnps']]
 
 					##### BURDEN #####
-					elif cfg['models'][k]['model_fxn'] in ['famburden','burden_gaussian','burden_binomial']:
-						results_pre = StatsFxns.BurdenMeta('burdenMeta(ps' + k + ', SNPInfo=rsnp_info)', cfg['models'][k]['snp_info'], seqmeta=seqmeta)
+					elif cfg['models'][cfg['model_order'][0]]['model_fxn'] in ['fburden','gburden','bburden']:
+						results_pre = StatsFxns.BurdenMeta('burdenMeta(' + seqmeta_cmd + ', SNPInfo=snp_info_meta,wts=' + cfg['models'][cfg['model_order'][0]]['burden_wts'] + ')')
 						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],'meta_incl': [meta_incl_string],
 											'p': [results_pre['p'][1]],'beta': [results_pre['beta'][1]],'se': [results_pre['se'][1]],'cmafTotal': [results_pre['cmafTotal'][1]],
 											'cmafUsed': [results_pre['cmafUsed'][1]],'nsnpsTotal': [results_pre['nsnpsTotal'][1]],'nsnpsUsed': [results_pre['nsnpsUsed'][1]],
 											'nmiss': [results_pre['nmiss'][1]]})
-						results = results[['chr','start','end','id','incl','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
+						results = results[['chr','start','end','id','p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
 				else:
 
 					##### EMPTY SKAT-O DF #####
-					if cfg['models'][k]['model_fxn'] in ['famskat_o','skat_o_gaussian','skat_o_binomial']:
+					if cfg['models'][k]['model_fxn'] in ['fskato','gskato','bskato']:
 						results = StatsFxns.SkatOMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r],meta_incl_string)
 
 					##### EMPTY SKAT DF #####
-					elif cfg['models'][k]['model_fxn'] in ['famskat','skat_gaussian','skat_binomial']:
+					elif cfg['models'][k]['model_fxn'] in ['fskat','gskat','bskat']:
 						results = StatsFxns.SkatMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r],meta_incl_string)
 
 					##### EMPTY BURDEN DF #####
-					elif cfg['models'][k]['model_fxn'] in ['famburden','burden_gaussian','burden_binomial']:
+					elif cfg['models'][k]['model_fxn'] in ['fburden','gburden','bburden']:
 						results = StatsFxns.BurdenMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r],meta_incl_string)
 
 				##### APPEND TO META DF #####
@@ -662,15 +669,30 @@ def Model(cfg):
 	else:
 		results_out[['chr','start','end']] = results_out[['chr','start','end']].astype(int)
 		results_out.sort(columns=['chr','start'],inplace=True)
-	results_out[[x for x in results_out.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]] = results_out[[x for x in results_out.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]].astype(float)
-	results_out[[x for x in results_out.columns if x.endswith(('filter','n','status'))]] = results_out[[x for x in results_out.columns if x.endswith(('filter','n','status'))]].astype(int)
-	for c in [x for x in results_out.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case'))]:
-		results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
-		results_out[c] = results_out[c].astype(object)
-	for c in [x for x in results_out.columns if x.endswith(('callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]:
-		results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
-		results_out[c] = results_out[c].astype(object)
-
+	if 'pos' in results_out:
+		results_out[[x for x in results_out.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]] = results_out[[x for x in results_out.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]].astype(float)
+		results_out[[x for x in results_out.columns if x.endswith(('filter','n','status'))]] = results_out[[x for x in results_out.columns if x.endswith(('filter','n','status'))]].astype(int)
+		for c in [x for x in results_out.columns if x.endswith('.p')]:
+			results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
+			results_out[c] = results_out[c].astype(object)
+		for c in [x for x in results_out.columns if x.endswith(('hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]:
+			results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
+			results_out[c] = results_out[c].astype(object)
+	else:
+		results_out[[x for x in results_out.columns if x in ['p','pmin','rho','cmaf','Qmeta','beta','se','cmafTotal','cmafUsed']]] = results_out[[x for x in results_out.columns if x in ['p','pmin','rho','cmaf','Qmeta','beta','se','cmafTotal','cmafUsed']]].astype(float)
+		results_out[[x for x in results_out.columns if x.endswith(('.p','.pmin','.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed'))]] = results_out[[x for x in results_out.columns if x.endswith(('.p','.pmin','.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed'))]].astype(float)
+		for c in [x for x in results_out.columns if x in ['p','pmin']]:
+			results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
+			results_out[c] = results_out[c].astype(object)
+		for c in [x for x in results_out.columns if x.endswith(('.p','.pmin'))]:
+			results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
+			results_out[c] = results_out[c].astype(object)
+		for c in [x for x in results_out.columns if x in ['rho','cmaf','Qmeta','beta','se','cmafTotal','cmafUsed']]:
+			results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
+			results_out[c] = results_out[c].astype(object)
+		for c in [x for x in results_out.columns if x.endswith(('.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed'))]:
+			results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
+			results_out[c] = results_out[c].astype(object)
 	##### FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
 	results_out.fillna('NA',inplace=True)
 	results_out = results_out[header]
