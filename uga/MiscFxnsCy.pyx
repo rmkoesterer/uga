@@ -68,7 +68,9 @@ def CalcFreq23Cy(np.ndarray male, np.ndarray female):
 @cython.cdivision(True)
 def CalcRsqCy(np.ndarray x):
 	x = x[~np.isnan(x)]
-	cdef double rsq = x.var(ddof=1) / (2 * (x.mean() / 2) * (1 - (x.mean() / 2))) if x.mean() != 0 and x.mean() != 2 else 0.0
+	cdef double rsq = float('nan')
+	if not set(x).issubset(set([0,1,2])):
+		rsq = x.var(ddof=1) / (2 * (x.mean() / 2) * (1 - (x.mean() / 2))) if x.mean() != 0 and x.mean() != 2 else 0.0
 	return 1 / rsq if rsq > 1 else rsq
 
 @cython.boundscheck(False)

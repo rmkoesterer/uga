@@ -260,9 +260,60 @@ def Parser():
 	##### META PARSER #####
 	meta_parser = subparsers.add_parser('meta', help='meta-analysis', parents=[parser])
 	meta_required = meta_parser.add_argument_group('required arguments')
-
-	##### ADD ALL POSSIBLE CFG FILE OPTIONS FOR META #####
-
+	meta_parser.add_argument('--out', 
+						action=AddString, 
+						help='output file basename (do not include path or extension)')
+	meta_parser.add_argument('--marker-col', 
+						action=AddString, 
+						help='variant(marker) name column')
+	meta_parser.add_argument('--freq-col', 
+						action=AddString, 
+						help='effect allele frequency column')
+	meta_parser.add_argument('--rsq-col', 
+						action=AddString, 
+						help='imputation quality column')
+	meta_parser.add_argument('--hwe-col', 
+						action=AddString, 
+						help='hardy-weinberg p-value column')
+	meta_parser.add_argument('--effect-col', 
+						action=AddString, 
+						help='effect column')
+	meta_parser.add_argument('--stderr-col', 
+						action=AddString, 
+						help='standard error column')
+	meta_parser.add_argument('--or-col', 
+						action=AddString, 
+						help='odds ratio column')
+	meta_parser.add_argument('--z-col', 
+						action=AddString, 
+						help='z statistic column')
+	meta_parser.add_argument('--p-col', 
+						action=AddString, 
+						help='p-value column')
+	meta_parser.add_argument('--n', 
+						action=AddString, 
+						help='sample size')
+	meta_parser.add_argument('--tag', 
+						action=AddString, 
+						help='tag for data file')
+	meta_parser.add_argument('--file', 
+						action=AddString, 
+						help='results file name')
+	meta_parser.add_argument('--meta', 
+						action=AddString, 
+						help='a meta analysis string')
+	meta_parser.add_argument('--maf', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for minimum minor allele frequency (ie. 0.03 filters out markers with maf < 0.03)')
+	meta_parser.add_argument('--rsq', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for imputation quality (ie. 0.8 filters out markers with rsq < 0.8)')
+	meta_parser.add_argument('--hwe', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for Hardy Weinberg p-value (ie. 1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
 	meta_parser.add_argument('--method', 
 						action=AddString, 
 						choices=['sample_size', 'stderr', 'efftest'], 
@@ -274,37 +325,6 @@ def Parser():
 	meta_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command')
-	meta_parser.add_argument('id', 
-						action=AddString, 
-						help='add region id to results (for use with --region option)')
-	meta_parser_split_group1 = meta_parser.add_mutually_exclusive_group()
-	meta_parser_split_group1.add_argument('--region', 
-						action=AddString, 
-						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
-	meta_parser_split_group1.add_argument('--reglist', 
-						action=AddString, 
-						help='filename for a list of tabix format regions')
-	meta_parser_split_group2 = meta_parser.add_mutually_exclusive_group()
-	meta_parser_split_group2.add_argument('--split', 
-						nargs=0, 
-						action=AddTrue, 
-						help='split reglist into an individual job for each line in file (requires --reglist)')
-	meta_parser_split_group2.add_argument('--split-n', 
-						action=AddString, 
-						type=int, 
-						help='split reglist into n individual jobs each with a subset of regions in the file (requires --reglist)')
-	meta_parser_split_group2.add_argument('--split-chr', 
-						nargs=0, 
-						action=AddTrue,  
-						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	meta_parser_split_group3 = meta_parser.add_mutually_exclusive_group()
-	meta_parser_split_group3.add_argument('--job', 
-						action=AddString, 
-						type=int, 
-						help='run a particular job (use with --reglist and --split with value a tabix format region or --split-n with value a number from 1..n)')
-	meta_parser_split_group3.add_argument('--jobs', 
-						action=AddString, 
-						help='filename for a list of jobs to run (use with --reglist and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 
 	##### MAP PARSER ######
 	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype data files', parents=[parser])
@@ -313,10 +333,6 @@ def Parser():
 						action=AddString, 
 						required=True, 
 						help='output file name')
-	map_parser.add_argument('--chr', 
-						action=AddString, 
-						type=int,  
-						help='chromosome number from 1-26')
 	map_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 
@@ -360,6 +376,14 @@ def Parser():
 	map_split_group3.add_argument('--shift-b', 
 						action=AddString, 
 						help='shift size (base)')
+	map_split_group4 = map_parser.add_mutually_exclusive_group()
+	map_split_group4.add_argument('--chr', 
+						action=AddString, 
+						type=int,  
+						help='chromosome number from 1-26')
+	map_split_group4.add_argument('--region', 
+						action=AddString, 
+						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
 
 	##### COMPILE PARSER #####
 	compile_parser = subparsers.add_parser('compile', help='verify and compile plot results files', parents=[parser])
@@ -544,7 +568,7 @@ def Parse(top_parser):
 	args=top_parser.parse_args()
 	for k in args.ordered_args:
 		vars(args).update({k[0]: k[1]})
-	if args.which in ['model','meta']:
+	if args.which in ['model']:
 		if args.region:
 			assert not args.split, top_parser.error("argument -s/--split: not allowed with argument --region")
 			assert not args.split_n, top_parser.error("argument -n/--split-n: not allowed with argument --region")
@@ -736,3 +760,67 @@ def PrintModelOptions(cfg):
 			print "      {0:>{1}}".format(str('--meta ' + m[0]), len(max(['--' + k[0] for k in metas],key=len))) + ":" + str(m[1])
 	print ''
 
+def GenerateMetaCfg(args):
+	config = {'out': None, 'method': None, 'data_info': {}, 'meta_info': {}, 'meta_order': [], 'file_order': []}
+
+	##### add top level variables to config
+	top_args = [a for a in args if a[0] in ['out','method']]
+	for arg in top_args:
+		config[arg[0]] = arg[1]
+
+	# list all possible model level arguments
+	model_vars = ['marker_col','freq_col','rsq_col','hwe_col','effect_col','stderr_col','or_col','z_col','p_col','n','tag','file','maf','rsq','hwe']
+	if not 'tag' in [a[0] for a in args]:
+		args = [('tag', 'A')] + args
+	pre_tag_idx = [a[0] for a in args if a[0] in model_vars].index('tag')
+
+	# extract global model arguments
+	model_args_global = dict([a for a in args if a[0] in model_vars][:pre_tag_idx])
+	for k in model_args_global.keys():
+		model_args_global[k] = model_args_global[k]
+
+	# extract local model arguments
+	model_args_local = [a for a in args if a[0] in model_vars][pre_tag_idx:]
+	local_tag_idx = [a for a, b in enumerate(model_args_local) if b[0] == 'tag']
+	if len(local_tag_idx) == 0:
+		local_tag_idx = [0]
+	local_args = [model_args_local[i:j] for i, j in zip([0]+local_tag_idx[1:], local_tag_idx[1:]+[None])]
+	# extract meta arguments
+	meta_args = [a for a in args if a[0] == 'meta']
+	for k in meta_args:
+		config['meta_info'][k[1].split(':')[0]] = k[1].split(':')[1].split('+')
+		config['meta_order'].append(k[1].split(':')[0])
+
+	# loop over model argument sets and add to config['models']
+	for l in local_args:
+		tag = l[0][1]
+		config['file_order'].append(tag)
+		config['data_info'][tag] = {'tag': tag}
+		config['data_info'][tag].update(model_args_global)
+		for i in xrange(1,len(l)):
+			config['data_info'][tag][l[i][0]] = l[i][1]
+	return config
+
+def PrintMetaOptions(cfg):
+	print ''
+	print "options in effect ..."
+	for k in cfg:
+		if not k in ['file_order','meta_order','meta_info','data_info']:
+			if cfg[k] is not None and cfg[k] is not False:
+				if cfg[k] is True:
+					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+				else:
+					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+	for m in cfg['data_info']:
+		print '   dataset ' + str(m) + ' ...'
+		for n in cfg['data_info'][m]:
+			if not n in ['model_fxn','model','family','format','data']:
+				if cfg['data_info'][m][n] is not None and cfg['data_info'][m][n] is not False:
+					if cfg['data_info'][m][n] is True:
+						print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['data_info'][m].keys()],key=len)))
+					else:
+						print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['data_info'][m].keys()],key=len))) + " " + str(cfg['data_info'][m][n])
+	print '   meta analysis ...'
+	for m in cfg['meta_info']:
+		print "      {0:>{1}}".format(str('--meta ' + m), len(max(['--' + k for k in cfg['meta_info']],key=len))) + ":" + str('+'.join(cfg['meta_info'][m]))
+	print ''

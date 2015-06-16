@@ -25,7 +25,12 @@ def Model(cfg):
 
 	##### DEFINE MODEL TYPES #####
 	marker_tests = ['bgee','ggee','bglm','gglm','blme','glme','cph']
+	geepack_tests = ['bgee','ggee']
+	lme_tests = ['blme','glme']
+	lme_gaussian_tests = ['glme']
+	survival_tests = ['cph']
 	seqmeta_tests = ['fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden']
+	seqmeta_famtests = ['fskato','fskat','fburden']
 	efftests=['efftests']
 
 	##### STOP IF MODEL TYPES IN META ANALYSIS ARE INCOMPATIBLE #####
@@ -35,26 +40,21 @@ def Model(cfg):
 			return()
 
 	##### LOAD NECESSARY R PACKAGES #####
-	model_fxns = []
-	for k in cfg['model_order']:
-		model_fxns.append(cfg['models'][k]['model_fxn'])
-	for model_fxn in list(set(model_fxns)):
-		if model_fxn in ['ggee','bgee']:
+	for m in list(set([cfg['models'][k]['model_fxn'] for k in cfg['model_order']])):
+		if m in geepack_tests:
 			importr('geepack')
-		elif model_fxn in ['glme','blme']:
+		elif m in lme_tests:
 			importr('lmerTest')
-			if model_fxn == 'glme':
+			if m in lme_gaussian_tests:
 				importr('pbkrtest')
-		elif model_fxn == 'cph':
+		elif m in survival_tests:
 			importr('survival')
-		elif model_fxn in ['fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden']:
+		elif m in seqmeta_tests:
 			importr('seqMeta')
-			if model_fxn in ['fskato','fskat','fburden']:
+			if m in seqmeta_famtests:
 				importr('kinship2')
 
 	##### READ model VARIABLES FROM FILE #####
-	vars_df_dict = {}
-	model_vars_dict_dict = {}
 	for k in cfg['model_order']:
 		if len(cfg['models'].keys()) > 1:
 			print "extracting model variables for model " + k + " and removing missing/invalid samples ..."
@@ -104,7 +104,7 @@ def Model(cfg):
 		cfg['models'][k]['samples_unique'] = len(cfg['models'][k]['vars_df_nodup'].index)
 		cfg['models'][k]['clusters'] = len(cfg['models'][k]['vars_df_nodup'].drop_duplicates(subset=[cfg['models'][k]['fid']]).index)
 		cfg['models'][k]['families'] = len(cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['vars_df_nodup'].duplicated(subset=[cfg['models'][k]['fid']])][cfg['models'][k]['fid']].unique())
-		cfg['models'][k]['dep_var'] = [key for key in cfg['models'][k]['model_vars_dict'] if cfg['models'][k]['model_vars_dict'][key]['type'] == 'dependent']
+		cfg['models'][k]['dep_var'] = [v for v in cfg['models'][k]['model_vars_dict'] if cfg['models'][k]['model_vars_dict'][v]['type'] == 'dependent']
 		cfg['models'][k]['cases'] = len(cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['dep_var'][0]][cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['dep_var'][0]].isin(['1'])]) if cfg['models'][k]['family'] == 'binomial' else 'NA'
 		cfg['models'][k]['ctrls'] = len(cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['dep_var'][0]][cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['dep_var'][0]].isin(['0'])]) if cfg['models'][k]['family'] == 'binomial' else 'NA'
 		cfg['models'][k]['nmale'] = len(cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['vars_df_nodup'][cfg['models'][k]['sex']].isin([str(cfg['models'][k]['male'])])].index.values) if not cfg['models'][k]['sex'] is None and not cfg['models'][k]['male'] is None and not cfg['models'][k]['female'] is None else 'NA'
@@ -123,15 +123,12 @@ def Model(cfg):
 		print "   " + str(cfg['models'][k]['nfemale']) + " female"
 
 	##### READ PEDIGREE FROM FILE FOR FAMILY BASED SKAT TEST #####
-	kinship2 = None
 	for k in cfg['model_order']:
 		if 'pedigree' in cfg['models'][k].keys():
 			if cfg['models'][k]['pedigree'] is not None:
 				print "loading pedigree for model " + k if len(cfg['models'].keys()) > 1 else "loading pedigree"
 				cfg['models'][k]['ped_df'] = pd.read_table(cfg['models'][k]['pedigree'],sep='\t',dtype='str',usecols=['FID','IID','PAT','MAT'])
 				cfg['models'][k]['ped_df'] = cfg['models'][k]['ped_df'][cfg['models'][k]['ped_df']['IID'].isin(list(cfg['models'][k]['vars_df'][cfg['models'][k]['iid']].values))]
-				#ro.globalenv['pedigree'] = py2r.convert_to_r_dataframe(cfg['models'][k]['ped_df'], strings_as_factors=False)
-				#cfg['models'][k]['kins'] = ro.r("makekinship(pedigree.rx2('FID'),pedigree.rx2('IID'),pedigree.rx2('PAT'),pedigree.rx2('MAT'))")
 
 	##### GENERATE REGION LIST #####
 	if not cfg['reglist'] is None:
@@ -348,8 +345,8 @@ def Model(cfg):
 				if cfg['models'][k]['model_fxn'] in ['bgee','ggee','bglm','gglm','blme','glme','cph']:
 					marker_info_passed = marker_info[marker_info['filter'] == 0]
 					marker_info_filtered = marker_info[marker_info['filter'] > 0]
-					marker_info_filtered['n'] = '%d' % (0)
-					marker_info_filtered['status'] = '%d' % (-1)
+					marker_info_filtered['n'] = 0
+					marker_info_filtered['status'] = -1
 					model_df = model_df[[c for c in model_df.columns if not c in marker_info_filtered['marker_unique']]]
 					model_df[cfg['models'][k]['fid']] = pd.Categorical.from_array(model_df[cfg['models'][k]['fid']]).codes.astype(np.int64)
 					model_df.sort([cfg['models'][k]['fid']],inplace = True)
@@ -362,8 +359,8 @@ def Model(cfg):
 							marker_info_passed[x + '.or'] = float('nan')
 							marker_info_passed[x + '.z'] = float('nan')
 							marker_info_passed[x + '.p'] = float('nan')
-						marker_info_passed['n'] = '%d' % (0)
-						marker_info_passed['status'] = '%d' % (0)
+						marker_info_passed['n'] = 0
+						marker_info_passed['status'] = 0
 						results = marker_info_passed.apply(lambda row: StatsFxns.CalcGEE(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
 																					model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
 																					model_fxn=cfg['models'][k]['model_fxn'], family=cfg['models'][k]['family'], focus=cfg['models'][k]['focus'], 
@@ -377,8 +374,8 @@ def Model(cfg):
 							marker_info_passed[x + '.or'] = float('nan')
 							marker_info_passed[x + '.z'] = float('nan')
 							marker_info_passed[x + '.p'] = float('nan')
-						marker_info_passed['n'] = '%d' % (0)
-						marker_info_passed['status'] = '%d' % (0)
+						marker_info_passed['n'] = 0
+						marker_info_passed['status'] = 0
 						results = marker_info_passed.apply(lambda row: StatsFxns.CalcGLM(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
 																								model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
 																								family=cfg['models'][k]['family'], 
@@ -394,8 +391,8 @@ def Model(cfg):
 							if cfg['models'][k]['lrt'] and x != '(Intercept)':
 								marker_info_passed[x + '.anova.chisq'] = float('nan')
 								marker_info_passed[x + '.anova.p'] = float('nan')
-						marker_info_passed['n'] = '%d' % (0)
-						marker_info_passed['status'] = '%d' % (0)
+						marker_info_passed['n'] = 0
+						marker_info_passed['status'] = 0
 						results = marker_info_passed.apply(lambda row: StatsFxns.CalcLMEBinomial(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
 																					model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
 																					model_fxn=cfg['models'][k]['model_fxn'], focus=cfg['models'][k]['focus'], 
@@ -416,8 +413,8 @@ def Model(cfg):
 							if cfg['models'][k]['lrt'] and x != '(Intercept)':
 								marker_info_passed[x + '.anova.chisq'] = float('nan')
 								marker_info_passed[x + '.anova.p'] = float('nan')
-						marker_info_passed['n'] = '%d' % (0)
-						marker_info_passed['status'] = '%d' % (0)
+						marker_info_passed['n'] = 0
+						marker_info_passed['status'] = 0
 						results = marker_info_passed.apply(lambda row: StatsFxns.CalcLMEGaussian(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
 																					model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
 																					model_fxn=cfg['models'][k]['model_fxn'], focus=cfg['models'][k]['focus'], 
@@ -434,8 +431,8 @@ def Model(cfg):
 							marker_info_passed[x + '.robust_stderr'] = float('nan')
 							marker_info_passed[x + '.z'] = float('nan')
 							marker_info_passed[x + '.p'] = float('nan')
-						marker_info_passed['n'] = '%d' % (0)
-						marker_info_passed['status'] = '%d' % (0)
+						marker_info_passed['n'] = 0
+						marker_info_passed['status'] = 0
 						results = marker_info_passed.apply(lambda row: StatsFxns.CalcCoxPH(marker_info=row, model_df=model_df, model_vars_dict=cfg['models'][k]['model_vars_dict'], 
 																						model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
 																						model_fxn=cfg['models'][k]['model_fxn'], focus=cfg['models'][k]['focus'], 
@@ -669,30 +666,16 @@ def Model(cfg):
 	else:
 		results_out[['chr','start','end']] = results_out[['chr','start','end']].astype(int)
 		results_out.sort(columns=['chr','start'],inplace=True)
-	if 'pos' in results_out:
-		results_out[[x for x in results_out.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]] = results_out[[x for x in results_out.columns if x.endswith(('.p','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]].astype(float)
-		results_out[[x for x in results_out.columns if x.endswith(('filter','n','status'))]] = results_out[[x for x in results_out.columns if x.endswith(('filter','n','status'))]].astype(int)
-		for c in [x for x in results_out.columns if x.endswith('.p')]:
-			results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
-			results_out[c] = results_out[c].astype(object)
-		for c in [x for x in results_out.columns if x.endswith(('hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]:
-			results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
-			results_out[c] = results_out[c].astype(object)
-	else:
-		results_out[[x for x in results_out.columns if x in ['p','pmin','rho','cmaf','Qmeta','beta','se','cmafTotal','cmafUsed']]] = results_out[[x for x in results_out.columns if x in ['p','pmin','rho','cmaf','Qmeta','beta','se','cmafTotal','cmafUsed']]].astype(float)
-		results_out[[x for x in results_out.columns if x.endswith(('.p','.pmin','.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed'))]] = results_out[[x for x in results_out.columns if x.endswith(('.p','.pmin','.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed'))]].astype(float)
-		for c in [x for x in results_out.columns if x in ['p','pmin']]:
-			results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
-			results_out[c] = results_out[c].astype(object)
-		for c in [x for x in results_out.columns if x.endswith(('.p','.pmin'))]:
-			results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
-			results_out[c] = results_out[c].astype(object)
-		for c in [x for x in results_out.columns if x in ['rho','cmaf','Qmeta','beta','se','cmafTotal','cmafUsed']]:
-			results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
-			results_out[c] = results_out[c].astype(object)
-		for c in [x for x in results_out.columns if x.endswith(('.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed'))]:
-			results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
-			results_out[c] = results_out[c].astype(object)
+	for c in [x for x in results_out.columns if x.endswith(('.p','.pmin'))]:
+		results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
+		results_out[c] = results_out[c].astype(object)
+	for c in [x for x in results_out.columns if x.endswith(('.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]:
+		results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
+		results_out[c] = results_out[c].astype(object)
+	for c in [x for x in results_out.columns if x.endswith(('filter','n','status'))]:
+		results_out[c] = results_out[c].map(lambda x: '%d' % (x) if not math.isnan(x) else x)
+		results_out[c] = results_out[c].astype(object)
+
 	##### FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
 	results_out.fillna('NA',inplace=True)
 	results_out = results_out[header]

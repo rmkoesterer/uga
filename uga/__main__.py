@@ -25,15 +25,16 @@ def main(args=None):
 	##### read cfg file into dictionary #####
 	if args.which == 'meta':
 		print "reading configuration from file"
-		config = FileFxns.LoadMetaCfg(args.cfg, args.which, args.varlist)
-		args.out = config['out']
+		config = Parse.GenerateMetaCfg(args.ordered_args)
+		args.cfg = 1
+		#args.out = config['out']
 	elif args.which == 'model':
 		print "preparing model configuration"
 		config = Parse.GenerateModelCfg(args.ordered_args)
 		args.cfg = 1
 
 	##### define region list #####
-	if args.which in ['model','meta','compile']:
+	if args.which in ['model','compile']:
 		n = 1
 		dist_mode = 'full'
 		if args.reglist:
@@ -98,7 +99,7 @@ def main(args=None):
 
 	if args.which == 'map':
 		cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
-		for x in ['oxford','dos1','dos2','plink','vcf','b','kb','mb','n','chr','shift_mb','shift_kb','shift_b']:
+		for x in ['oxford','dos1','dos2','plink','vcf','region','b','kb','mb','n','chr','shift_mb','shift_kb','shift_b']:
 			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
 				if type(vars(args)[x]) is str:
 					cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
@@ -202,7 +203,7 @@ def main(args=None):
 			cmd = cmd + ',gc=' + str(dict(args.gc)) + ')'
 		SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.gc.log')
 
-	elif args.which in ['model','meta']:
+	elif args.which == 'model':
 		print "preparing output directories"
 		if dist_mode == 'split-list' and n > 1:
 			FileFxns.PrepareChrDirs(region_df['region'], directory)
@@ -241,21 +242,17 @@ def main(args=None):
 					if os.path.exists(f):
 						print SystemFxns.Error("1 or more output files already exists (use --replace flag to replace)")
 						return
-			if args.which == 'model':
-					cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
-			elif args.which == 'meta':
-				cmd = args.which.capitalize() + '(cfg=' + str(config)
-				for x in ['reglist', 'region']:
-					if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-						if type(vars(args)[x]) is str:
-							cmd = cmd + ',' + x + '=\'' + str(vars(args)[x]) + '\''
-						else:
-							cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-				cmd = cmd + ')'
+			cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
 			if args.qsub:
 				SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
 			else:
 				SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, config['out'] + '.' + args.which + '.log')
+	elif args.which == 'meta':
+		cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
+		if args.qsub:
+			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
+		else:
+			SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, config['out'] + '.' + args.which + '.log')
 	else:
 		print SystemFxns.Error(args.which + " not a module")
 

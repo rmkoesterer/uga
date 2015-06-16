@@ -3,20 +3,17 @@ import MiscFxns
 import scipy.stats as scipy
 
 def Meta(cfg):
-
-	print "meta options ..."
-	for arg in locals().keys():
-		if not locals()[arg] in [None, False]:
-			print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
+	Parse.PrintMetaOptions(cfg)
 
 	assert cfg, SystemFxns.Error("no configuration file specified")
 
 	##### get headers from process files #####
 	for tag in cfg['data_info'].keys():
 		try:
-			p = subprocess.Popen(['tabix','-h',cfg['data_info'][tag]['process_file'],'0'], stdout=subprocess.PIPE)
+			p = subprocess.Popen(['tabix','-h',cfg['data_info'][tag]['file'],'0'], stdout=subprocess.PIPE)
 		except:
-			usage(SystemFxns.Error("process_file " + cfg['data_info'][tag]['process_file'] + " has incorrect format"))
+			print SystemFxns.Error("file " + cfg['data_info'][tag]['file'] + " has incorrect format")
+			return
 		cfg['data_info'][tag]['header'] = p.communicate()[0]
 		cfg['data_info'][tag]['header'] = cfg['data_info'][tag]['header'].replace("#","")
 		cfg['data_info'][tag]['header'] = cfg['data_info'][tag]['header'].strip()
@@ -35,16 +32,11 @@ def Meta(cfg):
 	
 	##### determine markers to be analyzed #####
 	print "generating region list"
-	if reglist:
-		reglist = FileFxns.LoadCoordinates(reglist)
-	elif region:
-		reglist = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
-	else:
-		reglist = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
+	reglist = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
 	reglist['n'] = 0
 	for i in range(len(reglist.index)):
 		for key in cfg['data_info'].keys():
-			tb = tabix.open(cfg['data_info'][key]['process_file'])
+			tb = tabix.open(cfg['data_info'][key]['file'])
 			try:
 				records = tb.querys(reglist['region'][i])
 			except:
@@ -56,30 +48,29 @@ def Meta(cfg):
 		print SystemFxns.Error("no markers found")
 		return()
 
-	cfg['sig'] = int(cfg['sig']) if 'sig' in cfg.keys() else 5
-
 	for r in range(len(reglist.index)):
 		reg = reglist['region'][r]
 		print "building reference database for " + str(r + 1) + " of " + str(len(reglist.index)) + " regions"
 		delim = "><"
-		ref = multi_key_dict()
-		ref_alleles = multi_key_dict()
+		ref = multi_key_dict.multi_key_dict()
+		ref_alleles = multi_key_dict.multi_key_dict()
 		records_count = {}
 		for tag in cfg['file_order']:
-			chr = cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['chr'])
-			pos = cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['pos'])
-			marker = cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['marker'])
-			a1 = cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['a1'])
-			a2 = cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['a2'])
+			chr = cfg['data_info'][tag]['header'].index('chr')
+			pos = cfg['data_info'][tag]['header'].index('pos')
+			marker = cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['marker_col'])
+			a1 = cfg['data_info'][tag]['header'].index('a1')
+			a2 = cfg['data_info'][tag]['header'].index('a2')
 			n = None if not 'n' in cfg['data_info'][tag] else int(cfg['data_info'][tag]['n'])
-			effect = None if not 'effect' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['effect'])
-			stderr = None if not 'stderr' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['stderr'])
-			freq = None if not 'freq' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['freq'])
-			rsq = None if not 'rsq' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['rsq'])
-			o_r = None if not 'or' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['or'])
-			z = None if not 'z' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['z'])
-			p = None if not 'p' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['p'])
-			tb = tabix.open(cfg['data_info'][tag]['process_file'])
+			effect = None if not 'effect_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['effect_col'])
+			stderr = None if not 'stderr_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['stderr_col'])
+			freq = None if not 'freq_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['freq_col'])
+			rsq = None if not 'rsq_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['rsq_col'])
+			hwe = None if not 'hwe_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['hwe_col'])
+			o_r = None if not 'or_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['or_col'])
+			z = None if not 'z_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['z_col'])
+			p = None if not 'p_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['p_col'])
+			tb = tabix.open(cfg['data_info'][tag]['file'])
 			records_count[tag] = 0
 			try:
 				records = tb.querys(reg)
@@ -113,21 +104,22 @@ def Meta(cfg):
 					refa1 = ref_alleles[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]][0]
 					refa2 = ref_alleles[record[chr] + delim + record[pos] + delim + record[a1] + delim + record[a2]][1]
 					if (refa1 + refa2 == MiscFxns.Complement(record[a2]) + MiscFxns.Complement(record[a1]) or refa1 + refa2 == record[a2] + record[a1]) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
-						if effect:
+						if not effect is None:
 							record[effect] = str(-1 * float(record[effect])) if record[effect] != "NA" else float('nan')
-						if freq:
+						if not freq is None:
 							record[freq] = str(1-float(record[freq])) if record[freq] != "NA" else float('nan')
-						if o_r:
+						if not o_r is None:
 							record[o_r] = str(1/float(record[o_r])) if record[o_r] != "NA" else float('nan')
-						if z:
+						if not z is None:
 							record[z] = str(-1 * float(record[z])) if record[z] != "NA" else float('nan')
-					for f in cfg['data_info'][tag]['filters']:
-						col = cfg['data_info'][tag]['header'].index(f.split()[0])
-						if f.split()[0] != "status":
-							f = f.replace(f.split()[0],str(record[col]))
-						else:
-							f = f.replace(f.split()[0],'"' + str(record[col]) + '"')
-						if eval('"' + str(record[col]) + '" == \'nan\' or "' + str(record[col]) + '" == \'NA\' or not ' + f):
+					if 'rsq' in cfg['data_info'][tag] and rsq is not None:
+						if float(record[rsq]) < cfg['data_info'][tag]['rsq']:
+							filtered = 1
+					if 'maf' in cfg['data_info'][tag] and freq is not None:
+						if float(record[freq]) < cfg['data_info'][tag]['maf'] or float(record[freq]) > 1 - cfg['data_info'][tag]['maf']:
+							filtered = 1
+					if 'hwe' in cfg['data_info'][tag] and hwe is not None:
+						if float(record[hwe]) < cfg['data_info'][tag]['hwe']:
 							filtered = 1
 					out_vals = {tag + '.filtered': filtered}
 					if n:
@@ -138,6 +130,8 @@ def Meta(cfg):
 						out_vals[tag + '.freq'] = float(record[freq]) if record[freq] != "NA" else float('nan')
 					if rsq:
 						out_vals[tag + '.rsq'] = float(record[rsq]) if record[rsq] != "NA" else float('nan')
+					if hwe:
+						out_vals[tag + '.hwe'] = float(record[hwe]) if record[hwe] != "NA" else float('nan')
 					if effect:
 						out_vals[tag + '.effect'] = float(record[effect]) if record[effect] != "NA" else float('nan')
 					if stderr:
@@ -165,13 +159,14 @@ def Meta(cfg):
 	header=['chr','pos','a1','a2','marker']
 	for tag in cfg['file_order']:
 		n = None if not 'n' in cfg['data_info'][tag] else int(cfg['data_info'][tag]['n'])
-		effect = None if not 'effect' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['effect'])
-		stderr = None if not 'stderr' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['stderr'])
-		freq = None if not 'freq' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['freq'])
-		rsq = None if not 'rsq' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['rsq'])
-		o_r = None if not 'or' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['or'])
-		z = None if not 'z' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['z'])
-		p = None if not 'p' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['p'])
+		effect = None if not 'effect_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['effect_col'])
+		stderr = None if not 'stderr_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['stderr_col'])
+		freq = None if not 'freq_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['freq_col'])
+		rsq = None if not 'rsq_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['rsq_col'])
+		hwe = None if not 'hwe_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['hwe_col'])
+		o_r = None if not 'or_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['or_col'])
+		z = None if not 'z_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['z_col'])
+		p = None if not 'p_col' in cfg['data_info'][tag] else cfg['data_info'][tag]['header'].index(cfg['data_info'][tag]['p_col'])
 		for suffix in ['freq','effect','stderr','or','z','p','n','filtered']:
 			if not tag + '.' + suffix in output_df.columns.values:
 				output_df[tag + '.' + suffix] = float('nan')
