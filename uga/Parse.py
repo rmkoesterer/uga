@@ -325,6 +325,41 @@ def Parser():
 	meta_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command')
+	meta_parser.add_argument('--buffer', 
+						action=AddString, 
+						type=int, 
+						help='value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
+	meta_parser.add_argument('--id', 
+						action=AddString, 
+						help='add region id to results (for use with --region option)')
+	meta_parser_split_group1 = meta_parser.add_mutually_exclusive_group()
+	meta_parser_split_group1.add_argument('--region', 
+						action=AddString, 
+						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
+	meta_parser_split_group1.add_argument('--reglist', 
+						action=AddString, 
+						help='filename for a list of tabix format regions')
+	meta_parser_split_group2 = meta_parser.add_mutually_exclusive_group()
+	meta_parser_split_group2.add_argument('--split', 
+						nargs=0, 
+						action=AddTrue, 
+						help='split reglist into an individual job for each line in file (requires --reglist)')
+	meta_parser_split_group2.add_argument('--split-n', 
+						action=AddString, 
+						type=int, 
+						help='split reglist into n individual jobs each with a subset of regions in the file (requires --reglist)')
+	meta_parser_split_group2.add_argument('--split-chr', 
+						nargs=0, 
+						action=AddTrue,  
+						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
+	meta_parser_split_group3 = meta_parser.add_mutually_exclusive_group()
+	meta_parser_split_group3.add_argument('--job', 
+						action=AddString, 
+						type=int, 
+						help='run a particular job (use with --reglist and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	meta_parser_split_group3.add_argument('--jobs', 
+						action=AddString, 
+						help='filename for a list of jobs to run (use with --reglist and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 
 	##### MAP PARSER ######
 	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype data files', parents=[parser])
@@ -761,10 +796,10 @@ def PrintModelOptions(cfg):
 	print ''
 
 def GenerateMetaCfg(args):
-	config = {'out': None, 'method': None, 'data_info': {}, 'meta_info': {}, 'meta_order': [], 'file_order': []}
+	config = {'out': None, 'method': None, 'buffer': 100, 'reglist': None, 'region': None, 'id': None, 'data_info': {}, 'meta_info': {}, 'meta_order': [], 'file_order': []}
 
 	##### add top level variables to config
-	top_args = [a for a in args if a[0] in ['out','method']]
+	top_args = [a for a in args if a[0] in ['out','method','buffer','reglist','region','id']]
 	for arg in top_args:
 		config[arg[0]] = arg[1]
 
@@ -799,6 +834,10 @@ def GenerateMetaCfg(args):
 		config['data_info'][tag].update(model_args_global)
 		for i in xrange(1,len(l)):
 			config['data_info'][tag][l[i][0]] = l[i][1]
+	for tag in config['data_info']:
+		for k in ['marker_col','freq_col','rsq_col','hwe_col','effect_col','stderr_col','or_col','z_col','p_col']:
+			if not k in config['data_info'][tag]:
+				config['data_info'][tag][k] = None
 	return config
 
 def PrintMetaOptions(cfg):

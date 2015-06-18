@@ -35,6 +35,10 @@ def LoadDos(data, samples):
 			sample_ids.append(line)
 	return tb, sample_ids
 
+def LoadResults(data):
+	tb = tabix.open(data)
+	return tb
+
 def countNonPlinkRegion(iter, type, start, end, ml = None):
 	k = 0
 	if type in ['vcf','dos2']:
@@ -100,6 +104,38 @@ def ListCompatibleMarkers(chr,pos,a1,a2,delim):
 		markers.append(chr + delim + pos + delim + Complement(alt) + delim + Complement(a1))
 		markers.append(chr + delim + pos + delim + alt + delim + a1)
 	return list(set(markers))
+
+def ListCompatibleMarkersMeta(chr,pos,a1,a2,delim):
+	markers = []
+	markers.append(chr + delim + pos + delim + a1 + delim + a2)
+	markers.append(chr + delim + pos + delim + Complement(a1) + delim + Complement(a2))
+	markers.append(chr + delim + pos + delim + Complement(a2) + delim + Complement(a1))
+	markers.append(chr + delim + pos + delim + a2 + delim + a1)
+	return sorted(markers)
+
+def FlipEffect(refa1, refa2, a1, a2, effect):
+	if (refa1 + refa2 == Complement(a2) + Complement(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+		return -1 * effect
+	else:
+		return effect
+
+def FlipFreq(refa1, refa2, a1, a2, freq):
+	if (refa1 + refa2 == Complement(a2) + Complement(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+		return 1 - freq
+	else:
+		return freq
+
+def FlipOR(refa1, refa2, a1, a2, o_r):
+	if (refa1 + refa2 == Complement(a2) + Complement(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+		return 1 / o_r
+	else:
+		return o_r
+
+def FlipZ(refa1, refa2, a1, a2, z):
+	if (refa1 + refa2 == Complement(a2) + Complement(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+		return -1 * z
+	else:
+		return z
 
 def ConvertDosage(row):
 	newrow = row[:5]
@@ -444,6 +480,61 @@ class ChunkRefDb(object):
 		else:
 			self.ref[record_markers] = [marker]
 			self.ref_alleles[record_markers] = [a1,a2]
+
+	def Print(self):
+		print "\nReference"
+		for k in self.ref.keys():
+			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref.keys()],key=len))) + ": " + str(self.ref[k[0]])
+		print "Reference alleles"
+		for k in self.ref_alleles.keys():
+			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref_alleles.keys()],key=len))) + ": " + str(self.ref_alleles[k[0]])
+		print ""
+
+class MetaRefDb(object):
+
+	def __init__(self):
+		self.ref = multi_key_dict.multi_key_dict()
+		self.ref_alleles = multi_key_dict.multi_key_dict()
+
+	def Update(self, row, tag):
+		newrow=row
+		chr=newrow['chr']
+		pos=newrow['pos']
+		marker=newrow['marker']
+		a1=newrow['a1']
+		a2=newrow['a2']
+		record_markers = ListCompatibleMarkers(chr,pos,a1,a2,'><')
+		if len([r for r in record_markers if self.ref.has_key(r)]) > 0:
+			temp_ref = self.ref[[r for r in record_markers if self.ref.has_key(r)][1]]
+			temp_alleles = self.ref_alleles[[r for r in record_markers if self.ref_alleles.has_key(r)][1]]
+			temp_alleles[1] = ','.join(list(set(','.join([b.split('><')[3] for b in record_markers if b.split('><')[2] == temp_alleles[0]]).split(','))))
+			del self.ref[[r for r in record_markers if self.ref.has_key(r)][1]]
+			del self.ref_alleles[[r for r in record_markers if self.ref_alleles.has_key(r)][1]]
+			if not marker in temp_ref:
+				temp_ref.append(marker)
+				temp_ref = list(set(temp_ref))
+			self.ref[tuple(record_markers)] = temp_ref
+			self.ref_alleles[tuple(record_markers)] = temp_alleles
+		else:
+			self.ref[record_markers] = [marker]
+			self.ref_alleles[record_markers] = [a1,a2]
+		refmarker = filter(lambda x:'rs' in x, self.ref[chr + '><' + pos + '><' + a1 + '><' + a2])
+		if len(refmarker) > 0:
+			refmarker = refmarker[0]
+		else:
+			refmarker = self.ref[chr + '><' + pos + '><' + a1 + '><' + a2][0]
+		keymarkers = self.ref[chr + '><' + pos + '><' + a1 + '><' + a2]
+		refa1 = self.ref_alleles[chr + '><' + pos + '><' + a1 + '><' + a2][0]
+		refa2 = self.ref_alleles[chr + '><' + pos + '><' + a1 + '><' + a2][1]
+		if (refa1 + refa2 == Complement(a2) + Complement(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+			newrow[[k for k in newrow.index if k.endswith('.effect')]] = -1 * newrow[[k for k in newrow.index if k.endswith('.effect')]].astype(float)
+			newrow[[k for k in newrow.index if k.endswith('.freq')]] = 1 - newrow[[k for k in newrow.index if k.endswith('.freq')]].astype(float)
+			newrow[[k for k in newrow.index if k.endswith('.or')]] = 1 / newrow[[k for k in newrow.index if k.endswith('.or')]].astype(float)
+			newrow[[k for k in newrow.index if k.endswith('.z')]] = -1 * newrow[[k for k in newrow.index if k.endswith('.z')]].astype(float)
+		newrow['marker']=refmarker	
+		newrow['a1']=refa1
+		newrow['a2']=refa2
+		return newrow
 
 	def Print(self):
 		print "\nReference"
