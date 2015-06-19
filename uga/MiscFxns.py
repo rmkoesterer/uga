@@ -111,7 +111,7 @@ def ListCompatibleMarkersMeta(chr,pos,a1,a2,delim):
 	markers.append(chr + delim + pos + delim + Complement(a1) + delim + Complement(a2))
 	markers.append(chr + delim + pos + delim + Complement(a2) + delim + Complement(a1))
 	markers.append(chr + delim + pos + delim + a2 + delim + a1)
-	return sorted(markers)
+	return "_".join(sorted(markers))
 
 def FlipEffect(refa1, refa2, a1, a2, effect):
 	if (refa1 + refa2 == Complement(a2) + Complement(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":

@@ -271,7 +271,7 @@ def Model(cfg):
 				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '_'  + marker_info['marker'].astype(str).str.replace('-','_').str.replace(':','.') + '_'  + marker_info['a1'].astype(str).str.replace('-','_') + '_'  + marker_info['a2'].astype(str).str.replace('-','_')
 				marker_info.index = marker_info['marker_unique']
 				marker_data = chunkdf.ix[:,5:].transpose()
-				marker_data = marker_data.convert_objects(convert_numeric=True)
+				marker_data.replace('NA',np.nan,inplace=True)
 				marker_data.columns = marker_info['marker_unique']
 				marker_data[cfg['models'][k]['iid']] = marker_data.index
 
@@ -280,6 +280,7 @@ def Model(cfg):
 
 				##### EXTRACT UNIQUE SAMPLES AND CALCULATE DESCRIPTIVE STATS #####
 				model_df_nodup=model_df.drop_duplicates(subset=[cfg['models'][k]['iid']]).reset_index(drop=True)
+
 				marker_info['callrate']=model_df_nodup[marker_info['marker_unique']].apply(lambda col: MiscFxnsCy.CalcCallrateCy(np.array(col).astype(np.float)), raw=True)
 				model_df_nodup_unrel=model_df_nodup.drop_duplicates(subset=[cfg['models'][k]['fid']]).reset_index(drop=True)
 				if not cfg['models'][k]['sex'] is None and not cfg['models'][k]['male'] is None and not cfg['models'][k]['female']:

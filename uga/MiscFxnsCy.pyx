@@ -7,14 +7,15 @@ from libc.string cimport strtok
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def GetDelimiterCy(str delimiter):
-	if delimiter == 'tab':
-		delimiter = '\t'
-	elif delimiter == 'space':
-		delimiter = ' '
+def GetDelimiterCy(delimiter):
+	cdef str d = delimiter
+	if d == 'tab':
+		d = '\t'
+	elif d == 'space':
+		d = ' '
 	else:
-		delimiter = ','
-	return delimiter
+		d = ','
+	return d
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -51,7 +52,7 @@ def CalcFreqCy(np.ndarray x):
 	x = x[~np.isnan(x)]
 	cdef unsigned int n = 2 * len(x)
 	cdef double count = x.sum()
-	return count / n if len(x) > 0 else float('NaN')
+	return count / n if len(x) > 0 else float('nan')
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -61,7 +62,7 @@ def CalcFreq23Cy(np.ndarray male, np.ndarray female):
 	female = female[~np.isnan(female)]
 	cdef unsigned int n = len(male) + 2 * len(female)
 	cdef double count = (male.sum()/2) + female.sum()
-	return count / n if len(male) > 0 and len(female) > 0 else float('NaN')
+	return count / n if len(male) > 0 and len(female) > 0 else float('nan')
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -69,9 +70,11 @@ def CalcFreq23Cy(np.ndarray male, np.ndarray female):
 def CalcRsqCy(np.ndarray x):
 	x = x[~np.isnan(x)]
 	cdef double rsq = float('nan')
-	if not set(x).issubset(set([0,1,2])):
+	if len(x) > 0 and not set(x).issubset(set([0,1,2])):
 		rsq = x.var(ddof=1) / (2 * (x.mean() / 2) * (1 - (x.mean() / 2))) if x.mean() != 0 and x.mean() != 2 else 0.0
-	return 1 / rsq if rsq > 1 else rsq
+		return 1 / rsq if rsq > 1 else rsq
+	else:
+		return rsq
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -85,7 +88,7 @@ def CalcHWECy(np.ndarray x):
 	cdef unsigned int rare_copies
 	cdef unsigned int genotypes
 	x = x[~np.isnan(x)]
-	if set(x).issubset(set([0,1,2])):
+	if len(x) > 0 and set(x).issubset(set([0,1,2])):
 		obs_hets = np.sum(x == 1)
 		obs_hom1 = np.sum(x == 2)
 		obs_hom2 = np.sum(x == 0)
@@ -126,9 +129,9 @@ def CalcHWECy(np.ndarray x):
 			p_hwe = sum(p for p in probs if p <= p_obs)/sum(probs)
 			return p_hwe
 		else:
-			return float('NaN')
+			return float('nan')
 	else:
-		return float('NaN')
+		return float('nan')
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -173,3 +176,111 @@ def GenerateFilterCodeCy(np.float row_callrate, np.float row_freq, np.float row_
 	if not hwe_thresh is None and not np.isnan(row_hwe) and (row_hwe < hwe_thresh and row_hwe_unrel < hwe_thresh):
 		filter += 1
 	return filter
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def ComplementCy(allele):
+	cdef str x = allele
+	if x != "NA":
+		letters = list(x)
+	else:
+		letters = "NA"
+	comp = []
+	for l in letters:
+		if l == 'T': 
+			c = 'A'
+		elif l == 'A':
+			c = 'T'
+		elif l == 'G': 
+			c = 'C'
+		elif l == 'C':
+			c = 'G'
+		elif l == '0':
+			c = '0'
+		elif l == ',':
+			c = ','
+		elif l == 'NA':
+			c = 'NA'
+		elif l == '-':
+			c = '-'
+		elif l == 'I':
+			c = 'D'
+		elif l == 'D':
+			c = 'I'
+		elif l in ['1','2','3','4','5','6','7','8','9','0']:
+			c = l
+		else:
+			c = 'X'
+		comp.append(c)
+	return ''.join(comp)
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def ListCompatibleMarkersMetaCy(chr_py,pos_py,a1_py,a2_py,delim_py):
+	cdef str chr = chr_py
+	cdef str pos = pos_py
+	cdef str a1 = a1_py
+	cdef str a2 = a2_py
+	cdef str delim = delim_py
+	cdef str r1, r2, r3, r4
+	r1 = chr + delim + pos + delim + a1 + delim + a2
+	r2 = chr + delim + pos + delim + ComplementCy(a1) + delim + ComplementCy(a2)
+	r3 = chr + delim + pos + delim + ComplementCy(a2) + delim + ComplementCy(a1)
+	r4 = chr + delim + pos + delim + a2 + delim + a1
+	return "_".join(sorted([r1,r2,r3,r4]))
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def FlipEffectCy(refa1_py, refa2_py, a1_py, a2_py, effect_py):
+	cdef str refa1 = refa1_py
+	cdef str refa2 = refa2_py
+	cdef str a1 = a1_py
+	cdef str a2 = a2_py
+	cdef float effect = effect_py
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+		return -1 * effect
+	else:
+		return effect
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def FlipFreqCy(refa1_py, refa2_py, a1_py, a2_py, freq_py):
+	cdef str refa1 = refa1_py
+	cdef str refa2 = refa2_py
+	cdef str a1 = a1_py
+	cdef str a2 = a2_py
+	cdef float freq = freq_py
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+		return 1 - freq
+	else:
+		return freq
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def FlipORCy(refa1_py, refa2_py, a1_py, a2_py, o_r_py):
+	cdef str refa1 = refa1_py
+	cdef str refa2 = refa2_py
+	cdef str a1 = a1_py
+	cdef str a2 = a2_py
+	cdef float o_r = o_r_py
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+		return 1 / o_r
+	else:
+		return o_r
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+def FlipZCy(refa1_py, refa2_py, a1_py, a2_py, z_py):
+	cdef str refa1 = refa1_py
+	cdef str refa2 = refa2_py
+	cdef str a1 = a1_py
+	cdef str a2 = a2_py
+	cdef float z = z_py
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+		return -1 * z
+	else:
+		return z

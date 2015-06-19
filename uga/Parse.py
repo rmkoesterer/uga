@@ -290,6 +290,10 @@ def Parser():
 	meta_parser.add_argument('--p-col', 
 						action=AddString, 
 						help='p-value column')
+	meta_parser.add_argument('--gc', 
+						action=AddString, 
+						type=float, 
+						help='set genomic inflation value instead of calculating it')
 	meta_parser.add_argument('--n', 
 						action=AddString, 
 						help='sample size')
@@ -697,10 +701,10 @@ def GenerateModelCfg(args):
 						del config['models'][tag][k]
 				config['models'][tag]['data'] = l[i][1]
 				config['models'][tag]['format'] = l[i][0]
-				if not 'varlist' in model_args_local:
-					config['models'][tag]['varlist'] = None
-				if not 'sample' in model_args_local:
-					config['models'][tag]['sample'] = None
+		if not 'varlist' in config['models'][tag]:
+			config['models'][tag]['varlist'] = None
+		if not 'sample' in config['models'][tag]:
+			config['models'][tag]['sample'] = None
 
 	# loop over meta arguments and add to config['meta']
 	for m in meta_args:
@@ -804,7 +808,7 @@ def GenerateMetaCfg(args):
 		config[arg[0]] = arg[1]
 
 	# list all possible model level arguments
-	model_vars = ['marker_col','freq_col','rsq_col','hwe_col','effect_col','stderr_col','or_col','z_col','p_col','n','tag','file','maf','rsq','hwe']
+	model_vars = ['gc','marker_col','freq_col','rsq_col','hwe_col','effect_col','stderr_col','or_col','z_col','p_col','n','tag','file','maf','rsq','hwe']
 	if not 'tag' in [a[0] for a in args]:
 		args = [('tag', 'A')] + args
 	pre_tag_idx = [a[0] for a in args if a[0] in model_vars].index('tag')
