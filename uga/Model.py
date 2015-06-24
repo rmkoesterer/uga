@@ -32,6 +32,7 @@ def Model(cfg):
 	seqmeta_tests = ['fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden']
 	seqmeta_famtests = ['fskato','fskat','fburden']
 	efftests=['efftests']
+	binomial_tests = ['bgee','bglm','blme','bskato','bskat','bburden']
 
 	##### STOP IF MODEL TYPES IN META ANALYSIS ARE INCOMPATIBLE #####
 	for x in cfg['meta']:
@@ -62,9 +63,9 @@ def Model(cfg):
 			print "extracting model variables and removing missing/invalid samples ..."
 		cfg['models'][k]['vars_df'], cfg['models'][k]['model_vars_dict'] = MiscFxns.ExtractModelVars(pheno=cfg['models'][k]['pheno'], model=cfg['models'][k]['model'],
 																										fid=cfg['models'][k]['fid'], iid=cfg['models'][k]['iid'],
-																										family=cfg['models'][k]['family'], sex=cfg['models'][k]['sex'],
-																										case=cfg['models'][k]['case'], ctrl=cfg['models'][k]['ctrl'],
-																										sep=cfg['models'][k]['sep'])
+																										family=cfg['models'][k]['family'], 
+																										sex=cfg['models'][k]['sex'], case=cfg['models'][k]['case'], 
+																										ctrl=cfg['models'][k]['ctrl'], sep=cfg['models'][k]['sep'])
 
 	##### DETERMINE MODEL STATS TO BE EXTRACTED #####
 	for k in cfg['model_order']:
@@ -268,7 +269,7 @@ def Model(cfg):
 				##### EXTRACT MARKER INFO AND MARKER DATA #####
 				marker_info = chunkdf.ix[:,:5]
 				marker_info.replace('.','NA',inplace=True)
-				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '_'  + marker_info['marker'].astype(str).str.replace('-','_').str.replace(':','.') + '_'  + marker_info['a1'].astype(str).str.replace('-','_') + '_'  + marker_info['a2'].astype(str).str.replace('-','_')
+				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '_'  + marker_info['marker'].astype(str).str.replace('-','_').str.replace(':','.').str.replace(';','.') + '_'  + marker_info['a1'].astype(str).str.replace('-','_') + '_'  + marker_info['a2'].astype(str).str.replace('-','_')
 				marker_info.index = marker_info['marker_unique']
 				marker_data = chunkdf.ix[:,5:].transpose()
 				marker_data.replace('NA',np.nan,inplace=True)
@@ -667,15 +668,21 @@ def Model(cfg):
 	else:
 		results_out[['chr','start','end']] = results_out[['chr','start','end']].astype(int)
 		results_out.sort(columns=['chr','start'],inplace=True)
-	for c in [x for x in results_out.columns if x.endswith(('.p','.pmin'))]:
-		results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
-		results_out[c] = results_out[c].astype(object)
-	for c in [x for x in results_out.columns if x.endswith(('.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]:
-		results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
-		results_out[c] = results_out[c].astype(object)
-	for c in [x for x in results_out.columns if x.endswith(('filter','n','status'))]:
-		results_out[c] = results_out[c].map(lambda x: '%d' % (x) if not math.isnan(x) else x)
-		results_out[c] = results_out[c].astype(object)
+	sci_cols = [x for x in results_out.columns.values.tolist() if x.endswith(('.p','.pmin')) or x in ['.p','.pmin']]
+	float_cols = [x for x in results_out.columns.values.tolist() if x.endswith(('.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed','.hwe','.hwe.unrel','.hwe.ctrl','.hwe.case','.hwe.unrel.ctrl','.hwe.unrel.case','.callrate','.freq','.freq.unrel','.freq.ctrl','.freq.case','.freq.unrel.ctrl','.freq.unrel.case','.rsq','.rsq.unrel','.rsq.ctrl','.rsq.case','.rsq.unrel.ctrl','.rsq.unrel.case','.effect','.stderr','.or','.z')) or x in ['rho','cmaf','Qmeta','beta','se','cmafTotal','cmafUsed','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z']]
+	int_cols = [x for x in results_out.columns.values.tolist() if x.endswith(('.filter','.n','.status','.nmiss','.nsnps','.errflag','.nsnpsTotal','.nsnpsUsed')) or x in ['filter','n','status','nmiss','nsnps','errflag','nsnpsTotal','nsnpsUsed']]
+	if len(sci_cols) > 0:
+		for c in sci_cols:
+			results_out[c] = results_out[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
+			results_out[c] = results_out[c].astype(object)
+	if len(float_cols) > 0:
+		for c in float_cols:
+			results_out[c] = results_out[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
+			results_out[c] = results_out[c].astype(object)
+	if len(int_cols) > 0:
+		for c in int_cols:
+			results_out[c] = results_out[c].map(lambda x: '%d' % (x) if not math.isnan(x) else x)
+			results_out[c] = results_out[c].astype(object)
 
 	##### FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
 	results_out.fillna('NA',inplace=True)

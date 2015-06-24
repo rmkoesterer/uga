@@ -641,7 +641,7 @@ def GenerateModelCfg(args):
 
 	# list all possible model level arguments
 	model_vars = ['tag','sample','pheno','varlist','fid','iid','focus','ped','sex', 
-					'male','female','buffer','miss','maf','maxmaf','rsq','hwe','rho','case','ctrl','corstr','sep','lmer_ctrl',
+					'male','female','miss','maf','maxmaf','rsq','hwe','rho','case','ctrl','corstr','sep','lmer_ctrl',
 					'reml','lrt','cph_ctrl','skat_wts','burden_wts','skat_method',
 					'ggee','bgee','gglm','bglm','glme','blme','cph','neff',
 					'fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden',
@@ -655,8 +655,14 @@ def GenerateModelCfg(args):
 	for k in model_args_global.keys():
 		if k in ['ggee','bgee','gglm','bglm','glme','blme','cph','neff',
 						'fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden'] and model_args_global[k] is not None:
-			model_args_global['model'] = k
-			model_args_global['model_fxn'] = model_args_global[k]
+			model_args_global['model'] = model_args_global[k]
+			model_args_global['model_fxn'] = k
+			if k in ['bgee','bglm','blme','bskato','bskat','bburden']:
+				model_args_global['family'] = "binomial"
+			elif k in ['ggee','gglm','glme','gskato','gskat','gburden']:
+				model_args_global['family'] = "gaussian"
+			else:
+				model_args_global['family'] = None
 		elif k in ['oxford','vcf','plink','dos1','dos2'] and model_args_global[k] is not None:
 			model_args_global['data'] = model_args_global[k]
 			model_args_global['format'] = k
@@ -695,6 +701,12 @@ def GenerateModelCfg(args):
 						del config['models'][tag][k]
 				config['models'][tag]['model'] = l[i][1]
 				config['models'][tag]['model_fxn'] = l[i][0]
+				if l[i][0] in ['bgee','bglm','blme','bskato','bskat','bburden']:
+					config['models'][tag]['family'] = "binomial"
+				elif l[i][0] in ['ggee','gglm','glme','gskato','gskat','gburden']:
+					config['models'][tag]['family'] = "gaussian"
+				else:
+					config['models'][tag]['family'] = None
 			elif l[i][0] in ['oxford','vcf','plink','dos1','dos2'] and l[i][1] is not None:
 				for k in [x for x in ['oxford','vcf','plink','dos1','dos2'] if x != l[i][0]]:
 					if k in config['models'][tag]:
@@ -764,12 +776,6 @@ def GenerateModelCfg(args):
 			config['models'][x]['male'] = 1
 		if not 'female' in config['models'][x]:
 			config['models'][x]['female'] = 2
-		if config['models'][x]['model_fxn'] in ['ggee','gglm','glme']:
-			config['models'][x]['family'] = 'gaussian'
-		elif config['models'][x]['model_fxn'] in ['bgee','bglm','blme']:
-			config['models'][x]['family'] = 'binomial'
-		else:
-			config['models'][x]['family'] = None
 	return config
 
 def PrintModelOptions(cfg):
