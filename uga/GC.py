@@ -3,8 +3,6 @@ import scipy.stats as scipy
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 
-#from memory_profiler import profile, memory_usage
-#@profile
 def GC(data, 
 		out, 
 		gc, 

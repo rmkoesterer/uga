@@ -27,14 +27,17 @@ def main(args=None):
 		print "reading configuration from file"
 		config = Parse.GenerateMetaCfg(args.ordered_args)
 		args.cfg = 1
-		#args.out = config['out']
 	elif args.which == 'model':
 		print "preparing model configuration"
 		config = Parse.GenerateModelCfg(args.ordered_args)
 		args.cfg = 1
+	elif args.which == 'explore':
+		print "preparing explore configuration"
+		config = Parse.GenerateExploreCfg(args.ordered_args)
+		args.cfg = 1
 
 	##### define region list #####
-	if args.which in ['model','compile']:
+	if args.which in ['model']:
 		n = 1
 		dist_mode = 'full'
 		if args.reglist:
@@ -61,6 +64,7 @@ def main(args=None):
 		else:
 			region_df = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)]})
 			n = 1
+
 		##### get job list from file #####
 		if 'jobs' in vars(args).keys() and args.jobs is not None:
 			jobs = []
@@ -81,18 +85,13 @@ def main(args=None):
 				directory = directory + 'chr[CHR]/'
 			elif dist_mode == 'split-list-n':
 				directory = directory + 'list[LIST]/'
-		if 'data' in vars(args).keys() and args.which == 'compile':
-			args.data = directory + args.data
 		if 'out' in vars(args).keys() and args.which in ['model','meta']:
 			args.out = directory + args.out
 
 		##### generate out file names for split jobs or chr/region specific jobs #####
 		out_files = {}
 		if dist_mode in ['chr','region','split-list','split-list-n']:
-			if args.which == "compile":
-				out_files = FileFxns.GenerateSubFiles(region_df = region_df, f = args.data, dist_mode = dist_mode, n = n)
-			else:
-				out_files = FileFxns.GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
+			out_files = FileFxns.GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
 
 	##### get user home directory #####
 	home_dir = os.path.expanduser("~")
@@ -117,11 +116,17 @@ def main(args=None):
 				if os.path.exists(f):
 					print SystemFxns.Error("1 or more output files already exists (use --replace flag to replace)")
 					return
-		SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
+		if args.qsub:
+			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + args.out + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
+		else:
+			SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
 
 	elif args.which == 'compile':
+		out_files = {}
+		if args.which == "compile":
+			out_files = FileFxns.FindSubFiles(f = args.data)
 		if len(out_files.keys()) > 1:
-			existing_files = glob.glob(args.out + '*')
+			existing_files = glob.glob(args.out + '.gz*') + glob.glob(args.out + '.log')
 			if len(existing_files) > 0:
 				if not args.replace:
 					print SystemFxns.Error("1 or more output files or files with similar basename already exists (use --replace flag to replace)")
@@ -170,15 +175,11 @@ def main(args=None):
 		if len(existing_files) > 0:
 			print SystemFxns.Error("above files already exist (use --replace flag to replace)")
 			return
-		cmd = 'Explore(data="' + args.data + '",out="' + args.out + '"'
-		for x in ['qq','qq_n','qq_strat','mht','color','ext','sig','gc','set_gc','lz_source','lz_build','lz_pop','regions_top','reglist','id','region','stat','pmin','tag','unrel','f_dist_dfn','f_dist_dfd','callrate','rsq','maf','hwe','effect','stderr','or','df']:
-			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-				if type(vars(args)[x]) is str:
-					cmd = cmd + ',' + x + '="' + str(vars(args)[x]) + '"'
-				else:
-					cmd = cmd + ',' + x + '=' + str(vars(args)[x])
-		cmd = cmd + ')'
-		SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.explore.log')
+		cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
+		if args.qsub:
+			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
+		else:
+			SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.explore.log')
 
 	elif args.which == 'gc':
 		check_files = [args.out + '.gc.log']

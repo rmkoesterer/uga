@@ -38,7 +38,7 @@ def Parser():
 						help='display version information and exit')
 
 	##### MODEL PARSER #####
-	model_parser = subparsers.add_parser('model', help='marker and region-based statistical modeling', parents=[parser])
+	model_parser = subparsers.add_parser('model', help='marker and gene/region-based statistical modeling', parents=[parser])
 	model_parser.add_argument('--out', 
 						action=AddString, 
 						help='output file basename (do not include path or extension)')
@@ -320,7 +320,7 @@ def Parser():
 						help='threshold value for Hardy Weinberg p-value (ie. 1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
 	meta_parser.add_argument('--method', 
 						action=AddString, 
-						choices=['sample_size', 'stderr', 'efftest'], 
+						choices=['sample_size', 'stderr'], 
 						help='meta-analysis method (default: sample_size)')
 	meta_parser.add_argument('--replace', 
 						nargs=0, 
@@ -366,7 +366,7 @@ def Parser():
 						help='filename for a list of jobs to run (use with --reglist and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 
 	##### MAP PARSER ######
-	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype data files', parents=[parser])
+	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype/imputed data files', parents=[parser])
 	map_required = map_parser.add_argument_group('required arguments')
 	map_required.add_argument('--out', 
 						action=AddString, 
@@ -376,6 +376,9 @@ def Parser():
 						nargs=0, 
 						action=AddTrue, 
 						help='replace any existing out files')
+	map_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (trigger adds jobs to cluster queue')
 	map_split_group1 = map_parser.add_mutually_exclusive_group()
 	map_split_group1.add_argument('--mb', 
 						action=AddString, 
@@ -425,7 +428,7 @@ def Parser():
 						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
 
 	##### COMPILE PARSER #####
-	compile_parser = subparsers.add_parser('compile', help='verify and compile plot results files', parents=[parser])
+	compile_parser = subparsers.add_parser('compile', help='verify and compile results files', parents=[parser])
 	compile_required = compile_parser.add_argument_group('required arguments')
 	compile_required.add_argument('--out', 
 						action=AddString, 
@@ -434,31 +437,14 @@ def Parser():
 	compile_required.add_argument('--data', 
 						action=AddString, 
 						required=True, 
-						help='base filename of existing results (basename only: do not include path or extension)')
-	compile_required.add_argument('--reglist', 
-						action=AddString, 
-						required=True, 
-						help='filename for a list of tabix format regions')
+						help='base filename of existing results (basename only: do not include path or extension or list / region portion of filename; ex. set to X if out file names are of the form chr2/X.chr2bp1-2.gz or list0-99/X.list1.gz)')
 	compile_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 
 						help='replace any existing output files')
-	compile_parser_split_group = compile_parser.add_mutually_exclusive_group()
-	compile_parser_split_group.add_argument('--split', 
-						nargs=0, 
-						action=AddTrue, 
-						help='split reglist into an individual job for each line in file (requires --reglist)')
-	compile_parser_split_group.add_argument('--split-n', 
-						action=AddString, 
-						type=int, 
-						help='split reglist into n individual jobs each with a subset of regions in the file (requires --reglist)')
-	compile_parser_split_group.add_argument('--split-chr', 
-						nargs=0, 
-						action=AddTrue,  
-						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
 
 	##### EXPLORE PARSER #####
-	explore_parser = subparsers.add_parser('explore', help='filter and/or plot results files', parents=[parser])
+	explore_parser = subparsers.add_parser('explore', help='explore results: filter, plot, list top results, etc.', parents=[parser])
 	explore_required = explore_parser.add_argument_group('required arguments')
 	explore_required.add_argument('--data', 
 						action=AddString, 
@@ -468,6 +454,9 @@ def Parser():
 						action=AddString, 
 						required=True, 
 						help='output filename (basename only: do not include path)')
+	explore_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (trigger adds jobs to cluster queue')
 	explore_parser.add_argument('--qq', 
 						nargs=0, 
 						action=AddTrue, 
@@ -488,7 +477,7 @@ def Parser():
 						nargs=0, 
 						action=AddTrue, 
 						help='plot in color')
-	explore_parser.add_argument('--gc', 
+	explore_parser.add_argument('--plot-gc', 
 						nargs=0, 
 						action=AddTrue, 
 						help='print manhattan plots with genomic inflation corrected p-values')
@@ -496,17 +485,17 @@ def Parser():
 						action=AddString, 
 						type=float, 
 						help='set genomic inflation value instead of calculating it')
-	explore_parser.add_argument('--pmin', 
+	explore_parser.add_argument('--pmax', 
 						action=AddString, 
 						type=float, 
-						help='set minimum p-value for top results file (default = 1e-4; will print at least top 100')
+						help='set maximum p-value for top results file (default = 1e-4; will print at least top 100')
 	explore_parser.add_argument('--stat', 
 						action=AddString, 
 						help='string indicating prefix for statistics to be summarized, not including tag (default: STAT=\'marker\')')
-	explore_parser.add_argument('--regions-top', 
+	explore_parser.add_argument('--top', 
 						action=AddString, 
 						type=int, 
-						help='print regional plots for top n regions')
+						help='an integer; print regional plots for top n regions')
 	explore_parser.add_argument('--tag', 
 						action=AddString, 
 						help='string indicating tag for stats to be summarized, if tag exists (example: TAG=aa and STAT=marker -> aa.marker.p)')
@@ -514,9 +503,6 @@ def Parser():
 						nargs=0, 
 						action=AddTrue, 
 						help='filter based on unrel columns')	
-	explore_parser.add_argument('--meta-dir', 
-						action=AddString, 
-						help='column name meta analysis direction (default: meta.dir)')
 	explore_parser.add_argument('--rsq', 
 						action=AddString, 
 						type=float, 
@@ -541,7 +527,7 @@ def Parser():
 						action=AddString, 
 						type=float, 
 						help='threshold for standard error (ie. 5 filters out markers with standard error > 5)')
-	explore_parser.add_argument('--or', 
+	explore_parser.add_argument('--oddsratio', 
 						action=AddString, 
 						type=float, 
 						help='threshold for odds ratio (ie. 1.3 filters out markers with odds ratio > 1.25 and < 1/1.25 = 0.8)')
@@ -568,9 +554,6 @@ def Parser():
 	explore_parser_split_group.add_argument('--reglist', 
 						action=AddString, 
 						help='filename for a list of tabix format regions')
-	explore_parser.add_argument('--id', 
-						action=AddString, 
-						help='add region id to results (for use with --region option)')
 	explore_parser.add_argument('--lz-source', 
 						action=AddString, 
 						help='locuszoom source option')
@@ -582,7 +565,7 @@ def Parser():
 						help='locuszoom pop option')
 
 	##### GC PARSER #####
-	gc_parser = subparsers.add_parser('gc', help='apply genomic control to 1 or more columns in a results file', parents=[parser])
+	gc_parser = subparsers.add_parser('gc', help='apply genomic control to 1 or more p-value columns', parents=[parser])
 	gc_required = gc_parser.add_argument_group('required arguments')
 	gc_required.add_argument('--out', 
 						action=AddString, 
@@ -622,8 +605,6 @@ def Parse(top_parser):
 		top_parser.error("missing argument: --b, --kb, --mb, or --n required in module map")
 	if args.which == 'model' and not (args.fskato is None or args.fskat is None or args.fburden is None) and args.ped is None:
 		top_parser.error("missing argument: --ped required for fskato, fskat, or fburden models using data with family structure")
-	if args.which == 'compile' and not (args.split or args.split_n or args.split_chr):
-		top_parser.error("missing argument: --split, --split-n, or --split-chr required for compile module")
 	print ''
 	print 'Universal Genome Analyst v' + version
 	print ''
@@ -872,4 +853,24 @@ def PrintMetaOptions(cfg):
 	print '   meta analysis ...'
 	for m in cfg['meta_info']:
 		print "      {0:>{1}}".format(str('--meta ' + m), len(max(['--' + k for k in cfg['meta_info']],key=len))) + ":" + str('+'.join(cfg['meta_info'][m]))
+	print ''
+
+def GenerateExploreCfg(args):
+	config = {'out': None, 'data': None, 'qq': False, 'qq_strat': False, 'qq_n': False, 'mht': False, 'color': False, 'plot_gc': False,
+				'set_gc': None, 'ext': 'tiff', 'sig': 0.000000054, 'stat': 'marker', 'top': None, 'region': None, 'region_id': None, 
+				'reglist': None, 'pmax': 1e-4, 'tag': None, 'unrel': False, 'lz_source': None, 'lz_build': None, 'lz_pop': None, 
+				'callrate': None, 'rsq': None, 'maf': None, 'hwe': None, 'effect': None, 'stderr': None, 'odds_ratio': None, 'df': None}
+	for arg in args:
+		config[arg[0]] = arg[1]
+	return config
+
+def PrintExploreOptions(cfg):
+	print ''
+	print "options in effect ..."
+	for k in cfg:
+		if cfg[k] is not None and cfg[k] is not False:
+			if cfg[k] is True:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+			else:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 	print ''

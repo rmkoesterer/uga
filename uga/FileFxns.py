@@ -63,6 +63,21 @@ def GenerateSubFiles(region_df, f, dist_mode, n):
 			return
 	return out_files
 
+def FindSubFiles(f):
+	out_files=collections.OrderedDict()
+	list_files = glob.glob("list*/" + f + ".list*.gz")
+	chr_files = glob.glob("chr*/" + f + ".chr*.gz")
+	if len(list_files) > 0 and len(chr_files) > 0:
+		print SystemFxns.Error("found both list and chr directories containing valid data files")
+		return
+	elif len(list_files) > 0:
+		for t in sorted([(int(k.split('list')[2].split('.')[0]),k.replace('.gz','')) for k in list_files],key=lambda l: l[0]):
+			out_files[t[0]] = t[1]
+	else:
+		for t in sorted([(int(k.split('chr')[2].split('bp')[0]),int(k.split('chr')[2].split('bp')[1].split('-')[0]),int(k.split('chr')[2].split('bp')[1].split('-')[1].split('.')[0]),k.replace('.gz','')) for k in chr_files],key=lambda l: (l[0],l[1],l[2])):
+			out_files[str(t[0]) + ':' + str(t[1]) + '-' + str(t[2])] = t[3]
+	return out_files
+
 def CheckResults(file_dict, out, cpus=1):
 	print "verifying results"
 	cpus = cpu_count() if cpu_count() < cpus else cpus	

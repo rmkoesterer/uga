@@ -3,47 +3,10 @@ import scipy.stats as scipy
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 
-#from memory_profiler import profile, memory_usage
-#@profile
-def Explore(data, 
-			out, 
-			qq = False,
-			qq_strat = False, 
-			qq_n = False, 
-			mht = False, 
-			color = False, 
-			ext = 'tiff', 
-			sig = 0.000000054, 
-			gc = False, 
-			set_gc = None, 
-			stat = 'marker', 
-			regions_top = None, 
-			region = None, 
-			region_id = None, 
-			reglist = None, 
-			top_p = 1e-4,  
-			tag = None, 
-			unrel = False, 
-			f_dist_dfn = None, 
-			f_dist_dfd = None, 
-			lz_source = None, 
-			lz_build = None, 
-			lz_pop = None, 
-			callrate_thresh = None, 
-			rsq_thresh = None, 
-			freq_thresh = None, 
-			hwe_thresh = None, 
-			effect_thresh = None, 
-			stderr_thresh = None, 
-			or_thresh = None, 
-			df_thresh = None):
+def Explore(cfg):
+	Parse.PrintExploreOptions(cfg)
 
-	print "explore options ..."
-	for arg in locals().keys():
-		if not locals()[arg] in [None, False]:
-			print "   {0:>{1}}".format(str(arg), len(max(locals().keys(),key=len))) + ": " + str(locals()[arg])
-
-	if qq or mht:
+	if cfg['qq'] or cfg['mht']:
 		import rpy2.robjects.lib.ggplot2 as ggplot2
 		rgrid = importr('grid')
 		grdevices = importr('grDevices')
@@ -56,60 +19,60 @@ def Explore(data,
 	fcols.append('hwe.unrel')
 	fcols.append('samples')
 	fcols.append('n')
-	fcols.append(stat + '.effect')
-	fcols.append(stat + '.stderr')
-	fcols.append(stat + '.or')
-	fcols.append(stat + '.z')
-	fcols.append(stat + '.p')
-	fcols.append(stat + '.dir')
-	chr = '#chr'
-	pos = 'pos'
-	rsq = 'rsq.unrel' if unrel else 'rsq'
-	freq = 'freq.unrel' if unrel else 'freq'
-	hwe = 'hwe.unrel' if unrel else 'hwe'
-	effect = stat + '.effect'
-	stderr = stat + '.stderr'
-	oddsratio = stat + '.or'
-	z = stat + '.z'
-	p = stat + '.p'
-	meta_dir = stat + '.dir'
-	if tag is not None:
-		fcols = [tag + '.' + x if x not in ['#chr','pos','a1','a2'] else x for x in fcols]
-		rsq = tag + '.' + rsq
-		freq = tag + '.' + freq
-		hwe = tag + '.' + hwe
-		effect = tag + '.' + effect
-		stderr = tag + '.' + stderr
-		oddsratio = tag + '.' + oddsratio
-		z = tag + '.' + z
-		p = tag + '.' + p
-		meta_dir = tag + '.' + meta_dir
+	fcols.append(cfg['stat'] + '.effect')
+	fcols.append(cfg['stat'] + '.stderr')
+	fcols.append(cfg['stat'] + '.or')
+	fcols.append(cfg['stat'] + '.z')
+	fcols.append(cfg['stat'] + '.p')
+	fcols.append(cfg['stat'] + '.dir')
+	chr_col = '#chr'
+	pos_col = 'pos'
+	rsq_col = 'rsq.unrel' if cfg['unrel'] else 'rsq'
+	freq_col = 'freq.unrel' if cfg['unrel'] else 'freq'
+	hwe_col = 'hwe.unrel' if cfg['unrel'] else 'hwe'
+	effect_col = cfg['stat'] + '.effect'
+	stderr_col = cfg['stat'] + '.stderr'
+	oddsratio_col = cfg['stat'] + '.or'
+	z_col = cfg['stat'] + '.z'
+	p_col = cfg['stat'] + '.p'
+	meta_dir_col = cfg['stat'] + '.dir'
+	if cfg['tag'] is not None:
+		fcols = [cfg['tag'] + '.' + x if x not in ['#chr','pos','a1','a2'] else x for x in fcols]
+		rsq_col = cfg['tag'] + '.' + rsq_col
+		freq_col = cfg['tag'] + '.' + freq_col
+		hwe_col = cfg['tag'] + '.' + hwe_col
+		effect_col = cfg['tag'] + '.' + effect_col
+		stderr_col = cfg['tag'] + '.' + stderr_col
+		oddsratio_col = cfg['tag'] + '.' + oddsratio_col
+		z_col = cfg['tag'] + '.' + z_col
+		p_col = cfg['tag'] + '.' + p_col
+		meta_dir_col = cfg['tag'] + '.' + meta_dir_col
 
 	##### GENERATE REGION LIST #####
 	regions = None
-	if not reglist is None:
+	if not cfg['reglist'] is None:
 		print "loading region list"
-		varlist = FileFxns.LoadCoordinates(reglist)
+		varlist = FileFxns.LoadCoordinates(cfg['reglist'])
 		regions = list(varlist['region'])
-	elif not region is None:
-		if len(region.split(':')) > 1:
-			varlist = pd.DataFrame({'chr': [re.split(':|-',region)[0]],'start': [re.split(':|-',region)[1]],'end': [re.split(':|-',region)[2]],'region': [region]})
+	elif not cfg['region'] is None:
+		if len(cfg['region'].split(':')) > 1:
+			varlist = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
 		else:
-			varlist = pd.DataFrame({'chr': [region],'start': ['NA'],'end': ['NA'],'region': [region]})
-		varlist['id'] = region_id if not region_id is None else 'NA'
+			varlist = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
+		varlist['id'] = 'NA'
 		regions = list(varlist['region'])
 
 	##### read data from file #####
 	print "loading results from file"
 	if regions is None:
-		reader = pd.read_table(data, sep='\t', chunksize=1000000,compression='gzip',dtype=object)
+		reader = pd.read_table(cfg['data'], sep='\t', chunksize=1000000,compression='gzip',dtype=object)
 		i = 0
 		for chunk in reader:
 			i = i+1
 			chunk = chunk[[x for x in chunk.columns if x in fcols]]
 			lines = len(chunk)
-			chunk = chunk[pd.notnull(chunk[p])]
-			chunk = chunk[chunk[p] != 0]
+			chunk = chunk[pd.notnull(chunk[p_col])]
+			chunk = chunk[chunk[p_col] != 0]
 			if len(chunk) > 0:
 				if i == 1:
 					pvals = chunk
@@ -120,14 +83,14 @@ def Explore(data,
 		chr = 'chr'
 	else:
 		try:
-			h = subprocess.Popen(['tabix','-h',data,'0'], stdout=subprocess.PIPE)
+			h = subprocess.Popen(['tabix','-h',cfg['data'],'0'], stdout=subprocess.PIPE)
 		except:
-			usage(SystemFxns.Error("process_file " + data + " has incorrect format"))
+			usage(SystemFxns.Error("process_file " + cfg['data'] + " has incorrect format"))
 		header = h.communicate()[0]
 		header = header.replace("#","")
 		header = header.strip()
 		header = header.split()		
-		reader = tabix.open(data)
+		reader = tabix.open(cfg['data'])
 		for r in range(len(varlist.index)):
 			reg = varlist['region'][r]
 			try:
@@ -137,9 +100,9 @@ def Explore(data,
 			else:
 				chunk = pd.DataFrame([record for record in records])
 				chunk.columns = header
-				chunk = chunk[chunk[p] != 'NA']
-				chunk = chunk[pd.notnull(chunk[p])]
-				chunk = chunk[chunk[p] != 0]
+				chunk = chunk[chunk[p_col] != 'NA']
+				chunk = chunk[pd.notnull(chunk[p_col])]
+				chunk = chunk[chunk[p_col] != 0]
 				if len(chunk) > 0:
 					if r == 0:
 						pvals = chunk
@@ -151,43 +114,36 @@ def Explore(data,
 	pvals[['chr','pos']] = pvals[['chr','pos']].astype(int)
 
 	##### filter data #####
-	if rsq_thresh:
+	if cfg['rsq']:
 		print "filtering data for imputation quality"
-		pvals = pvals[(pvals[rsq] >= rsq_thresh) & (pvals[rsq] <= 1/rsq_thresh)]
-	if freq_thresh:
+		pvals = pvals[(pvals[rsq_col] >= cfg['rsq']) & (pvals[rsq_col] <= 1/cfg['rsq'])]
+	if cfg['maf']:
 		print "filtering data for frequency"
-		pvals = pvals[(pvals[freq] >= freq_thresh) & (pvals[freq] <= 1 - freq_thresh)]
-	if hwe_thresh:
+		pvals = pvals[(pvals[freq_col] >= cfg['maf']) & (pvals[freq_col] <= 1 - cfg['maf'])]
+	if cfg['hwe']:
 		print "filtering data for Hardy Weinberg p-value"
-		pvals = pvals[pvals[hwe] > hwe_thresh]
-	if callrate_thresh:
+		pvals = pvals[pvals[hwe_col] > cfg['hwe']]
+	if cfg['callrate']:
 		print "filtering data for callrate"
-		pvals = pvals[pvals[callrate] >= callrate_thresh]
-	if effect_thresh:
+		pvals = pvals[pvals[callrate_col] >= cfg['callrate']]
+	if cfg['effect']:
 		print "filtering data for effect estimate"
-		pvals = pvals[(pvals[effect] <= effect_thresh) & (pvals[effect] >= -1 * effect_thresh)]
-	if stderr_thresh:
+		pvals = pvals[(pvals[effect_col] <= cfg['effect']) & (pvals[effect_col] >= -1 * cfg['effect'])]
+	if cfg['stderr']:
 		print "filtering data for standard error"
-		pvals = pvals[pvals[stderr] <= stderr_thresh]
-	if or_thresh:
+		pvals = pvals[pvals[stderr_col] <= cfg['stderr']]
+	if cfg['odds_ratio']:
 		print "filtering data for odds ratio"
-		pvals = pvals[(pvals[oddsratio] <= or_thresh) & (pvals[oddsratio] >= 1 / or_thresh)]
+		pvals = pvals[(pvals[oddsratio_col] <= cfg['odds_ratio']) & (pvals[oddsratio_col] >= 1 / cfg['odds_ratio'])]
 	def count_df(x):
 		return len(re.findall('\\+|-',x))
-	if df_thresh:
+	if cfg['df']:
 		print "filtering data for degrees of freedom"
-		pvals = pvals[pvals[meta_dir].apply(count_df) >= int(df_thresh) + 1]
+		pvals = pvals[pvals[meta_dir_col].apply(count_df) >= int(cfg['df']) + 1]
 	print str(len(pvals)) + " markers left after filtering"
 	
-	##### calculate p-value for f-distribution #####
 	if regions is None:
-		if not f_dist_dfn is None:
-			print "calculating new p-values for f-distribution"
-			pvals[p + '_orig']=pvals[p]
-			out = out + '.fdist'
-			pvals[p]=1-scipy.f.cdf(pvals[z] ** 2,dfn=int(f_dist_dfn),dfd=int(f_dist_dfd))
-
-		l=np.median(scipy.chi2.ppf([1-x for x in pvals[p].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+		l=np.median(scipy.chi2.ppf([1-x for x in pvals[p_col].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 		print "genomic inflation (all markers) = " + str(l)
 		if freq in pvals:
 			lA='NA'
@@ -195,59 +151,38 @@ def Explore(data,
 			lC='NA'
 			lD='NA'
 			lE='NA'
-			lE_n=len(pvals[p][(pvals[freq] < 0.01) | (pvals[freq] > 0.99)])
-			lD_n=len(pvals[p][((pvals[freq] >= 0.01) & (pvals[freq] < 0.03)) | ((pvals[freq] <= 0.99) & (pvals[freq] > 0.97))])
-			lC_n=len(pvals[p][((pvals[freq] >= 0.03) & (pvals[freq] < 0.05)) | ((pvals[freq] <= 0.97) & (pvals[freq] > 0.95))])
-			lB_n=len(pvals[p][((pvals[freq] >= 0.05) & (pvals[freq] < 0.1)) | ((pvals[freq] <= 0.95) & (pvals[freq] > 0.9))])
-			lA_n=len(pvals[p][(pvals[freq] >= 0.1) & (pvals[freq] <= 0.9)])
+			lE_n=len(pvals[p_col][(pvals[freq_col] < 0.01) | (pvals[freq_col] > 0.99)])
+			lD_n=len(pvals[p_col][((pvals[freq_col] >= 0.01) & (pvals[freq_col] < 0.03)) | ((pvals[freq_col] <= 0.99) & (pvals[freq_col] > 0.97))])
+			lC_n=len(pvals[p_col][((pvals[freq_col] >= 0.03) & (pvals[freq_col] < 0.05)) | ((pvals[freq_col] <= 0.97) & (pvals[freq_col] > 0.95))])
+			lB_n=len(pvals[p_col][((pvals[freq_col] >= 0.05) & (pvals[freq_col] < 0.1)) | ((pvals[freq_col] <= 0.95) & (pvals[freq_col] > 0.9))])
+			lA_n=len(pvals[p_col][(pvals[freq_col] >= 0.1) & (pvals[freq_col] <= 0.9)])
 			if lE_n > 0:
-				lE=np.median(scipy.chi2.ppf([1-x for x in pvals[p][(pvals[freq] < 0.01) | (pvals[freq] > 0.99)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+				lE=np.median(scipy.chi2.ppf([1-x for x in pvals[p_col][(pvals[freq_col] < 0.01) | (pvals[freq_col] > 0.99)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 			if lD_n > 0:
-				lD=np.median(scipy.chi2.ppf([1-x for x in pvals[p][((pvals[freq] >= 0.01) & (pvals[freq] < 0.03)) | ((pvals[freq] <= 0.99) & (pvals[freq] > 0.97))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+				lD=np.median(scipy.chi2.ppf([1-x for x in pvals[p_col][((pvals[freq_col] >= 0.01) & (pvals[freq_col] < 0.03)) | ((pvals[freq_col] <= 0.99) & (pvals[freq_col] > 0.97))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 			if lC_n > 0:
-				lC=np.median(scipy.chi2.ppf([1-x for x in pvals[p][((pvals[freq] >= 0.03) & (pvals[freq] < 0.05)) | ((pvals[freq] <= 0.97) & (pvals[freq] > 0.95))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+				lC=np.median(scipy.chi2.ppf([1-x for x in pvals[p_col][((pvals[freq_col] >= 0.03) & (pvals[freq_col] < 0.05)) | ((pvals[freq_col] <= 0.97) & (pvals[freq_col] > 0.95))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 			if lB_n > 0:
-				lB=np.median(scipy.chi2.ppf([1-x for x in pvals[p][((pvals[freq] >= 0.05) & (pvals[freq] < 0.1)) | ((pvals[freq] <= 0.95) & (pvals[freq] > 0.9))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+				lB=np.median(scipy.chi2.ppf([1-x for x in pvals[p_col][((pvals[freq_col] >= 0.05) & (pvals[freq_col] < 0.1)) | ((pvals[freq_col] <= 0.95) & (pvals[freq_col] > 0.9))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 			if lA_n > 0:
-				lA=np.median(scipy.chi2.ppf([1-x for x in pvals[p][(pvals[freq] >= 0.1) & (pvals[freq] <= 0.9)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+				lA=np.median(scipy.chi2.ppf([1-x for x in pvals[p_col][(pvals[freq_col] >= 0.1) & (pvals[freq_col] <= 0.9)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 			print "genomic inflation (MAF >= 10%, n=" + str(lA_n) + ") = " + str(lA)
 			print "genomic inflation (5% <= MAF < 10%, n=" + str(lB_n) + ") = " + str(lB)
 			print "genomic inflation (3% <= MAF < 5%, n=" + str(lC_n) + ") = " + str(lC)
 			print "genomic inflation (1% <= MAF < 3%, n=" + str(lD_n) + ") = " + str(lD)
 			print "genomic inflation (MAF < 1%, n=" + str(lE_n) + ") = " + str(lE)
 		else:
-			if qq_strat:
+			if cfg['qq_strat']:
 				print freq + " not found in data file, skipping frequency stratified qq plot"
 
-		if qq and freq in pvals and qq_strat:
-			"""
-			a = -1 * np.log10(ro.r('ppoints(' + str(len(pvals.index)) + ')'))
-			a.sort()
-			
-			pvals['logp'] = -1 * np.log10(pvals[p])
+		if cfg['qq'] and freq in pvals and cfg['qq_strat']:
+			pvals['logp'] = -1 * np.log10(pvals[p_col])
 			pvals.sort(columns=['logp'], inplace=True)
 			pvals['MAF'] = 'E'
-			pvals['MAF'][(pvals[freq] >= 0.01) & (pvals[freq] <= 0.99)] = 'D'
-			pvals['MAF'][(pvals[freq] >= 0.03) & (pvals[freq] <= 0.97)] = 'C'
-			pvals['MAF'][(pvals[freq] >= 0.05) & (pvals[freq] <= 0.95)] = 'B'
-			pvals['MAF'][(pvals[freq] >= 0.1) & (pvals[freq] <= 0.9)] = 'A'
-
-			ci_upper = -1 * np.log10(scipy.beta.ppf(0.95, range(1,len(pvals[p]) + 1), range(len(pvals[p]),0,-1)))
-			ci_upper.sort()
-			ci_lower = -1 * np.log10(scipy.beta.ppf(0.05, range(1,len(pvals[p]) + 1), range(len(pvals[p]),0,-1)))
-			ci_lower.sort()
-
-			df = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(pvals['logp']), 'MAF': ro.StrVector(pvals['MAF']), 'ci_upper': ro.FloatVector(ci_upper), 'ci_lower': ro.FloatVector(ci_lower)})
-			dftext_label = 'lambda %~~% ' + str(round(l,3))
-			dftext = ro.DataFrame({'x': ro.r('Inf'), 'y': 0.5, 'lab': dftext_label})
-			"""
-			pvals['logp'] = -1 * np.log10(pvals[p])
-			pvals.sort(columns=['logp'], inplace=True)
-			pvals['MAF'] = 'E'
-			pvals['MAF'][(pvals[freq] >= 0.01) & (pvals[freq] <= 0.99)] = 'D'
-			pvals['MAF'][(pvals[freq] >= 0.03) & (pvals[freq] <= 0.97)] = 'C'
-			pvals['MAF'][(pvals[freq] >= 0.05) & (pvals[freq] <= 0.95)] = 'B'
-			pvals['MAF'][(pvals[freq] >= 0.1) & (pvals[freq] <= 0.9)] = 'A'
+			pvals['MAF'][(pvals[freq_col] >= 0.01) & (pvals[freq_col] <= 0.99)] = 'D'
+			pvals['MAF'][(pvals[freq_col] >= 0.03) & (pvals[freq_col] <= 0.97)] = 'C'
+			pvals['MAF'][(pvals[freq_col] >= 0.05) & (pvals[freq_col] <= 0.95)] = 'B'
+			pvals['MAF'][(pvals[freq_col] >= 0.1) & (pvals[freq_col] <= 0.9)] = 'A'
 			a = np.array([])
 			b = np.array([])
 			c = np.array([])
@@ -299,12 +234,12 @@ def Explore(data,
 			df = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(b), 'MAF': ro.StrVector(c)})
 
 			print "generating frequency stratified qq plot"
-			if ext == 'tiff':
-				grdevices.tiff(out + '.qq_strat.' + ext,width=4,height=4,units="in",bg="white",compression="lzw",res=300)
-			elif ext == 'eps':
-				grdevices.postscript(out + '.qq_strat.' + ext,width=4,height=4,bg="white",horizontal=False)
+			if cfg['ext'] == 'tiff':
+				grdevices.tiff(cfg['out'] + '.qq_strat.' + cfg['ext'],width=4,height=4,units="in",bg="white",compression="lzw",res=300)
+			elif cfg['ext'] == 'eps':
+				grdevices.postscript(cfg['out'] + '.qq_strat.' + cfg['ext'],width=4,height=4,bg="white",horizontal=False)
 			else:
-				grdevices.pdf(out + '.qq_strat.' + ext,width=4,height=4,bg="white")
+				grdevices.pdf(cfg['out'] + '.qq_strat.' + cfg['ext'],width=4,height=4,bg="white")
 			gp = ggplot2.ggplot(df)
 			pp = gp + \
 					ggplot2.aes_string(x='a',y='b') + \
@@ -318,16 +253,16 @@ def Explore(data,
 			pp.plot()
 			grdevices.dev_off()
 
-		if qq:
+		if cfg['qq']:
 			a = -1 * np.log10(ro.r('ppoints(' + str(len(pvals.index)) + ')'))
 			a.sort()
 			
-			pvals['logp'] = -1 * np.log10(pvals[p]) + 0.0
+			pvals['logp'] = -1 * np.log10(pvals[p_col]) + 0.0
 			pvals.sort(columns=['logp'], inplace=True)
 			
-			ci_upper = -1 * np.log10(scipy.beta.ppf(0.95, range(1,len(pvals[p]) + 1), range(len(pvals[p]),0,-1)))
+			ci_upper = -1 * np.log10(scipy.beta.ppf(0.95, range(1,len(pvals[p_col]) + 1), range(len(pvals[p_col]),0,-1)))
 			ci_upper.sort()
-			ci_lower = -1 * np.log10(scipy.beta.ppf(0.05, range(1,len(pvals[p]) + 1), range(len(pvals[p]),0,-1)))
+			ci_lower = -1 * np.log10(scipy.beta.ppf(0.05, range(1,len(pvals[p_col]) + 1), range(len(pvals[p_col]),0,-1)))
 			ci_lower.sort()
 
 			df = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(pvals['logp']), 'ci_upper': ro.FloatVector(ci_upper), 'ci_lower': ro.FloatVector(ci_lower)})
@@ -335,12 +270,12 @@ def Explore(data,
 			dftext = ro.DataFrame({'x': ro.r('Inf'), 'y': 0.5, 'lab': dftext_label})
 
 			print "generating qq plot"
-			if ext == 'tiff':
-				grdevices.tiff(out + '.qq.' + ext,width=4,height=4,units="in",bg="white",compression="lzw",res=300)
-			elif ext == 'eps':
-				grdevices.postscript(out + '.qq.' + ext,width=4,height=4,bg="white",horizontal=False)
+			if cfg['ext'] == 'tiff':
+				grdevices.tiff(cfg['out'] + '.qq.' + cfg['ext'],width=4,height=4,units="in",bg="white",compression="lzw",res=300)
+			elif cfg['ext'] == 'eps':
+				grdevices.postscript(cfg['out'] + '.qq.' + cfg['ext'],width=4,height=4,bg="white",horizontal=False)
 			else:
-				grdevices.pdf(out + '.qq.' + ext,width=4,height=4,bg="white")
+				grdevices.pdf(cfg['out'] + '.qq.' + cfg['ext'],width=4,height=4,bg="white")
 			gp = ggplot2.ggplot(df)
 			pp = gp + \
 					ggplot2.aes_string(x='a',y='b') + \
@@ -351,7 +286,7 @@ def Explore(data,
 					ggplot2.scale_y_continuous(ro.r('expression(Observed~~-log[10](italic(p)))')) + \
 					ggplot2.theme_bw(base_size = 12) + \
 					ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext, colour="black", vjust=0, hjust=1, size = 4, parse=ro.r('TRUE'))
-			if qq_n:
+			if cfg['qq_n']:
 				dftext2_label = '~~~ n == ' + str(len(pvals))
 				dftext2 = ro.DataFrame({'x': ro.r('Inf'), 'y': 0, 'lab': dftext2_label})
 				pp = pp + ggplot2.geom_text(ggplot2.aes_string(x='x', y='y', label='lab'), data = dftext2, colour="black", vjust=0, hjust=1, size = 4, parse=ro.r('TRUE'))
@@ -359,25 +294,25 @@ def Explore(data,
 			pp.plot()
 			grdevices.dev_off()
 		
-		if gc:
+		if cfg['plot_gc']:
 			print "adjusting p-values for genomic inflation"
-			pvals[p]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*pvals[p]) / math.sqrt(l)))
+			pvals[p_col]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*pvals[p_col]) / math.sqrt(l)))
 
-		if mht:
+		if cfg['mht']:
 			print "calculating genomic positions for manhattan plot"
 			df = pvals[[chr,pos,p]].reset_index(drop=True)
 			df.sort(columns=[chr,pos], inplace=True)
 			ticks = []
 			lastbase = 0
 			df['gpos'] = 0
-			nchr = len(list(np.unique(df[chr].values)))
-			chrs = np.unique(df[chr].values)
-			if color:
+			nchr = len(list(np.unique(df[chr_col].values)))
+			chrs = np.unique(df[chr_col].values)
+			if cfg['color']:
 				colours = ["#08306B","#41AB5D","#000000","#F16913","#3F007D","#EF3B2C","#08519C","#238B45","#252525","#D94801","#54278F","#CB181D","#2171B5","#006D2C","#525252","#A63603","#6A51A3","#A50F15","#4292C6","#00441B","#737373","#7F2704","#807DBA","#67000D"]
 			else:
 				colours = ["#000000","#696969","#000000","#696969","#000000","#696969","#000000","#696969","#000000","#696969","#000000","#696969","#000000","#696969","#000000","#696969","#000000","#696969","#000000","#696969","#000000","#696969","#000000","#696969"]
 			if nchr == 1:
-				df['gpos'] = df[pos]
+				df['gpos'] = df[pos_col]
 				df['colours'] = "#000000"
 				if df['gpos'].max() - df['gpos'].min() <= 1000:
 					ticks = [x for x in range(df['gpos'].min(),df['gpos'].max()) if x % 100 == 0]
@@ -414,14 +349,14 @@ def Explore(data,
 				for i in range(len(chrs)):
 					print "   processed chromosome " + str(int(chrs[i]))
 					if i == 0:
-						df['gpos'][df[chr] == chrs[i]] = df[pos][df[chr] == chrs[i]]
+						df['gpos'][df[chr_col] == chrs[i]] = df[pos_col][df[chr_col] == chrs[i]]
 					else:
-						lastbase = lastbase + df[pos][df[chr] == chrs[i-1]].iget(-1)
-						df['gpos'][df[chr] == chrs[i]] = (df[pos][df[chr] == chrs[i]]) + lastbase
-					ticks.append(df['gpos'][df[chr] == chrs[i]].iloc[(int(math.floor(len(df['gpos'][df[chr] == chrs[i]]))/2)) + 1])
-					df['colours'][df[chr] == chrs[i]] = colours[int(chrs[i])]
-			df['logp'] = -1 * np.log10(df[p])
-			maxy=int(max(np.ceil(-1 * np.log10(sig)),np.ceil(df['logp'].max())))
+						lastbase = lastbase + df[pos_col][df[chr_col] == chrs[i-1]].iget(-1)
+						df['gpos'][df[chr_col] == chrs[i]] = (df[pos_col][df[chr_col] == chrs[i]]) + lastbase
+					ticks.append(df['gpos'][df[chr_col] == chrs[i]].iloc[(int(math.floor(len(df['gpos'][df[chr_col] == chrs[i]]))/2)) + 1])
+					df['colours'][df[chr_col] == chrs[i]] = colours[int(chrs[i])]
+			df['logp'] = -1 * np.log10(df[p_col])
+			maxy=int(max(np.ceil(-1 * np.log10(cfg['sig'])),np.ceil(df['logp'].max())))
 			if maxy > 20:
 				y_breaks = range(0,maxy,5)
 				y_labels = range(0,maxy,5)
@@ -429,20 +364,20 @@ def Explore(data,
 				y_breaks = range(0,maxy)
 				y_labels = range(0,maxy)
 			rdf = ro.DataFrame({'gpos': ro.FloatVector(df['gpos']), 'logp': ro.FloatVector(df['logp']), 'colours': ro.FactorVector(df['colours'])})
-			if ext == 'tiff':
-				grdevices.tiff(out + '.mht.' + ext,width=12,height=4,units="in",bg="white",compression="lzw",res=300)
-			elif ext == 'eps':
-				grdevices.postscript(out + '.mht.' + ext,width=12,height=4,bg="white",horizontal=False)
+			if cfg['ext'] == 'tiff':
+				grdevices.tiff(cfg['out'] + '.mht.' + cfg['ext'],width=12,height=4,units="in",bg="white",compression="lzw",res=300)
+			elif cfg['ext'] == 'eps':
+				grdevices.postscript(cfg['out'] + '.mht.' + cfg['ext'],width=12,height=4,bg="white",horizontal=False)
 			else:
-				grdevices.pdf(out + '.mht.' + ext,width=12,height=4,bg="white")
+				grdevices.pdf(cfg['out'] + '.mht.' + cfg['ext'],width=12,height=4,bg="white")
 			print "generating manhattan plot"
 			if nchr == 1:
 				gp = ggplot2.ggplot(rdf)
 				pp = gp + \
 						ggplot2.aes_string(x='gpos',y='logp') + \
-						ggplot2.geom_hline(yintercept = -1 * np.log10(sig),colour="#B8860B", linetype=5, size = 0.25) + \
+						ggplot2.geom_hline(yintercept = -1 * np.log10(cfg['sig']),colour="#B8860B", linetype=5, size = 0.25) + \
 						ggplot2.geom_point(size=1.5) + \
-						ggplot2.scale_x_continuous(ro.r('expression(Chromosome~~' + str(df[chr][0]) + '~~(kb))'),breaks=ro.FloatVector(ticks),labels=ro.Vector(["{:,}".format(x/1000) for x in ticks])) + \
+						ggplot2.scale_x_continuous(ro.r('expression(Chromosome~~' + str(df[chr_col][0]) + '~~(kb))'),breaks=ro.FloatVector(ticks),labels=ro.Vector(["{:,}".format(x/1000) for x in ticks])) + \
 						ggplot2.scale_y_continuous(ro.r('expression(-log[10](italic(p)))'),limits=ro.r('c(0,' + str(maxy) + ')')) + \
 						ggplot2.theme_bw(base_size = 8) + \
 						ggplot2.theme(**{'axis.title.x': ggplot2.element_text(vjust=-0.5,size=14), 'axis.title.y': ggplot2.element_text(vjust=1,angle=90,size=14), 'panel.background': ggplot2.element_blank(), 'panel.border': ggplot2.element_blank(), 'panel.grid.minor': ggplot2.element_blank(), 'panel.grid.major': ggplot2.element_blank(), 'axis.line': ro.r('element_line(colour="black")'), 'axis.title': ggplot2.element_text(size=10), 'axis.text': ggplot2.element_text(size=8), 'legend.position': 'none', 'axis.text': ggplot2.element_text(size=12)})
@@ -451,7 +386,7 @@ def Explore(data,
 				gp = ggplot2.ggplot(rdf)
 				pp = gp + \
 						ggplot2.aes_string(x='gpos',y='logp',colour='colours') + \
-						ggplot2.geom_hline(yintercept = -1 * np.log10(sig),colour="#B8860B", linetype=5, size = 0.25) + \
+						ggplot2.geom_hline(yintercept = -1 * np.log10(cfg['sig']),colour="#B8860B", linetype=5, size = 0.25) + \
 						ggplot2.geom_point(size=1.5) + \
 						ggplot2.scale_colour_manual(values=ro.StrVector(colours)) + \
 						ggplot2.scale_x_continuous(ro.r('expression(Chromosome)'),breaks=ro.FloatVector(ticks),labels=ro.FloatVector(chrs)) + \
@@ -464,31 +399,32 @@ def Explore(data,
 		##### DETERMINE TOP REGIONS #####
 		regions = []
 		pvals_top = pvals.copy()
-		if regions_top is not None:
+		if cfg['top'] is not None:
 			print "determining top regions for regional manhattan plots"
-			pvals_top.sort(columns=[p], inplace=True)
-			while len(regions) < regions_top:
+			pvals_top.sort(columns=[p_col], inplace=True)
+			while len(regions) < cfg['top']:
 				region_temp = str(pvals_top['chr'].iloc[0]) + ':' + str(pvals_top['pos'].iloc[0] - 100000) + '-' + str(pvals_top['pos'].iloc[0] + 100000)
 				regions.append(region_temp)
 				pvals_top = pvals_top[~((pvals_top['chr'] == int(region_temp.split(':')[0])) & (pvals_top['pos'] >= int(region_temp.split(':')[1].split('-')[0])) & (pvals_top['pos'] <= int(region_temp.split(':')[1].split('-')[1])))]
-	else:
-		if set_gc is not None:
-			print "adjusting p-values for genomic inflation"
-			pvals[p]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*pvals[p]) / math.sqrt(set_gc)))
 
-	##### PRINT TOP RESULTS TO FILE #####
-	print 'writing top results file'
-	if pvals[pvals[p] < top_p].shape[0] > 100:
-		pvals_out = pvals[pvals[p] < top_p].sort(columns=[p])
+		##### PRINT TOP RESULTS TO FILE #####
+		print 'writing top results file'
+		if pvals[pvals[p_col] < cfg['pmax']].shape[0] > 100:
+			pvals_out = pvals[pvals[p_col] < cfg['pmax']].sort(columns=[p_col])
+		else:
+			pvals_out = pvals.sort(columns=[p_col]).head(100)
+		pvals_out.rename(columns={'chr':'#chr'},inplace=True)
+		pvals_out[p_col] = pvals_out[p_col].map('{:,.4e}'.format)
+		if 'logp' in pvals_out:
+			pvals_out.drop('logp',axis=1,inplace=True)
+		if 'MAF' in pvals_out:
+			pvals_out.drop('MAF',axis=1,inplace=True)
+		pvals_out.to_csv(cfg['out'] + '.top_results', header=True, index=False, sep="\t")
+
 	else:
-		pvals_out = pvals.sort(columns=[p]).head(100)
-	pvals_out.rename(columns={'chr':'#chr'},inplace=True)
-	pvals_out[p] = pvals_out[p].map('{:,.4e}'.format)
-	if 'logp' in pvals_out:
-		pvals_out.drop('logp',axis=1,inplace=True)
-	if 'MAF' in pvals_out:
-		pvals_out.drop('MAF',axis=1,inplace=True)
-	pvals_out.to_csv(out + '.top_results', header=True, index=False, sep="\t")
+		if cfg['set_gc'] is not None:
+			print "adjusting p-values for genomic inflation"
+			pvals[p_col]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*pvals[p_col]) / math.sqrt(cfg['set_gc'])))
 
 	if len(regions) > 0:
 		print "generating regional plots"
@@ -500,13 +436,13 @@ def Explore(data,
 			pvals_region = pvals[(pvals['chr'] == chr) & (pvals['pos'] >= start) & (pvals['pos'] <= end)]
 			pvals_region['MarkerName'] = pvals_region['marker'].values
 			pvals_region['MarkerName'] = pvals_region[['chr','pos','MarkerName']].apply(lambda row: str(row[0]) + ':' + str(row[1]) if not 'rs' in row[2] else row[2], axis=1)
-			pvals_region['P-value'] = pvals_region[p].values
+			pvals_region['P-value'] = pvals_region[p_col].values
 			pvals_region.sort(columns=['P-value'], inplace=True)
 			pvals_region = pvals_region[['MarkerName','P-value','pos']]
-			pvals_region.to_csv(out + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata',header=True, index=False, sep='\t')
-			cmd = home_dir + '/locuszoom --metal ' + out + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata --chr ' + str(chr) + ' --start ' + str(start) + ' --end ' + str(end) + ' --plotonly --cache None --prefix ' + out
-			if lz_pop is not None:
-				cmd = cmd + ' --source ' + lz_source + ' --build ' + lz_build + ' --pop ' + lz_pop 
+			pvals_region.to_csv(cfg['out'] + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata',header=True, index=False, sep='\t')
+			cmd = home_dir + '/locuszoom --metal ' + cfg['out'] + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata --chr ' + str(chr) + ' --start ' + str(start) + ' --end ' + str(end) + ' --plotonly --cache None --prefix ' + cfg['out']
+			if cfg['lz_pop'] is not None:
+				cmd = cmd + ' --source ' + cfg['lz_source'] + ' --build ' + cfg['lz_build'] + ' --pop ' + cfg['lz_pop'] 
 			else:
 				cmd = cmd + ' --no-ld'
 			try:
