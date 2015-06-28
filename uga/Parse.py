@@ -1,6 +1,23 @@
+## Copyright (c) 2015 Ryan Koesterer GNU General Public License v3
+##
+##    This program is free software: you can redistribute it and/or modify
+##    it under the terms of the GNU General Public License as published by
+##    the Free Software Foundation, either version 3 of the License, or
+##    (at your option) any later version.
+##
+##    This program is distributed in the hope that it will be useful,
+##    but WITHOUT ANY WARRANTY; without even the implied warranty of
+##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##    GNU General Public License for more details.
+##
+##    You should have received a copy of the GNU General Public License
+##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 from __main__ import *
 import argparse
 from __init__ import version
+import textwrap
+from datetime import date
 
 class AddString(argparse.Action):
 	def __call__(self, parser, namespace, values, option_string=None):
@@ -26,19 +43,31 @@ class AddFalse(argparse.Action):
 		previous.append((self.dest, False))
 		setattr(namespace, 'ordered_args', previous)
 
+def Describe():
+	print ''
+	print 'uga v' + version + ' (c) 2015 Ryan Koesterer   GNU General Public License v3'
+	print ''
+	print textwrap.fill("Universal Genome Analyst is an open, flexible, and efficient tool for the distribution, management, and visualization of whole genome data analyses. It is designed to assist biomedical researchers in complex genomic data analysis through the use of a low level interface between the powerful R statistical environment and Python to allow for rapid integration of emerging analytical strategies. Researchers with access to a high performance computing cluster will find time-saving features for parallel analysis using a flexible, yet controlled, commandline interface.", initial_indent = '      ', subsequent_indent = '   ')
+	print ''
+	print textwrap.fill("This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.", initial_indent='   ', subsequent_indent='   ')
+	print ''
+	print textwrap.fill("This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.", initial_indent='   ', subsequent_indent='   ')
+	print ''
+	print textwrap.fill("You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>", initial_indent='   ', subsequent_indent='   ')
+	print ''
 
 def Parser():
-	parser = argparse.ArgumentParser(add_help=False)
+	parser = argparse.ArgumentParser(add_help=False, description=Describe())
 	top_parser = argparse.ArgumentParser(parents=[parser])
 	subparsers = top_parser.add_subparsers(title='modules', dest='which')
 
 	top_parser.add_argument('--version', 
 						action='version', 
-						version='Universal Genome Analyst: %(prog)s v' + version, 
+						version='', 
 						help='display version information and exit')
 
 	##### MODEL PARSER #####
-	model_parser = subparsers.add_parser('model', help='marker and gene/region-based statistical modeling', parents=[parser])
+	model_parser = subparsers.add_parser('model', help='variant and gene/region-based statistical modeling', parents=[parser])
 	model_parser.add_argument('--out', 
 						action=AddString, 
 						help='output file basename (do not include path or extension)')
@@ -606,7 +635,7 @@ def Parse(top_parser):
 	if args.which == 'model' and not (args.fskato is None or args.fskat is None or args.fburden is None) and args.ped is None:
 		top_parser.error("missing argument: --ped required for fskato, fskat, or fburden models using data with family structure")
 	print ''
-	print 'Universal Genome Analyst v' + version
+	print 'uga v' + version
 	print ''
 	print 'active module: ' + args.which
 	return args

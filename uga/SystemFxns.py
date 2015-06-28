@@ -1,5 +1,21 @@
+## Copyright (c) 2015 Ryan Koesterer GNU General Public License v3
+##
+##    This program is free software: you can redistribute it and/or modify
+##    it under the terms of the GNU General Public License as published by
+##    the Free Software Foundation, either version 3 of the License, or
+##    (at your option) any later version.
+##
+##    This program is distributed in the hope that it will be useful,
+##    but WITHOUT ANY WARRANTY; without even the implied warranty of
+##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##    GNU General Public License for more details.
+##
+##    You should have received a copy of the GNU General Public License
+##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 from __main__ import *
 import psutil
+from __init__ import version
 
 def Error(m):
 	return "\n   *** Error: " + m + "\n"
@@ -18,15 +34,6 @@ def Qsub(command):
 		kill_all(p.pid)
 		print Highlight("process terminated by user")
 		sys.exit(1)
-
-def Banner():
-	print ''
-	with open(sys.path[0] + '/README.rst') as banner:
-		lines = (line.rstrip() for line in banner)
-		for line in lines:
-			if "**Version**" in line:
-				vline=line.split(" ")
-				print "   * BU_BiomedicalGenetics v" + " ".join(vline[2:])
 
 def Interactive(submit, cmd, log_file = None):
 	try:

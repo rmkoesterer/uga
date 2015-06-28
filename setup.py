@@ -42,7 +42,7 @@ setup(
     classifiers = [
         'Programming Language :: Python :: 2.7',
         'Development Status :: 4 - Beta',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
 		],
 	zip_safe=False

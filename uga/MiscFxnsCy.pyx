@@ -1,3 +1,18 @@
+## Copyright (c) 2015 Ryan Koesterer GNU General Public License v3
+##
+##    This program is free software: you can redistribute it and/or modify
+##    it under the terms of the GNU General Public License as published by
+##    the Free Software Foundation, either version 3 of the License, or
+##    (at your option) any later version.
+##
+##    This program is distributed in the hope that it will be useful,
+##    but WITHOUT ANY WARRANTY; without even the implied warranty of
+##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##    GNU General Public License for more details.
+##
+##    You should have received a copy of the GNU General Public License
+##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 from Model import *
 import numpy as np
 cimport numpy as np
@@ -97,34 +112,17 @@ def CalcHWECy(np.ndarray x):
 			common = 2*max(obs_hom1,obs_hom2)+obs_hets
 			if not rare:
 				return 1.0
-
-			# expected heterogygotes
 			hets = rare*common/(rare+common)
-
-			# check for non-matching parity of rare and hets
 			if rare%2 != hets%2:
 				hets += 1
-
-			# expected rare and common homozygotes
 			hom_r = (rare-hets)/2
 			hom_c = (common-hets)/2
-
-			# initialize heterozygote probability vector
 			probs = [0]*(rare/2+1)
-
-			# Set P(expected hets)=1
 			probs[hets/2] = 1.0
-
-			# fill in relative probabilities for less than the expected hets
 			for i,h in enumerate(xrange(hets,1,-2)):
 				probs[h/2-1] = probs[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
-
-			# fill in relative probabilities for greater than the expected hets
 			for i,h in enumerate(xrange(hets,rare-1,2)):
 				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
-
-			# compute the pvalue by summing the probabilities <= to that of the
-			# observed number of heterogygotes and normalize by the total
 			p_obs = probs[obs_hets/2]
 			p_hwe = sum(p for p in probs if p <= p_obs)/sum(probs)
 			return p_hwe

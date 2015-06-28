@@ -1,3 +1,18 @@
+## Copyright (c) 2015 Ryan Koesterer GNU General Public License v3
+##
+##    This program is free software: you can redistribute it and/or modify
+##    it under the terms of the GNU General Public License as published by
+##    the Free Software Foundation, either version 3 of the License, or
+##    (at your option) any later version.
+##
+##    This program is distributed in the hope that it will be useful,
+##    but WITHOUT ANY WARRANTY; without even the implied warranty of
+##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##    GNU General Public License for more details.
+##
+##    You should have received a copy of the GNU General Public License
+##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 from Model import *
 rtry = ro.r('try')
 rsummary = ro.r('summary')
@@ -150,7 +165,7 @@ def CalcCoxPH(marker_info, model_df, model_vars_dict, model, iid, fid, model_fxn
 		model_out=ro.r(cmd)
 	except RRuntimeError:
 		print "      " + marker_info['marker_unique'] + ": RRuntimeError for function coxph"
-		marker_info['status'] = -3
+		marker_info['status'] = -2
 	else:
 		coef = py2r.convert_robj(rsummary(model_out).rx('coefficients'))['coefficients']
 		conf_int = py2r.convert_robj(rsummary(model_out).rx('conf.int'))['conf.int']
