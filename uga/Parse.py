@@ -657,7 +657,7 @@ def GenerateModelCfg(args):
 					'fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden',
 					'oxford','vcf','plink','dos1','dos2']
 	if not 'tag' in [a[0] for a in args]:
-		args = [('tag', 'A')] + args
+		args = [('tag', 'NA')] + args
 	pre_tag_idx = [a[0] for a in args if a[0] in model_vars].index('tag')
 
 	# extract global model arguments
@@ -799,7 +799,7 @@ def PrintModelOptions(cfg):
 				else:
 					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 	for m in cfg['models']:
-		print '   model ' + str(m) + ' ...'
+		print '   model ' + str(m) + ' ...' if len(cfg['models']) > 1 else '   model ...'
 		cfg['models'][m][cfg['models'][m]['model_fxn']] = cfg['models'][m]['model']
 		for n in cfg['models'][m]:
 			if not n in ['model_fxn','model','family','format','data']:
@@ -808,7 +808,7 @@ def PrintModelOptions(cfg):
 						print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len)))
 					else:
 						print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m][n])
-	if 'meta' in cfg:
+	if len(cfg['meta']) > 0:
 		print '   meta analysis ...'
 		metas = [(x.split(':')[0],x.split(':')[1]) for x in cfg['meta']]
 		for m in metas:
@@ -879,9 +879,10 @@ def PrintMetaOptions(cfg):
 						print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['data_info'][m].keys()],key=len)))
 					else:
 						print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['data_info'][m].keys()],key=len))) + " " + str(cfg['data_info'][m][n])
-	print '   meta analysis ...'
-	for m in cfg['meta_info']:
-		print "      {0:>{1}}".format(str('--meta ' + m), len(max(['--' + k for k in cfg['meta_info']],key=len))) + ":" + str('+'.join(cfg['meta_info'][m]))
+	if len(cfg['meta_order']) > 0:
+		print '   meta analysis ...'
+		for m in cfg['meta_info']:
+			print "      {0:>{1}}".format(str('--meta ' + m), len(max(['--' + k for k in cfg['meta_info']],key=len))) + ":" + str('+'.join(cfg['meta_info'][m]))
 	print ''
 
 def GenerateExploreCfg(args):
