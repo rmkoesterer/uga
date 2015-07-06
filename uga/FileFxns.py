@@ -117,7 +117,7 @@ def CheckResults(file_dict, out, cpus=1):
 			k = 0
 			for j in joblist:
 				k = k + 1
-				logfile = glob.glob(file_dict[j] + ".*.log")
+				logfile = glob.glob(file_dict[j] + "*.log")
 				resfile = file_dict[j] + ".gz"
 				if os.path.exists(resfile):
 					if os.path.exists(logfile[0]):
@@ -162,6 +162,7 @@ def CheckResults(file_dict, out, cpus=1):
 			reg_rerun_dict[i] = []
 			reg_incompletefile_dict[i] = []
 			reg_missingfile_dict[i] = []
+			reg_nomarkers_dict[i] = []
 			if cpus == 1:
 				pbar.start()
 			p = Process(target=CheckReg, args=(i, joblist[i],reg_complete_dict,reg_rerun_dict,reg_incompletefile_dict,reg_missingfile_dict,reg_nomarkers_dict))
@@ -244,22 +245,25 @@ def CheckResults(file_dict, out, cpus=1):
 
 def CompileResults(out_files, out):
 	print "compiling results"
-	bgzfile = bgzf.BgzfWriter(out + '.gz', 'wb')
+	#bgzfile = bgzf.BgzfWriter(out + '.gz', 'wb')
+	bgzfile = file(out + '.gz', 'w')
 	logfile = file(out + '.log', 'w')
 	pbar = ProgressBar(maxval=len(out_files.keys()), widgets = ['   processed ', Counter(), ' of ' + str(len(out_files.keys())) + ' regions (', Timer(), ')'])
 	i=0
 	pbar.start()
 	for reg in out_files.keys():
 		i = i + 1
-		sed = ['awk','{print $0}'] if i == 1 else ['sed','1d']
+		#sed = ['awk','{print $0}'] if i == 1 else ['sed','1d']
 		resfile = out_files[reg]
 		resfile = resfile + ".gz"
-		p1 = subprocess.Popen(['zcat',resfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
-		p2 = subprocess.Popen(sed, stdin=p1.stdout, stdout=subprocess.PIPE)
-		bgzfile.write(p2.communicate()[0])
+		#p1 = subprocess.Popen(['zcat',resfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+		p1 = subprocess.Popen(['cat',resfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+		#p2 = subprocess.Popen(sed, stdin=p1.stdout, stdout=subprocess.PIPE)
+		#bgzfile.write(p2.communicate()[0])
+		bgzfile.write(p1.communicate()[0])
 		p1.wait()
-		p2.wait()
-		outlog = glob.glob(out_files[reg] + ".*.log")
+		#p2.wait()
+		outlog = glob.glob(out_files[reg] + "*.log")
 		if i == 1:
 			p3 = subprocess.Popen(['cat',outlog[0]], stdout=subprocess.PIPE)
 			p4 = subprocess.Popen(['awk','{print \"      \"$0}'], stdin=p3.stdout, stdout=subprocess.PIPE)

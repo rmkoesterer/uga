@@ -181,62 +181,85 @@ def ComplementCy(allele):
 	cdef str x = allele
 	if x != "NA":
 		letters = list(x)
+		comp = []
+		for l in letters:
+			if l == 'T': 
+				c = 'A'
+			elif l == 'A':
+				c = 'T'
+			elif l == 'G': 
+				c = 'C'
+			elif l == 'C':
+				c = 'G'
+			elif l == '0':
+				c = '0'
+			elif l == ',':
+				c = ','
+			elif l == 'NA':
+				c = 'NA'
+			elif l == '-':
+				c = '-'
+			elif l == 'I':
+				c = 'D'
+			elif l == 'D':
+				c = 'I'
+			elif l in ['1','2','3','4','5','6','7','8','9','0']:
+				c = l
+			else:
+				c = 'X'
+			comp.append(c)
 	else:
-		letters = "NA"
-	comp = []
-	for l in letters:
-		if l == 'T': 
-			c = 'A'
-		elif l == 'A':
-			c = 'T'
-		elif l == 'G': 
-			c = 'C'
-		elif l == 'C':
-			c = 'G'
-		elif l == '0':
-			c = '0'
-		elif l == ',':
-			c = ','
-		elif l == 'NA':
-			c = 'NA'
-		elif l == '-':
-			c = '-'
-		elif l == 'I':
-			c = 'D'
-		elif l == 'D':
-			c = 'I'
-		elif l in ['1','2','3','4','5','6','7','8','9','0']:
-			c = l
-		else:
-			c = 'X'
-		comp.append(c)
+		comp = ['NA']
 	return ''.join(comp)
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def ListCompatibleMarkersCy(chr_py,pos_py,a1_py,a2_py,delim_py):
+	cdef str chr = chr_py
+	cdef str pos = pos_py
+	cdef str a1 = a1_py[0:20]
+	cdef str a2 = a2_py[0:20]
+	cdef str delim = delim_py
+	analogs = [chr + delim + pos + delim + a1 + delim + a2, 
+					chr + delim + pos + delim + ComplementCy(a1) + delim + ComplementCy(a2)]
+	if a2 != 'NA':	
+		analogs = analogs + [chr + delim + pos + delim + ComplementCy(a2) + delim + ComplementCy(a1),
+							chr + delim + pos + delim + a2 + delim + a1, 
+							chr + delim + pos + delim + a1 + delim + 'NA', 
+							chr + delim + pos + delim + ComplementCy(a1) + delim + 'NA', 
+							chr + delim + pos + delim + ComplementCy(a2) + delim + 'NA', 
+							chr + delim + pos + delim + a2 + delim + 'NA']
+	return sorted(list(set(analogs)))
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def ListCompatibleMarkersMetaCy(chr_py,pos_py,a1_py,a2_py,delim_py):
 	cdef str chr = chr_py
 	cdef str pos = pos_py
-	cdef str a1 = a1_py
-	cdef str a2 = a2_py
+	cdef str a1 = a1_py[0:20]
+	cdef str a2 = a2_py[0:20]
 	cdef str delim = delim_py
-	cdef str r1, r2, r3, r4
-	r1 = chr + delim + pos + delim + a1 + delim + a2
-	r2 = chr + delim + pos + delim + ComplementCy(a1) + delim + ComplementCy(a2)
-	r3 = chr + delim + pos + delim + ComplementCy(a2) + delim + ComplementCy(a1)
-	r4 = chr + delim + pos + delim + a2 + delim + a1
-	return "_".join(sorted([r1,r2,r3,r4]))
+	analogs = [chr + delim + pos + delim + a1 + delim + a2, 
+					chr + delim + pos + delim + ComplementCy(a1) + delim + ComplementCy(a2)]
+	if a2 != 'NA':	
+		analogs = analogs + [chr + delim + pos + delim + ComplementCy(a2) + delim + ComplementCy(a1),
+							chr + delim + pos + delim + a2 + delim + a1, 
+							chr + delim + pos + delim + a1 + delim + 'NA', 
+							chr + delim + pos + delim + ComplementCy(a1) + delim + 'NA', 
+							chr + delim + pos + delim + ComplementCy(a2) + delim + 'NA', 
+							chr + delim + pos + delim + a2 + delim + 'NA']
+	return "_".join(sorted(list(set(analogs))))
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
 def FlipEffectCy(refa1_py, refa2_py, a1_py, a2_py, effect_py):
-	cdef str refa1 = refa1_py
-	cdef str refa2 = refa2_py
-	cdef str a1 = a1_py
-	cdef str a2 = a2_py
+	cdef str refa1 = refa1_py[0:20]
+	cdef str refa2 = refa2_py[0:20]
+	cdef str a1 = a1_py[0:20]
+	cdef str a2 = a2_py[0:20]
 	cdef float effect = effect_py
-	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
 		return -1 * effect
 	else:
 		return effect
@@ -245,12 +268,12 @@ def FlipEffectCy(refa1_py, refa2_py, a1_py, a2_py, effect_py):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def FlipFreqCy(refa1_py, refa2_py, a1_py, a2_py, freq_py):
-	cdef str refa1 = refa1_py
-	cdef str refa2 = refa2_py
-	cdef str a1 = a1_py
-	cdef str a2 = a2_py
+	cdef str refa1 = refa1_py[0:20]
+	cdef str refa2 = refa2_py[0:20]
+	cdef str a1 = a1_py[0:20]
+	cdef str a2 = a2_py[0:20]
 	cdef float freq = freq_py
-	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
 		return 1 - freq
 	else:
 		return freq
@@ -259,12 +282,12 @@ def FlipFreqCy(refa1_py, refa2_py, a1_py, a2_py, freq_py):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def FlipORCy(refa1_py, refa2_py, a1_py, a2_py, o_r_py):
-	cdef str refa1 = refa1_py
-	cdef str refa2 = refa2_py
-	cdef str a1 = a1_py
-	cdef str a2 = a2_py
+	cdef str refa1 = refa1_py[0:20]
+	cdef str refa2 = refa2_py[0:20]
+	cdef str a1 = a1_py[0:20]
+	cdef str a2 = a2_py[0:20]
 	cdef float o_r = o_r_py
-	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
 		return 1 / o_r
 	else:
 		return o_r
@@ -273,12 +296,12 @@ def FlipORCy(refa1_py, refa2_py, a1_py, a2_py, o_r_py):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def FlipZCy(refa1_py, refa2_py, a1_py, a2_py, z_py):
-	cdef str refa1 = refa1_py
-	cdef str refa2 = refa2_py
-	cdef str a1 = a1_py
-	cdef str a2 = a2_py
+	cdef str refa1 = refa1_py[0:20]
+	cdef str refa2 = refa2_py[0:20]
+	cdef str a1 = a1_py[0:20]
+	cdef str a2 = a2_py[0:20]
 	cdef float z = z_py
-	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
 		return -1 * z
 	else:
 		return z

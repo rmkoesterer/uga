@@ -455,7 +455,7 @@ def Explore(cfg):
 			pvals_region.sort(columns=['P-value'], inplace=True)
 			pvals_region = pvals_region[['MarkerName','P-value','pos']]
 			pvals_region.to_csv(cfg['out'] + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata',header=True, index=False, sep='\t')
-			cmd = home_dir + '/locuszoom --metal ' + cfg['out'] + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata --chr ' + str(chr) + ' --start ' + str(start) + ' --end ' + str(end) + ' --plotonly --cache None --prefix ' + cfg['out']
+			cmd = cfg['locuszoom'] + ' --metal ' + cfg['out'] + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata --chr ' + str(chr) + ' --start ' + str(start) + ' --end ' + str(end) + ' --plotonly --cache None --prefix ' + cfg['out']
 			if cfg['lz_pop'] is not None:
 				cmd = cmd + ' --source ' + cfg['lz_source'] + ' --build ' + cfg['lz_build'] + ' --pop ' + cfg['lz_pop'] 
 			else:

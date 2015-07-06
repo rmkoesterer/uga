@@ -32,11 +32,17 @@ import Parse
 import multi_key_dict
 import FileFxns
 import SystemFxns
+from ConfigParser import SafeConfigParser
+from pkg_resources import resource_filename
 pd.options.mode.chained_assignment = None
 
 def main(args=None):
 	parser=Parse.Parser()
 	args=Parse.Parse(parser)
+
+	##### read settings file #####
+	ini = SafeConfigParser()
+	ini.read(resource_filename('uga', 'settings.ini'))
 
 	##### read cfg file into dictionary #####
 	if args.which == 'meta':
@@ -49,7 +55,11 @@ def main(args=None):
 		args.cfg = 1
 	elif args.which == 'explore':
 		print "preparing explore configuration"
-		config = Parse.GenerateExploreCfg(args.ordered_args)
+		config = Parse.GenerateExploreCfg(args.ordered_args, ini)
+		args.cfg = 1
+	elif args.which == 'annot':
+		print "preparing annot configuration"
+		config = Parse.GenerateAnnotCfg(args.ordered_args, ini)
 		args.cfg = 1
 
 	##### define region list #####
@@ -110,9 +120,21 @@ def main(args=None):
 			out_files = FileFxns.GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
 
 	##### get user home directory #####
-	home_dir = os.path.expanduser("~")
+	#home_dir = os.path.expanduser("~")
+	qsub_wrapper = resource_filename('uga', 'Qsub.py')
 
-	if args.which == 'map':
+	if args.which == 'set':
+		if 'ordered_args' in args:
+			for k in args.ordered_args:
+				ini.set('main',k[0],k[1])
+			with open(resource_filename('uga', 'settings.ini'), 'w') as f:
+				ini.write(f)
+		print 'main settings ...'
+		for s in ini.sections():
+			for k in ini.options(s):
+				print '   ' + k + ' = ' + ini.get(s,k)
+
+	elif args.which == 'map':
 		cmd = args.which.capitalize() + '(out=\'' + args.out + '\''
 		for x in ['oxford','dos1','dos2','plink','vcf','region','b','kb','mb','n','chr','shift_mb','shift_kb','shift_b']:
 			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
@@ -133,9 +155,9 @@ def main(args=None):
 					print SystemFxns.Error("1 or more output files already exists (use --replace flag to replace)")
 					return
 		if args.qsub:
-			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + args.out + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
+			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + args.out + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
 		else:
-			SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.' + args.which + '.log')
+			SystemFxns.Interactive(qsub_wrapper, cmd, args.out + '.' + args.which + '.log')
 
 	elif args.which == 'compile':
 		out_files = {}
@@ -193,9 +215,9 @@ def main(args=None):
 			return
 		cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
 		if args.qsub:
-			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
+			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
 		else:
-			SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.explore.log')
+			SystemFxns.Interactive(qsub_wrapper, cmd, args.out + '.explore.log')
 
 	elif args.which == 'gc':
 		check_files = [args.out + '.gc.log']
@@ -218,7 +240,35 @@ def main(args=None):
 		cmd = 'GC(data="' + args.data + '",out="' + args.out + '"'
 		if args.gc:
 			cmd = cmd + ',gc=' + str(dict(args.gc)) + ')'
-		SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, args.out + '.gc.log')
+		SystemFxns.Interactive(qsub_wrapper, cmd, args.out + '.gc.log')
+
+	elif args.which == 'annot':
+		check_files = [args.file.replace('.gz','') + '.annot.xlsx']
+		check_files = check_files + [args.file.replace('.gz','') + '.annot.log']
+		check_files = check_files + [args.file.replace('.gz','') + '.annot1']
+		check_files = check_files + [args.file.replace('.gz','') + '.annot2']
+		check_files = check_files + [args.file.replace('.gz','') + '.annot3']
+		check_files = check_files + [args.file.replace('.gz','') + '.annot.summary.genes.txt']
+		check_files = check_files + [args.file.replace('.gz','') + '.annot.summary.html']
+		existing_files = []
+		for f in check_files:
+			if os.path.exists(f):
+				if not args.replace:
+					existing_files = existing_files + [f]
+					print "found file " + str(f)
+				else:
+					try:
+						os.remove(f)
+					except OSError:
+						continue
+		if len(existing_files) > 0:
+			print SystemFxns.Error("above files already exist (use --replace flag to replace)")
+			return
+		cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
+		if args.qsub:
+			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['file'].replace('.gz','') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
+		else:
+			SystemFxns.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.annot.log')
 
 	elif args.which == 'model':
 		print "preparing output directories"
@@ -236,6 +286,14 @@ def main(args=None):
 		else:
 			joblist.extend(range(n))
 		for i in joblist:
+			if i == joblist[0]:
+				config['write_header'] = True
+			else:
+				config['write_header'] = False
+			if i == joblist[len(joblist)-1]:
+				config['write_eof'] = True
+			else:
+				config['write_eof'] = False
 			if dist_mode in ['split-list', 'region']:
 				config['out'] = out_files['%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))]
 				if n > 1:
@@ -261,15 +319,15 @@ def main(args=None):
 						return
 			cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
 			if args.qsub:
-				SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
+				SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
 			else:
-				SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, config['out'] + '.' + args.which + '.log')
+				SystemFxns.Interactive(qsub_wrapper, cmd, config['out'] + '.' + args.which + '.log')
 	elif args.which == 'meta':
 		cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
 		if args.qsub:
-			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + home_dir + '/.uga_wrapper.py \"' + cmd + '\"')
+			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
 		else:
-			SystemFxns.Interactive(home_dir + '/.uga_wrapper.py', cmd, config['out'] + '.' + args.which + '.log')
+			SystemFxns.Interactive(qsub_wrapper, cmd, config['out'] + '.' + args.which + '.log')
 	else:
 		print SystemFxns.Error(args.which + " not a module")
 

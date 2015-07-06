@@ -75,36 +75,35 @@ def countNonPlinkRegion(iter, type, start, end, ml = None):
 def Complement(x):
 	if x != "NA":
 		letters = list(x)
+		comp = []
+		for l in letters:
+			if l == 'T': 
+				c = 'A'
+			elif l == 'A':
+				c = 'T'
+			elif l == 'G': 
+				c = 'C'
+			elif l == 'C':
+				c = 'G'
+			elif l == '0':
+				c = '0'
+			elif l == ',':
+				c = ','
+			elif l == 'NA':
+				c = 'NA'
+			elif l == '-':
+				c = '-'
+			elif l == 'I':
+				c = 'D'
+			elif l == 'D':
+				c = 'I'
+			elif l in ['1','2','3','4','5','6','7','8','9','0']:
+				c = l
+			else:
+				c = 'X'
+			comp.append(c)
 	else:
-		letters = "NA"
-	comp = []
-	for l in letters:
-		
-		if l == 'T': 
-			c = 'A'
-		elif l == 'A':
-			c = 'T'
-		elif l == 'G': 
-			c = 'C'
-		elif l == 'C':
-			c = 'G'
-		elif l == '0':
-			c = '0'
-		elif l == ',':
-			c = ','
-		elif l == 'NA':
-			c = 'NA'
-		elif l == '-':
-			c = '-'
-		elif l == 'I':
-			c = 'D'
-		elif l == 'D':
-			c = 'I'
-		elif l in ['1','2','3','4','5','6','7','8','9','0']:
-			c = l
-		else:
-			c = 'X'
-		comp.append(c)
+		comp = ['NA']
 	return ''.join(comp)
 
 def ListCompatibleMarkers(chr,pos,a1,a2,delim):
@@ -113,12 +112,28 @@ def ListCompatibleMarkers(chr,pos,a1,a2,delim):
 	markers.append(chr + delim + pos + delim + Complement(a1) + delim + Complement(a2))
 	markers.append(chr + delim + pos + delim + Complement(a2) + delim + Complement(a1))
 	markers.append(chr + delim + pos + delim + a2 + delim + a1)
+	markers.append(chr + delim + pos + delim + a1 + delim + 'NA')
+	markers.append(chr + delim + pos + delim + Complement(a1) + delim + 'NA')
+	markers.append(chr + delim + pos + delim + Complement(a2) + delim + 'NA')
+	markers.append(chr + delim + pos + delim + a2 + delim + 'NA')
+	markers.append(chr + delim + pos + delim + 'NA' + delim + a2)
+	markers.append(chr + delim + pos + delim + 'NA' + delim + Complement(a2))
+	markers.append(chr + delim + pos + delim + 'NA' + delim + Complement(a1))
+	markers.append(chr + delim + pos + delim + 'NA' + delim + a1)
 	for alt in a2.split(','):
 		markers.append(chr + delim + pos + delim + a1 + delim + alt)
 		markers.append(chr + delim + pos + delim + Complement(a1) + delim + Complement(alt))
 		markers.append(chr + delim + pos + delim + Complement(alt) + delim + Complement(a1))
 		markers.append(chr + delim + pos + delim + alt + delim + a1)
-	return list(set(markers))
+		markers.append(chr + delim + pos + delim + a1 + delim + 'NA')
+		markers.append(chr + delim + pos + delim + Complement(a1) + delim + 'NA')
+		markers.append(chr + delim + pos + delim + Complement(alt) + delim + 'NA')
+		markers.append(chr + delim + pos + delim + alt + delim + 'NA')
+		markers.append(chr + delim + pos + delim + 'NA' + delim + alt)
+		markers.append(chr + delim + pos + delim + 'NA' + delim + Complement(alt))
+		markers.append(chr + delim + pos + delim + 'NA' + delim + Complement(a1))
+		markers.append(chr + delim + pos + delim + 'NA' + delim + a1)
+	return list(set([m for m in markers if not (m.split('><')[2] == 'NA' and m.split('><')[3] == 'NA')]))
 
 def ListCompatibleMarkersMeta(chr,pos,a1,a2,delim):
 	markers = []
@@ -412,150 +427,42 @@ def GenerateFilterCode(marker_info, no_mono=True, miss = None, freq = None, max_
 		filter += 1
 	return filter
 
-class MarkerRefDb(object):
+def ChunkFlip(row, mdb):
+	mdb_match = mdb[mdb.analogs.map(lambda x: set(x).issubset(set(row['analogs'])) or set(row['analogs']).issubset(set(x)))]
+	if mdb_match.shape[0] > 0:
+		a1=row['a1']
+		a2=row['a2']
+		refa1=mdb_match['a1'][0]
+		refa2=mdb_match['a2'][0]
+		row['a1'] = refa1
+		row['a2'] = refa2 if refa2 != 'NA' else a2
+		if (refa1 + refa2 == Complement(a2) + Complement(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+			if refa1 + refa2 == Complement(a2) + 'NA':
+				row['a2'] = Complement(a1)
+			if refa1 + refa2 == a2 + 'NA':	
+				row['a2'] = a1
+			row[5:] = 2-row[5:].str.replace('NA','nan').astype(float)
+	return row
 
-	def __init__(self):
-		self.ref = multi_key_dict.multi_key_dict()
-		self.ref_alleles = multi_key_dict.multi_key_dict()
+def UpdateAltAllele(row, mdb):
+	mdb_match = mdb[mdb.analogs.map(lambda x: '><'.join([row['chr'],row['pos'],row['a1'],row['a2']]) in x)]
+	if mdb_match.shape[0] > 0:
+		row['a2'] = mdb_match['a2'][0]
+	return row['a2']
 
-	def Update(self, row):
-		newrow=row
-		chr=newrow['chr']
-		pos=newrow['pos']
-		marker=newrow['marker']
-		a1=newrow['a1']
-		a2=newrow['a2']
-		record_markers = ListCompatibleMarkers(chr,pos,a1,a2,'><')
-		if len([r for r in record_markers if self.ref.has_key(r)]) > 0:
-			temp_ref = self.ref[[r for r in record_markers if self.ref.has_key(r)][1]]
-			temp_alleles = self.ref_alleles[[r for r in record_markers if self.ref_alleles.has_key(r)][1]]
-			temp_alleles[1] = ','.join(list(set(','.join([b.split('><')[3] for b in record_markers if b.split('><')[2] == temp_alleles[0]]).split(','))))
-			del self.ref[[r for r in record_markers if self.ref.has_key(r)][1]]
-			del self.ref_alleles[[r for r in record_markers if self.ref_alleles.has_key(r)][1]]
-			if not marker in temp_ref:
-				temp_ref.append(marker)
-				temp_ref = list(set(temp_ref))
-			self.ref[tuple(record_markers)] = temp_ref
-			self.ref_alleles[tuple(record_markers)] = temp_alleles
-		else:
-			self.ref[record_markers] = [marker]
-			self.ref_alleles[record_markers] = [a1,a2]
-		refmarker = filter(lambda x:'rs' in x, self.ref[chr + '><' + pos + '><' + a1 + '><' + a2])
-		if len(refmarker) > 0:
-			refmarker = refmarker[0]
-		else:
-			refmarker = self.ref[chr + '><' + pos + '><' + a1 + '><' + a2][0]
-		keymarkers = self.ref[chr + '><' + pos + '><' + a1 + '><' + a2]
-		refa1 = self.ref_alleles[chr + '><' + pos + '><' + a1 + '><' + a2][0]
-		refa2 = self.ref_alleles[chr + '><' + pos + '><' + a1 + '><' + a2][1]
-		if (refa1 + refa2 == Complement(a2) + Complement(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
-			newrow[5:] = 2-newrow[5:].str.replace('NA','nan').astype(float)
-		newrow['marker']=refmarker	
-		newrow['a1']=refa1
-		newrow['a2']=refa2
-		return newrow
+def MdbUpdate(row, chunkdf):
+	chunkdf_match = chunkdf[chunkdf.analogs.map(lambda x: set(x).issubset(set(row['analogs'])) or set(row['analogs']).issubset(set(x)))]
+	if chunkdf_match.shape[0] > 0:
+		if row['a2'] == 'NA':
+			row['a2'] = chunkdf_match['a2'][0]
+		row['analogs'] = sorted(list(set(row['analogs'] + chunkdf_match['analogs'][0])))
+	return row
 
-	def Print(self):
-		print "\nReference"
-		for k in self.ref.keys():
-			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref.keys()],key=len))) + ": " + str(self.ref[k[0]])
-		print "Reference alleles"
-		for k in self.ref_alleles.keys():
-			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref_alleles.keys()],key=len))) + ": " + str(self.ref_alleles[k[0]])
-		print ""
-
-class ChunkRefDb(object):
-
-	def __init__(self):
-		self.ref = multi_key_dict.multi_key_dict()
-		self.ref_alleles = multi_key_dict.multi_key_dict()
-
-	def ListKeys(self):
-		return [b for t in self.ref.keys() for b in t]
-
-	def Update(self,row):
-		newrow=row
-		chr=newrow['chr']
-		pos=newrow['pos']
-		marker=newrow['marker']
-		a1=newrow['a1']
-		a2=newrow['a2']
-		record_markers = ListCompatibleMarkers(chr,pos,a1,a2,'><')
-		if len([r for r in record_markers if self.ref.has_key(r)]) > 0:
-			temp_ref = self.ref[[r for r in record_markers if self.ref.has_key(r)][1]]
-			temp_alleles = self.ref_alleles[[r for r in record_markers if self.ref_alleles.has_key(r)][1]]
-			temp_alleles[1] = ','.join(list(set(','.join([b.split('><')[3] for b in record_markers if b.split('><')[2] == temp_alleles[0]]).split(','))))
-			del self.ref[[r for r in record_markers if self.ref.has_key(r)][1]]
-			del self.ref_alleles[[r for r in record_markers if self.ref_alleles.has_key(r)][1]]
-			if not marker in temp_ref:
-				temp_ref.append(marker)
-				temp_ref = list(set(temp_ref))
-			self.ref[tuple(record_markers)] = temp_ref
-			self.ref_alleles[tuple(record_markers)] = temp_alleles
-		else:
-			self.ref[record_markers] = [marker]
-			self.ref_alleles[record_markers] = [a1,a2]
-
-	def Print(self):
-		print "\nReference"
-		for k in self.ref.keys():
-			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref.keys()],key=len))) + ": " + str(self.ref[k[0]])
-		print "Reference alleles"
-		for k in self.ref_alleles.keys():
-			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref_alleles.keys()],key=len))) + ": " + str(self.ref_alleles[k[0]])
-		print ""
-
-class MetaRefDb(object):
-
-	def __init__(self):
-		self.ref = multi_key_dict.multi_key_dict()
-		self.ref_alleles = multi_key_dict.multi_key_dict()
-
-	def Update(self, row, tag):
-		newrow=row
-		chr=newrow['chr']
-		pos=newrow['pos']
-		marker=newrow['marker']
-		a1=newrow['a1']
-		a2=newrow['a2']
-		record_markers = ListCompatibleMarkers(chr,pos,a1,a2,'><')
-		if len([r for r in record_markers if self.ref.has_key(r)]) > 0:
-			temp_ref = self.ref[[r for r in record_markers if self.ref.has_key(r)][1]]
-			temp_alleles = self.ref_alleles[[r for r in record_markers if self.ref_alleles.has_key(r)][1]]
-			temp_alleles[1] = ','.join(list(set(','.join([b.split('><')[3] for b in record_markers if b.split('><')[2] == temp_alleles[0]]).split(','))))
-			del self.ref[[r for r in record_markers if self.ref.has_key(r)][1]]
-			del self.ref_alleles[[r for r in record_markers if self.ref_alleles.has_key(r)][1]]
-			if not marker in temp_ref:
-				temp_ref.append(marker)
-				temp_ref = list(set(temp_ref))
-			self.ref[tuple(record_markers)] = temp_ref
-			self.ref_alleles[tuple(record_markers)] = temp_alleles
-		else:
-			self.ref[record_markers] = [marker]
-			self.ref_alleles[record_markers] = [a1,a2]
-		refmarker = filter(lambda x:'rs' in x, self.ref[chr + '><' + pos + '><' + a1 + '><' + a2])
-		if len(refmarker) > 0:
-			refmarker = refmarker[0]
-		else:
-			refmarker = self.ref[chr + '><' + pos + '><' + a1 + '><' + a2][0]
-		keymarkers = self.ref[chr + '><' + pos + '><' + a1 + '><' + a2]
-		refa1 = self.ref_alleles[chr + '><' + pos + '><' + a1 + '><' + a2][0]
-		refa2 = self.ref_alleles[chr + '><' + pos + '><' + a1 + '><' + a2][1]
-		if (refa1 + refa2 == Complement(a2) + Complement(a1) or refa1 + refa2 == a2 + a1) and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
-			newrow[[k for k in newrow.index if k.endswith('.effect')]] = -1 * newrow[[k for k in newrow.index if k.endswith('.effect')]].astype(float)
-			newrow[[k for k in newrow.index if k.endswith('.freq')]] = 1 - newrow[[k for k in newrow.index if k.endswith('.freq')]].astype(float)
-			newrow[[k for k in newrow.index if k.endswith('.or')]] = 1 / newrow[[k for k in newrow.index if k.endswith('.or')]].astype(float)
-			newrow[[k for k in newrow.index if k.endswith('.z')]] = -1 * newrow[[k for k in newrow.index if k.endswith('.z')]].astype(float)
-		newrow['marker']=refmarker	
-		newrow['a1']=refa1
-		newrow['a2']=refa2
-		return newrow
-
-	def Print(self):
-		print "\nReference"
-		for k in self.ref.keys():
-			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref.keys()],key=len))) + ": " + str(self.ref[k[0]])
-		print "Reference alleles"
-		for k in self.ref_alleles.keys():
-			print "   {0:>{1}}".format(str(k), len(max([str(a) for a in self.ref_alleles.keys()],key=len))) + ": " + str(self.ref_alleles[k[0]])
-		print ""
+def MdbAppend(mdb, chunkdf):
+	mdb['check'] = mdb['analogs'].apply(lambda x: '_'.join(x),1)
+	chunkdf['check'] = chunkdf['analogs'].apply(lambda x: '_'.join(x),1)
+	chunkdf_nomatch = chunkdf[~chunkdf['check'].isin(mdb['check'])]
+	if chunkdf_nomatch.shape[0] > 0:
+		mdb = mdb.append(pd.DataFrame({'chr': list(chunkdf_nomatch['chr']),'pos': list(chunkdf_nomatch['pos']),'marker': list(chunkdf_nomatch['marker']),'a1': chunkdf_nomatch['a1'],'a2': chunkdf_nomatch['a2'], 
+													'analogs': list(chunkdf_nomatch['analogs'])}))
+	return mdb

@@ -66,6 +66,21 @@ def Parser():
 						version='', 
 						help='display version information and exit')
 
+	##### SETTINGS PARSER #####
+	settings_parser = subparsers.add_parser('set', help='user definable settings', parents=[parser])
+	settings_parser.add_argument('--snpeff', 
+						action=AddString, 
+						help='set full path to snpEff executable')
+	settings_parser.add_argument('--snpsift', 
+						action=AddString, 
+						help='set full path to SnpSift executable')
+	settings_parser.add_argument('--dbnsfp', 
+						action=AddString, 
+						help='set full path to dbNSFP database')
+	settings_parser.add_argument('--locuszoom', 
+						action=AddString, 
+						help='set full path to locuszoom executable')
+
 	##### MODEL PARSER #####
 	model_parser = subparsers.add_parser('model', help='variant and gene/region-based statistical modeling', parents=[parser])
 	model_parser.add_argument('--out', 
@@ -613,12 +628,34 @@ def Parser():
 						action=AddTrue, 
 						help='replace any existing output files')
 
+	##### ANNOT PARSER #####
+	annot_parser = subparsers.add_parser('annot', help='annotate variant results using snpEff and SnpSift', parents=[parser])
+	annot_required = annot_parser.add_argument_group('required arguments')
+	annot_required.add_argument('--file', 
+						action=AddString, 
+						required=True, 
+						help='file name for variant results to be annotated')
+	annot_parser.add_argument('--build', 
+						action=AddString, 
+						help='genomic build (default: GRCh37.75)')
+	annot_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
+	annot_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (trigger adds jobs to cluster queue')
+
 	return top_parser
 	
 def Parse(top_parser):
 	args=top_parser.parse_args()
-	for k in args.ordered_args:
-		vars(args).update({k[0]: k[1]})
+	if 'ordered_args' in args:
+		for k in args.ordered_args:
+			vars(args).update({k[0]: k[1]})
+	else:
+		if args.which in ['model','meta','map','compile','explore','gc']:
+			top_parser.error("missing argument: no options selected")
 	if args.which in ['model']:
 		if args.region:
 			assert not args.split, top_parser.error("argument -s/--split: not allowed with argument --region")
@@ -635,13 +672,11 @@ def Parse(top_parser):
 	if args.which == 'model' and not (args.fskato is None or args.fskat is None or args.fburden is None) and args.ped is None:
 		top_parser.error("missing argument: --ped required for fskato, fskat, or fburden models using data with family structure")
 	print ''
-	print 'uga v' + version
-	print ''
 	print 'active module: ' + args.which
 	return args
 
 def GenerateModelCfg(args):
-	config = {'out': None, 'buffer': 100, 'reglist': None, 'region': None,'id': None,
+	config = {'out': None, 'buffer': 100, 'reglist': None, 'region': None,'id': None, 'write_header': False, 'write_eof': False,
 					'models': {}, 'model_order': [], 'meta': []}
 
 	##### add top level variables to config
@@ -753,6 +788,9 @@ def GenerateModelCfg(args):
 		if config['models'][x]['model_fxn'] in ['gskato','bskato','fskato','fburden','gburden','bburden']:
 			if not 'burden_wts' in config['models'][x]:
 				config['models'][x]['burden_wts'] = 'function(maf){as.numeric(maf<0.01)}'
+		if config['models'][x]['model_fxn'] in ['gskato','bskato','fskato','fburden','gburden','bburden','neff'] and config['region'] is not None:
+			if config['id'] is None:
+				config['id'] = 'NA'
 		if config['models'][x]['model_fxn'] in ['glme','blme']:
 			if not 'lmer_ctrl' in config['models'][x]:
 				config['models'][x]['lmer_ctrl'] = "check.nobs.vs.rankZ='stop',check.nlev.gtreq.5='stop',check.rankX='stop.deficient',check.scaleX='stop',check.conv.grad=.makeCC('stop',tol=1e-3,relTol=NULL),check.conv.singular=.makeCC(action='stop',tol=1e-4),check.conv.hess=.makeCC(action='stop',tol=1e-6)"
@@ -885,16 +923,37 @@ def PrintMetaOptions(cfg):
 			print "      {0:>{1}}".format(str('--meta ' + m), len(max(['--' + k for k in cfg['meta_info']],key=len))) + ":" + str('+'.join(cfg['meta_info'][m]))
 	print ''
 
-def GenerateExploreCfg(args):
+def GenerateExploreCfg(args, ini):
 	config = {'out': None, 'data': None, 'qq': False, 'qq_strat': False, 'qq_n': False, 'mht': False, 'color': False, 'plot_gc': False,
 				'set_gc': None, 'ext': 'tiff', 'sig': 0.000000054, 'stat': 'marker', 'top': None, 'region': None, 'region_id': None, 
 				'reglist': None, 'pmax': 1e-4, 'tag': None, 'unrel': False, 'lz_source': None, 'lz_build': None, 'lz_pop': None, 
 				'callrate': None, 'rsq': None, 'maf': None, 'hwe': None, 'effect': None, 'stderr': None, 'odds_ratio': None, 'df': None}
 	for arg in args:
 		config[arg[0]] = arg[1]
+	config['locuszoom'] = ini.get('main','locuszoom')
 	return config
 
 def PrintExploreOptions(cfg):
+	print ''
+	print "options in effect ..."
+	for k in cfg:
+		if cfg[k] is not None and cfg[k] is not False:
+			if cfg[k] is True:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+			else:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+	print ''
+
+def GenerateAnnotCfg(args, ini):
+	config = {'file': None, 'build': 'GRCh37.75', 'replace': False, 'qsub': None, 'snpeff': None, 'snpsift': None, 'dbnsfp': None}
+	for arg in args:
+		config[arg[0]] = arg[1]
+	config['snpeff'] = ini.get('main','snpeff')
+	config['snpsift'] = ini.get('main','snpsift')
+	config['dbnsfp'] = ini.get('main','dbnsfp')
+	return config
+
+def PrintAnnotOptions(cfg):
 	print ''
 	print "options in effect ..."
 	for k in cfg:

@@ -84,12 +84,12 @@ def Meta(cfg):
 		header = header + [k + '.n',k + '.filter']
 
 	for r in range(len(reglist.index)):
+		output_df = pd.DataFrame({})
 		reg = reglist['region'][r]
 		i = 0
 		i_all = 0
 		for k in cfg['file_order']:
 			i_all += 1
-			print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): adding variants from cohort " + str(i_all) + "/" + str(len(cfg['file_order'])) + " (" + k + ")",
 			try:
 				records = cfg['data_info'][k]['file_it'].querys(reg)
 			except:
@@ -122,7 +122,6 @@ def Meta(cfg):
 					chunkdf[k + '.filter'][(math.isnan(chunkdf[cfg['data_info'][k]['hwe_col']])) | (chunkdf[cfg['data_info'][k]['hwe_col']] < cfg['data_info'][k]['hwe'])] = 1
 				if i == 1:
 					output_df = chunkdf
-					
 				else:
 					chunkdf.rename(columns={'chr': k + '.chr', 'pos': k + '.pos', 'a1': k + '.a1', 'a2': k + '.a2'}, inplace=True)
 					output_df = output_df.join(chunkdf,how='outer')
@@ -140,104 +139,105 @@ def Meta(cfg):
 					if k + '.z' in output_df:
 						output_df[k + '.z'][~output_df[k + '.z'].isnull()] = output_df[~output_df[k + '.z'].isnull()].apply(lambda row: MiscFxnsCy.FlipZCy(row['a1'], row['a2'], row[k + '.a1'], row[k + '.a2'], row[k + '.z']),1)
 					output_df.drop(labels=[k + '.chr',k + '.pos',k + '.a1',k + '.a2'],axis=1,inplace=True)
-				print ": " + str(chunkdf.shape[0])
+				print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): adding variants from cohort " + str(i_all) + "/" + str(len(cfg['file_order'])) + " (" + k + "): " + str(chunkdf.shape[0])
 
-		##### APPLY GC #####
-		for k in cfg['file_order']:
-			print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): applying genomic control for " + k + ": " + str(cfg['data_info'][k]['gc'])
-			if 'gc' in cfg['data_info'][k]:
-				if 'stderr_col' in cfg['data_info'][k]:
-					output_df[k + '.stderr'][~output_df[k + '.stderr'].isnull()] = output_df[~output_df[k + '.stderr'].isnull()].apply(lambda row: float(row[k + '.stderr']) * math.sqrt(float(cfg['data_info'][k]['gc'])),1)
-				if 'z' in cfg['data_info'][k].keys():
-					output_df[k + '.z'][~output_df[k + '.z'].isnull()] = output_df[~output_df[k + '.z'].isnull()].apply(lambda row: float(row[k + '.z']) / math.sqrt(float(cfg['data_info'][k]['gc'])),1)
-				if 'p' in cfg['data_info'][k].keys():
-					if 'stderr' in cfg['data_info'][k].keys():
-						output_df[k + '.p'][~((output_df[k + '.effect'].isnull()) | (output_df[k + '.stderr'].isnull()))] = output_df[~((output_df[k + '.effect'].isnull()) | (output_df[k + '.stderr'].isnull()))].apply(lambda row: 2 * scipy.norm.cdf(-1 * np.abs(float(row[k + '.effect'])/float(row[k + '.stderr']))),1)
-					else:
-						output_df[k + '.p'][~output_df[k + '.p'].isnull()] = output_df[~output_df[k + '.p'].isnull()].apply(lambda row: 2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*float(row[k + '.p'])) / math.sqrt(float(cfg['data_info'][k]['gc'])))),1)
+		if output_df.shape[0] > 0:
+			##### APPLY GC #####
+			for k in cfg['file_order']:
+				if 'gc' in cfg['data_info'][k]:
+					print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): applying genomic control for " + k + ": " + str(cfg['data_info'][k]['gc'])
+					if 'stderr_col' in cfg['data_info'][k]:
+						output_df[k + '.stderr'][~output_df[k + '.stderr'].isnull()] = output_df[~output_df[k + '.stderr'].isnull()].apply(lambda row: float(row[k + '.stderr']) * math.sqrt(float(cfg['data_info'][k]['gc'])),1)
+					if 'z' in cfg['data_info'][k].keys():
+						output_df[k + '.z'][~output_df[k + '.z'].isnull()] = output_df[~output_df[k + '.z'].isnull()].apply(lambda row: float(row[k + '.z']) / math.sqrt(float(cfg['data_info'][k]['gc'])),1)
+					if 'p' in cfg['data_info'][k].keys():
+						if 'stderr' in cfg['data_info'][k].keys():
+							output_df[k + '.p'][~((output_df[k + '.effect'].isnull()) | (output_df[k + '.stderr'].isnull()))] = output_df[~((output_df[k + '.effect'].isnull()) | (output_df[k + '.stderr'].isnull()))].apply(lambda row: 2 * scipy.norm.cdf(-1 * np.abs(float(row[k + '.effect'])/float(row[k + '.stderr']))),1)
+						else:
+							output_df[k + '.p'][~output_df[k + '.p'].isnull()] = output_df[~output_df[k + '.p'].isnull()].apply(lambda row: 2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*float(row[k + '.p'])) / math.sqrt(float(cfg['data_info'][k]['gc'])))),1)
 
-		##### META ANALYSIS #####
-		for meta in cfg['meta_order']:
-			print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): running " + meta
-			if cfg['method'] == 'sample_size':
-				output_df[meta + '.dir'] = ''
-				for tag in cfg['meta_info'][meta]:
-					output_df[tag + '.filter'] = output_df.apply(lambda x: 1 if math.isnan(x[tag + '.p']) or x[tag + '.p'] > 1 or x[tag + '.p'] <= 0 else x[tag + '.filter'],axis=1)
-					filter_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.filter')][0]
-					N_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
-					P_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
-					Eff_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
-					output_df[meta + '.' + tag + '.dir'] = output_df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
-					output_df[meta + '.' + tag + '.zi'] = output_df.apply(lambda x: (-1 * scipy.norm.ppf(1 - (x[P_idx]/2)) if x[Eff_idx] < 0 else scipy.norm.ppf(1 - (x[P_idx]/2))) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-					output_df[meta + '.' + tag + '.n'] = output_df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-					output_df[meta + '.' + tag + '.wi'] = output_df.apply(lambda x: math.sqrt(x[meta + '.' + tag + '.n']) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-					output_df[meta + '.' + tag + '.ziwi'] = output_df.apply(lambda x: x[meta + '.' + tag + '.zi'] * x[meta + '.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-					output_df[meta + '.dir'] = output_df[meta + '.dir'] + output_df[meta + '.' + tag + '.dir']
-				N_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
-				Wi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
-				ZiWi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.ziwi')]
-				output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum(),axis=1)
-				output_df[meta + '.z'] = output_df.apply(lambda x: x[ZiWi_idx_all].sum()/math.sqrt(x[N_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-				output_df[meta + '.stderr'] = output_df.apply(lambda x: float('nan'), axis=1)
-				output_df[meta + '.effect'] = output_df.apply(lambda x: float('nan'), axis=1)
+			##### META ANALYSIS #####
+			for meta in cfg['meta_order']:
+				print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): running " + meta
+				if cfg['method'] == 'sample_size':
+					output_df[meta + '.dir'] = ''
+					for tag in cfg['meta_info'][meta]:
+						output_df[tag + '.filter'] = output_df.apply(lambda x: 1 if math.isnan(x[tag + '.p']) or x[tag + '.p'] > 1 or x[tag + '.p'] <= 0 else x[tag + '.filter'],axis=1)
+						filter_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.filter')][0]
+						N_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
+						P_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
+						Eff_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
+						output_df[meta + '.' + tag + '.dir'] = output_df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
+						output_df[meta + '.' + tag + '.zi'] = output_df.apply(lambda x: (-1 * scipy.norm.ppf(1 - (x[P_idx]/2)) if x[Eff_idx] < 0 else scipy.norm.ppf(1 - (x[P_idx]/2))) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+						output_df[meta + '.' + tag + '.n'] = output_df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+						output_df[meta + '.' + tag + '.wi'] = output_df.apply(lambda x: math.sqrt(x[meta + '.' + tag + '.n']) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+						output_df[meta + '.' + tag + '.ziwi'] = output_df.apply(lambda x: x[meta + '.' + tag + '.zi'] * x[meta + '.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+						output_df[meta + '.dir'] = output_df[meta + '.dir'] + output_df[meta + '.' + tag + '.dir']
+					N_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
+					Wi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
+					ZiWi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.ziwi')]
+					output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum(),axis=1)
+					output_df[meta + '.z'] = output_df.apply(lambda x: x[ZiWi_idx_all].sum()/math.sqrt(x[N_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+					output_df[meta + '.stderr'] = output_df.apply(lambda x: float('nan'), axis=1)
+					output_df[meta + '.effect'] = output_df.apply(lambda x: float('nan'), axis=1)
+				else:
+					output_df[meta + '.dir'] = ''
+					for tag in cfg['meta_info'][meta]:
+						output_df[tag + '.filter'] = output_df.apply(lambda x: 1 if math.isnan(x[tag + '.p']) or x[tag + '.p'] > 1 or x[tag + '.p'] <= 0 else x[tag + '.filter'],axis=1)
+						filter_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.filter')][0]
+						N_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
+						P_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
+						Eff_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
+						StdErr_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.stderr')][0]
+						output_df[meta + '.' + tag + '.dir'] = output_df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
+						output_df[meta + '.' + tag + '.n'] = output_df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+						output_df[meta + '.' + tag + '.wi'] = output_df.apply(lambda x: 1/(x[StdErr_idx]**2) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+						output_df[meta + '.' + tag + '.biwi'] = output_df.apply(lambda x: x[Eff_idx] * x[meta + '.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+						output_df[meta + '.dir'] = output_df[meta + '.dir'] + output_df[meta + '.' + tag + '.dir']
+					N_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
+					Wi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
+					BiWi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.biwi')]
+					output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum(),axis=1)
+					output_df[meta + '.stderr'] = output_df.apply(lambda x: math.sqrt(1/(x[Wi_idx_all].sum())) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+					output_df[meta + '.effect'] = output_df.apply(lambda x: (x[BiWi_idx_all].sum())/(x[Wi_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+					output_df[meta + '.z'] = output_df.apply(lambda x: x[meta + '.effect']/x[meta + '.stderr'] if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+				output_df[meta + '.p'] = output_df.apply(lambda x: 2 * scipy.norm.cdf(-1 * abs(float(x[meta + '.z']))) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+				output_df[meta + '.dir'] = output_df.apply(lambda x: x[meta + '.dir'] if not math.isnan(x[meta + '.p']) else float('nan'), axis=1)
+
+			##### ADD GLOBAL MARKER TO OUTPUT #####
+			output_df['marker'] = output_df[cfg['file_order'][0] + '.marker']
+			for k in [x for x in cfg['file_order'] if not x == cfg['file_order'][0]]:
+				output_df['marker'][(~output_df['marker'].str.startswith('rs')) & (output_df[k + '.marker'].str.startswith('rs'))]=output_df[k + '.marker'][(~output_df['marker'].str.startswith('rs')) & (output_df[k + '.marker'].str.startswith('rs'))]
+			for k in [x for x in cfg['file_order'] if not x == cfg['file_order'][0]]:
+				output_df['marker'][(output_df['marker'].isnull()) & (~output_df[k + '.marker'].isnull())]=output_df[k + '.marker'][(output_df['marker'].isnull()) & (~output_df[k + '.marker'].isnull())]
+
+			##### SORT RESULTS AND CONVERT CHR, POS, AND START COLUMNS TO INT #####
+			output_df[['chr','pos']] = output_df[['chr','pos']].astype(int)
+			output_df.sort(columns=['chr','pos'],inplace=True)
+			for c in [x for x in output_df.columns if x.endswith(('.p','.pmin'))]:
+				output_df[c] = output_df[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
+				output_df[c] = output_df[c].astype(object)
+			for c in [x for x in output_df.columns if x.endswith(('.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]:
+				output_df[c] = output_df[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
+				output_df[c] = output_df[c].astype(object)
+			for c in [x for x in output_df.columns if x.endswith(('filter','n','status'))]:
+				output_df[c] = output_df[c].map(lambda x: '%d' % (x) if not math.isnan(x) else x)
+				output_df[c] = output_df[c].astype(object)
+
+			##### FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
+			output_df.fillna('NA',inplace=True)
+			output_df.sort(['chr','pos'],inplace=True)
+			for col in [x for x in header if not x in output_df.columns]:
+				output_df[col] = float('nan')
+			output_df = output_df[header]
+			if not written:
+				output_df.rename(columns=lambda x: x.replace('chr','#chr'),inplace=True)
+				output_df.to_csv(bgzfile, header=True, index=False, sep="\t")
+				bgzfile.flush()
+				written = True
 			else:
-				output_df[meta + '.dir'] = ''
-				for tag in cfg['meta_info'][meta]:
-					output_df[tag + '.filter'] = output_df.apply(lambda x: 1 if math.isnan(x[tag + '.p']) or x[tag + '.p'] > 1 or x[tag + '.p'] <= 0 else x[tag + '.filter'],axis=1)
-					filter_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.filter')][0]
-					N_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
-					P_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
-					Eff_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
-					StdErr_idx=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(tag) and s.endswith('.stderr')][0]
-					output_df[meta + '.' + tag + '.dir'] = output_df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
-					output_df[meta + '.' + tag + '.n'] = output_df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-					output_df[meta + '.' + tag + '.wi'] = output_df.apply(lambda x: 1/(x[StdErr_idx]**2) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-					output_df[meta + '.' + tag + '.biwi'] = output_df.apply(lambda x: x[Eff_idx] * x[meta + '.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-					output_df[meta + '.dir'] = output_df[meta + '.dir'] + output_df[meta + '.' + tag + '.dir']
-				N_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
-				Wi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
-				BiWi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.biwi')]
-				output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum(),axis=1)
-				output_df[meta + '.stderr'] = output_df.apply(lambda x: math.sqrt(1/(x[Wi_idx_all].sum())) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-				output_df[meta + '.effect'] = output_df.apply(lambda x: (x[BiWi_idx_all].sum())/(x[Wi_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-				output_df[meta + '.z'] = output_df.apply(lambda x: x[meta + '.effect']/x[meta + '.stderr'] if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-			output_df[meta + '.p'] = output_df.apply(lambda x: 2 * scipy.norm.cdf(-1 * abs(float(x[meta + '.z']))) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-			output_df[meta + '.dir'] = output_df.apply(lambda x: x[meta + '.dir'] if not math.isnan(x[meta + '.p']) else float('nan'), axis=1)
-
-		##### ADD GLOBAL MARKER TO OUTPUT #####
-		output_df['marker'] = output_df[cfg['file_order'][0] + '.marker']
-		for k in [x for x in cfg['file_order'] if not x == cfg['file_order'][0]]:
-			output_df['marker'][(~output_df['marker'].str.contains('rs')) & (output_df[k + '.marker'].str.contains('rs'))]=output_df[k + '.marker'][(~output_df['marker'].str.contains('rs')) & (output_df[k + '.marker'].str.contains('rs'))]
-		for k in [x for x in cfg['file_order'] if not x == cfg['file_order'][0]]:
-			output_df['marker'][(output_df['marker'].isnull()) & (~output_df[k + '.marker'].isnull())]=output_df[k + '.marker'][(output_df['marker'].isnull()) & (~output_df[k + '.marker'].isnull())]
-
-		##### SORT RESULTS AND CONVERT CHR, POS, AND START COLUMNS TO INT #####
-		output_df[['chr','pos']] = output_df[['chr','pos']].astype(int)
-		output_df.sort(columns=['chr','pos'],inplace=True)
-		for c in [x for x in output_df.columns if x.endswith(('.p','.pmin'))]:
-			output_df[c] = output_df[c].map(lambda x: '%.4e' % (x) if not math.isnan(x) else x)
-			output_df[c] = output_df[c].astype(object)
-		for c in [x for x in output_df.columns if x.endswith(('.rho','.cmaf','.Qmeta','.beta','.se','.cmafTotal','.cmafUsed','hwe','hwe.unrel','hwe.ctrl','hwe.case','hwe.unrel.ctrl','hwe.unrel.case','callrate','freq','freq.unrel','freq.ctrl','freq.case','freq.unrel.ctrl','freq.unrel.case','rsq','rsq.unrel','rsq.ctrl','rsq.case','rsq.unrel.ctrl','rsq.unrel.case','effect','stderr','or','z'))]:
-			output_df[c] = output_df[c].map(lambda x: '%.5g' % (x) if not math.isnan(x) else x)
-			output_df[c] = output_df[c].astype(object)
-		for c in [x for x in output_df.columns if x.endswith(('filter','n','status'))]:
-			output_df[c] = output_df[c].map(lambda x: '%d' % (x) if not math.isnan(x) else x)
-			output_df[c] = output_df[c].astype(object)
-
-		##### FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
-		output_df.fillna('NA',inplace=True)
-		output_df.sort(['chr','pos'],inplace=True)
-		for col in [x for x in header if not x in output_df.columns]:
-			output_df[col] = float('nan')
-		output_df = output_df[header]
-		if not written:
-			output_df.rename(columns=lambda x: x.replace('chr','#chr'),inplace=True)
-			output_df.to_csv(bgzfile, header=True, index=False, sep="\t")
-			bgzfile.flush()
-			written = True
-		else:
-			output_df.to_csv(bgzfile, header=False, index=False, sep="\t")
-			bgzfile.flush()
+				output_df.to_csv(bgzfile, header=False, index=False, sep="\t")
+				bgzfile.flush()
 	bgzfile.close()
 
 	print "mapping results file"

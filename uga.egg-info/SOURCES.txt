@@ -1,6 +1,7 @@
 README.rst
 setup.cfg
 setup.py
+uga/Annot.py
 uga/Explore.py
 uga/FileFxns.py
 uga/GC.py
@@ -10,6 +11,7 @@ uga/MiscFxns.py
 uga/MiscFxnsCy.c
 uga/Model.py
 uga/Parse.py
+uga/Qsub.py
 uga/StatsFxns.py
 uga/SystemFxns.py
 uga/__init__.py
@@ -22,3 +24,12 @@ uga.egg-info/entry_points.txt
 uga.egg-info/not-zip-safe
 uga.egg-info/requires.txt
 uga.egg-info/top_level.txt
+uga/data/fams.pheno
+uga/data/fams.vcf.gz
+uga/data/fams.vcf.gz.tbi
+uga/data/genes.txt
+uga/data/inds.pheno
+uga/data/inds1.vcf.gz
+uga/data/inds1.vcf.gz.tbi
+uga/data/inds2.vcf.gz
+uga/data/inds2.vcf.gz.tbi

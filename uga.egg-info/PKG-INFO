@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: uga
-Version: 0.4b1
+Version: 1.0b1
 Summary: Universal Genome Analyst (uga) is a tool designed to assist biomedical researchers in complex genomic data analysis
 Home-page: UNKNOWN
 Author: Ryan Koesterer
@@ -192,5 +192,5 @@ Description: Universal Genome Analyst
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 2.7
 Classifier: Development Status :: 4 - Beta
-Classifier: License :: OSI Approved :: MIT License
+Classifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
 Classifier: Topic :: Scientific/Engineering :: Bio-Informatics

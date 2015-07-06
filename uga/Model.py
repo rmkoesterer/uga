@@ -181,7 +181,6 @@ def Model(cfg):
 
 	##### LOOP OVER REGIONS #####
 	for r in range(len(reglist.index)):
-		mdb = MiscFxns.MarkerRefDb()
 		reg = reglist['region'][r]
 		chr = int(reg.split(':')[0])
 
@@ -220,9 +219,6 @@ def Model(cfg):
 					break
 				if varlist is not None:
 					records = (x for x in records if varlist[(varlist['chr'] == int(x[0])) & (varlist['pos'] == int(x[pos_ind])) & (varlist['a1'] == x[3]) & (varlist['a2'] == x[4])].shape[0] > 0)
-
-			##### CONTINUE SLICING UNTIL NO RECORDS LEFT #####
-			chunk_db = MiscFxns.ChunkRefDb()
 
 			while True:
 				i = i + 1
@@ -263,6 +259,9 @@ def Model(cfg):
 						chunkdf = pd.DataFrame(chunk)
 						chunkdf = chunkdf.apply(MiscFxnsCy.GetRowCallsCy,axis=1,raw=True)
 						chunkdf.drop(chunkdf.columns[5:9],axis=1,inplace=True)
+						chunkdf[2][chunkdf[2] == '.'] = 'NA'
+						chunkdf[3][chunkdf[3] == '.'] = 'NA'
+						chunkdf[4][chunkdf[4] == '.'] = 'NA'
 					elif cfg['models'][k]['format'] == 'oxford':
 						chunk = [MiscFxns.ConvertDosage(row) for row in chunk]
 						chunkdf = pd.DataFrame(chunk)
@@ -273,17 +272,32 @@ def Model(cfg):
 					elif cfg['models'][k]['format'] == 'dos2':
 						chunkdf = pd.DataFrame(chunk)
 					chunkdf.columns = ['chr','pos','marker','a1','a2'] + cfg['models'][k]['sample_ids']
+				chunkdf.index=chunkdf['chr'].astype(str) + '><' + chunkdf['pos'].astype(str) + '><'  + chunkdf['a1'].astype(str).str[0:20].replace('-','_') + '><'  + chunkdf['a2'].astype(str).str[0:20].replace('-','_')
+
+				##### UPDATE DATABASE AND FLIP MARKERS WHERE NECESSARY #####
 				if len(cfg['model_order']) > 1:
-					chunkdf = chunkdf.drop_duplicates(subset=['chr','pos','a1','a2'])
-					chunkdf.index=chunkdf['chr'].astype(str) + '><' + chunkdf['pos'].astype(str) + '><'  + chunkdf['a1'].astype(str) + '><'  + chunkdf['a2'].astype(str)
-					chunkdf = chunkdf[~chunkdf.index.isin(chunk_db.ListKeys())]
-					chunkdf.apply(chunk_db.Update,1)
-					chunkdf = chunkdf.apply(mdb.Update,1)
-				
+					##### GENERATE ANALOGS FOR ALL MARKERS IN CHUNK #####
+					chunkdf['analogs'] = chunkdf.apply(lambda row: MiscFxnsCy.ListCompatibleMarkersCy(row['chr'],row['pos'],row['a1'],row['a2'],'><'),axis=1)
+					if k == cfg['model_order'][0]:
+						##### GENERATE INITIAL REFERENCE MARKER DATABASE #####
+						mdb = pd.DataFrame({'chr': list(chunkdf['chr']),'pos': list(chunkdf['pos']),'marker': list(chunkdf['marker']),'a1': chunkdf['a1'].astype(str).replace('-','_'),'a2': chunkdf['a2'].astype(str).replace('-','_'), 
+													'analogs': chunkdf.apply(lambda row: MiscFxnsCy.ListCompatibleMarkersCy(row['chr'],row['pos'],row['a1'],row['a2'],'><'),axis=1)})
+					else:
+						##### FLIP CHUNK MARKERS IF NECESSARY #####
+						chunkdf = chunkdf.apply(lambda row: MiscFxns.ChunkFlip(row, mdb),1)
+						##### UPDATE REFERENCE MARKER DATABASE #####
+						mdb = mdb.apply(lambda row: MiscFxns.MdbUpdate(row,chunkdf),1)
+						##### APPEND ANY NEW MARKERS TO REFERENCE MARKER DATABASE #####
+						mdb = MiscFxns.MdbAppend(mdb, chunkdf)
+					##### FILL IN ANY MISSING ALT ALLELES FROM PREVIOUS RESULTS WITH ALT ALLELES FROM UPDATED MARKER DATABASE #####
+					for t in cfg['model_order'][0:cfg['model_order'].index(k)]:
+						if cfg['models'][t]['results'][cfg['models'][t]['results']['a2'] == 'NA'].shape[0] > 0:
+							cfg['models'][t]['results']['a2'][cfg['models'][t]['results']['a2'] == 'NA'] = cfg['models'][t]['results'][cfg['models'][t]['results']['a2'] == 'NA'].apply(lambda row: MiscFxns.UpdateAltAllele(row, mdb), 1)		
+
 				##### EXTRACT MARKER INFO AND MARKER DATA #####
 				marker_info = chunkdf.ix[:,:5]
 				marker_info.replace('.','NA',inplace=True)
-				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '_'  + marker_info['marker'].astype(str).str.replace('-','_').str.replace(':','.').str.replace(';','.') + '_'  + marker_info['a1'].astype(str).str.replace('-','_') + '_'  + marker_info['a2'].astype(str).str.replace('-','_')
+				marker_info['marker_unique'] = 'chr' + marker_info['chr'].astype(str) + 'bp' + marker_info['pos'].astype(str) + '_'  + marker_info['marker'].astype(str).str.replace('-','_').str.replace(':','.').str.replace(';','.') + '_'  + marker_info['a1'].astype(str).str[0:20].replace('-','_') + '_'  + marker_info['a2'].astype(str).str[0:20].replace('-','_')
 				marker_info.index = marker_info['marker_unique']
 				marker_data = chunkdf.ix[:,5:].transpose()
 				marker_data.replace('NA',np.nan,inplace=True)
@@ -509,7 +523,7 @@ def Model(cfg):
 			elif cfg['models'][k]['model_fxn'] in seqmeta_tests:
 				if not cfg['reg_marker_info'] is None and cfg['reg_marker_info'].shape[0] > 0:
 					cfg['models'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': reglist['id'][r]})
-					ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': reglist['id'][r]}), strings_as_factors=False)
+					ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(cfg['models'][k]['snp_info'], strings_as_factors=False)
 					ro.globalenv['z'] = py2r.convert_to_r_dataframe(cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])], strings_as_factors=False)
 					ro.globalenv['pheno'] = py2r.convert_to_r_dataframe(cfg['reg_model_df'][list(set(cfg['models'][k]['model_vars_dict'].keys() + [cfg['models'][k]['iid'],cfg['models'][k]['fid']]))], strings_as_factors=False)
 
@@ -517,7 +531,7 @@ def Model(cfg):
 					if cfg['models'][k]['model_fxn'] in ['famskat_o','famskat','famburden']:
 						ro.globalenv['pedigree'] = py2r.convert_to_r_dataframe(cfg['models'][k]['ped_df'], strings_as_factors=False)
 						ro.globalenv['kins'] = ro.r("makekinship(pedigree.rx2('FID'),pedigree.rx2('IID'),pedigree.rx2('PAT'),pedigree.rx2('MAT'))")
-						cmd = 'prepScores(Z=z,formula=' + cfg['models'][k]['model'] + ',SNPInfo=snp_info,data=pheno,kins=kins,sparse=TRUE)'
+						cmd = 'prepScores2(Z=z,formula=' + cfg['models'][k]['model'] + ',SNPInfo=snp_info,data=pheno,kins=kins,sparse=TRUE)'
 						ro.globalenv['ps' + k] = ro.r(cmd)
 					else:
 						ro.globalenv['family'] = ro.r('gaussian()') if cfg['models'][k]['family'] is None or cfg['models'][k]['family'] == 'gaussian' else ro.r('binomial()')
@@ -645,13 +659,13 @@ def Model(cfg):
 				else:
 					cfg['meta_results'][meta_tag] = cfg['meta_results'][meta_tag].merge(results, how='outer', copy=False)
 
-			##### REMOVE PREPSCORES OBJECTS FROM R GLOBAL ENVIRONMENT #####
-			for k in cfg['model_order']:
-				if 'ps' + k in ro.globalenv:
-					ro.r['rm']('ps' + k)
+		##### REMOVE PREPSCORES OBJECTS FROM R GLOBAL ENVIRONMENT #####
+		for k in cfg['model_order']:
+			if 'ps' + k in ro.globalenv:
+				ro.r['rm']('ps' + k)
 
 	##### COMPILE ALL RESULTS #####
-	header = ['chr','start','end','id'] if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] == 'gene' else ['chr','pos','a1','a2']
+	header = ['chr','start','end','id'] if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] == 'gene' else ['chr','pos','a1','a2','marker']
 	if len(cfg['meta']) > 0:
 		for meta in cfg['meta']:
 			meta_tag = meta.split(':')[0]
@@ -663,9 +677,12 @@ def Model(cfg):
 
 	for k in cfg['model_order']:
 		if 'results' in cfg['models'][k]:
-			if 'id' in cfg['models'][k]['results'].keys() and len(list(cfg['models'][k]['results']['id'].unique())) == 1 and list(cfg['models'][k]['results']['id'].unique())[0] == 'NA':
-				cfg['models'][k]['results'].drop('id',axis=1,inplace=True)
-			if k + '.id' in cfg['models'][k]['results'].keys() and len(list(cfg['models'][k]['results'][k + '.id'].unique())) == 1 and list(cfg['models'][k]['results'][k + '.id'].unique())[0] == 'NA':
+			if cfg['id'] is None:
+				if 'id' in cfg['models'][k]['results'].columns:
+					header = [x for x in header if x != 'id']
+					cfg['models'][k]['results'].drop('id',axis=1,inplace=True)
+			if k + '.id' in cfg['models'][k]['results'].columns:
+				header = [x for x in header if x != k + '.id']
 				cfg['models'][k]['results'].drop(k + '.id',axis=1,inplace=True)
 			if cfg['models'][k]['family'] is not None and cfg['models'][k]['family'] == 'gaussian':
 				cfg['models'][k]['results'].drop([x for x in cfg['models'][k]['results'].columns if '.or' in x], axis=1,inplace=True)
@@ -698,13 +715,26 @@ def Model(cfg):
 			results_out[c] = results_out[c].map(lambda x: '%d' % (x) if not math.isnan(x) else x)
 			results_out[c] = results_out[c].astype(object)
 
-	##### FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
+	##### ADD MARKER COLUMN FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
+	if not 'marker' in results_out.columns:
+		i = 0
+		for c in [a for a in results_out.columns if a.endswith('marker')]:
+			i += 1
+			if i == 1:
+				results_out['marker'] = results_out[c]
+			else:
+				results_out['marker'][((results_out['marker'].isnull()) | (results_out['marker'].str.startswith('rs') == False)) & ~(results_out[c].isnull())] = results_out[c][((results_out['marker'].isnull()) | (results_out['marker'].str.startswith('rs') == False)) & ~(results_out[c].isnull())]
+
 	results_out.fillna('NA',inplace=True)
 	results_out = results_out[header]
-	bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in results_out.columns.values.tolist()]) + '\n')
-	bgzfile.flush()
+
+	if cfg['write_header']:
+		bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in results_out.columns.values.tolist()]) + '\n')
+		bgzfile.flush()
 	results_out.to_csv(bgzfile, header=False, sep='\t', index=False)
-	bgzfile.close()
+	bgzfile.flush()
+	if cfg['write_eof']:
+		bgzfile.close()
 
 	##### MAP OUTPUT FILES FOR TABIX #####
 	if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] == 'marker':
@@ -713,7 +743,7 @@ def Model(cfg):
 		cmd = ['tabix','-b','2','-e','3',cfg['out'] + '.gz']
 	try:
 		p = subprocess.check_call(cmd)
-	except subprocess.CalledProcessSystemFxns.Error:
+	except subprocess.CalledProcessError:
 		print SystemFxns.Error("file mapping failed")
 	else:
 		print "process complete"
