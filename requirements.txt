@@ -12,3 +12,5 @@ plinkio==0.9.5
 pysam==0.8.2.1
 PyVCF==0.6.7
 Cython==0.22
+XlsxWriter==0.7.2
+Cython==0.22
