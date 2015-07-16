@@ -176,6 +176,57 @@ def Model(cfg):
 			meta_tag = meta.split(':')[0]
 			cfg['meta_written'][meta_tag]=False
 
+	##### INITIALIZE HEADER #####
+	header = ['chr','start','end','id'] if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] == 'gene' else ['chr','pos','a1','a2','marker']
+	if cfg['models'][cfg['model_order'][0]]['model_fxn'] in seqmeta_tests and len(cfg['meta']) > 0:
+		for meta in cfg['meta']:
+			meta_tag = meta.split(':')[0]
+			if cfg['models'][cfg['model_order'][0]]['model_fxn'] in ['fskato','gskato','bskato']:
+				header = header + [meta_tag + '.' + x for x in ['p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+			elif cfg['models'][cfg['model_order'][0]]['model_fxn'] in ['fskat','gskat','bskat']:
+				header = header + [meta_tag + '.' + x for x in ['p','Qmeta','cmaf','nmiss','nsnps']]
+			elif cfg['models'][cfg['model_order'][0]]['model_fxn'] in ['fburden','gburden','bburden']:
+				header = header + [meta_tag + '.' + x for x in ['p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
+	for k in cfg['model_order']:
+		k_prefix = '' if len(cfg['model_order']) == 1 else k + '.'
+		header = header + [k_prefix + 'marker'] if len(cfg['model_order']) > 1 else header
+		header = header + [k_prefix + x for x in ['callrate','freq','freq.unrel']]
+		if cfg['models'][k]['family'] == 'binomial':
+			header = header + [k_prefix + x for x in ['freq.unrel.ctrl','freq.unrel.case']]
+		header = header + [k_prefix + x for x in ['rsq','rsq.unrel']]
+		if cfg['models'][k]['family'] == 'binomial':
+			header = header + [k_prefix + x for x in ['rsq.unrel.ctrl','rsq.unrel.case']]
+		header = header + [k_prefix + x for x in ['hwe','hwe.unrel']]
+		if cfg['models'][k]['family'] == 'binomial':
+			header = header + [k_prefix + x for x in ['hwe.unrel.ctrl','hwe.unrel.case']]
+		header = header + [k_prefix + x for x in ['filter','sample']]
+		if cfg['models'][k]['model_fxn'] in ['bgee','ggee','bglm','gglm']:
+			for x in cfg['models'][k]['focus']:
+				header = header + [k_prefix + x + '.' + y for y in ['effect','stderr','or','z','p']]
+			header = header + [k_prefix + y for y in ['n','status']]
+		elif cfg['models'][k]['model_fxn'] == 'blme':
+			for x in cfg['models'][k]['focus']:
+				header = header + [k_prefix + x + '.' + y for y in ['effect','stderr','or','z','p']]
+				if cfg['models'][k]['lrt'] and x != '(Intercept)':
+					header = header + [k_prefix + x + '.' + y for y in ['anova.chisq','anova.p']]
+			header = header + [k_prefix + y for y in ['n','status']]
+		elif cfg['models'][k]['model_fxn'] == 'glme':
+			for x in cfg['models'][k]['focus']:
+				header = header + [k_prefix + x + '.' + y for y in ['effect','stderr','or','z','p','satt.df','satt.t','satt.p','kenrog.p']]
+				if cfg['models'][k]['lrt'] and x != '(Intercept)':
+					header = header + [k_prefix + x + '.' + y for y in ['anova.chisq','anova.p']]
+			header = header + [k_prefix + y for y in ['n','status']]
+		elif cfg['models'][k]['model_fxn'] == 'cph':
+			for x in cfg['models'][k]['focus']:
+				header = header + [k_prefix + x + '.' + y for y in ['effect','or','ci_lower','ci_upper','stderr','robust_stderr','z','p']]
+			header = header + [k_prefix + y for y in ['n','status']]
+		elif cfg['models'][k]['model_fxn'] in ['fskato','gskato','bskato']:
+			header = header + [k_prefix + x for x in ['p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+		elif cfg['models'][k]['model_fxn'] in ['fskat','gskat','bskat']:
+			header = header + [k_prefix + x for x in ['p','Qmeta','cmaf','nmiss','nsnps']]
+		elif cfg['models'][k]['model_fxn'] in ['fburden','gburden','bburden']:
+			header = header + [k_prefix + x for x in ['p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
+
 	##### START ANALYSIS #####
 	print "modelling data ..."
 
@@ -187,6 +238,7 @@ def Model(cfg):
 		##### LOOP OVER DATASETS #####
 		for k in cfg['model_order']:
 			i = 0
+			k_prefix = '' if len(cfg['model_order']) == 1 else k + '.'
 			cfg['reg_model_df'] = None
 			cfg['reg_marker_info'] = None
 			varlist = None
@@ -473,7 +525,7 @@ def Model(cfg):
 					if 'marker_unique' in results.columns.values:
 						results.drop('marker_unique',axis=1,inplace=True)
 					if len(cfg['model_order']) > 1:
-						results.columns = [k + '.' + a if not a in ['chr','pos','a1','a2'] else a for a in results.columns]
+						results.columns = [k_prefix + a if not a in ['chr','pos','a1','a2'] else a for a in results.columns]
 					if cfg['models'][k]['written'] == False:
 						cfg['models'][k]['results'] = results.copy()
 						cfg['models'][k]['written'] = True
@@ -510,7 +562,7 @@ def Model(cfg):
 				if 'marker_unique' in results.columns.values:
 					results.drop('marker_unique',axis=1,inplace=True)
 				if len(cfg['model_order']) > 1:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] else a for a in results.columns]
+					results.columns = [k_prefix + a if not a in ['chr','start','end','id'] else a for a in results.columns]
 				if cfg['models'][k]['written'] == False:
 					cfg['models'][k]['results'] = results.copy()
 					cfg['models'][k]['written'] = True
@@ -582,7 +634,7 @@ def Model(cfg):
 					
 				##### APPEND TO RESULTS DF #####
 				if len(cfg['model_order']) > 1:
-					results.columns = [k + '.' + a if not a in ['chr','start','end','id'] else a for a in results.columns]
+					results.columns = [k_prefix + a if not a in ['chr','start','end','id'] else a for a in results.columns]
 				if cfg['models'][k]['written'] == False:
 					cfg['models'][k]['results'] = results.copy()
 					cfg['models'][k]['written'] = True
@@ -665,7 +717,6 @@ def Model(cfg):
 				ro.r['rm']('ps' + k)
 
 	##### COMPILE ALL RESULTS #####
-	header = ['chr','start','end','id'] if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] == 'gene' else ['chr','pos','a1','a2','marker']
 	if len(cfg['meta']) > 0:
 		for meta in cfg['meta']:
 			meta_tag = meta.split(':')[0]
@@ -673,24 +724,12 @@ def Model(cfg):
 				results_out = cfg['meta_results'][meta_tag]
 			else:
 				results_out = results_out.merge(cfg['meta_results'][meta_tag], how='outer', copy=False)
-			header = header + [a for a in cfg['meta_results'][meta_tag].columns.values.tolist() if not a in header]
-
 	for k in cfg['model_order']:
 		if 'results' in cfg['models'][k]:
-			if cfg['id'] is None:
-				if 'id' in cfg['models'][k]['results'].columns:
-					header = [x for x in header if x != 'id']
-					cfg['models'][k]['results'].drop('id',axis=1,inplace=True)
-			if k + '.id' in cfg['models'][k]['results'].columns:
-				header = [x for x in header if x != k + '.id']
-				cfg['models'][k]['results'].drop(k + '.id',axis=1,inplace=True)
-			if cfg['models'][k]['family'] is not None and cfg['models'][k]['family'] == 'gaussian':
-				cfg['models'][k]['results'].drop([x for x in cfg['models'][k]['results'].columns if '.or' in x], axis=1,inplace=True)
 			if (k == cfg['model_order'][0] and len(cfg['meta']) == 0) or not 'results_out' in locals():
 				results_out = cfg['models'][k]['results']
 			else:
 				results_out = results_out.merge(cfg['models'][k]['results'], how='outer', copy=False)
-			header = header + [a for a in cfg['models'][k]['results'].columns.values.tolist() if not a in header]
 
 	##### SORT RESULTS AND CONVERT CHR, POS, AND START COLUMNS TO INT #####
 	if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] == 'marker':
@@ -715,7 +754,7 @@ def Model(cfg):
 			results_out[c] = results_out[c].map(lambda x: '%d' % (x) if not math.isnan(x) else x)
 			results_out[c] = results_out[c].astype(object)
 
-	##### ADD MARKER COLUMN FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
+	##### ADD MARKER COLUMN FILL IN NA's AND ORDER HEADER #####
 	if not 'marker' in results_out.columns:
 		i = 0
 		for c in [a for a in results_out.columns if a.endswith('marker')]:
@@ -724,10 +763,22 @@ def Model(cfg):
 				results_out['marker'] = results_out[c]
 			else:
 				results_out['marker'][((results_out['marker'].isnull()) | (results_out['marker'].str.startswith('rs') == False)) & ~(results_out[c].isnull())] = results_out[c][((results_out['marker'].isnull()) | (results_out['marker'].str.startswith('rs') == False)) & ~(results_out[c].isnull())]
-
 	results_out.fillna('NA',inplace=True)
 	results_out = results_out[header]
 
+	##### DROP ANY COLUMNS THAT ARE NOT NEEDED #####
+	for k in cfg['model_order']:
+		if cfg['id'] is None:
+			if 'id' in results_out.columns:
+				results_out.drop('id',axis=1,inplace=True)
+			if k + '.id' in results_out.columns:
+				results_out.drop(k + '.id',axis=1,inplace=True)
+		if cfg['models'][k]['family'] is not None and cfg['models'][k]['family'] == 'gaussian':
+			for x in cfg['models'][k]['focus']:
+				k_prefix = '' if len(cfg['model_order']) == 1 else k + '.'
+				results_out.drop(k_prefix + x + '.' + 'or', axis=1,inplace=True)
+
+	##### WRITE TO FILE #####
 	if cfg['write_header']:
 		bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in results_out.columns.values.tolist()]) + '\n')
 		bgzfile.flush()

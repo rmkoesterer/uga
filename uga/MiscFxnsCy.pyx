@@ -95,21 +95,21 @@ def CalcRsqCy(np.ndarray x):
 @cython.wraparound(False)
 @cython.cdivision(True)
 def CalcHWECy(np.ndarray x):
-	cdef unsigned int obs_hets
-	cdef unsigned int obs_hom1
-	cdef unsigned int obs_hom2
-	cdef unsigned int obs_homc
-	cdef unsigned int obs_homr
+	cdef unsigned int x_hets
+	cdef unsigned int x_hom1
+	cdef unsigned int x_hom2
+	cdef unsigned int x_homc
+	cdef unsigned int x_homr
 	cdef unsigned int rare_copies
 	cdef unsigned int genotypes
 	x = x[~np.isnan(x)]
 	if len(x) > 0 and set(x).issubset(set([0,1,2])):
-		obs_hets = np.sum(x == 1)
-		obs_hom1 = np.sum(x == 2)
-		obs_hom2 = np.sum(x == 0)
-		if not (obs_hets < 0 and obs_hom1 < 0 and obs_hom2 < 0):
-			rare   = 2*min(obs_hom1,obs_hom2)+obs_hets
-			common = 2*max(obs_hom1,obs_hom2)+obs_hets
+		x_hets = np.sum(x == 1)
+		x_hom1 = np.sum(x == 2)
+		x_hom2 = np.sum(x == 0)
+		if not (x_hets < 0 and x_hom1 < 0 and x_hom2 < 0):
+			rare   = 2*min(x_hom1,x_hom2)+x_hets
+			common = 2*max(x_hom1,x_hom2)+x_hets
 			if not rare:
 				return 1.0
 			hets = rare*common/(rare+common)
@@ -117,14 +117,14 @@ def CalcHWECy(np.ndarray x):
 				hets += 1
 			hom_r = (rare-hets)/2
 			hom_c = (common-hets)/2
-			probs = [0]*(rare/2+1)
-			probs[hets/2] = 1.0
+			prx = [0]*(rare/2+1)
+			prx[hets/2] = 1.0
 			for i,h in enumerate(xrange(hets,1,-2)):
-				probs[h/2-1] = probs[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
+				prx[h/2-1] = prx[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
 			for i,h in enumerate(xrange(hets,rare-1,2)):
-				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
-			p_obs = probs[obs_hets/2]
-			p_hwe = sum(p for p in probs if p <= p_obs)/sum(probs)
+				prx[h/2+1] = prx[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
+			p_x = prx[x_hets/2]
+			p_hwe = sum(p for p in prx if p <= p_x)/sum(prx)
 			return p_hwe
 		else:
 			return float('nan')
@@ -259,7 +259,7 @@ def FlipEffectCy(refa1_py, refa2_py, a1_py, a2_py, effect_py):
 	cdef str a1 = a1_py[0:20]
 	cdef str a2 = a2_py[0:20]
 	cdef float effect = effect_py
-	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
 		return -1 * effect
 	else:
 		return effect
@@ -273,7 +273,7 @@ def FlipFreqCy(refa1_py, refa2_py, a1_py, a2_py, freq_py):
 	cdef str a1 = a1_py[0:20]
 	cdef str a2 = a2_py[0:20]
 	cdef float freq = freq_py
-	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
 		return 1 - freq
 	else:
 		return freq
@@ -287,7 +287,7 @@ def FlipORCy(refa1_py, refa2_py, a1_py, a2_py, o_r_py):
 	cdef str a1 = a1_py[0:20]
 	cdef str a2 = a2_py[0:20]
 	cdef float o_r = o_r_py
-	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
 		return 1 / o_r
 	else:
 		return o_r
@@ -301,7 +301,7 @@ def FlipZCy(refa1_py, refa2_py, a1_py, a2_py, z_py):
 	cdef str a1 = a1_py[0:20]
 	cdef str a2 = a2_py[0:20]
 	cdef float z = z_py
-	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
 		return -1 * z
 	else:
 		return z

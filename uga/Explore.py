@@ -94,8 +94,6 @@ def Explore(cfg):
 				else:
 					pvals = pvals.append(chunk)
 			print "   processed " + str((i-1)*1000000 + lines) + " lines: " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
-		pvals.columns = [a.replace('#','') for a in pvals.columns]
-		chr = 'chr'
 	else:
 		try:
 			h = subprocess.Popen(['tabix','-h',cfg['data'],'0'], stdout=subprocess.PIPE)
@@ -125,8 +123,10 @@ def Explore(cfg):
 						pvals = pvals.append(chunk)
 			print "   processed region " + str(r+1) + "/" + str(len(varlist.index)) + " (" + str(varlist['id'][r]) + " " + str(varlist['region'][r]) + "): " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
 		pvals[pvals == 'NA'] = float('nan')
-	pvals[[x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]] = pvals[[x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]].astype(float)
-	pvals[['chr','pos']] = pvals[['chr','pos']].astype(int)
+	pvals.columns = [a.replace('#','') for a in pvals.columns]
+	chr_col = 'chr'
+	conv_cols = [chr_col,pos_col] + [x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]
+	pvals[conv_cols] = pvals[conv_cols].convert_objects(convert_numeric=True)
 
 	##### filter data #####
 	if cfg['rsq']:
@@ -160,7 +160,7 @@ def Explore(cfg):
 	if regions is None:
 		l=np.median(scipy.chi2.ppf([1-x for x in pvals[p_col].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 		print "genomic inflation (all markers) = " + str(l)
-		if freq in pvals:
+		if freq_col in pvals:
 			lA='NA'
 			lB='NA'
 			lC='NA'
@@ -188,9 +188,9 @@ def Explore(cfg):
 			print "genomic inflation (MAF < 1%, n=" + str(lE_n) + ") = " + str(lE)
 		else:
 			if cfg['qq_strat']:
-				print freq + " not found in data file, skipping frequency stratified qq plot"
+				print freq_col + " not found in data file, skipping frequency stratified qq plot"
 
-		if cfg['qq'] and freq in pvals and cfg['qq_strat']:
+		if cfg['qq'] and freq_col in pvals and cfg['qq_strat']:
 			pvals['logp'] = -1 * np.log10(pvals[p_col])
 			pvals.sort(columns=['logp'], inplace=True)
 			pvals['MAF'] = 'E'
@@ -315,8 +315,8 @@ def Explore(cfg):
 
 		if cfg['mht']:
 			print "calculating genomic positions for manhattan plot"
-			df = pvals[[chr,pos,p]].reset_index(drop=True)
-			df.sort(columns=[chr,pos], inplace=True)
+			df = pvals[[chr_col,pos_col,p_col]].reset_index(drop=True)
+			df.sort(columns=[chr_col,pos_col], inplace=True)
 			ticks = []
 			lastbase = 0
 			df['gpos'] = 0
@@ -424,6 +424,7 @@ def Explore(cfg):
 
 		##### PRINT TOP RESULTS TO FILE #####
 		print 'writing top results file'
+		pvals.fillna('NA',inplace=True)
 		if pvals[pvals[p_col] < cfg['pmax']].shape[0] > 100:
 			pvals_out = pvals[pvals[p_col] < cfg['pmax']].sort(columns=[p_col])
 		else:
@@ -434,6 +435,7 @@ def Explore(cfg):
 			pvals_out.drop('logp',axis=1,inplace=True)
 		if 'MAF' in pvals_out:
 			pvals_out.drop('MAF',axis=1,inplace=True)
+		pvals_out.fillna('NA',inplace=True)
 		pvals_out.to_csv(cfg['out'] + '.top_results', header=True, index=False, sep="\t")
 
 	else:

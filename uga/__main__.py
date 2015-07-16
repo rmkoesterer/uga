@@ -57,13 +57,17 @@ def main(args=None):
 		print "preparing explore configuration"
 		config = Parse.GenerateExploreCfg(args.ordered_args, ini)
 		args.cfg = 1
+	elif args.which == 'gc':
+		print "preparing gc configuration"
+		config = Parse.GenerateGcCfg(args.ordered_args, ini)
+		args.cfg = 1
 	elif args.which == 'annot':
 		print "preparing annot configuration"
 		config = Parse.GenerateAnnotCfg(args.ordered_args, ini)
 		args.cfg = 1
 
 	##### define region list #####
-	if args.which in ['model']:
+	if args.which in ['model','meta']:
 		n = 1
 		dist_mode = 'full'
 		if args.reglist:
@@ -190,15 +194,15 @@ def main(args=None):
 	elif args.which == 'explore':
 		check_files = [args.out + '.explore.log']
 		check_files = [args.out + '.top_results']
-		check_files = check_files + [args.out + '.qq.tiff'] if 'qq' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'tiff' else check_files
-		check_files = check_files + [args.out + '.qq_strat.tiff'] if 'qq_strat' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'tiff' else check_files
-		check_files = check_files + [args.out + '.qq.eps'] if 'qq' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'eps' else check_files
-		check_files = check_files + [args.out + '.qq_strat.eps'] if 'qq_strat' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'eps' else check_files
-		check_files = check_files + [args.out + '.qq.pdf'] if 'qq' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'pdf' else check_files
-		check_files = check_files + [args.out + '.qq_strat.pdf'] if 'qq_strat' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'pdf' else check_files
-		check_files = check_files + [args.out + '.mht.tiff'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'tiff' else check_files
-		check_files = check_files + [args.out + '.mht.eps'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'eps' else check_files
-		check_files = check_files + [args.out + '.mht.pdf'] if 'mht' in vars(args).keys() and 'ext' in vars(args).keys() and args.ext == 'pdf' else check_files
+		check_files = check_files + [args.out + '.qq.tiff'] if 'qq' in vars(args).keys() else check_files
+		check_files = check_files + [args.out + '.qq_strat.tiff'] if 'qq_strat' in vars(args).keys() else check_files
+		check_files = check_files + [args.out + '.qq.eps'] if 'qq' in vars(args).keys() else check_files
+		check_files = check_files + [args.out + '.qq_strat.eps'] if 'qq_strat' in vars(args).keys() else check_files
+		check_files = check_files + [args.out + '.qq.pdf'] if 'qq' in vars(args).keys() else check_files
+		check_files = check_files + [args.out + '.qq_strat.pdf'] if 'qq_strat' in vars(args).keys() else check_files
+		check_files = check_files + [args.out + '.mht.tiff'] if 'mht' in vars(args).keys() else check_files
+		check_files = check_files + [args.out + '.mht.eps'] if 'mht' in vars(args).keys() else check_files
+		check_files = check_files + [args.out + '.mht.pdf'] if 'mht' in vars(args).keys() else check_files
 		existing_files = []
 		for f in check_files:
 			if os.path.exists(f):
@@ -237,10 +241,15 @@ def main(args=None):
 		if len(existing_files) > 0:
 			print SystemFxns.Error("above files already exist (use --replace flag to replace)")
 			return
-		cmd = 'GC(data="' + args.data + '",out="' + args.out + '"'
-		if args.gc:
-			cmd = cmd + ',gc=' + str(dict(args.gc)) + ')'
-		SystemFxns.Interactive(qsub_wrapper, cmd, args.out + '.gc.log')
+		cmd = args.which.upper() + '(cfg=' + str(config) + ')'
+		if args.qsub:
+			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
+		else:
+			SystemFxns.Interactive(qsub_wrapper, cmd, args.out + '.gc.log')
+		#cmd = 'GC(data="' + args.data + '",out="' + args.out + '"'
+		#if args.gc:
+		#	cmd = cmd + ',gc=' + str(dict(args.gc)) + ')'
+		#SystemFxns.Interactive(qsub_wrapper, cmd, args.out + '.gc.log')
 
 	elif args.which == 'annot':
 		check_files = [args.file.replace('.gz','') + '.annot.xlsx']
@@ -270,7 +279,7 @@ def main(args=None):
 		else:
 			SystemFxns.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.annot.log')
 
-	elif args.which == 'model':
+	elif args.which in ['model','meta']:
 		print "preparing output directories"
 		if dist_mode == 'split-list' and n > 1:
 			FileFxns.PrepareChrDirs(region_df['region'], directory)
@@ -286,11 +295,11 @@ def main(args=None):
 		else:
 			joblist.extend(range(n))
 		for i in joblist:
-			if i == joblist[0]:
+			if i == joblist[0] and (args.jobs is None or i == range(n)[0]):
 				config['write_header'] = True
 			else:
 				config['write_header'] = False
-			if i == joblist[len(joblist)-1]:
+			if i == joblist[len(joblist)-1] and (args.jobs is None or i == range(n)[len(range(n))-1]):
 				config['write_eof'] = True
 			else:
 				config['write_eof'] = False
@@ -322,12 +331,6 @@ def main(args=None):
 				SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
 			else:
 				SystemFxns.Interactive(qsub_wrapper, cmd, config['out'] + '.' + args.which + '.log')
-	elif args.which == 'meta':
-		cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
-		if args.qsub:
-			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
-		else:
-			SystemFxns.Interactive(qsub_wrapper, cmd, config['out'] + '.' + args.which + '.log')
 	else:
 		print SystemFxns.Error(args.which + " not a module")
 

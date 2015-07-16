@@ -8,7 +8,10 @@ def Annot(cfg):
 	f = cfg['file'].replace('.gz','') if cfg['file'].endswith('.gz') else cfg['file']
 
 	print 'importing results'
-	results = pd.read_table(cfg['file'],compression='gzip')
+	if cfg['file'][-3:len(cfg['file'])] == '.gz':
+		results = pd.read_table(cfg['file'],compression='gzip')
+	else:
+		results = pd.read_table(cfg['file'])
 	outdf = results[['#chr','pos','marker','a1','a2']]
 	outdf.rename(columns={'#chr':'#CHROM','pos':'POS','ID':'marker','a1':'REF','a2':'ALT'},inplace=True)
 	outdf['QUAL'] = None

@@ -114,13 +114,17 @@ def Meta(cfg):
 				if 'n' in cfg['data_info'][k]:
 					chunkdf[k + '.n'] = int(cfg['data_info'][k]['n'])
 				chunkdf[k + '.filter'] = 0
+				conv_cols = [x[1] for x in [(cfg['data_info'][k]['effect_col'],k + '.effect'),(cfg['data_info'][k]['stderr_col'],k + '.stderr'),
+							(cfg['data_info'][k]['freq_col'],k + '.freq'),(cfg['data_info'][k]['rsq_col'],k + '.rsq'),(cfg['data_info'][k]['hwe_col'],k + '.hwe'),
+							(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p')] if not x[0] is None]
+				chunkdf[conv_cols] = chunkdf[conv_cols].convert_objects(convert_numeric=True)
 				if 'rsq' in cfg['data_info'][k] and cfg['data_info'][k]['rsq_col'] is not None:
-					chunkdf[k + '.filter'][(math.isnan(chunkdf[cfg['data_info'][k]['rsq_col']])) | (chunkdf[cfg['data_info'][k]['rsq_col']] < cfg['data_info'][k]['rsq'])] = 1
+					chunkdf[k + '.filter'] = chunkdf.apply(lambda row: 1 if math.isnan(row[k + '.rsq']) or row[k + '.rsq'] < cfg['data_info'][k]['rsq'] else row[k + '.filter'], axis=1)
 				if 'maf' in cfg['data_info'][k] and cfg['data_info'][k]['freq_col'] is not None:
-					chunkdf[k + '.filter'][(math.isnan(chunkdf[cfg['data_info'][k]['freq_col']])) | (chunkdf[cfg['data_info'][k]['freq_col']] < cfg['data_info'][k]['maf']) | (chunkdf[cfg['data_info'][k]['freq_col']] > 1 - cfg['data_info'][k]['maf'])] = 1
+					chunkdf[k + '.filter'] = chunkdf.apply(lambda row: 1 if math.isnan(row[k + '.freq']) or row[k + '.freq'] < cfg['data_info'][k]['maf'] or row[k + '.freq'] > 1 - cfg['data_info'][k]['maf'] else row[k + '.filter'], axis=1)
 				if 'hwe' in cfg['data_info'][k] and cfg['data_info'][k]['hwe_col'] is not None:
-					chunkdf[k + '.filter'][(math.isnan(chunkdf[cfg['data_info'][k]['hwe_col']])) | (chunkdf[cfg['data_info'][k]['hwe_col']] < cfg['data_info'][k]['hwe'])] = 1
-				if i == 1:
+					chunkdf[k + '.filter'] = chunkdf.apply(lambda row: 1 if math.isnan(row[k + '.hwe']) | row[k + '.hwe'] < cfg['data_info'][k]['hwe'] else row[k + '.filter'], axis=1)
+				if output_df.shape[0] == 0:
 					output_df = chunkdf
 				else:
 					chunkdf.rename(columns={'chr': k + '.chr', 'pos': k + '.pos', 'a1': k + '.a1', 'a2': k + '.a2'}, inplace=True)
@@ -129,17 +133,29 @@ def Meta(cfg):
 					output_df['a2'][output_df['a2'].isnull()] = output_df[k + '.a2'][output_df['a2'].isnull()]
 					output_df['chr'][output_df['chr'].isnull()] = output_df[k + '.chr'][output_df['chr'].isnull()]
 					output_df['pos'][output_df['pos'].isnull()] = output_df[k + '.pos'][output_df['pos'].isnull()]
-					output_df[[x for x in output_df.columns if not x in ['chr','pos','a1','a2']]] = output_df[[x for x in output_df.columns if not x in ['chr','pos','a1','a2']]].convert_objects(convert_numeric=True, copy=False)
 					if k + '.effect' in output_df:
-						output_df[k + '.effect'][~output_df[k + '.effect'].isnull()] = output_df[~output_df[k + '.effect'].isnull()].apply(lambda row: MiscFxnsCy.FlipEffectCy(row['a1'], row['a2'], row[k + '.a1'], row[k + '.a2'], row[k + '.effect']),1)
+						output_df[k + '.effect'] = output_df.apply(lambda row: MiscFxnsCy.FlipEffectCy(row['a1'], row['a2'], row[k + '.a1'], row[k + '.a2'], row[k + '.effect']) if pd.notnull(row[k + '.effect']) else row[k + '.effect'],1)
 					if k + '.freq' in output_df:
-						output_df[k + '.freq'][~output_df[k + '.freq'].isnull()] = output_df[~output_df[k + '.freq'].isnull()].apply(lambda row: MiscFxnsCy.FlipFreqCy(row['a1'], row['a2'], row[k + '.a1'], row[k + '.a2'], row[k + '.freq']),1)
+						output_df[k + '.freq'] = output_df.apply(lambda row: MiscFxnsCy.FlipFreqCy(row['a1'], row['a2'], row[k + '.a1'], row[k + '.a2'], row[k + '.freq']) if pd.notnull(row[k + '.freq']) else row[k + '.freq'],1)
 					if k + '.or' in output_df:
-						output_df[k + '.or'][~output_df[k + '.or'].isnull()] = output_df[~output_df[k + '.or'].isnull()].apply(lambda row: MiscFxnsCy.FlipORCy(row['a1'], row['a2'], row[k + '.a1'], row[k + '.a2'], row[k + '.or']),1)
+						output_df[k + '.or'] = output_df.apply(lambda row: MiscFxnsCy.FlipORCy(row['a1'], row['a2'], row[k + '.a1'], row[k + '.a2'], row[k + '.or']) if pd.notnull(row[k + '.or']) else row[k + '.or'],1)
 					if k + '.z' in output_df:
-						output_df[k + '.z'][~output_df[k + '.z'].isnull()] = output_df[~output_df[k + '.z'].isnull()].apply(lambda row: MiscFxnsCy.FlipZCy(row['a1'], row['a2'], row[k + '.a1'], row[k + '.a2'], row[k + '.z']),1)
+						output_df[k + '.z'] = output_df.apply(lambda row: MiscFxnsCy.FlipZCy(row['a1'], row['a2'], row[k + '.a1'], row[k + '.a2'], row[k + '.z']) if pd.notnull(row[k + '.z']) else row[k + '.z'],1)
 					output_df.drop(labels=[k + '.chr',k + '.pos',k + '.a1',k + '.a2'],axis=1,inplace=True)
 				print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): adding variants from cohort " + str(i_all) + "/" + str(len(cfg['file_order'])) + " (" + k + "): " + str(chunkdf.shape[0])
+
+		##### FILL IN MISSING COLUMNS #####
+		for k in cfg['file_order']:
+			cols = [x[1] for x in [(cfg['data_info'][k]['marker_col'],k + '.marker'),(cfg['data_info'][k]['effect_col'],k + '.effect'),(cfg['data_info'][k]['stderr_col'],k + '.stderr'),
+							(cfg['data_info'][k]['freq_col'],k + '.freq'),(cfg['data_info'][k]['rsq_col'],k + '.rsq'),(cfg['data_info'][k]['hwe_col'],k + '.hwe'),
+							(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p')] if not x[0] is None]
+			cols = cols + [k + '.n',k + '.filter']
+			for c in cols:
+				if not c in output_df.columns:
+					if c == k + '.marker':
+						output_df[c] = None
+					else:
+						output_df[c] = float('nan')
 
 		if output_df.shape[0] > 0:
 			##### APPLY GC #####
@@ -147,14 +163,14 @@ def Meta(cfg):
 				if 'gc' in cfg['data_info'][k]:
 					print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): applying genomic control for " + k + ": " + str(cfg['data_info'][k]['gc'])
 					if 'stderr_col' in cfg['data_info'][k]:
-						output_df[k + '.stderr'][~output_df[k + '.stderr'].isnull()] = output_df[~output_df[k + '.stderr'].isnull()].apply(lambda row: float(row[k + '.stderr']) * math.sqrt(float(cfg['data_info'][k]['gc'])),1)
+						output_df[k + '.stderr'] = output_df.apply(lambda row: float(row[k + '.stderr']) * math.sqrt(float(cfg['data_info'][k]['gc'])) if pd.notnull(row[k + '.stderr']) else row[k + '.stderr'],1)
 					if 'z' in cfg['data_info'][k].keys():
-						output_df[k + '.z'][~output_df[k + '.z'].isnull()] = output_df[~output_df[k + '.z'].isnull()].apply(lambda row: float(row[k + '.z']) / math.sqrt(float(cfg['data_info'][k]['gc'])),1)
+						output_df[k + '.z'] = output_df.apply(lambda row: float(row[k + '.z']) / math.sqrt(float(cfg['data_info'][k]['gc'])) if pd.notnull(row[k + '.z']) else row[k + '.z'],1)
 					if 'p' in cfg['data_info'][k].keys():
 						if 'stderr' in cfg['data_info'][k].keys():
-							output_df[k + '.p'][~((output_df[k + '.effect'].isnull()) | (output_df[k + '.stderr'].isnull()))] = output_df[~((output_df[k + '.effect'].isnull()) | (output_df[k + '.stderr'].isnull()))].apply(lambda row: 2 * scipy.norm.cdf(-1 * np.abs(float(row[k + '.effect'])/float(row[k + '.stderr']))),1)
+							output_df[k + '.p'] = output_df.apply(lambda row: 2 * scipy.norm.cdf(-1 * np.abs(float(row[k + '.effect'])/float(row[k + '.stderr']))) if pd.notnull(row[k + '.effect']) & pd.notnull(row[k + '.stderr']) else row[k + '.p'],1)
 						else:
-							output_df[k + '.p'][~output_df[k + '.p'].isnull()] = output_df[~output_df[k + '.p'].isnull()].apply(lambda row: 2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*float(row[k + '.p'])) / math.sqrt(float(cfg['data_info'][k]['gc'])))),1)
+							output_df[k + '.p'] = output_df.apply(lambda row: 2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*float(row[k + '.p'])) / math.sqrt(float(cfg['data_info'][k]['gc'])))) if pd.notnull(row[k + '.p']) else row[k + '.p'],1)
 
 			##### META ANALYSIS #####
 			for meta in cfg['meta_order']:
@@ -176,7 +192,7 @@ def Meta(cfg):
 					N_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
 					Wi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
 					ZiWi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.ziwi')]
-					output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum(),axis=1)
+					output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum() if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
 					output_df[meta + '.z'] = output_df.apply(lambda x: x[ZiWi_idx_all].sum()/math.sqrt(x[N_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
 					output_df[meta + '.stderr'] = output_df.apply(lambda x: float('nan'), axis=1)
 					output_df[meta + '.effect'] = output_df.apply(lambda x: float('nan'), axis=1)
@@ -197,7 +213,7 @@ def Meta(cfg):
 					N_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
 					Wi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
 					BiWi_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.biwi')]
-					output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum(),axis=1)
+					output_df[meta + '.n'] = output_df.apply(lambda x: x[N_idx_all].sum() if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
 					output_df[meta + '.stderr'] = output_df.apply(lambda x: math.sqrt(1/(x[Wi_idx_all].sum())) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
 					output_df[meta + '.effect'] = output_df.apply(lambda x: (x[BiWi_idx_all].sum())/(x[Wi_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
 					output_df[meta + '.z'] = output_df.apply(lambda x: x[meta + '.effect']/x[meta + '.stderr'] if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
@@ -207,9 +223,9 @@ def Meta(cfg):
 			##### ADD GLOBAL MARKER TO OUTPUT #####
 			output_df['marker'] = output_df[cfg['file_order'][0] + '.marker']
 			for k in [x for x in cfg['file_order'] if not x == cfg['file_order'][0]]:
-				output_df['marker'][(~output_df['marker'].str.startswith('rs')) & (output_df[k + '.marker'].str.startswith('rs'))]=output_df[k + '.marker'][(~output_df['marker'].str.startswith('rs')) & (output_df[k + '.marker'].str.startswith('rs'))]
+				output_df['marker'] = output_df.apply(lambda row: row[k + '.marker'] if not str(row['marker']).startswith('rs') and str(row[k + '.marker']).startswith('rs') else row['marker'], axis=1)
 			for k in [x for x in cfg['file_order'] if not x == cfg['file_order'][0]]:
-				output_df['marker'][(output_df['marker'].isnull()) & (~output_df[k + '.marker'].isnull())]=output_df[k + '.marker'][(output_df['marker'].isnull()) & (~output_df[k + '.marker'].isnull())]
+				output_df['marker'] = output_df.apply(lambda row: row[k + '.marker'] if row['marker'] is None and not row[k + '.marker'] is None else row['marker'], axis=1)
 
 			##### SORT RESULTS AND CONVERT CHR, POS, AND START COLUMNS TO INT #####
 			output_df[['chr','pos']] = output_df[['chr','pos']].astype(int)
@@ -224,21 +240,21 @@ def Meta(cfg):
 				output_df[c] = output_df[c].map(lambda x: '%d' % (x) if not math.isnan(x) else x)
 				output_df[c] = output_df[c].astype(object)
 
-			##### FILL IN NA's, ORDER HEADER, AND WRITE TO FILE #####
+			##### FILL IN NA's, ORDER HEADER #####
 			output_df.fillna('NA',inplace=True)
 			output_df.sort(['chr','pos'],inplace=True)
 			for col in [x for x in header if not x in output_df.columns]:
 				output_df[col] = float('nan')
 			output_df = output_df[header]
-			if not written:
-				output_df.rename(columns=lambda x: x.replace('chr','#chr'),inplace=True)
-				output_df.to_csv(bgzfile, header=True, index=False, sep="\t")
+
+			##### WRITE TO FILE #####
+			if cfg['write_header']:
+				bgzfile.write("\t".join(['#' + x if x == 'chr' else x for x in output_df.columns.values.tolist()]) + '\n')
 				bgzfile.flush()
-				written = True
-			else:
-				output_df.to_csv(bgzfile, header=False, index=False, sep="\t")
-				bgzfile.flush()
-	bgzfile.close()
+			output_df.to_csv(bgzfile, header=False, sep='\t', index=False)
+			bgzfile.flush()
+			if cfg['write_eof']:
+				bgzfile.close()
 
 	print "mapping results file"
 	cmd = ['tabix','-b','2','-e','2',cfg['out'] + '.gz']

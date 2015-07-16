@@ -719,20 +719,20 @@ typedef npy_cdouble __pyx_t_5numpy_complex_t;
  * @cython.wraparound(False)
  * @cython.cdivision(True)
  * def CalcHWECy(np.ndarray x):             # <<<<<<<<<<<<<<
- * 	cdef unsigned int obs_hets
- * 	cdef unsigned int obs_hom1
+ * 	cdef unsigned int x_hets
+ * 	cdef unsigned int x_hom1
  */
 struct __pyx_obj_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy {
   PyObject_HEAD
-  PyObject *__pyx_v_p_obs;
-  PyObject *__pyx_v_probs;
+  PyObject *__pyx_v_p_x;
+  PyObject *__pyx_v_prx;
 };
 
 
 /* "uga/MiscFxnsCy.pyx":127
- * 				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
- * 			p_obs = probs[obs_hets/2]
- * 			p_hwe = sum(p for p in probs if p <= p_obs)/sum(probs)             # <<<<<<<<<<<<<<
+ * 				prx[h/2+1] = prx[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
+ * 			p_x = prx[x_hets/2]
+ * 			p_hwe = sum(p for p in prx if p <= p_x)/sum(prx)             # <<<<<<<<<<<<<<
  * 			return p_hwe
  * 		else:
  */
@@ -1294,7 +1294,9 @@ static char __pyx_k__37[] = "*";
 static char __pyx_k_chr[] = "chr";
 static char __pyx_k_nan[] = "nan";
 static char __pyx_k_o_r[] = "o_r";
+static char __pyx_k_p_x[] = "p_x";
 static char __pyx_k_pos[] = "pos";
+static char __pyx_k_prx[] = "prx";
 static char __pyx_k_row[] = "row";
 static char __pyx_k_rsq[] = "rsq";
 static char __pyx_k_sum[] = "sum";
@@ -1331,8 +1333,6 @@ static char __pyx_k_index[] = "index";
 static char __pyx_k_isnan[] = "isnan";
 static char __pyx_k_numpy[] = "numpy";
 static char __pyx_k_p_hwe[] = "p_hwe";
-static char __pyx_k_p_obs[] = "p_obs";
-static char __pyx_k_probs[] = "probs";
 static char __pyx_k_range[] = "range";
 static char __pyx_k_refa1[] = "refa1";
 static char __pyx_k_refa2[] = "refa2";
@@ -1348,6 +1348,11 @@ static char __pyx_k_filter[] = "filter";
 static char __pyx_k_import[] = "__import__";
 static char __pyx_k_o_r_py[] = "o_r_py";
 static char __pyx_k_pos_py[] = "pos_py";
+static char __pyx_k_x_hets[] = "x_hets";
+static char __pyx_k_x_hom1[] = "x_hom1";
+static char __pyx_k_x_hom2[] = "x_hom2";
+static char __pyx_k_x_homc[] = "x_homc";
+static char __pyx_k_x_homr[] = "x_homr";
 static char __pyx_k_xrange[] = "xrange";
 static char __pyx_k_FlipZCy[] = "FlipZCy";
 static char __pyx_k_analogs[] = "analogs";
@@ -1360,11 +1365,6 @@ static char __pyx_k_row_rsq[] = "row_rsq";
 static char __pyx_k_FlipORCy[] = "FlipORCy";
 static char __pyx_k_delim_py[] = "delim_py";
 static char __pyx_k_issubset[] = "issubset";
-static char __pyx_k_obs_hets[] = "obs_hets";
-static char __pyx_k_obs_hom1[] = "obs_hom1";
-static char __pyx_k_obs_hom2[] = "obs_hom2";
-static char __pyx_k_obs_homc[] = "obs_homc";
-static char __pyx_k_obs_homr[] = "obs_homr";
 static char __pyx_k_refa1_py[] = "refa1_py";
 static char __pyx_k_refa2_py[] = "refa2_py";
 static char __pyx_k_row_freq[] = "row_freq";
@@ -1375,7 +1375,6 @@ static char __pyx_k_effect_py[] = "effect_py";
 static char __pyx_k_enumerate[] = "enumerate";
 static char __pyx_k_genotypes[] = "genotypes";
 static char __pyx_k_CalcFreqCy[] = "CalcFreqCy";
-static char __pyx_k_Complement[] = "Complement";
 static char __pyx_k_FlipFreqCy[] = "FlipFreqCy";
 static char __pyx_k_ValueError[] = "ValueError";
 static char __pyx_k_hwe_thresh[] = "hwe_thresh";
@@ -1432,7 +1431,6 @@ static PyObject *__pyx_n_s_CalcFreqCy;
 static PyObject *__pyx_n_s_CalcHWECy;
 static PyObject *__pyx_n_s_CalcHWECy_locals_genexpr;
 static PyObject *__pyx_n_s_CalcRsqCy;
-static PyObject *__pyx_n_s_Complement;
 static PyObject *__pyx_n_s_ComplementCy;
 static PyObject *__pyx_n_s_D;
 static PyObject *__pyx_n_s_FlipEffectCy;
@@ -1527,16 +1525,11 @@ static PyObject *__pyx_n_s_np;
 static PyObject *__pyx_n_s_numpy;
 static PyObject *__pyx_n_s_o_r;
 static PyObject *__pyx_n_s_o_r_py;
-static PyObject *__pyx_n_s_obs_hets;
-static PyObject *__pyx_n_s_obs_hom1;
-static PyObject *__pyx_n_s_obs_hom2;
-static PyObject *__pyx_n_s_obs_homc;
-static PyObject *__pyx_n_s_obs_homr;
 static PyObject *__pyx_n_s_p_hwe;
-static PyObject *__pyx_n_s_p_obs;
+static PyObject *__pyx_n_s_p_x;
 static PyObject *__pyx_n_s_pos;
 static PyObject *__pyx_n_s_pos_py;
-static PyObject *__pyx_n_s_probs;
+static PyObject *__pyx_n_s_prx;
 static PyObject *__pyx_n_s_range;
 static PyObject *__pyx_n_s_rare;
 static PyObject *__pyx_n_s_rare_copies;
@@ -1566,6 +1559,11 @@ static PyObject *__pyx_kp_u_unknown_dtype_code_in_numpy_pxd;
 static PyObject *__pyx_kp_s_usr3_bustaff_koesterr_uga_uga_M;
 static PyObject *__pyx_n_s_var;
 static PyObject *__pyx_n_s_x;
+static PyObject *__pyx_n_s_x_hets;
+static PyObject *__pyx_n_s_x_hom1;
+static PyObject *__pyx_n_s_x_hom2;
+static PyObject *__pyx_n_s_x_homc;
+static PyObject *__pyx_n_s_x_homr;
 static PyObject *__pyx_n_s_xlen;
 static PyObject *__pyx_n_s_xrange;
 static PyObject *__pyx_n_s_ylen;
@@ -3210,8 +3208,8 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_10CalcRsqCy(CYTHON_UNUSED PyObject *
  * @cython.wraparound(False)
  * @cython.cdivision(True)
  * def CalcHWECy(np.ndarray x):             # <<<<<<<<<<<<<<
- * 	cdef unsigned int obs_hets
- * 	cdef unsigned int obs_hom1
+ * 	cdef unsigned int x_hets
+ * 	cdef unsigned int x_hom1
  */
 
 /* Python wrapper */
@@ -3238,9 +3236,9 @@ static PyObject *__pyx_pw_3uga_10MiscFxnsCy_13CalcHWECy(PyObject *__pyx_self, Py
 static PyObject *__pyx_gb_3uga_10MiscFxnsCy_9CalcHWECy_2generator(__pyx_GeneratorObject *__pyx_generator, PyObject *__pyx_sent_value); /* proto */
 
 /* "uga/MiscFxnsCy.pyx":127
- * 				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
- * 			p_obs = probs[obs_hets/2]
- * 			p_hwe = sum(p for p in probs if p <= p_obs)/sum(probs)             # <<<<<<<<<<<<<<
+ * 				prx[h/2+1] = prx[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
+ * 			p_x = prx[x_hets/2]
+ * 			p_hwe = sum(p for p in prx if p <= p_x)/sum(prx)             # <<<<<<<<<<<<<<
  * 			return p_hwe
  * 		else:
  */
@@ -3301,12 +3299,12 @@ static PyObject *__pyx_gb_3uga_10MiscFxnsCy_9CalcHWECy_2generator(__pyx_Generato
   }
   __pyx_L3_first_run:;
   if (unlikely(!__pyx_sent_value)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-  if (unlikely(!__pyx_cur_scope->__pyx_outer_scope->__pyx_v_probs)) { __Pyx_RaiseClosureNameError("probs"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-  if (unlikely(__pyx_cur_scope->__pyx_outer_scope->__pyx_v_probs == Py_None)) {
+  if (unlikely(!__pyx_cur_scope->__pyx_outer_scope->__pyx_v_prx)) { __Pyx_RaiseClosureNameError("prx"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+  if (unlikely(__pyx_cur_scope->__pyx_outer_scope->__pyx_v_prx == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
     {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   }
-  __pyx_t_1 = __pyx_cur_scope->__pyx_outer_scope->__pyx_v_probs; __Pyx_INCREF(__pyx_t_1); __pyx_t_2 = 0;
+  __pyx_t_1 = __pyx_cur_scope->__pyx_outer_scope->__pyx_v_prx; __Pyx_INCREF(__pyx_t_1); __pyx_t_2 = 0;
   for (;;) {
     if (__pyx_t_2 >= PyList_GET_SIZE(__pyx_t_1)) break;
     #if CYTHON_COMPILING_IN_CPYTHON
@@ -3318,8 +3316,8 @@ static PyObject *__pyx_gb_3uga_10MiscFxnsCy_9CalcHWECy_2generator(__pyx_Generato
     __Pyx_XDECREF_SET(__pyx_cur_scope->__pyx_v_p, __pyx_t_3);
     __Pyx_GIVEREF(__pyx_t_3);
     __pyx_t_3 = 0;
-    if (unlikely(!__pyx_cur_scope->__pyx_outer_scope->__pyx_v_p_obs)) { __Pyx_RaiseClosureNameError("p_obs"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
-    __pyx_t_3 = PyObject_RichCompare(__pyx_cur_scope->__pyx_v_p, __pyx_cur_scope->__pyx_outer_scope->__pyx_v_p_obs, Py_LE); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    if (unlikely(!__pyx_cur_scope->__pyx_outer_scope->__pyx_v_p_x)) { __Pyx_RaiseClosureNameError("p_x"); {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;} }
+    __pyx_t_3 = PyObject_RichCompare(__pyx_cur_scope->__pyx_v_p, __pyx_cur_scope->__pyx_outer_scope->__pyx_v_p_x, Py_LE); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely(__pyx_t_4 < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     if (__pyx_t_4) {
@@ -3364,15 +3362,15 @@ static PyObject *__pyx_gb_3uga_10MiscFxnsCy_9CalcHWECy_2generator(__pyx_Generato
  * @cython.wraparound(False)
  * @cython.cdivision(True)
  * def CalcHWECy(np.ndarray x):             # <<<<<<<<<<<<<<
- * 	cdef unsigned int obs_hets
- * 	cdef unsigned int obs_hom1
+ * 	cdef unsigned int x_hets
+ * 	cdef unsigned int x_hom1
  */
 
 static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *__pyx_self, PyArrayObject *__pyx_v_x) {
   struct __pyx_obj_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy *__pyx_cur_scope;
-  unsigned int __pyx_v_obs_hets;
-  unsigned int __pyx_v_obs_hom1;
-  unsigned int __pyx_v_obs_hom2;
+  unsigned int __pyx_v_x_hets;
+  unsigned int __pyx_v_x_hom1;
+  unsigned int __pyx_v_x_hom2;
   PyObject *__pyx_v_rare = NULL;
   PyObject *__pyx_v_common = NULL;
   PyObject *__pyx_v_hets = NULL;
@@ -3415,7 +3413,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
  * 	cdef unsigned int genotypes
  * 	x = x[~np.isnan(x)]             # <<<<<<<<<<<<<<
  * 	if len(x) > 0 and set(x).issubset(set([0,1,2])):
- * 		obs_hets = np.sum(x == 1)
+ * 		x_hets = np.sum(x == 1)
  */
   __pyx_t_2 = __Pyx_GetModuleGlobalName(__pyx_n_s_np); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 105; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_2);
@@ -3461,8 +3459,8 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
  * 	cdef unsigned int genotypes
  * 	x = x[~np.isnan(x)]
  * 	if len(x) > 0 and set(x).issubset(set([0,1,2])):             # <<<<<<<<<<<<<<
- * 		obs_hets = np.sum(x == 1)
- * 		obs_hom1 = np.sum(x == 2)
+ * 		x_hets = np.sum(x == 1)
+ * 		x_hom1 = np.sum(x == 2)
  */
   __pyx_t_6 = PyObject_Length(((PyObject *)__pyx_v_x)); if (unlikely(__pyx_t_6 == -1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 106; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_t_7 = ((__pyx_t_6 > 0) != 0);
@@ -3516,9 +3514,9 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
     /* "uga/MiscFxnsCy.pyx":107
  * 	x = x[~np.isnan(x)]
  * 	if len(x) > 0 and set(x).issubset(set([0,1,2])):
- * 		obs_hets = np.sum(x == 1)             # <<<<<<<<<<<<<<
- * 		obs_hom1 = np.sum(x == 2)
- * 		obs_hom2 = np.sum(x == 0)
+ * 		x_hets = np.sum(x == 1)             # <<<<<<<<<<<<<<
+ * 		x_hom1 = np.sum(x == 2)
+ * 		x_hom2 = np.sum(x == 0)
  */
     __pyx_t_4 = __Pyx_GetModuleGlobalName(__pyx_n_s_np); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 107; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_4);
@@ -3554,14 +3552,14 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
     __pyx_t_9 = __Pyx_PyInt_As_unsigned_int(__pyx_t_1); if (unlikely((__pyx_t_9 == (unsigned int)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 107; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __pyx_v_obs_hets = __pyx_t_9;
+    __pyx_v_x_hets = __pyx_t_9;
 
     /* "uga/MiscFxnsCy.pyx":108
  * 	if len(x) > 0 and set(x).issubset(set([0,1,2])):
- * 		obs_hets = np.sum(x == 1)
- * 		obs_hom1 = np.sum(x == 2)             # <<<<<<<<<<<<<<
- * 		obs_hom2 = np.sum(x == 0)
- * 		if not (obs_hets < 0 and obs_hom1 < 0 and obs_hom2 < 0):
+ * 		x_hets = np.sum(x == 1)
+ * 		x_hom1 = np.sum(x == 2)             # <<<<<<<<<<<<<<
+ * 		x_hom2 = np.sum(x == 0)
+ * 		if not (x_hets < 0 and x_hom1 < 0 and x_hom2 < 0):
  */
     __pyx_t_8 = __Pyx_GetModuleGlobalName(__pyx_n_s_np); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 108; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_8);
@@ -3597,14 +3595,14 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __pyx_t_9 = __Pyx_PyInt_As_unsigned_int(__pyx_t_1); if (unlikely((__pyx_t_9 == (unsigned int)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 108; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __pyx_v_obs_hom1 = __pyx_t_9;
+    __pyx_v_x_hom1 = __pyx_t_9;
 
     /* "uga/MiscFxnsCy.pyx":109
- * 		obs_hets = np.sum(x == 1)
- * 		obs_hom1 = np.sum(x == 2)
- * 		obs_hom2 = np.sum(x == 0)             # <<<<<<<<<<<<<<
- * 		if not (obs_hets < 0 and obs_hom1 < 0 and obs_hom2 < 0):
- * 			rare   = 2*min(obs_hom1,obs_hom2)+obs_hets
+ * 		x_hets = np.sum(x == 1)
+ * 		x_hom1 = np.sum(x == 2)
+ * 		x_hom2 = np.sum(x == 0)             # <<<<<<<<<<<<<<
+ * 		if not (x_hets < 0 and x_hom1 < 0 and x_hom2 < 0):
+ * 			rare   = 2*min(x_hom1,x_hom2)+x_hets
  */
     __pyx_t_2 = __Pyx_GetModuleGlobalName(__pyx_n_s_np); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 109; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_2);
@@ -3640,74 +3638,74 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_t_9 = __Pyx_PyInt_As_unsigned_int(__pyx_t_1); if (unlikely((__pyx_t_9 == (unsigned int)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 109; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __pyx_v_obs_hom2 = __pyx_t_9;
+    __pyx_v_x_hom2 = __pyx_t_9;
 
     /* "uga/MiscFxnsCy.pyx":110
- * 		obs_hom1 = np.sum(x == 2)
- * 		obs_hom2 = np.sum(x == 0)
- * 		if not (obs_hets < 0 and obs_hom1 < 0 and obs_hom2 < 0):             # <<<<<<<<<<<<<<
- * 			rare   = 2*min(obs_hom1,obs_hom2)+obs_hets
- * 			common = 2*max(obs_hom1,obs_hom2)+obs_hets
+ * 		x_hom1 = np.sum(x == 2)
+ * 		x_hom2 = np.sum(x == 0)
+ * 		if not (x_hets < 0 and x_hom1 < 0 and x_hom2 < 0):             # <<<<<<<<<<<<<<
+ * 			rare   = 2*min(x_hom1,x_hom2)+x_hets
+ * 			common = 2*max(x_hom1,x_hom2)+x_hets
  */
-    __pyx_t_7 = ((__pyx_v_obs_hets < 0) != 0);
+    __pyx_t_7 = ((__pyx_v_x_hets < 0) != 0);
     if (__pyx_t_7) {
     } else {
       __pyx_t_5 = __pyx_t_7;
       goto __pyx_L7_bool_binop_done;
     }
-    __pyx_t_7 = ((__pyx_v_obs_hom1 < 0) != 0);
+    __pyx_t_7 = ((__pyx_v_x_hom1 < 0) != 0);
     if (__pyx_t_7) {
     } else {
       __pyx_t_5 = __pyx_t_7;
       goto __pyx_L7_bool_binop_done;
     }
-    __pyx_t_7 = ((__pyx_v_obs_hom2 < 0) != 0);
+    __pyx_t_7 = ((__pyx_v_x_hom2 < 0) != 0);
     __pyx_t_5 = __pyx_t_7;
     __pyx_L7_bool_binop_done:;
     __pyx_t_7 = ((!__pyx_t_5) != 0);
     if (__pyx_t_7) {
 
       /* "uga/MiscFxnsCy.pyx":111
- * 		obs_hom2 = np.sum(x == 0)
- * 		if not (obs_hets < 0 and obs_hom1 < 0 and obs_hom2 < 0):
- * 			rare   = 2*min(obs_hom1,obs_hom2)+obs_hets             # <<<<<<<<<<<<<<
- * 			common = 2*max(obs_hom1,obs_hom2)+obs_hets
+ * 		x_hom2 = np.sum(x == 0)
+ * 		if not (x_hets < 0 and x_hom1 < 0 and x_hom2 < 0):
+ * 			rare   = 2*min(x_hom1,x_hom2)+x_hets             # <<<<<<<<<<<<<<
+ * 			common = 2*max(x_hom1,x_hom2)+x_hets
  * 			if not rare:
  */
-      __pyx_t_9 = __pyx_v_obs_hom2;
-      __pyx_t_10 = __pyx_v_obs_hom1;
+      __pyx_t_9 = __pyx_v_x_hom2;
+      __pyx_t_10 = __pyx_v_x_hom1;
       if (((__pyx_t_9 < __pyx_t_10) != 0)) {
         __pyx_t_11 = __pyx_t_9;
       } else {
         __pyx_t_11 = __pyx_t_10;
       }
-      __pyx_t_1 = __Pyx_PyInt_From_long(((2 * __pyx_t_11) + __pyx_v_obs_hets)); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 111; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      __pyx_t_1 = __Pyx_PyInt_From_long(((2 * __pyx_t_11) + __pyx_v_x_hets)); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 111; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_1);
       __pyx_v_rare = __pyx_t_1;
       __pyx_t_1 = 0;
 
       /* "uga/MiscFxnsCy.pyx":112
- * 		if not (obs_hets < 0 and obs_hom1 < 0 and obs_hom2 < 0):
- * 			rare   = 2*min(obs_hom1,obs_hom2)+obs_hets
- * 			common = 2*max(obs_hom1,obs_hom2)+obs_hets             # <<<<<<<<<<<<<<
+ * 		if not (x_hets < 0 and x_hom1 < 0 and x_hom2 < 0):
+ * 			rare   = 2*min(x_hom1,x_hom2)+x_hets
+ * 			common = 2*max(x_hom1,x_hom2)+x_hets             # <<<<<<<<<<<<<<
  * 			if not rare:
  * 				return 1.0
  */
-      __pyx_t_11 = __pyx_v_obs_hom2;
-      __pyx_t_9 = __pyx_v_obs_hom1;
+      __pyx_t_11 = __pyx_v_x_hom2;
+      __pyx_t_9 = __pyx_v_x_hom1;
       if (((__pyx_t_11 > __pyx_t_9) != 0)) {
         __pyx_t_10 = __pyx_t_11;
       } else {
         __pyx_t_10 = __pyx_t_9;
       }
-      __pyx_t_1 = __Pyx_PyInt_From_long(((2 * __pyx_t_10) + __pyx_v_obs_hets)); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 112; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      __pyx_t_1 = __Pyx_PyInt_From_long(((2 * __pyx_t_10) + __pyx_v_x_hets)); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 112; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_1);
       __pyx_v_common = __pyx_t_1;
       __pyx_t_1 = 0;
 
       /* "uga/MiscFxnsCy.pyx":113
- * 			rare   = 2*min(obs_hom1,obs_hom2)+obs_hets
- * 			common = 2*max(obs_hom1,obs_hom2)+obs_hets
+ * 			rare   = 2*min(x_hom1,x_hom2)+x_hets
+ * 			common = 2*max(x_hom1,x_hom2)+x_hets
  * 			if not rare:             # <<<<<<<<<<<<<<
  * 				return 1.0
  * 			hets = rare*common/(rare+common)
@@ -3717,7 +3715,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
       if (__pyx_t_5) {
 
         /* "uga/MiscFxnsCy.pyx":114
- * 			common = 2*max(obs_hom1,obs_hom2)+obs_hets
+ * 			common = 2*max(x_hom1,x_hom2)+x_hets
  * 			if not rare:
  * 				return 1.0             # <<<<<<<<<<<<<<
  * 			hets = rare*common/(rare+common)
@@ -3785,7 +3783,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
  * 				hets += 1
  * 			hom_r = (rare-hets)/2             # <<<<<<<<<<<<<<
  * 			hom_c = (common-hets)/2
- * 			probs = [0]*(rare/2+1)
+ * 			prx = [0]*(rare/2+1)
  */
       __pyx_t_1 = PyNumber_Subtract(__pyx_v_rare, __pyx_v_hets); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 118; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_1);
@@ -3799,8 +3797,8 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
  * 				hets += 1
  * 			hom_r = (rare-hets)/2
  * 			hom_c = (common-hets)/2             # <<<<<<<<<<<<<<
- * 			probs = [0]*(rare/2+1)
- * 			probs[hets/2] = 1.0
+ * 			prx = [0]*(rare/2+1)
+ * 			prx[hets/2] = 1.0
  */
       __pyx_t_3 = PyNumber_Subtract(__pyx_v_common, __pyx_v_hets); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 119; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_3);
@@ -3813,8 +3811,8 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
       /* "uga/MiscFxnsCy.pyx":120
  * 			hom_r = (rare-hets)/2
  * 			hom_c = (common-hets)/2
- * 			probs = [0]*(rare/2+1)             # <<<<<<<<<<<<<<
- * 			probs[hets/2] = 1.0
+ * 			prx = [0]*(rare/2+1)             # <<<<<<<<<<<<<<
+ * 			prx[hets/2] = 1.0
  * 			for i,h in enumerate(xrange(hets,1,-2)):
  */
       __pyx_t_1 = __Pyx_PyNumber_Divide(__pyx_v_rare, __pyx_int_2); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 120; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -3834,26 +3832,26 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
       }
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       __Pyx_GIVEREF(__pyx_t_1);
-      __pyx_cur_scope->__pyx_v_probs = ((PyObject*)__pyx_t_1);
+      __pyx_cur_scope->__pyx_v_prx = ((PyObject*)__pyx_t_1);
       __pyx_t_1 = 0;
 
       /* "uga/MiscFxnsCy.pyx":121
  * 			hom_c = (common-hets)/2
- * 			probs = [0]*(rare/2+1)
- * 			probs[hets/2] = 1.0             # <<<<<<<<<<<<<<
+ * 			prx = [0]*(rare/2+1)
+ * 			prx[hets/2] = 1.0             # <<<<<<<<<<<<<<
  * 			for i,h in enumerate(xrange(hets,1,-2)):
- * 				probs[h/2-1] = probs[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
+ * 				prx[h/2-1] = prx[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
  */
       __pyx_t_1 = __Pyx_PyNumber_Divide(__pyx_v_hets, __pyx_int_2); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 121; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_1);
-      if (unlikely(PyObject_SetItem(__pyx_cur_scope->__pyx_v_probs, __pyx_t_1, __pyx_float_1_0) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 121; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      if (unlikely(PyObject_SetItem(__pyx_cur_scope->__pyx_v_prx, __pyx_t_1, __pyx_float_1_0) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 121; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
       /* "uga/MiscFxnsCy.pyx":122
- * 			probs = [0]*(rare/2+1)
- * 			probs[hets/2] = 1.0
+ * 			prx = [0]*(rare/2+1)
+ * 			prx[hets/2] = 1.0
  * 			for i,h in enumerate(xrange(hets,1,-2)):             # <<<<<<<<<<<<<<
- * 				probs[h/2-1] = probs[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
+ * 				prx[h/2-1] = prx[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
  * 			for i,h in enumerate(xrange(hets,rare-1,2)):
  */
       __Pyx_INCREF(__pyx_int_0);
@@ -3921,15 +3919,15 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
         __pyx_t_4 = 0;
 
         /* "uga/MiscFxnsCy.pyx":123
- * 			probs[hets/2] = 1.0
+ * 			prx[hets/2] = 1.0
  * 			for i,h in enumerate(xrange(hets,1,-2)):
- * 				probs[h/2-1] = probs[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))             # <<<<<<<<<<<<<<
+ * 				prx[h/2-1] = prx[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))             # <<<<<<<<<<<<<<
  * 			for i,h in enumerate(xrange(hets,rare-1,2)):
- * 				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
+ * 				prx[h/2+1] = prx[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
  */
         __pyx_t_4 = __Pyx_PyNumber_Divide(__pyx_v_h, __pyx_int_2); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 123; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
         __Pyx_GOTREF(__pyx_t_4);
-        __pyx_t_2 = PyObject_GetItem(__pyx_cur_scope->__pyx_v_probs, __pyx_t_4); if (unlikely(__pyx_t_2 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 123; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
+        __pyx_t_2 = PyObject_GetItem(__pyx_cur_scope->__pyx_v_prx, __pyx_t_4); if (unlikely(__pyx_t_2 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 123; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
         __pyx_t_4 = PyNumber_Multiply(__pyx_t_2, __pyx_v_h); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 123; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -3967,15 +3965,15 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
         __pyx_t_8 = PyNumber_Subtract(__pyx_t_4, __pyx_int_1); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 123; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
         __Pyx_GOTREF(__pyx_t_8);
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-        if (unlikely(PyObject_SetItem(__pyx_cur_scope->__pyx_v_probs, __pyx_t_8, __pyx_t_13) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 123; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+        if (unlikely(PyObject_SetItem(__pyx_cur_scope->__pyx_v_prx, __pyx_t_8, __pyx_t_13) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 123; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
         __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
         __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
 
         /* "uga/MiscFxnsCy.pyx":122
- * 			probs = [0]*(rare/2+1)
- * 			probs[hets/2] = 1.0
+ * 			prx = [0]*(rare/2+1)
+ * 			prx[hets/2] = 1.0
  * 			for i,h in enumerate(xrange(hets,1,-2)):             # <<<<<<<<<<<<<<
- * 				probs[h/2-1] = probs[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
+ * 				prx[h/2-1] = prx[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
  * 			for i,h in enumerate(xrange(hets,rare-1,2)):
  */
       }
@@ -3984,10 +3982,10 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
 
       /* "uga/MiscFxnsCy.pyx":124
  * 			for i,h in enumerate(xrange(hets,1,-2)):
- * 				probs[h/2-1] = probs[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
+ * 				prx[h/2-1] = prx[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
  * 			for i,h in enumerate(xrange(hets,rare-1,2)):             # <<<<<<<<<<<<<<
- * 				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
- * 			p_obs = probs[obs_hets/2]
+ * 				prx[h/2+1] = prx[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
+ * 			p_x = prx[x_hets/2]
  */
       __Pyx_INCREF(__pyx_int_0);
       __pyx_t_1 = __pyx_int_0;
@@ -4056,15 +4054,15 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
         __pyx_t_3 = 0;
 
         /* "uga/MiscFxnsCy.pyx":125
- * 				probs[h/2-1] = probs[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
+ * 				prx[h/2-1] = prx[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
  * 			for i,h in enumerate(xrange(hets,rare-1,2)):
- * 				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))             # <<<<<<<<<<<<<<
- * 			p_obs = probs[obs_hets/2]
- * 			p_hwe = sum(p for p in probs if p <= p_obs)/sum(probs)
+ * 				prx[h/2+1] = prx[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))             # <<<<<<<<<<<<<<
+ * 			p_x = prx[x_hets/2]
+ * 			p_hwe = sum(p for p in prx if p <= p_x)/sum(prx)
  */
         __pyx_t_3 = __Pyx_PyNumber_Divide(__pyx_v_h, __pyx_int_2); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 125; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
         __Pyx_GOTREF(__pyx_t_3);
-        __pyx_t_8 = PyObject_GetItem(__pyx_cur_scope->__pyx_v_probs, __pyx_t_3); if (unlikely(__pyx_t_8 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 125; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
+        __pyx_t_8 = PyObject_GetItem(__pyx_cur_scope->__pyx_v_prx, __pyx_t_3); if (unlikely(__pyx_t_8 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 125; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
         __Pyx_GOTREF(__pyx_t_8);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         __pyx_t_3 = PyNumber_Multiply(__pyx_t_8, __pyx_int_4); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 125; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -4099,16 +4097,16 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
         __pyx_t_3 = PyNumber_Add(__pyx_t_2, __pyx_int_1); if (unlikely(!__pyx_t_3)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 125; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
         __Pyx_GOTREF(__pyx_t_3);
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-        if (unlikely(PyObject_SetItem(__pyx_cur_scope->__pyx_v_probs, __pyx_t_3, __pyx_t_4) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 125; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+        if (unlikely(PyObject_SetItem(__pyx_cur_scope->__pyx_v_prx, __pyx_t_3, __pyx_t_4) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 125; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
         __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
         /* "uga/MiscFxnsCy.pyx":124
  * 			for i,h in enumerate(xrange(hets,1,-2)):
- * 				probs[h/2-1] = probs[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
+ * 				prx[h/2-1] = prx[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
  * 			for i,h in enumerate(xrange(hets,rare-1,2)):             # <<<<<<<<<<<<<<
- * 				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
- * 			p_obs = probs[obs_hets/2]
+ * 				prx[h/2+1] = prx[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
+ * 			p_x = prx[x_hets/2]
  */
       }
       __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
@@ -4116,22 +4114,22 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
 
       /* "uga/MiscFxnsCy.pyx":126
  * 			for i,h in enumerate(xrange(hets,rare-1,2)):
- * 				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
- * 			p_obs = probs[obs_hets/2]             # <<<<<<<<<<<<<<
- * 			p_hwe = sum(p for p in probs if p <= p_obs)/sum(probs)
+ * 				prx[h/2+1] = prx[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
+ * 			p_x = prx[x_hets/2]             # <<<<<<<<<<<<<<
+ * 			p_hwe = sum(p for p in prx if p <= p_x)/sum(prx)
  * 			return p_hwe
  */
-      __pyx_t_14 = (__pyx_v_obs_hets / 2);
-      __pyx_t_1 = PyList_GET_ITEM(__pyx_cur_scope->__pyx_v_probs, __pyx_t_14);
+      __pyx_t_14 = (__pyx_v_x_hets / 2);
+      __pyx_t_1 = PyList_GET_ITEM(__pyx_cur_scope->__pyx_v_prx, __pyx_t_14);
       __Pyx_INCREF(__pyx_t_1);
       __Pyx_GIVEREF(__pyx_t_1);
-      __pyx_cur_scope->__pyx_v_p_obs = __pyx_t_1;
+      __pyx_cur_scope->__pyx_v_p_x = __pyx_t_1;
       __pyx_t_1 = 0;
 
       /* "uga/MiscFxnsCy.pyx":127
- * 				probs[h/2+1] = probs[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
- * 			p_obs = probs[obs_hets/2]
- * 			p_hwe = sum(p for p in probs if p <= p_obs)/sum(probs)             # <<<<<<<<<<<<<<
+ * 				prx[h/2+1] = prx[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
+ * 			p_x = prx[x_hets/2]
+ * 			p_hwe = sum(p for p in prx if p <= p_x)/sum(prx)             # <<<<<<<<<<<<<<
  * 			return p_hwe
  * 		else:
  */
@@ -4147,9 +4145,9 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
       __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
       __pyx_t_13 = PyTuple_New(1); if (unlikely(!__pyx_t_13)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_13);
-      __Pyx_INCREF(__pyx_cur_scope->__pyx_v_probs);
-      PyTuple_SET_ITEM(__pyx_t_13, 0, __pyx_cur_scope->__pyx_v_probs);
-      __Pyx_GIVEREF(__pyx_cur_scope->__pyx_v_probs);
+      __Pyx_INCREF(__pyx_cur_scope->__pyx_v_prx);
+      PyTuple_SET_ITEM(__pyx_t_13, 0, __pyx_cur_scope->__pyx_v_prx);
+      __Pyx_GIVEREF(__pyx_cur_scope->__pyx_v_prx);
       __pyx_t_4 = __Pyx_PyObject_Call(__pyx_builtin_sum, __pyx_t_13, NULL); if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 127; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
@@ -4161,8 +4159,8 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
       __pyx_t_13 = 0;
 
       /* "uga/MiscFxnsCy.pyx":128
- * 			p_obs = probs[obs_hets/2]
- * 			p_hwe = sum(p for p in probs if p <= p_obs)/sum(probs)
+ * 			p_x = prx[x_hets/2]
+ * 			p_hwe = sum(p for p in prx if p <= p_x)/sum(prx)
  * 			return p_hwe             # <<<<<<<<<<<<<<
  * 		else:
  * 			return float('nan')
@@ -4212,8 +4210,8 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_12CalcHWECy(CYTHON_UNUSED PyObject *
  * @cython.wraparound(False)
  * @cython.cdivision(True)
  * def CalcHWECy(np.ndarray x):             # <<<<<<<<<<<<<<
- * 	cdef unsigned int obs_hets
- * 	cdef unsigned int obs_hom1
+ * 	cdef unsigned int x_hets
+ * 	cdef unsigned int x_hom1
  */
 
   /* function exit code */
@@ -7158,7 +7156,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_22FlipEffectCy(CYTHON_UNUSED PyObjec
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]             # <<<<<<<<<<<<<<
  * 	cdef float effect = effect_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  */
   __pyx_t_1 = __Pyx_PyObject_GetSlice(__pyx_v_a2_py, 0, 20, NULL, NULL, &__pyx_slice__18, 1, 1, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 260; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
@@ -7170,7 +7168,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_22FlipEffectCy(CYTHON_UNUSED PyObjec
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]
  * 	cdef float effect = effect_py             # <<<<<<<<<<<<<<
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  * 		return -1 * effect
  */
   __pyx_t_2 = __pyx_PyFloat_AsFloat(__pyx_v_effect_py); if (unlikely((__pyx_t_2 == (float)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 261; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -7179,7 +7177,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_22FlipEffectCy(CYTHON_UNUSED PyObjec
   /* "uga/MiscFxnsCy.pyx":262
  * 	cdef str a2 = a2_py[0:20]
  * 	cdef float effect = effect_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":             # <<<<<<<<<<<<<<
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":             # <<<<<<<<<<<<<<
  * 		return -1 * effect
  * 	else:
  */
@@ -7264,7 +7262,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_22FlipEffectCy(CYTHON_UNUSED PyObjec
   }
   __pyx_t_1 = PyNumber_Add(__pyx_v_refa1, __pyx_v_refa2); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 262; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_Complement); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 262; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_ComplementCy); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 262; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_5);
   __pyx_t_4 = NULL;
   if (CYTHON_COMPILING_IN_CPYTHON && unlikely(PyMethod_Check(__pyx_t_5))) {
@@ -7356,7 +7354,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_22FlipEffectCy(CYTHON_UNUSED PyObjec
 
     /* "uga/MiscFxnsCy.pyx":263
  * 	cdef float effect = effect_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  * 		return -1 * effect             # <<<<<<<<<<<<<<
  * 	else:
  * 		return effect
@@ -7577,7 +7575,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_24FlipFreqCy(CYTHON_UNUSED PyObject 
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]             # <<<<<<<<<<<<<<
  * 	cdef float freq = freq_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  */
   __pyx_t_1 = __Pyx_PyObject_GetSlice(__pyx_v_a2_py, 0, 20, NULL, NULL, &__pyx_slice__22, 1, 1, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 274; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
@@ -7589,7 +7587,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_24FlipFreqCy(CYTHON_UNUSED PyObject 
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]
  * 	cdef float freq = freq_py             # <<<<<<<<<<<<<<
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  * 		return 1 - freq
  */
   __pyx_t_2 = __pyx_PyFloat_AsFloat(__pyx_v_freq_py); if (unlikely((__pyx_t_2 == (float)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 275; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -7598,7 +7596,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_24FlipFreqCy(CYTHON_UNUSED PyObject 
   /* "uga/MiscFxnsCy.pyx":276
  * 	cdef str a2 = a2_py[0:20]
  * 	cdef float freq = freq_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":             # <<<<<<<<<<<<<<
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":             # <<<<<<<<<<<<<<
  * 		return 1 - freq
  * 	else:
  */
@@ -7683,7 +7681,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_24FlipFreqCy(CYTHON_UNUSED PyObject 
   }
   __pyx_t_1 = PyNumber_Add(__pyx_v_refa1, __pyx_v_refa2); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 276; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_Complement); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 276; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_ComplementCy); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 276; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_5);
   __pyx_t_4 = NULL;
   if (CYTHON_COMPILING_IN_CPYTHON && unlikely(PyMethod_Check(__pyx_t_5))) {
@@ -7775,7 +7773,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_24FlipFreqCy(CYTHON_UNUSED PyObject 
 
     /* "uga/MiscFxnsCy.pyx":277
  * 	cdef float freq = freq_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  * 		return 1 - freq             # <<<<<<<<<<<<<<
  * 	else:
  * 		return freq
@@ -7996,7 +7994,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_26FlipORCy(CYTHON_UNUSED PyObject *_
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]             # <<<<<<<<<<<<<<
  * 	cdef float o_r = o_r_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  */
   __pyx_t_1 = __Pyx_PyObject_GetSlice(__pyx_v_a2_py, 0, 20, NULL, NULL, &__pyx_slice__26, 1, 1, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 288; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
@@ -8008,7 +8006,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_26FlipORCy(CYTHON_UNUSED PyObject *_
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]
  * 	cdef float o_r = o_r_py             # <<<<<<<<<<<<<<
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  * 		return 1 / o_r
  */
   __pyx_t_2 = __pyx_PyFloat_AsFloat(__pyx_v_o_r_py); if (unlikely((__pyx_t_2 == (float)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 289; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -8017,7 +8015,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_26FlipORCy(CYTHON_UNUSED PyObject *_
   /* "uga/MiscFxnsCy.pyx":290
  * 	cdef str a2 = a2_py[0:20]
  * 	cdef float o_r = o_r_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":             # <<<<<<<<<<<<<<
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":             # <<<<<<<<<<<<<<
  * 		return 1 / o_r
  * 	else:
  */
@@ -8102,7 +8100,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_26FlipORCy(CYTHON_UNUSED PyObject *_
   }
   __pyx_t_1 = PyNumber_Add(__pyx_v_refa1, __pyx_v_refa2); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 290; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_Complement); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 290; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_ComplementCy); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 290; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_5);
   __pyx_t_4 = NULL;
   if (CYTHON_COMPILING_IN_CPYTHON && unlikely(PyMethod_Check(__pyx_t_5))) {
@@ -8194,7 +8192,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_26FlipORCy(CYTHON_UNUSED PyObject *_
 
     /* "uga/MiscFxnsCy.pyx":291
  * 	cdef float o_r = o_r_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  * 		return 1 / o_r             # <<<<<<<<<<<<<<
  * 	else:
  * 		return o_r
@@ -8415,7 +8413,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_28FlipZCy(CYTHON_UNUSED PyObject *__
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]             # <<<<<<<<<<<<<<
  * 	cdef float z = z_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  */
   __pyx_t_1 = __Pyx_PyObject_GetSlice(__pyx_v_a2_py, 0, 20, NULL, NULL, &__pyx_slice__30, 1, 1, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
@@ -8427,7 +8425,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_28FlipZCy(CYTHON_UNUSED PyObject *__
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]
  * 	cdef float z = z_py             # <<<<<<<<<<<<<<
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  * 		return -1 * z
  */
   __pyx_t_2 = __pyx_PyFloat_AsFloat(__pyx_v_z_py); if (unlikely((__pyx_t_2 == (float)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 303; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -8436,7 +8434,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_28FlipZCy(CYTHON_UNUSED PyObject *__
   /* "uga/MiscFxnsCy.pyx":304
  * 	cdef str a2 = a2_py[0:20]
  * 	cdef float z = z_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":             # <<<<<<<<<<<<<<
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":             # <<<<<<<<<<<<<<
  * 		return -1 * z
  * 	else:
  */
@@ -8521,7 +8519,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_28FlipZCy(CYTHON_UNUSED PyObject *__
   }
   __pyx_t_1 = PyNumber_Add(__pyx_v_refa1, __pyx_v_refa2); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_Complement); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_5 = __Pyx_GetModuleGlobalName(__pyx_n_s_ComplementCy); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 304; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_5);
   __pyx_t_4 = NULL;
   if (CYTHON_COMPILING_IN_CPYTHON && unlikely(PyMethod_Check(__pyx_t_5))) {
@@ -8613,7 +8611,7 @@ static PyObject *__pyx_pf_3uga_10MiscFxnsCy_28FlipZCy(CYTHON_UNUSED PyObject *__
 
     /* "uga/MiscFxnsCy.pyx":305
  * 	cdef float z = z_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  * 		return -1 * z             # <<<<<<<<<<<<<<
  * 	else:
  * 		return z
@@ -10690,8 +10688,8 @@ static PyObject *__pyx_tp_new_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy(Py
 static void __pyx_tp_dealloc_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy(PyObject *o) {
   struct __pyx_obj_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy *p = (struct __pyx_obj_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy *)o;
   PyObject_GC_UnTrack(o);
-  Py_CLEAR(p->__pyx_v_p_obs);
-  Py_CLEAR(p->__pyx_v_probs);
+  Py_CLEAR(p->__pyx_v_p_x);
+  Py_CLEAR(p->__pyx_v_prx);
   if (CYTHON_COMPILING_IN_CPYTHON && ((__pyx_freecount_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy < 8) & (Py_TYPE(o)->tp_basicsize == sizeof(struct __pyx_obj_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy)))) {
     __pyx_freelist_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy[__pyx_freecount_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy++] = ((struct __pyx_obj_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy *)o);
   } else {
@@ -10702,11 +10700,11 @@ static void __pyx_tp_dealloc_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy(PyO
 static int __pyx_tp_traverse_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy(PyObject *o, visitproc v, void *a) {
   int e;
   struct __pyx_obj_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy *p = (struct __pyx_obj_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy *)o;
-  if (p->__pyx_v_p_obs) {
-    e = (*v)(p->__pyx_v_p_obs, a); if (e) return e;
+  if (p->__pyx_v_p_x) {
+    e = (*v)(p->__pyx_v_p_x, a); if (e) return e;
   }
-  if (p->__pyx_v_probs) {
-    e = (*v)(p->__pyx_v_probs, a); if (e) return e;
+  if (p->__pyx_v_prx) {
+    e = (*v)(p->__pyx_v_prx, a); if (e) return e;
   }
   return 0;
 }
@@ -10714,11 +10712,11 @@ static int __pyx_tp_traverse_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy(PyO
 static int __pyx_tp_clear_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy(PyObject *o) {
   PyObject* tmp;
   struct __pyx_obj_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy *p = (struct __pyx_obj_3uga_10MiscFxnsCy___pyx_scope_struct__CalcHWECy *)o;
-  tmp = ((PyObject*)p->__pyx_v_p_obs);
-  p->__pyx_v_p_obs = Py_None; Py_INCREF(Py_None);
+  tmp = ((PyObject*)p->__pyx_v_p_x);
+  p->__pyx_v_p_x = Py_None; Py_INCREF(Py_None);
   Py_XDECREF(tmp);
-  tmp = ((PyObject*)p->__pyx_v_probs);
-  p->__pyx_v_probs = ((PyObject*)Py_None); Py_INCREF(Py_None);
+  tmp = ((PyObject*)p->__pyx_v_prx);
+  p->__pyx_v_prx = ((PyObject*)Py_None); Py_INCREF(Py_None);
   Py_XDECREF(tmp);
   return 0;
 }
@@ -11088,7 +11086,6 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_CalcHWECy, __pyx_k_CalcHWECy, sizeof(__pyx_k_CalcHWECy), 0, 0, 1, 1},
   {&__pyx_n_s_CalcHWECy_locals_genexpr, __pyx_k_CalcHWECy_locals_genexpr, sizeof(__pyx_k_CalcHWECy_locals_genexpr), 0, 0, 1, 1},
   {&__pyx_n_s_CalcRsqCy, __pyx_k_CalcRsqCy, sizeof(__pyx_k_CalcRsqCy), 0, 0, 1, 1},
-  {&__pyx_n_s_Complement, __pyx_k_Complement, sizeof(__pyx_k_Complement), 0, 0, 1, 1},
   {&__pyx_n_s_ComplementCy, __pyx_k_ComplementCy, sizeof(__pyx_k_ComplementCy), 0, 0, 1, 1},
   {&__pyx_n_s_D, __pyx_k_D, sizeof(__pyx_k_D), 0, 0, 1, 1},
   {&__pyx_n_s_FlipEffectCy, __pyx_k_FlipEffectCy, sizeof(__pyx_k_FlipEffectCy), 0, 0, 1, 1},
@@ -11183,16 +11180,11 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_numpy, __pyx_k_numpy, sizeof(__pyx_k_numpy), 0, 0, 1, 1},
   {&__pyx_n_s_o_r, __pyx_k_o_r, sizeof(__pyx_k_o_r), 0, 0, 1, 1},
   {&__pyx_n_s_o_r_py, __pyx_k_o_r_py, sizeof(__pyx_k_o_r_py), 0, 0, 1, 1},
-  {&__pyx_n_s_obs_hets, __pyx_k_obs_hets, sizeof(__pyx_k_obs_hets), 0, 0, 1, 1},
-  {&__pyx_n_s_obs_hom1, __pyx_k_obs_hom1, sizeof(__pyx_k_obs_hom1), 0, 0, 1, 1},
-  {&__pyx_n_s_obs_hom2, __pyx_k_obs_hom2, sizeof(__pyx_k_obs_hom2), 0, 0, 1, 1},
-  {&__pyx_n_s_obs_homc, __pyx_k_obs_homc, sizeof(__pyx_k_obs_homc), 0, 0, 1, 1},
-  {&__pyx_n_s_obs_homr, __pyx_k_obs_homr, sizeof(__pyx_k_obs_homr), 0, 0, 1, 1},
   {&__pyx_n_s_p_hwe, __pyx_k_p_hwe, sizeof(__pyx_k_p_hwe), 0, 0, 1, 1},
-  {&__pyx_n_s_p_obs, __pyx_k_p_obs, sizeof(__pyx_k_p_obs), 0, 0, 1, 1},
+  {&__pyx_n_s_p_x, __pyx_k_p_x, sizeof(__pyx_k_p_x), 0, 0, 1, 1},
   {&__pyx_n_s_pos, __pyx_k_pos, sizeof(__pyx_k_pos), 0, 0, 1, 1},
   {&__pyx_n_s_pos_py, __pyx_k_pos_py, sizeof(__pyx_k_pos_py), 0, 0, 1, 1},
-  {&__pyx_n_s_probs, __pyx_k_probs, sizeof(__pyx_k_probs), 0, 0, 1, 1},
+  {&__pyx_n_s_prx, __pyx_k_prx, sizeof(__pyx_k_prx), 0, 0, 1, 1},
   {&__pyx_n_s_range, __pyx_k_range, sizeof(__pyx_k_range), 0, 0, 1, 1},
   {&__pyx_n_s_rare, __pyx_k_rare, sizeof(__pyx_k_rare), 0, 0, 1, 1},
   {&__pyx_n_s_rare_copies, __pyx_k_rare_copies, sizeof(__pyx_k_rare_copies), 0, 0, 1, 1},
@@ -11222,6 +11214,11 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_kp_s_usr3_bustaff_koesterr_uga_uga_M, __pyx_k_usr3_bustaff_koesterr_uga_uga_M, sizeof(__pyx_k_usr3_bustaff_koesterr_uga_uga_M), 0, 0, 1, 0},
   {&__pyx_n_s_var, __pyx_k_var, sizeof(__pyx_k_var), 0, 0, 1, 1},
   {&__pyx_n_s_x, __pyx_k_x, sizeof(__pyx_k_x), 0, 0, 1, 1},
+  {&__pyx_n_s_x_hets, __pyx_k_x_hets, sizeof(__pyx_k_x_hets), 0, 0, 1, 1},
+  {&__pyx_n_s_x_hom1, __pyx_k_x_hom1, sizeof(__pyx_k_x_hom1), 0, 0, 1, 1},
+  {&__pyx_n_s_x_hom2, __pyx_k_x_hom2, sizeof(__pyx_k_x_hom2), 0, 0, 1, 1},
+  {&__pyx_n_s_x_homc, __pyx_k_x_homc, sizeof(__pyx_k_x_homc), 0, 0, 1, 1},
+  {&__pyx_n_s_x_homr, __pyx_k_x_homr, sizeof(__pyx_k_x_homr), 0, 0, 1, 1},
   {&__pyx_n_s_xlen, __pyx_k_xlen, sizeof(__pyx_k_xlen), 0, 0, 1, 1},
   {&__pyx_n_s_xrange, __pyx_k_xrange, sizeof(__pyx_k_xrange), 0, 0, 1, 1},
   {&__pyx_n_s_ylen, __pyx_k_ylen, sizeof(__pyx_k_ylen), 0, 0, 1, 1},
@@ -11356,7 +11353,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]             # <<<<<<<<<<<<<<
  * 	cdef float effect = effect_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  */
   __pyx_slice__18 = PySlice_New(__pyx_int_0, __pyx_int_20, Py_None); if (unlikely(!__pyx_slice__18)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 260; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_slice__18);
@@ -11400,7 +11397,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]             # <<<<<<<<<<<<<<
  * 	cdef float freq = freq_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  */
   __pyx_slice__22 = PySlice_New(__pyx_int_0, __pyx_int_20, Py_None); if (unlikely(!__pyx_slice__22)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 274; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_slice__22);
@@ -11444,7 +11441,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]             # <<<<<<<<<<<<<<
  * 	cdef float o_r = o_r_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  */
   __pyx_slice__26 = PySlice_New(__pyx_int_0, __pyx_int_20, Py_None); if (unlikely(!__pyx_slice__26)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 288; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_slice__26);
@@ -11488,7 +11485,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 	cdef str a1 = a1_py[0:20]
  * 	cdef str a2 = a2_py[0:20]             # <<<<<<<<<<<<<<
  * 	cdef float z = z_py
- * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == Complement(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
+ * 	if (refa1 + refa2 == ComplementCy(a2) + ComplementCy(a1) or refa1 + refa2 == a2 + a1 or refa1 + refa2 == ComplementCy(a2) + 'NA' or refa1 + refa2 == a2 + 'NA') and refa1 + refa2 != "AT" and refa1 + refa2 != "TA" and refa1 + refa2 != "GC" and refa1 + refa2 != "CG":
  */
   __pyx_slice__30 = PySlice_New(__pyx_int_0, __pyx_int_20, Py_None); if (unlikely(!__pyx_slice__30)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 302; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_slice__30);
@@ -11636,10 +11633,10 @@ static int __Pyx_InitCachedConstants(void) {
  * @cython.wraparound(False)
  * @cython.cdivision(True)
  * def CalcHWECy(np.ndarray x):             # <<<<<<<<<<<<<<
- * 	cdef unsigned int obs_hets
- * 	cdef unsigned int obs_hom1
+ * 	cdef unsigned int x_hets
+ * 	cdef unsigned int x_hom1
  */
-  __pyx_tuple__50 = PyTuple_Pack(20, __pyx_n_s_x, __pyx_n_s_obs_hets, __pyx_n_s_obs_hom1, __pyx_n_s_obs_hom2, __pyx_n_s_obs_homc, __pyx_n_s_obs_homr, __pyx_n_s_rare_copies, __pyx_n_s_genotypes, __pyx_n_s_rare, __pyx_n_s_common, __pyx_n_s_hets, __pyx_n_s_hom_r, __pyx_n_s_hom_c, __pyx_n_s_probs, __pyx_n_s_i, __pyx_n_s_h, __pyx_n_s_p_obs, __pyx_n_s_p_hwe, __pyx_n_s_genexpr, __pyx_n_s_genexpr); if (unlikely(!__pyx_tuple__50)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 97; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_tuple__50 = PyTuple_Pack(20, __pyx_n_s_x, __pyx_n_s_x_hets, __pyx_n_s_x_hom1, __pyx_n_s_x_hom2, __pyx_n_s_x_homc, __pyx_n_s_x_homr, __pyx_n_s_rare_copies, __pyx_n_s_genotypes, __pyx_n_s_rare, __pyx_n_s_common, __pyx_n_s_hets, __pyx_n_s_hom_r, __pyx_n_s_hom_c, __pyx_n_s_prx, __pyx_n_s_i, __pyx_n_s_h, __pyx_n_s_p_x, __pyx_n_s_p_hwe, __pyx_n_s_genexpr, __pyx_n_s_genexpr); if (unlikely(!__pyx_tuple__50)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 97; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_tuple__50);
   __Pyx_GIVEREF(__pyx_tuple__50);
   __pyx_codeobj__51 = (PyObject*)__Pyx_PyCode_New(1, 0, 20, 0, 0, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__50, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_usr3_bustaff_koesterr_uga_uga_M, __pyx_n_s_CalcHWECy, 97, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__51)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 97; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -11972,8 +11969,8 @@ PyMODINIT_FUNC PyInit_MiscFxnsCy(void)
  * @cython.wraparound(False)
  * @cython.cdivision(True)
  * def CalcHWECy(np.ndarray x):             # <<<<<<<<<<<<<<
- * 	cdef unsigned int obs_hets
- * 	cdef unsigned int obs_hom1
+ * 	cdef unsigned int x_hets
+ * 	cdef unsigned int x_hom1
  */
   __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_3uga_10MiscFxnsCy_13CalcHWECy, NULL, __pyx_n_s_uga_MiscFxnsCy); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 97; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_2);

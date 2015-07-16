@@ -620,6 +620,7 @@ def Parser():
 						required=True, 
 						help='filename of existing results')
 	gc_required.add_argument('--gc', 
+						nargs=2, 
 						required=True, 
 						action=AddString, 
 						help='apply genomic control to a 1 or more p-value columns (ex. --gc meta.p 1.0123 --gc meta.aa.p 1.002123)')
@@ -627,6 +628,9 @@ def Parser():
 						nargs=0, 
 						action=AddTrue, 
 						help='replace any existing output files')
+	gc_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (trigger adds jobs to cluster queue')
 
 	##### ANNOT PARSER #####
 	annot_parser = subparsers.add_parser('annot', help='annotate variant results using snpEff and SnpSift', parents=[parser])
@@ -854,7 +858,8 @@ def PrintModelOptions(cfg):
 	print ''
 
 def GenerateMetaCfg(args):
-	config = {'out': None, 'method': None, 'buffer': 100, 'reglist': None, 'region': None, 'id': None, 'data_info': {}, 'meta_info': {}, 'meta_order': [], 'file_order': []}
+	config = {'out': None, 'method': None, 'buffer': 100, 'reglist': None, 'region': None, 'id': None, 'write_header': False, 'write_eof': False,
+					'data_info': {}, 'meta_info': {}, 'meta_order': [], 'file_order': []}
 
 	##### add top level variables to config
 	top_args = [a for a in args if a[0] in ['out','method','buffer','reglist','region','id']]
@@ -934,6 +939,26 @@ def GenerateExploreCfg(args, ini):
 	return config
 
 def PrintExploreOptions(cfg):
+	print ''
+	print "options in effect ..."
+	for k in cfg:
+		if cfg[k] is not None and cfg[k] is not False:
+			if cfg[k] is True:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+			else:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+	print ''
+
+def GenerateGcCfg(args, ini):
+	config = {'out': None, 'data': None, 'gc': {}}
+	for arg in args:
+		if arg[0] == 'gc':
+			config['gc'][arg[1][0]] = arg[1][1]
+		else:
+			config[arg[0]] = arg[1]
+	return config
+
+def PrintGcOptions(cfg):
 	print ''
 	print "options in effect ..."
 	for k in cfg:
