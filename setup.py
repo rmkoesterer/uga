@@ -38,7 +38,7 @@ setup(
            ],
        },
     packages=['uga'],
-	package_data={'uga': ['data/*',]},
+	package_data={'uga': ['data/*','settings.ini',]},
     classifiers = [
         'Programming Language :: Python :: 2.7',
         'Development Status :: 4 - Beta',

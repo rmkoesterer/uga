@@ -75,13 +75,16 @@ def Meta(cfg):
 	written = False
 	header = ['chr','pos','a1','a2','marker']
 	for k in cfg['meta_order']:
-		header = header + [k + '.z',k + '.p',k + '.dir',k + '.n']
+		if cfg['method'] == 'sample_size':
+			header = header + [k + '.z',k + '.p',k + '.dir',k + '.n']
+		else:
+			header = header + [k + '.effect',k + '.stderr',k + '.z',k + '.p',k + '.dir',k + '.n',k + '.hetq',k + '.hetdf',k + '.heti2',k + '.hetp']
 	for k in cfg['file_order']:
 		header = header + [x[1] for x in [(cfg['data_info'][k]['marker_col'],k + '.marker'),(cfg['data_info'][k]['freq_col'],k + '.freq'),
 									(cfg['data_info'][k]['rsq_col'],k + '.rsq'),(cfg['data_info'][k]['hwe_col'],k + '.hwe'),
 									(cfg['data_info'][k]['effect_col'],k + '.effect'),(cfg['data_info'][k]['stderr_col'],k + '.stderr'),
-									(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p')] if not x[0] is None]
-		header = header + [k + '.n',k + '.filter']
+									(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p'),(cfg['data_info'][k]['p_col'],k + '.n')] if not x[0] is None]
+		header = header + [k + '.filter']
 
 	for r in range(len(reglist.index)):
 		output_df = pd.DataFrame({})
@@ -103,11 +106,11 @@ def Meta(cfg):
 				chunkdf.columns = cfg['data_info'][k]['header']
 				cols = [x for x in ['chr','pos','a1','a2',cfg['data_info'][k]['marker_col'],cfg['data_info'][k]['effect_col'],cfg['data_info'][k]['stderr_col'],cfg['data_info'][k]['freq_col'],
 									cfg['data_info'][k]['rsq_col'],cfg['data_info'][k]['hwe_col'],cfg['data_info'][k]['or_col'],cfg['data_info'][k]['z_col'],
-									cfg['data_info'][k]['p_col']] if not x is None]
+									cfg['data_info'][k]['p_col'],cfg['data_info'][k]['n_col']] if not x is None]
 				chunkdf = chunkdf[cols]
 				chunkdf.rename(columns=dict([x for x in [(cfg['data_info'][k]['marker_col'],k + '.marker'),(cfg['data_info'][k]['effect_col'],k + '.effect'),(cfg['data_info'][k]['stderr_col'],k + '.stderr'),
 							(cfg['data_info'][k]['freq_col'],k + '.freq'),(cfg['data_info'][k]['rsq_col'],k + '.rsq'),(cfg['data_info'][k]['hwe_col'],k + '.hwe'),
-							(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p')] if not x[0] is None]),inplace=True)
+							(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p'),(cfg['data_info'][k]['n_col'],k + '.n')] if not x[0] is None]),inplace=True)
 				chunkdf = chunkdf.drop_duplicates(subset=['chr','pos','a1','a2'])
 				chunkdf.index = chunkdf.apply(lambda row: MiscFxnsCy.ListCompatibleMarkersMetaCy(row['chr'],row['pos'],row['a1'],row['a2'],'><'),axis=1)
 				chunkdf.ix[:,5:][chunkdf.ix[:,5:] == 'NA'] = float('nan')
@@ -116,7 +119,7 @@ def Meta(cfg):
 				chunkdf[k + '.filter'] = 0
 				conv_cols = [x[1] for x in [(cfg['data_info'][k]['effect_col'],k + '.effect'),(cfg['data_info'][k]['stderr_col'],k + '.stderr'),
 							(cfg['data_info'][k]['freq_col'],k + '.freq'),(cfg['data_info'][k]['rsq_col'],k + '.rsq'),(cfg['data_info'][k]['hwe_col'],k + '.hwe'),
-							(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p')] if not x[0] is None]
+							(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p'),(cfg['data_info'][k]['n_col'],k + '.n')] if not x[0] is None]
 				chunkdf[conv_cols] = chunkdf[conv_cols].convert_objects(convert_numeric=True)
 				if 'rsq' in cfg['data_info'][k] and cfg['data_info'][k]['rsq_col'] is not None:
 					chunkdf[k + '.filter'] = chunkdf.apply(lambda row: 1 if math.isnan(row[k + '.rsq']) or row[k + '.rsq'] < cfg['data_info'][k]['rsq'] else row[k + '.filter'], axis=1)
@@ -148,8 +151,8 @@ def Meta(cfg):
 		for k in cfg['file_order']:
 			cols = [x[1] for x in [(cfg['data_info'][k]['marker_col'],k + '.marker'),(cfg['data_info'][k]['effect_col'],k + '.effect'),(cfg['data_info'][k]['stderr_col'],k + '.stderr'),
 							(cfg['data_info'][k]['freq_col'],k + '.freq'),(cfg['data_info'][k]['rsq_col'],k + '.rsq'),(cfg['data_info'][k]['hwe_col'],k + '.hwe'),
-							(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p')] if not x[0] is None]
-			cols = cols + [k + '.n',k + '.filter']
+							(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p'),(cfg['data_info'][k]['n_col'],k + '.n')] if not x[0] is None]
+			cols = cols + [k + '.filter']
 			for c in cols:
 				if not c in output_df.columns:
 					if c == k + '.marker':
@@ -164,10 +167,10 @@ def Meta(cfg):
 					print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): applying genomic control for " + k + ": " + str(cfg['data_info'][k]['gc'])
 					if 'stderr_col' in cfg['data_info'][k]:
 						output_df[k + '.stderr'] = output_df.apply(lambda row: float(row[k + '.stderr']) * math.sqrt(float(cfg['data_info'][k]['gc'])) if pd.notnull(row[k + '.stderr']) else row[k + '.stderr'],1)
-					if 'z' in cfg['data_info'][k].keys():
+					if 'z_col' in cfg['data_info'][k]:
 						output_df[k + '.z'] = output_df.apply(lambda row: float(row[k + '.z']) / math.sqrt(float(cfg['data_info'][k]['gc'])) if pd.notnull(row[k + '.z']) else row[k + '.z'],1)
-					if 'p' in cfg['data_info'][k].keys():
-						if 'stderr' in cfg['data_info'][k].keys():
+					if 'p_col' in cfg['data_info'][k]:
+						if 'stderr_col' in cfg['data_info'][k]:
 							output_df[k + '.p'] = output_df.apply(lambda row: 2 * scipy.norm.cdf(-1 * np.abs(float(row[k + '.effect'])/float(row[k + '.stderr']))) if pd.notnull(row[k + '.effect']) & pd.notnull(row[k + '.stderr']) else row[k + '.p'],1)
 						else:
 							output_df[k + '.p'] = output_df.apply(lambda row: 2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*float(row[k + '.p'])) / math.sqrt(float(cfg['data_info'][k]['gc'])))) if pd.notnull(row[k + '.p']) else row[k + '.p'],1)
@@ -217,6 +220,13 @@ def Meta(cfg):
 					output_df[meta + '.stderr'] = output_df.apply(lambda x: math.sqrt(1/(x[Wi_idx_all].sum())) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
 					output_df[meta + '.effect'] = output_df.apply(lambda x: (x[BiWi_idx_all].sum())/(x[Wi_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
 					output_df[meta + '.z'] = output_df.apply(lambda x: x[meta + '.effect']/x[meta + '.stderr'] if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+					for tag in cfg['meta_info'][meta]:
+						output_df[meta + '.' + tag + '.hetq_pre'] = output_df.apply(lambda x: x[meta + '.' + tag + '.wi'] * (x[tag + '.effect'] - x[meta + '.effect'])**2 if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+					Hetq_pre_idx_all=[i for i, s in enumerate(list(output_df.columns.values)) if s.startswith(meta) and s.endswith('.hetq_pre')]
+					output_df[meta + '.hetq'] = output_df.apply(lambda x: x[Hetq_pre_idx_all].sum() if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+					output_df[meta + '.hetdf'] = output_df.apply(lambda x: len([a for a in x[meta + '.dir'] if a != 'x'])-1 if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+					output_df[meta + '.heti2'] = output_df.apply(lambda x: ((x[meta + '.hetq']-x[meta + '.hetdf'])/x[meta + '.hetq'])*100 if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+					output_df[meta + '.hetp'] = output_df.apply(lambda x: 1-scipy.chi2.cdf(x[meta + '.hetq'], x[meta + '.hetdf']) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
 				output_df[meta + '.p'] = output_df.apply(lambda x: 2 * scipy.norm.cdf(-1 * abs(float(x[meta + '.z']))) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
 				output_df[meta + '.dir'] = output_df.apply(lambda x: x[meta + '.dir'] if not math.isnan(x[meta + '.p']) else float('nan'), axis=1)
 

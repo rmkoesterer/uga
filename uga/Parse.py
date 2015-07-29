@@ -334,13 +334,16 @@ def Parser():
 	meta_parser.add_argument('--p-col', 
 						action=AddString, 
 						help='p-value column')
+	meta_parser.add_argument('--n-col', 
+						action=AddString, 
+						help='sample size column')
 	meta_parser.add_argument('--gc', 
 						action=AddString, 
 						type=float, 
 						help='set genomic inflation value instead of calculating it')
 	meta_parser.add_argument('--n', 
 						action=AddString, 
-						help='sample size')
+						help='set sample size')
 	meta_parser.add_argument('--tag', 
 						action=AddString, 
 						help='tag for data file')
@@ -867,7 +870,7 @@ def GenerateMetaCfg(args):
 		config[arg[0]] = arg[1]
 
 	# list all possible model level arguments
-	model_vars = ['gc','marker_col','freq_col','rsq_col','hwe_col','effect_col','stderr_col','or_col','z_col','p_col','n','tag','file','maf','rsq','hwe']
+	model_vars = ['gc','marker_col','freq_col','rsq_col','hwe_col','effect_col','stderr_col','or_col','z_col','p_col','n_col','n','tag','file','maf','rsq','hwe']
 	if not 'tag' in [a[0] for a in args]:
 		args = [('tag', 'A')] + args
 	pre_tag_idx = [a[0] for a in args if a[0] in model_vars].index('tag')
@@ -898,7 +901,7 @@ def GenerateMetaCfg(args):
 		for i in xrange(1,len(l)):
 			config['data_info'][tag][l[i][0]] = l[i][1]
 	for tag in config['data_info']:
-		for k in ['marker_col','freq_col','rsq_col','hwe_col','effect_col','stderr_col','or_col','z_col','p_col']:
+		for k in ['marker_col','freq_col','rsq_col','hwe_col','effect_col','stderr_col','or_col','z_col','p_col','n_col']:
 			if not k in config['data_info'][tag]:
 				config['data_info'][tag][k] = None
 	return config
