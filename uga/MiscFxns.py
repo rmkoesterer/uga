@@ -441,7 +441,7 @@ def ChunkFlip(row, mdb):
 				row['a2'] = Complement(a1)
 			if refa1 + refa2 == a2 + 'NA':	
 				row['a2'] = a1
-			row[5:] = 2-row[5:].str.replace('NA','nan').astype(float)
+			row[5:len(row)-1] = 2-row[5:len(row)-1].str.replace('NA','nan').astype(float)
 	return row
 
 def UpdateAltAllele(row, mdb):

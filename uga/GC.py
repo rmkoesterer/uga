@@ -24,7 +24,7 @@ def GC(cfg):
 	##### read data from file #####
 	print "loading results from file"
 	reader = pd.read_table(cfg['data'], sep='\t', chunksize=1000000,compression='gzip',dtype=object)
-	bgzfile = bgzf.BgzfWriter(cfg['out'] + '.gc.gz', 'wb')
+	bgzfile = bgzf.BgzfWriter(cfg['file'].replace('.gz','') + '.gc.gz', 'wb')
 	i = 0
 	for results in reader:
 		i = i+1
@@ -54,7 +54,7 @@ def GC(cfg):
 	bgzfile.close()
 
 	print "mapping results file"
-	cmd = ['tabix','-b','2','-e','2',cfg['out'] + '.gc.gz']
+	cmd = ['tabix','-b','2','-e','2',cfg['file'].replace('.gz','') + '.gc.gz']
 	try:
 		p = subprocess.check_call(cmd)
 	except subprocess.CalledProcessError:

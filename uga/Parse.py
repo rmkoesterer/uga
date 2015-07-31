@@ -43,11 +43,9 @@ class AddFalse(argparse.Action):
 		previous.append((self.dest, False))
 		setattr(namespace, 'ordered_args', previous)
 
-def Describe():
+def Version():
 	print ''
 	print 'uga v' + version + ' (c) 2015 Ryan Koesterer   GNU General Public License v3'
-	print ''
-	print textwrap.fill("Universal Genome Analyst is an open, flexible, and efficient tool for the distribution, management, and visualization of whole genome data analyses. It is designed to assist biomedical researchers in complex genomic data analysis through the use of a low level interface between the powerful R statistical environment and Python to allow for rapid integration of emerging analytical strategies. Researchers with access to a high performance computing cluster will find time-saving features for parallel analysis using a flexible, yet controlled, commandline interface.", initial_indent = '      ', subsequent_indent = '   ')
 	print ''
 	print textwrap.fill("This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.", initial_indent='   ', subsequent_indent='   ')
 	print ''
@@ -57,13 +55,13 @@ def Describe():
 	print ''
 
 def Parser():
-	parser = argparse.ArgumentParser(add_help=False, description=Describe())
+	parser = argparse.ArgumentParser(add_help=False)
 	top_parser = argparse.ArgumentParser(parents=[parser])
 	subparsers = top_parser.add_subparsers(title='modules', dest='which')
 
 	top_parser.add_argument('--version', 
 						action='version', 
-						version='', 
+						version=Version(), 
 						help='display version information and exit')
 
 	##### SETTINGS PARSER #####
@@ -164,7 +162,7 @@ def Parser():
 						help='replace any existing output files')
 	model_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (trigger adds jobs to cluster queue')
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	model_parser.add_argument('--id', 
 						action=AddString, 
 						help='add region id to results (for use with --region option)')
@@ -375,7 +373,7 @@ def Parser():
 						help='replace existing output files')
 	meta_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command')
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	meta_parser.add_argument('--buffer', 
 						action=AddString, 
 						type=int, 
@@ -425,7 +423,7 @@ def Parser():
 						help='replace any existing out files')
 	map_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (trigger adds jobs to cluster queue')
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	map_split_group1 = map_parser.add_mutually_exclusive_group()
 	map_split_group1.add_argument('--mb', 
 						action=AddString, 
@@ -477,11 +475,7 @@ def Parser():
 	##### COMPILE PARSER #####
 	compile_parser = subparsers.add_parser('compile', help='verify and compile results files', parents=[parser])
 	compile_required = compile_parser.add_argument_group('required arguments')
-	compile_required.add_argument('--out', 
-						action=AddString, 
-						required=True, 
-						help='filename for compiled results')
-	compile_required.add_argument('--data', 
+	compile_required.add_argument('--file', 
 						action=AddString, 
 						required=True, 
 						help='base filename of existing results (basename only: do not include path or extension or list / region portion of filename; ex. set to X if out file names are of the form chr2/X.chr2bp1-2.gz or list0-99/X.list1.gz)')
@@ -493,17 +487,13 @@ def Parser():
 	##### EXPLORE PARSER #####
 	explore_parser = subparsers.add_parser('explore', help='explore results: filter, plot, list top results, etc.', parents=[parser])
 	explore_required = explore_parser.add_argument_group('required arguments')
-	explore_required.add_argument('--data', 
+	explore_required.add_argument('--file', 
 						action=AddString, 
 						required=True, 
-						help='filename for compiled results')
-	explore_required.add_argument('--out', 
-						action=AddString, 
-						required=True, 
-						help='output filename (basename only: do not include path)')
+						help='filename for results')
 	explore_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (trigger adds jobs to cluster queue')
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	explore_parser.add_argument('--qq', 
 						nargs=0, 
 						action=AddTrue, 
@@ -614,14 +604,10 @@ def Parser():
 	##### GC PARSER #####
 	gc_parser = subparsers.add_parser('gc', help='apply genomic control to 1 or more p-value columns', parents=[parser])
 	gc_required = gc_parser.add_argument_group('required arguments')
-	gc_required.add_argument('--out', 
+	gc_required.add_argument('--file', 
 						action=AddString, 
 						required=True, 
-						help='filename for corrected results (basename only: do not include path or extension)')
-	gc_required.add_argument('--data', 
-						action=AddString, 
-						required=True, 
-						help='filename of existing results')
+						help='filename for results')
 	gc_required.add_argument('--gc', 
 						nargs=2, 
 						required=True, 
@@ -633,7 +619,7 @@ def Parser():
 						help='replace any existing output files')
 	gc_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (trigger adds jobs to cluster queue')
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 
 	##### ANNOT PARSER #####
 	annot_parser = subparsers.add_parser('annot', help='annotate variant results using snpEff and SnpSift', parents=[parser])
@@ -641,7 +627,7 @@ def Parser():
 	annot_required.add_argument('--file', 
 						action=AddString, 
 						required=True, 
-						help='file name for variant results to be annotated')
+						help='file name for single variant results')
 	annot_parser.add_argument('--build', 
 						action=AddString, 
 						help='genomic build (default: GRCh37.75)')
@@ -651,7 +637,7 @@ def Parser():
 						help='replace any existing output files')
 	annot_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (trigger adds jobs to cluster queue')
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 
 	return top_parser
 	
@@ -932,7 +918,7 @@ def PrintMetaOptions(cfg):
 	print ''
 
 def GenerateExploreCfg(args, ini):
-	config = {'out': None, 'data': None, 'qq': False, 'qq_strat': False, 'qq_n': False, 'mht': False, 'color': False, 'plot_gc': False,
+	config = {'file': None, 'qq': False, 'qq_strat': False, 'qq_n': False, 'mht': False, 'color': False, 'plot_gc': False,
 				'set_gc': None, 'ext': 'tiff', 'sig': 0.000000054, 'stat': 'marker', 'top': None, 'region': None, 'region_id': None, 
 				'reglist': None, 'pmax': 1e-4, 'tag': None, 'unrel': False, 'lz_source': None, 'lz_build': None, 'lz_pop': None, 
 				'callrate': None, 'rsq': None, 'maf': None, 'hwe': None, 'effect': None, 'stderr': None, 'odds_ratio': None, 'df': None}
@@ -953,7 +939,7 @@ def PrintExploreOptions(cfg):
 	print ''
 
 def GenerateGcCfg(args, ini):
-	config = {'out': None, 'data': None, 'gc': {}}
+	config = {'file': None, 'gc': {}}
 	for arg in args:
 		if arg[0] == 'gc':
 			config['gc'][arg[1][0]] = arg[1][1]

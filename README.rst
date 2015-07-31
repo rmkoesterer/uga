@@ -1,117 +1,131 @@
 Universal Genome Analyst
-========================
-  
-Universal Genome Analyst (uga) is a tool designed to assist biomedical researchers in complex genomic data analysis, making use of many powerful existing 
-R packages and Python modules along with large scale computing cluster integration to provide the following features:
+************************
 
-* Compatibility with standard VCF4.1/4.2, Oxford (Impute2 output with 3 probabilities for each genotype), Plink binary, and various single allele dosage format files
-* Mapping of files based on region size or number of markers for splitting analyses
-* Automatic deployment of jobs on parallel computing systems using qsub
-* Verification and compilation of parallel distributed jobs
-* Marker association modelling
-   * generalized linear models
-   * linear mixed effects models
-   * generalized estimating equations
-   * survival analysis
-* Gene/Locus based association modelling
-   * effective test correction
-   * burden test
-   * sequence kernel association test (SKAT)
-   * optimal unified sequence kernel association test (SKAT-O)
-   * family Based SKAT and SKAT-O
-* Meta analysis
-   * uses unique marker naming based on both position and alleles to allow compatibility between multiple marker naming conventions
-* automatically aligns compatible markers alleles, eliminating the need to align input results manually
-* Optional genomic inflation correction (genomic control)
-* Publication quality Q-Q and Manhattan Plots
-* Regional Plots using Locuszoom software
-* Results filtering and reporting
-* Gzip and Bgzip / Tabix mapped output where possible to save disc space
-* User definable buffered reading for RAM usage control
-* Report compatibility for annotation with SnpEff and SnpSift
+Universal Genome Analyst (**uga**) is an open, flexible, and efficient tool for the distribution, management, and visualization of whole genome data analyses. 
+It is designed to assist biomedical researchers in complex genomic data analysis through the use of a low level interface between the powerful R statistical environment and Python to allow
+for rapid integration of emerging analytical strategies. Researchers with access to a high performance computing cluster will find time-saving features for parallel
+analysis using a flexible, yet controlled, commandline interface.
+
+**Notable Features**
+   - Compatibility with standard `VCFv4.1`_ and `VCFv4.2`_, `Oxford`_ (3 probabilities for each genotype), `Plink binary`_, and various single allele dosage formatted filetypes
+   - File mapping based on region size or number of markers for splitting analyses
+   - Automatically split jobs on parallel computing systems using `qsub`_
+   - Verification and compilation for parallel distributed jobs
+   - Single variant association modelling
+   - Gene/Locus based association modelling
+   - Family based association modelling
+   - Effective test calculation based on Li and Ji method
+   - Meta analysis
+   - Alignment of compatible markers based on position and alleles (not including A/T or G/C markers)
+   - Genomic control correction
+   - Publication quality Q-Q and Manhattan Plots
+   - Integration with `Locuszoom`_ software for region-based plots
+   - `Gzip`_ and `Bgzip`_ / `Tabix`_ mapped output where possible to save disc space
+   - User definable buffered reading for RAM usage control
+
+.. _`Plink binary`: https://www.cog-genomics.org/plink2/input#bed
+.. _`Oxford`: http://www.stats.ox.ac.uk/~marchini/software/gwas/file_format.html
+.. _`VCFv4.1`: http://samtools.github.io/hts-specs/VCFv4.1.pdf
+.. _`VCFv4.2`: http://samtools.github.io/hts-specs/VCFv4.2.pdf
+.. _`qsub`: http://gridscheduler.sourceforge.net/htmlman/htmlman1/qsub.html
+.. _`Gzip`: http://www.gzip.org/
+.. _`Bgzip`: http://www.htslib.org/
+.. _`Tabix`: http://www.htslib.org/
+.. _`Locuszoom`: http://genome.sph.umich.edu/wiki/LocusZoom_Standalone
+
+Since parallel computing is sometimes unreliable, analysts need to be able to verify and possibly rerun failed jobs at various stages of the analysis.
+In the interest of user efficiency and to avoid limitations induced by excessive automation, uga breaks the analytical process into the following modules.
+
+   - **set** user definable settings
+   - **map** map non-empty regions in genotype/imputed data files
+   - **model** variant and gene/region-based statistical modeling
+   - **explore** explore results: filter, plot, list top results, etc.
+   - **meta** meta-analysis
+   - **compile** verify and compile results files
+   - **gc** apply genomic control to 1 or more p-value columns
+   - **annot** annotate variant results using `SnpEff`_ and `SnpSift`_
+
+.. _`SnpEff`: http://snpeff.sourceforge.net/
+.. _`SnpSift`: http://snpeff.sourceforge.net/SnpSift.html
 
 Installation
 ************
 
-This software connects an array of Python and R based packages that may lead to incompatibilities in your system Python installation. Thus, it may be simpler for users
-to install a Python virtual environment to avoid disrupting system Python functionality. Additionally, **uga** requires an installation of R and a few packages used for analysis 
-and plotting. The following lists are necessary tools that **uga** needs to perform all tasks. Python modules are easiest installed using pip as described in the section labeled 
-'Installation'. The following lists display versions used during development.
+This software uses an array of Python modules and R packages. Thus, it may be simpler for users to install it within a clean virtual environment to avoid disrupting system 
+Python functionality. The following lists display versions used during development.
 
-**Python** (2.7.7)
+`Python`_ (2.7.7)
+
+.. _`Python`: https://www.python.org/
 
 Python modules required (may not be part of the Python base install), followed by versions used during development:
 
-   * singledispatch (3.4.0.3)
-   * rpy2 (2.5.2)
-   * multi-key-dict (2.0.1)
-   * numpy (1.9.1)
-   * pandas (0.15.1)
-   * progressbar (2.3)
-   * psutil (2.1.3)
-   * pytabix (0.1)
-   * scipy (0.14.0)
-   * biopython (1.64)
-   * plinkio (0.9.5)
+   * `singledispatch`_ (3.4.0.3)
+   * `rpy2`_ (2.5.2)
+   * `multi-key-dict`_ (2.0.1)
+   * `numpy`_ (1.9.1)
+   * `pandas`_ (0.15.1)
+   * `progressbar`_ (2.3)
+   * `psutil`_ (2.1.3)
+   * `pytabix`_ (0.1)
+   * `scipy`_ (0.14.0)
+   * `biopython`_ (1.64)
+   * `plinkio`_ (0.9.5)
+   * `pysam`_ (0.8.2.1)
+   * `PyVCF`_ (0.6.7)
+   * `Cython`_ (0.22)
+   * `XlsxWriter`_ (0.7.2)
 
-**R** (3.1.1)
+.. _`singledispatch`: https://pypi.python.org/pypi/singledispatch
+.. _`rpy2`: https://pypi.python.org/pypi/rpy2
+.. _`multi-key-dict`: https://pypi.python.org/pypi/multi-key-dict
+.. _`numpy`: https://pypi.python.org/pypi/numpy
+.. _`pandas`: https://pypi.python.org/pypi/pandas
+.. _`progressbar`: https://pypi.python.org/pypi/progressbar
+.. _`psutil`: https://pypi.python.org/pypi/psutil
+.. _`pytabix`: https://pypi.python.org/pypi/pytabix
+.. _`scipy`: https://pypi.python.org/pypi/scipy
+.. _`biopython`: https://pypi.python.org/pypi/biopython
+.. _`plinkio`: https://pypi.python.org/pypi/plinkio
+.. _`pysam`: https://pypi.python.org/pypi/pysam
+.. _`PyVCF`: https://pypi.python.org/pypi/PyVCF
+.. _`Cython`: https://pypi.python.org/pypi/Cython
+.. _`XlsxWriter`: https://pypi.python.org/pypi/XlsxWriter
+
+`R`_ (3.1.1)
+
+.. _`R`: http://www.r-project.org/
 
 R libraries needed for certain analytical and plotting tasks, followed by versions used during development:
 
-   * ggplot2 (1.0.0)
-   * geepack (1.1-6)
-   * lme4 (1.1-7)
-   * survival (2.37-7)
-   * seqMeta (1.5)
-   
-Some of these libraries may have dependencies which will need to be installed as well.
-   
-**Tabix and bgzip**
+   * `ggplot2`_ (1.0.0)
+   * `geepack`_ (1.1-6)
+   * `lme4`_ (1.1-7)
+   * `survival`_ (2.37-7)
+   * `seqMeta`_ (1.5)
+   * `kinship2`_ (1.6.0)
 
-In order to reduce file clutter and encourage the consolidation and compression of data and results files, **uga** makes extensive use of both Tabix and bgzip. 
-These tools are generally released as part of the `Samtools`_ software suite.
-
-.. _`Samtools`: http://www.htslib.org/
-
-**Locuszoom**
-
-In order to plot regional results, you must install `Locuszoom`_. 
-	
-.. _`Locuszoom`: http://genome.sph.umich.edu/wiki/LocusZoom_Standalone
-
-Also, in order for **uga** to find Locuszoom on your system, you will need to create a symbolic link in your home directory.
-
-   >>> ln -s PATH_TO_LOCUSZOOM/bin/locuszoom ~/locuszoom
-
-**Pre-Installation Requirements**
-
-Before installing uga, in order to have full functionality, the following needs to be installed and working (see above for development version information):
-
-   * `Python`_ (base install)
-   * `virtualenv`_ (Python module)
-   * `R`_ (base install), plus the following libraries as needed
-      - `ggplot2`_
-      - `geepack`_
-      - `lme4`_
-      - `survival`_
-      - `seqMeta`_
-      - `kinship2`_
-   * `Tabix`_
-   * `bgzip`_
-   * `Locuszoom`_
-
-.. _`Python`: https://www.python.org/
-.. _`virtualenv`: https://virtualenv.pypa.io/en/latest/
-.. _`R`: http://www.r-project.org/
 .. _`ggplot2`: http://cran.r-project.org/web/packages/ggplot2/index.html
 .. _`geepack`: http://cran.r-project.org/web/packages/geepack/index.html
 .. _`lme4`: http://cran.r-project.org/web/packages/lme4/index.html
 .. _`survival`: http://cran.r-project.org/web/packages/survival/index.html
 .. _`seqMeta`: http://cran.r-project.org/web/packages/seqMeta/index.html
 .. _`kinship2`: http://cran.r-project.org/web/packages/kinship2/index.html
-.. _`Tabix`: http://www.htslib.org/
-.. _`bgzip`: http://www.htslib.org/
-.. _`Locuszoom`: http://genome.sph.umich.edu/wiki/LocusZoom_Standalone
+   
+Some of these R libraries may have dependencies that need to be installed as well.
+
+**Other requirements**
+
+In order to reduce file clutter and encourage the consolidation and compression of data and results files, uga makes extensive use of `tabix/bgzip`_ and `gzip`_.
+
+.. _`tabix/bgzip`: http://www.htslib.org/
+.. _`gzip`: http://www.gzip.org/
+
+In order to generate regional plots of variant results, you must install `locuszoom`_.
+
+.. _`locuszoom`: http://genome.sph.umich.edu/wiki/LocusZoom_Standalone
+
+**Pre-Installation Requirements**
 
 In order to avoid potential errors during installation, you may need to add the location of the R library libR.so file to your BASH_PROFILE 
 (ie. .bashrc, .bash_profile, etc). The following command will search your system for this file.
@@ -128,34 +142,39 @@ Make sure you source your BASH_PROFILE again before continuing with the install.
 
 **Virtual Environment Preparation**
 
-Installing uga under a Python virtual environment will ensure that the modules required by uga won't interrupt your system Python install. 
-Install and activate a virtual environment called 'uga-env' as follows:
+Installing uga under a Python virtual environment (`virtualenv`_) will ensure that the modules required by uga won't interrupt your system Python install. 
+For example, you can install and activate a virtual environment called 'uga-env' as follows:
 
    >>> mkdir uga-env
    >>> virtualenv -p python uga-env
    >>> source uga-env/bin/activate
 
+.. _`virtualenv`: https://virtualenv.pypa.io/en/latest/
+
 You are now operating a clean base Python installation under a virtual environment.
 
 **Installing uga with pip**
 
-The simplest way to install uga is with pip, as follows.
+The simplest way to install uga is with `pip`_, as follows.
 
    >>> pip install uga
 
+.. _`pip`: https://pypi.python.org/pypi/pip
+
 **Installing uga from source**
 
-To install uga from source uga-0.1b3.tar.gz, first untar and unzip the file
-   
-   >>> tar -xvf uga-0.1b3.tar.gz
-   >>> cd uga-0.1b3
+Use the following commands to install uga from a source file, uga.tar.gz.
+
+   >>> tar -xvf uga.tar.gz
+   >>> cd uga
    >>> pip install -r requirements.txt
    >>> python setup.py install
-   >>> cp bin/.uga_wrapper.py ~/
 
-**Note**: If installing uga under a virtual environment, you need to source the environment as shown above before running any task in uga.
+**Note**: If you install uga under a virtual environment, you need to source the environment as shown above before running any task in uga.
 
-Verify that uga is accessible using the following command to display help.
+   >>> source uga-env/bin/activate
+
+Verify that uga is functional using the following command to display help.
 
    >>> uga -h
 
@@ -163,8 +182,8 @@ Verify that uga is accessible using the following command to display help.
 
 While you may simply run uga on a single cpu system, if you have access to a parallel computing cluster, 
 you will be able to take advantage of the self-managed parallel mode of use for which this software was designed. 
-This release was tested on a system which deploys Sun Grid Engine for job management, but simple modifications to
-the .uga_wrapper.py script in the bin/ directory may allow the use of other PBS systems.
+This release was tested on a system which deploys Sun Grid Engine for job management and will likely be compatible 
+with other PBS systems.
 
 References
 ==========
@@ -180,3 +199,24 @@ Contact
 
 .. _`Ryan Koesterer`: uga-feedback@gmail.com
 .. _`Documentation`: http://rmkoesterer.github.io/uga-doc/
+
+License
+=======
+
+Universal Genome Analyst (uga) is distributed under the GNU General Public License v3:
+   
+   Copyright (c) 2015 Ryan Koesterer
+
+   This program is free software: you can redistribute it and/or
+   modify it under the terms of the GNU General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see
+   <http://www.gnu.org/licenses/>

@@ -124,7 +124,6 @@ def main(args=None):
 			out_files = FileFxns.GenerateSubFiles(region_df = region_df, f = args.out, dist_mode = dist_mode, n = n)
 
 	##### get user home directory #####
-	#home_dir = os.path.expanduser("~")
 	qsub_wrapper = resource_filename('uga', 'Qsub.py')
 
 	if args.which == 'set':
@@ -166,9 +165,9 @@ def main(args=None):
 	elif args.which == 'compile':
 		out_files = {}
 		if args.which == "compile":
-			out_files = FileFxns.FindSubFiles(f = args.data)
+			out_files = FileFxns.FindSubFiles(f = args.file)
 		if len(out_files.keys()) > 1:
-			existing_files = glob.glob(args.out + '.gz*') + glob.glob(args.out + '.log')
+			existing_files = glob.glob(args.file + '.gz*') + glob.glob(args.file + '.log')
 			if len(existing_files) > 0:
 				if not args.replace:
 					print SystemFxns.Error("1 or more output files or files with similar basename already exists (use --replace flag to replace)")
@@ -179,12 +178,12 @@ def main(args=None):
 							os.remove(f)
 						except OSError:
 							continue
-			complete, complete_reg = FileFxns.CheckResults(file_dict=out_files, out=args.out + '.verify')
+			complete, complete_reg = FileFxns.CheckResults(file_dict=out_files, out=args.file + '.verify')
 			if not complete:
 				print SystemFxns.Error("results could not be verified")
 				return
 			out_files = collections.OrderedDict([(x, out_files[x]) for x in out_files.keys() if str(x) in complete_reg])
-			if not FileFxns.CompileResults(out_files, args.out):
+			if not FileFxns.CompileResults(out_files, args.file):
 				print SystemFxns.Error("results could not be compiled")
 				return
 		else:
@@ -192,17 +191,17 @@ def main(args=None):
 			return
 
 	elif args.which == 'explore':
-		check_files = [args.out + '.explore.log']
-		check_files = [args.out + '.top_results']
-		check_files = check_files + [args.out + '.qq.tiff'] if 'qq' in vars(args).keys() else check_files
-		check_files = check_files + [args.out + '.qq_strat.tiff'] if 'qq_strat' in vars(args).keys() else check_files
-		check_files = check_files + [args.out + '.qq.eps'] if 'qq' in vars(args).keys() else check_files
-		check_files = check_files + [args.out + '.qq_strat.eps'] if 'qq_strat' in vars(args).keys() else check_files
-		check_files = check_files + [args.out + '.qq.pdf'] if 'qq' in vars(args).keys() else check_files
-		check_files = check_files + [args.out + '.qq_strat.pdf'] if 'qq_strat' in vars(args).keys() else check_files
-		check_files = check_files + [args.out + '.mht.tiff'] if 'mht' in vars(args).keys() else check_files
-		check_files = check_files + [args.out + '.mht.eps'] if 'mht' in vars(args).keys() else check_files
-		check_files = check_files + [args.out + '.mht.pdf'] if 'mht' in vars(args).keys() else check_files
+		check_files = [args.file.replace('.gz','') + '.explore.log']
+		check_files = [args.file.replace('.gz','') + '.top_results']
+		check_files = check_files + [args.file.replace('.gz','') + '.qq.tiff'] if 'qq' in vars(args).keys() else check_files
+		check_files = check_files + [args.file.replace('.gz','') + '.qq_strat.tiff'] if 'qq_strat' in vars(args).keys() else check_files
+		check_files = check_files + [args.file.replace('.gz','') + '.qq.eps'] if 'qq' in vars(args).keys() else check_files
+		check_files = check_files + [args.file.replace('.gz','') + '.qq_strat.eps'] if 'qq_strat' in vars(args).keys() else check_files
+		check_files = check_files + [args.file.replace('.gz','') + '.qq.pdf'] if 'qq' in vars(args).keys() else check_files
+		check_files = check_files + [args.file.replace('.gz','') + '.qq_strat.pdf'] if 'qq_strat' in vars(args).keys() else check_files
+		check_files = check_files + [args.file.replace('.gz','') + '.mht.tiff'] if 'mht' in vars(args).keys() else check_files
+		check_files = check_files + [args.file.replace('.gz','') + '.mht.eps'] if 'mht' in vars(args).keys() else check_files
+		check_files = check_files + [args.file.replace('.gz','') + '.mht.pdf'] if 'mht' in vars(args).keys() else check_files
 		existing_files = []
 		for f in check_files:
 			if os.path.exists(f):
@@ -219,14 +218,14 @@ def main(args=None):
 			return
 		cmd = args.which.capitalize() + '(cfg=' + str(config) + ')'
 		if args.qsub:
-			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
+			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['file'].replace('.gz','') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
 		else:
-			SystemFxns.Interactive(qsub_wrapper, cmd, args.out + '.explore.log')
+			SystemFxns.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.explore.log')
 
 	elif args.which == 'gc':
-		check_files = [args.out + '.gc.log']
-		check_files = check_files + [args.out + '.gc.gz']
-		check_files = check_files + [args.out + '.gc.gz.tbi']
+		check_files = [args.file.replace('.gz','') + '.gc.log']
+		check_files = check_files + [args.file.replace('.gz','') + '.gc.gz']
+		check_files = check_files + [args.file.replace('.gz','') + '.gc.gz.tbi']
 		existing_files = []
 		for f in check_files:
 			if os.path.exists(f):
@@ -243,13 +242,9 @@ def main(args=None):
 			return
 		cmd = args.which.upper() + '(cfg=' + str(config) + ')'
 		if args.qsub:
-			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['out'] + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
+			SystemFxns.Qsub('qsub ' + args.qsub + ' -o ' + config['file'].replace('.gz','') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
 		else:
-			SystemFxns.Interactive(qsub_wrapper, cmd, args.out + '.gc.log')
-		#cmd = 'GC(data="' + args.data + '",out="' + args.out + '"'
-		#if args.gc:
-		#	cmd = cmd + ',gc=' + str(dict(args.gc)) + ')'
-		#SystemFxns.Interactive(qsub_wrapper, cmd, args.out + '.gc.log')
+			SystemFxns.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.gc.log')
 
 	elif args.which == 'annot':
 		check_files = [args.file.replace('.gz','') + '.annot.xlsx']
