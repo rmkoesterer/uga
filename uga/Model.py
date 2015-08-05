@@ -44,8 +44,9 @@ def Model(cfg):
 	lme_gaussian_tests = ['glme']
 	survival_tests = ['cph']
 	seqmeta_tests = ['fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden']
+	gene_tests = ['fskato','gskato','bskato','fskat','gskat','bskat','fburden','gburden','bburden']
 	seqmeta_famtests = ['fskato','fskat','fburden']
-	efftests=['efftests']
+	neff_tests=['neff']
 	binomial_tests = ['bgee','bglm','blme','bskato','bskat','bburden']
 
 	##### STOP IF MODEL TYPES IN META ANALYSIS ARE INCOMPATIBLE #####
@@ -103,10 +104,10 @@ def Model(cfg):
 		if len(cfg['models'][k]['vars_df'][cfg['models'][k]['vars_df'][cfg['models'][k]['iid']].isin(cfg['models'][k]['sample_ids'])]) == 0:
 			print SystemFxns.Error("phenotype file and data file contain no common samples")
 			return
-		cfg['models'][k]['varlist_handle'] = None
-		if 'varlist' in cfg['models'][k]:
-			if cfg['models'][k]['varlist'] is not None:
-				cfg['models'][k]['varlist_handle'] = tabix.open(cfg['models'][k]['varlist'])
+		cfg['models'][k]['variant_list_handle'] = None
+		if 'variant_list' in cfg['models'][k]:
+			if cfg['models'][k]['variant_list'] is not None:
+				cfg['models'][k]['variant_list_handle'] = tabix.open(cfg['models'][k]['variant_list'])
 
 	##### REDUCE PHENO DATA TO GENOTYPE IDs #####
 	for k in cfg['model_order']:
@@ -146,24 +147,26 @@ def Model(cfg):
 				cfg['models'][k]['ped_df'] = cfg['models'][k]['ped_df'][cfg['models'][k]['ped_df']['IID'].isin(list(cfg['models'][k]['vars_df'][cfg['models'][k]['iid']].values))]
 
 	##### GENERATE REGION LIST #####
-	if not cfg['reglist'] is None:
+	if not cfg['region_list'] is None:
 		print "loading region list"
-		reglist = FileFxns.LoadCoordinates(cfg['reglist'])
+		region_list = FileFxns.LoadCoordinates(cfg['region_list'])
 	elif not cfg['region'] is None:
 		if len(cfg['region'].split(':')) > 1:
-			reglist = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
+			region_list = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
 		else:
-			reglist = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
-		reglist['id'] = cfg['id'] if not cfg['id'] is None else 'NA'
+			region_list = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
+		region_list['id'] = cfg['id'] if not cfg['id'] is None else 'NA'
 	else:
-		reglist = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)],'id': ['NA' for i in range(26)]})
+		region_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)],'id': ['NA' for i in range(26)]})
 
 	##### DETERMINE ANALYSIS TYPE AND SETUP FILE HANDLES #####
 	for k in cfg['model_order']:
 		if cfg['models'][k]['model_fxn'] in marker_tests:
 			cfg['models'][k]['model_fxn_type'] = 'marker'
-		else:
+		elif cfg['models'][k]['model_fxn'] in gene_tests:
 			cfg['models'][k]['model_fxn_type'] = 'gene'
+		else:
+			cfg['models'][k]['model_fxn_type'] = 'neff'
 		cfg['models'][k]['written'] = False
 	if len(list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))) > 1:
 		print SystemFxns.Error("mixing gene based and marker based model_fxns not available")
@@ -177,7 +180,7 @@ def Model(cfg):
 			cfg['meta_written'][meta_tag]=False
 
 	##### INITIALIZE HEADER #####
-	header = ['chr','start','end','id'] if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] == 'gene' else ['chr','pos','a1','a2','marker']
+	header = ['chr','start','end','id'] if list(set([cfg['models'][k]['model_fxn_type'] for k in cfg['model_order']]))[0] in ['gene','neff'] else ['chr','pos','a1','a2','marker']
 	if cfg['models'][cfg['model_order'][0]]['model_fxn'] in seqmeta_tests and len(cfg['meta']) > 0:
 		for meta in cfg['meta']:
 			meta_tag = meta.split(':')[0]
@@ -189,50 +192,54 @@ def Model(cfg):
 				header = header + [meta_tag + '.' + x for x in ['p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
 	for k in cfg['model_order']:
 		k_prefix = '' if len(cfg['model_order']) == 1 else k + '.'
-		header = header + [k_prefix + 'marker'] if len(cfg['model_order']) > 1 else header
-		header = header + [k_prefix + x for x in ['callrate','freq','freq.unrel']]
-		if cfg['models'][k]['family'] == 'binomial':
-			header = header + [k_prefix + x for x in ['freq.unrel.ctrl','freq.unrel.case']]
-		header = header + [k_prefix + x for x in ['rsq','rsq.unrel']]
-		if cfg['models'][k]['family'] == 'binomial':
-			header = header + [k_prefix + x for x in ['rsq.unrel.ctrl','rsq.unrel.case']]
-		header = header + [k_prefix + x for x in ['hwe','hwe.unrel']]
-		if cfg['models'][k]['family'] == 'binomial':
-			header = header + [k_prefix + x for x in ['hwe.unrel.ctrl','hwe.unrel.case']]
-		header = header + [k_prefix + x for x in ['filter','sample']]
-		if cfg['models'][k]['model_fxn'] in ['bgee','ggee','bglm','gglm']:
-			for x in cfg['models'][k]['focus']:
-				header = header + [k_prefix + x + '.' + y for y in ['effect','stderr','or','z','p']]
-			header = header + [k_prefix + y for y in ['n','status']]
-		elif cfg['models'][k]['model_fxn'] == 'blme':
-			for x in cfg['models'][k]['focus']:
-				header = header + [k_prefix + x + '.' + y for y in ['effect','stderr','or','z','p']]
-				if cfg['models'][k]['lrt'] and x != '(Intercept)':
-					header = header + [k_prefix + x + '.' + y for y in ['anova.chisq','anova.p']]
-			header = header + [k_prefix + y for y in ['n','status']]
-		elif cfg['models'][k]['model_fxn'] == 'glme':
-			for x in cfg['models'][k]['focus']:
-				header = header + [k_prefix + x + '.' + y for y in ['effect','stderr','or','z','p','satt.df','satt.t','satt.p','kenrog.p']]
-				if cfg['models'][k]['lrt'] and x != '(Intercept)':
-					header = header + [k_prefix + x + '.' + y for y in ['anova.chisq','anova.p']]
-			header = header + [k_prefix + y for y in ['n','status']]
-		elif cfg['models'][k]['model_fxn'] == 'cph':
-			for x in cfg['models'][k]['focus']:
-				header = header + [k_prefix + x + '.' + y for y in ['effect','or','ci_lower','ci_upper','stderr','robust_stderr','z','p']]
-			header = header + [k_prefix + y for y in ['n','status']]
-		elif cfg['models'][k]['model_fxn'] in ['fskato','gskato','bskato']:
-			header = header + [k_prefix + x for x in ['p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
-		elif cfg['models'][k]['model_fxn'] in ['fskat','gskat','bskat']:
-			header = header + [k_prefix + x for x in ['p','Qmeta','cmaf','nmiss','nsnps']]
-		elif cfg['models'][k]['model_fxn'] in ['fburden','gburden','bburden']:
-			header = header + [k_prefix + x for x in ['p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
+		if cfg['models'][k]['model_fxn_type'] == 'marker':
+			header = header + [k_prefix + 'marker'] if len(cfg['model_order']) > 1 else header
+			header = header + [k_prefix + x for x in ['callrate','freq','freq.unrel']]
+			if cfg['models'][k]['family'] == 'binomial':
+				header = header + [k_prefix + x for x in ['freq.unrel.ctrl','freq.unrel.case']]
+			header = header + [k_prefix + x for x in ['rsq','rsq.unrel']]
+			if cfg['models'][k]['family'] == 'binomial':
+				header = header + [k_prefix + x for x in ['rsq.unrel.ctrl','rsq.unrel.case']]
+			header = header + [k_prefix + x for x in ['hwe','hwe.unrel']]
+			if cfg['models'][k]['family'] == 'binomial':
+				header = header + [k_prefix + x for x in ['hwe.unrel.ctrl','hwe.unrel.case']]
+			header = header + [k_prefix + x for x in ['filter','sample']]
+			if cfg['models'][k]['model_fxn'] in ['bgee','ggee','bglm','gglm']:
+				for x in cfg['models'][k]['focus']:
+					header = header + [k_prefix + x + '.' + y for y in ['effect','stderr','or','z','p']]
+				header = header + [k_prefix + y for y in ['n','status']]
+			elif cfg['models'][k]['model_fxn'] == 'blme':
+				for x in cfg['models'][k]['focus']:
+					header = header + [k_prefix + x + '.' + y for y in ['effect','stderr','or','z','p']]
+					if cfg['models'][k]['lrt'] and x != '(Intercept)':
+						header = header + [k_prefix + x + '.' + y for y in ['anova.chisq','anova.p']]
+				header = header + [k_prefix + y for y in ['n','status']]
+			elif cfg['models'][k]['model_fxn'] == 'glme':
+				for x in cfg['models'][k]['focus']:
+					header = header + [k_prefix + x + '.' + y for y in ['effect','stderr','or','z','p','satt.df','satt.t','satt.p','kenrog.p']]
+					if cfg['models'][k]['lrt'] and x != '(Intercept)':
+						header = header + [k_prefix + x + '.' + y for y in ['anova.chisq','anova.p']]
+				header = header + [k_prefix + y for y in ['n','status']]
+			elif cfg['models'][k]['model_fxn'] == 'cph':
+				for x in cfg['models'][k]['focus']:
+					header = header + [k_prefix + x + '.' + y for y in ['effect','or','ci_lower','ci_upper','stderr','robust_stderr','z','p']]
+				header = header + [k_prefix + y for y in ['n','status']]
+		else:
+			if cfg['models'][k]['model_fxn'] in ['fskato','gskato','bskato']:
+				header = header + [k_prefix + x for x in ['p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
+			elif cfg['models'][k]['model_fxn'] in ['fskat','gskat','bskat']:
+				header = header + [k_prefix + x for x in ['p','Qmeta','cmaf','nmiss','nsnps']]
+			elif cfg['models'][k]['model_fxn'] in ['fburden','gburden','bburden']:
+				header = header + [k_prefix + x for x in ['p','beta','se','cmafTotal','cmafUsed','nsnpsTotal','nsnpsUsed','nmiss']]
+			elif cfg['models'][k]['model_fxn'] == 'neff':
+				header = header + [k_prefix + x for x in ['n_total','n_eff','status']]
 
 	##### START ANALYSIS #####
 	print "modelling data ..."
 
 	##### LOOP OVER REGIONS #####
-	for r in range(len(reglist.index)):
-		reg = reglist['region'][r]
+	for r in range(len(region_list.index)):
+		reg = region_list['region'][r]
 		chr = int(reg.split(':')[0])
 
 		##### LOOP OVER DATASETS #####
@@ -241,13 +248,13 @@ def Model(cfg):
 			k_prefix = '' if len(cfg['model_order']) == 1 else k + '.'
 			cfg['reg_model_df'] = None
 			cfg['reg_marker_info'] = None
-			varlist = None
-			if cfg['models'][k]['varlist_handle'] is not None:
-				varlist = cfg['models'][k]['varlist_handle'].querys(reg)
-				varlist = pd.DataFrame([x for x in varlist if int(x[1]) >= int(reglist['start'][r]) and int(x[1]) <= int(reglist['end'][r])])
-				varlist.columns = ['chr','pos','marker','a1','a2']
-				varlist['chr'] = varlist['chr'].astype(np.int64)
-				varlist['pos'] = varlist['pos'].astype(np.int64)
+			variant_list = None
+			if cfg['models'][k]['variant_list_handle'] is not None:
+				variant_list = cfg['models'][k]['variant_list_handle'].querys(reg)
+				variant_list = pd.DataFrame([x for x in variant_list if int(x[1]) >= int(region_list['start'][r]) and int(x[1]) <= int(region_list['end'][r])])
+				variant_list.columns = ['chr','pos','marker','a1','a2']
+				variant_list['chr'] = variant_list['chr'].astype(np.int64)
+				variant_list['pos'] = variant_list['pos'].astype(np.int64)
 			if cfg['models'][k]['format'] == 'plink':
 				if reg == str(chr):
 					try:
@@ -256,21 +263,21 @@ def Model(cfg):
 						break
 				else:
 					try:
-						records = (x for x in cfg['models'][k]['plink_zip'] if x[0].chromosome == chr and x[0].bp_position >= int(reglist['start'][r]) and x[0].bp_position <= int(reglist['end'][r]) and not ',' in x[0].allele2)
+						records = (x for x in cfg['models'][k]['plink_zip'] if x[0].chromosome == chr and x[0].bp_position >= int(region_list['start'][r]) and x[0].bp_position <= int(region_list['end'][r]) and not ',' in x[0].allele2)
 					except:
 						break
-				if varlist is not None:
-					records = (x for x in records if varlist[(varlist['chr'] == x[0].chromosome) & (varlist['pos'] == x[0].bp_position) & (varlist['a1'] == x[0].allele1) & (varlist['a2'] == x[0].allele2)].shape[0] > 0)
+				if variant_list is not None:
+					records = (x for x in records if variant_list[(variant_list['chr'] == x[0].chromosome) & (variant_list['pos'] == x[0].bp_position) & (variant_list['a1'] == x[0].allele1) & (variant_list['a2'] == x[0].allele2)].shape[0] > 0)
 			else:
 				pos_ind = 1 if cfg['models'][k]['format'] in ['dos2','vcf'] else 2
 				try:
 					records = cfg['models'][k]['data_it'].querys(reg)
 					if reg != str(chr):
-						records = (x for x in records if int(x[pos_ind]) >= int(reglist['start'][r]) and int(x[pos_ind]) <= int(reglist['end'][r]) and not ',' in str(x[4]))
+						records = (x for x in records if int(x[pos_ind]) >= int(region_list['start'][r]) and int(x[pos_ind]) <= int(region_list['end'][r]) and not ',' in str(x[4]))
 				except:
 					break
-				if varlist is not None:
-					records = (x for x in records if varlist[(varlist['chr'] == int(x[0])) & (varlist['pos'] == int(x[pos_ind])) & (varlist['a1'] == x[3]) & (varlist['a2'] == x[4])].shape[0] > 0)
+				if variant_list is not None:
+					records = (x for x in records if variant_list[(variant_list['chr'] == int(x[0])) & (variant_list['pos'] == int(x[pos_ind])) & (variant_list['a1'] == x[3]) & (variant_list['a2'] == x[4])].shape[0] > 0)
 
 			while True:
 				i = i + 1
@@ -434,6 +441,7 @@ def Model(cfg):
 					model_df.sort([cfg['models'][k]['fid']],inplace = True)
 					ro.globalenv['model_df'] = py2r.convert_to_r_dataframe(model_df, strings_as_factors=False)
 					ro.r('model_df[,names(model_df) == "' + cfg['models'][k]['fid'] + '"]<-as.factor(model_df[,names(model_df) == "' + cfg['models'][k]['fid'] + '"])')
+
 					if cfg['models'][k]['model_fxn'] in ['bgee','ggee']:
 						for x in cfg['models'][k]['focus']:
 							marker_info_passed[x + '.effect'] = float('nan')
@@ -447,7 +455,6 @@ def Model(cfg):
 																					model=cfg['models'][k]['model'], iid=cfg['models'][k]['iid'], fid=cfg['models'][k]['fid'], 
 																					model_fxn=cfg['models'][k]['model_fxn'], family=cfg['models'][k]['family'], focus=cfg['models'][k]['focus'], 
 																					dep_var=cfg['models'][k]['dep_var'], corstr=cfg['models'][k]['corstr']), 1)
-						
 						results = pd.merge(results,marker_info_filtered,how='outer')
 					elif cfg['models'][k]['model_fxn'] in ['bglm','gglm']:
 						for x in cfg['models'][k]['focus']:
@@ -520,8 +527,8 @@ def Model(cfg):
 																						model_fxn=cfg['models'][k]['model_fxn'], focus=cfg['models'][k]['focus'], 
 																						dep_var=cfg['models'][k]['dep_var'],cph_ctrl=cfg['models'][k]['cph_ctrl']), 1)
 						results = pd.merge(results,marker_info_filtered,how='outer')
-					if 'id' in reglist.columns and not reglist['id'][r] is None:
-						results['id'] = reglist['id'][r]
+					if 'id' in region_list.columns and not region_list['id'][r] is None:
+						results['id'] = region_list['id'][r]
 					if 'marker_unique' in results.columns.values:
 						results.drop('marker_unique',axis=1,inplace=True)
 					if len(cfg['model_order']) > 1:
@@ -534,7 +541,7 @@ def Model(cfg):
 
 				##### PREPARE DATA FOR GENE BASED ANALYSIS #####
 				else:
-					if cfg['models'][k]['model_fxn_type'] == 'gene':
+					if cfg['models'][k]['model_fxn_type'] in ['gene','neff']:
 						if i == 1:
 							cfg['reg_model_df'] = model_df.drop(marker_info['marker_unique'][marker_info['filter'] != 0],axis=1)
 							cfg['reg_marker_info'] = marker_info[marker_info['filter'] == 0]
@@ -544,21 +551,21 @@ def Model(cfg):
 
 				##### UPDATE LOOP STATUS #####
 				cur_markers = str(min(i*cfg['buffer'],(i-1)*cfg['buffer'] + len(marker_info.index)))
-				status_reg = reglist['region'][r] + ': ' + reglist['id'][r] if 'id' in reglist.columns and reglist['id'][r] != 'NA' else reglist['region'][r]
-				status = '   processed ' + cur_markers + ' markers from region ' + str(r+1) + '/' + str(len(reglist.index)) + ' (' + status_reg + ')' if len(cfg['models'].keys()) == 1 else '   processed ' + cur_markers + ' markers from region ' + str(r+1) + '/' + str(len(reglist.index)) + ' (' + status_reg + ')' + " for cohort " + str(cfg['model_order'].index(k) + 1) + '/' + str(len(cfg['model_order'])) + ' (' + k + ')'
+				status_reg = region_list['region'][r] + ': ' + region_list['id'][r] if 'id' in region_list.columns and region_list['id'][r] != 'NA' else region_list['region'][r]
+				status = '   processed ' + cur_markers + ' markers from region ' + str(r+1) + '/' + str(len(region_list.index)) + ' (' + status_reg + ')' if len(cfg['models'].keys()) == 1 else '   processed ' + cur_markers + ' markers from region ' + str(r+1) + '/' + str(len(region_list.index)) + ' (' + status_reg + ')' + " for cohort " + str(cfg['model_order'].index(k) + 1) + '/' + str(len(cfg['model_order'])) + ' (' + k + ')'
 				print status
 
 			##### CALCULATE EFFECTIVE TESTS #####
 			if cfg['models'][k]['model_fxn'] == 'neff':
-				tot_tests = cfg['reg_marker_info'].shape[0]
+				tot_tests = cfg['reg_marker_info'].shape[0] if cfg['reg_marker_info'] is not None else 0
 				if tot_tests > 0:
 					n_eff = StatsFxns.CalcEffTests(model_df=cfg['reg_model_df'][cfg['reg_marker_info']['marker_unique']])
 					status = 0
 				else:
 					n_eff, tot_tests, status = (0, 0, 1)
-				results = pd.DataFrame({'chr': [reglist['chr'][r]], 'start': [reglist['start'][r]], 'end': [reglist['end'][r]], 'id': [reglist['id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','id','n_total','n_eff','status']]
-				if 'id' in reglist.columns:
-					results['id'] = reglist['id'][r]
+				results = pd.DataFrame({'chr': [region_list['chr'][r]], 'start': [region_list['start'][r]], 'end': [region_list['end'][r]], 'id': [region_list['id'][r]], 'n_total': [tot_tests], 'n_eff': [n_eff], 'status': [status]})[['chr','start','end','id','n_total','n_eff','status']]
+				if 'id' in region_list.columns:
+					results['id'] = region_list['id'][r]
 				if 'marker_unique' in results.columns.values:
 					results.drop('marker_unique',axis=1,inplace=True)
 				if len(cfg['model_order']) > 1:
@@ -568,13 +575,13 @@ def Model(cfg):
 					cfg['models'][k]['written'] = True
 				else:
 					cfg['models'][k]['results'] = cfg['models'][k]['results'].append(results).reset_index(drop=True)
-				status = '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(reglist.index)) if len(cfg['models'].keys()) == 1 else '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(reglist.index)) + " for model " + str(cfg['model_order'].index(k) + 1) + '/' + str(len(cfg['model_order'])) + ' (' + k + ')'
+				status = '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(region_list.index)) if len(cfg['models'].keys()) == 1 else '   processed effective tests calculation for region ' + str(r+1) + '/' + str(len(region_list.index)) + " for model " + str(cfg['model_order'].index(k) + 1) + '/' + str(len(cfg['model_order'])) + ' (' + k + ')'
 				print status
 
 			##### CALCULATE PREPSCORES AND INDIVIDUAL MODELS FOR GENE BASED TESTS #####
 			elif cfg['models'][k]['model_fxn'] in seqmeta_tests:
 				if not cfg['reg_marker_info'] is None and cfg['reg_marker_info'].shape[0] > 0:
-					cfg['models'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': reglist['id'][r]})
+					cfg['models'][k]['snp_info'] = pd.DataFrame({'Name': cfg['reg_marker_info']['marker_unique'], 'gene': region_list['id'][r]})
 					ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(cfg['models'][k]['snp_info'], strings_as_factors=False)
 					ro.globalenv['z'] = py2r.convert_to_r_dataframe(cfg['reg_model_df'][list(cfg['reg_marker_info']['marker_unique'][cfg['reg_marker_info']['filter'] == 0])], strings_as_factors=False)
 					ro.globalenv['pheno'] = py2r.convert_to_r_dataframe(cfg['reg_model_df'][list(set(cfg['models'][k]['model_vars_dict'].keys() + [cfg['models'][k]['iid'],cfg['models'][k]['fid']]))], strings_as_factors=False)
@@ -594,7 +601,7 @@ def Model(cfg):
 					if cfg['models'][k]['model_fxn'] in ['fskato','gskato','bskato']:
 						ro.globalenv['rho'] = ro.r('seq(0,1,' + str(cfg['models'][k]['rho']) + ')')
 						results_pre = StatsFxns.SkatOMeta('skatOMeta(ps' + k + ',SNPInfo=snp_info,rho=rho,skat.wts=' + cfg['models'][k]['skat_wts'] + ',burden.wts=' + cfg['models'][k]['burden_wts'] + ',method="' + cfg['models'][k]['skat_method'] + '")')
-						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'id': [region_list['id'][r]],
 											'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
 						results = results[['chr','start','end','id','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
@@ -602,7 +609,7 @@ def Model(cfg):
 					##### SKAT #####
 					elif cfg['models'][k]['model_fxn'] in ['fskat','gskat','bskat']:
 						results_pre = StatsFxns.SkatMeta('skatMeta(ps' + k + ',SNPInfo=snp_info,wts=' + cfg['models'][k]['skat_wts'] + ',method="' + cfg['models'][k]['skat_method'] + '")')
-						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'id': [region_list['id'][r]],
 											'p': [results_pre['p'][1]],'Qmeta': [results_pre['Qmeta'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]]})
 						results = results[['chr','start','end','id','p','Qmeta','cmaf','nmiss','nsnps']]
@@ -610,7 +617,7 @@ def Model(cfg):
 					##### BURDEN #####
 					elif cfg['models'][k]['model_fxn'] in ['fburden','gburden','bburden']:
 						results_pre = StatsFxns.BurdenMeta('burdenMeta(ps' + k + ',SNPInfo=snp_info,wts=' + cfg['models'][k]['burden_wts'] + ')')
-						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'id': [region_list['id'][r]],
 											'p': [results_pre['p'][1]],'beta': [results_pre['beta'][1]],'se': [results_pre['se'][1]],'cmafTotal': [results_pre['cmafTotal'][1]],
 											'cmafUsed': [results_pre['cmafUsed'][1]],'nsnpsTotal': [results_pre['nsnpsTotal'][1]],'nsnpsUsed': [results_pre['nsnpsUsed'][1]],
 											'nmiss': [results_pre['nmiss'][1]]})
@@ -622,15 +629,15 @@ def Model(cfg):
 
 					##### EMPTY SKAT-O DF #####
 					if cfg['models'][k]['model_fxn'] in ['fskato','gskato','bskato']:
-						results = StatsFxns.SkatOMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r])
+						results = StatsFxns.SkatOMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['id'][r])
 
 					##### EMPTY SKAT DF #####
 					elif cfg['models'][k]['model_fxn'] in ['fskat','gskat','bskat']:
-						results = StatsFxns.SkatMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r])
+						results = StatsFxns.SkatMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['id'][r])
 
 					##### EMPTY BURDEN DF #####
 					elif cfg['models'][k]['model_fxn'] in ['fburden','gburden','bburden']:
-						results = StatsFxns.BurdenMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r])
+						results = StatsFxns.BurdenMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['id'][r])
 					
 				##### APPEND TO RESULTS DF #####
 				if len(cfg['model_order']) > 1:
@@ -667,7 +674,7 @@ def Model(cfg):
 					##### SKAT-O #####
 					if cfg['models'][cfg['model_order'][0]]['model_fxn'] in ['fskato','gskato','bskato']:
 						results_pre = StatsFxns.SkatOMeta('skatOMeta(' + seqmeta_cmd + ',SNPInfo=snp_info_meta,rho=rho,skat.wts=' + cfg['models'][cfg['model_order'][0]]['skat_wts'] + ',burden.wts=' + cfg['models'][cfg['model_order'][0]]['burden_wts'] + ',method="' + cfg['models'][cfg['model_order'][0]]['skat_method'] + '")')
-						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],'incl': [meta_incl_string],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'id': [region_list['id'][r]],'incl': [meta_incl_string],
 											'p': [results_pre['p'][1]],'pmin': [results_pre['pmin'][1]],'rho': [results_pre['rho'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 											'nsnps': [results_pre['nsnps'][1]],'errflag': [results_pre['errflag'][1]]})
 						results = results[['chr','start','end','id','incl','p','pmin','rho','cmaf','nmiss','nsnps','errflag']]
@@ -675,7 +682,7 @@ def Model(cfg):
 					##### SKAT #####
 					elif cfg['models'][cfg['model_order'][0]]['model_fxn'] in ['fskat','gskat','bskat']:
 						results_pre = StatsFxns.SkatMeta('skatMeta(' + seqmeta_cmd + ', SNPInfo=snp_info_meta,wts=' + cfg['models'][cfg['model_order'][0]]['skat_wts'] + ',method="' + cfg['models'][cfg['model_order'][0]]['skat_method'] + '")')
-						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],'meta_incl': [meta_incl_string],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'id': [region_list['id'][r]],'meta_incl': [meta_incl_string],
 													'p': [results_pre['p'][1]],'Qmeta': [results_pre['Qmeta'][1]],'cmaf': [results_pre['cmaf'][1]],'nmiss': [results_pre['nmiss'][1]],
 													'nsnps': [results_pre['nsnps'][1]]})
 						results = results[['chr','start','end','id','p','Qmeta','cmaf','nmiss','nsnps']]
@@ -683,7 +690,7 @@ def Model(cfg):
 					##### BURDEN #####
 					elif cfg['models'][cfg['model_order'][0]]['model_fxn'] in ['fburden','gburden','bburden']:
 						results_pre = StatsFxns.BurdenMeta('burdenMeta(' + seqmeta_cmd + ', SNPInfo=snp_info_meta,wts=' + cfg['models'][cfg['model_order'][0]]['burden_wts'] + ')')
-						results = pd.DataFrame({'chr': [reglist['chr'][r]],'start': [reglist['start'][r]],'end': [reglist['end'][r]],'id': [reglist['id'][r]],'meta_incl': [meta_incl_string],
+						results = pd.DataFrame({'chr': [region_list['chr'][r]],'start': [region_list['start'][r]],'end': [region_list['end'][r]],'id': [region_list['id'][r]],'meta_incl': [meta_incl_string],
 											'p': [results_pre['p'][1]],'beta': [results_pre['beta'][1]],'se': [results_pre['se'][1]],'cmafTotal': [results_pre['cmafTotal'][1]],
 											'cmafUsed': [results_pre['cmafUsed'][1]],'nsnpsTotal': [results_pre['nsnpsTotal'][1]],'nsnpsUsed': [results_pre['nsnpsUsed'][1]],
 											'nmiss': [results_pre['nmiss'][1]]})
@@ -692,15 +699,15 @@ def Model(cfg):
 
 					##### EMPTY SKAT-O DF #####
 					if cfg['models'][k]['model_fxn'] in ['fskato','gskato','bskato']:
-						results = StatsFxns.SkatOMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r],meta_incl_string)
+						results = StatsFxns.SkatOMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['id'][r],meta_incl_string)
 
 					##### EMPTY SKAT DF #####
 					elif cfg['models'][k]['model_fxn'] in ['fskat','gskat','bskat']:
-						results = StatsFxns.SkatMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r],meta_incl_string)
+						results = StatsFxns.SkatMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['id'][r],meta_incl_string)
 
 					##### EMPTY BURDEN DF #####
 					elif cfg['models'][k]['model_fxn'] in ['fburden','gburden','bburden']:
-						results = StatsFxns.BurdenMetaEmpty(reglist['chr'][r],reglist['start'][r],reglist['end'][r],reglist['id'][r],meta_incl_string)
+						results = StatsFxns.BurdenMetaEmpty(region_list['chr'][r],region_list['start'][r],region_list['end'][r],region_list['id'][r],meta_incl_string)
 
 				##### APPEND TO META DF #####
 				if len(cfg['model_order']) > 1:

@@ -37,29 +37,29 @@ def Meta(cfg):
 		cfg['data_info'][tag]['header'] = cfg['data_info'][tag]['header'].split()		
 
 	##### GENERATE REGION LIST #####
-	if not cfg['reglist'] is None:
+	if not cfg['region_list'] is None:
 		print "loading region list"
-		reglist = FileFxns.LoadCoordinates(cfg['reglist'])
+		region_list = FileFxns.LoadCoordinates(cfg['region_list'])
 	elif not cfg['region'] is None:
 		if len(cfg['region'].split(':')) > 1:
-			reglist = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
+			region_list = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
 		else:
-			reglist = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
-		reglist['id'] = cfg['id'] if not cfg['id'] is None else 'NA'
+			region_list = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
+		region_list['id'] = cfg['id'] if not cfg['id'] is None else 'NA'
 	else:
-		reglist = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)],'id': ['NA' for i in range(26)]})
-	reglist['n'] = 0
-	for i in range(len(reglist.index)):
+		region_list = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': ['NA' for i in range(26)],'end': ['NA' for i in range(26)],'region': [str(i+1) for i in range(26)],'id': ['NA' for i in range(26)]})
+	region_list['n'] = 0
+	for i in range(len(region_list.index)):
 		for key in cfg['data_info'].keys():
 			tb = tabix.open(cfg['data_info'][key]['file'])
 			try:
-				records = tb.querys(reglist['region'][i])
+				records = tb.querys(region_list['region'][i])
 			except:
 				pass
 			else:
-				reglist['n'][i] = reglist['n'][i] + 1
+				region_list['n'][i] = region_list['n'][i] + 1
 				break
-	if reglist['n'].sum() == 0:
+	if region_list['n'].sum() == 0:
 		print SystemFxns.Error("no markers found")
 		return()
 
@@ -86,9 +86,9 @@ def Meta(cfg):
 									(cfg['data_info'][k]['or_col'],k + '.or'),(cfg['data_info'][k]['z_col'],k + '.z'),(cfg['data_info'][k]['p_col'],k + '.p'),(cfg['data_info'][k]['p_col'],k + '.n')] if not x[0] is None]
 		header = header + [k + '.filter']
 
-	for r in range(len(reglist.index)):
+	for r in range(len(region_list.index)):
 		output_df = pd.DataFrame({})
-		reg = reglist['region'][r]
+		reg = region_list['region'][r]
 		i = 0
 		i_all = 0
 		for k in cfg['file_order']:
@@ -145,7 +145,7 @@ def Meta(cfg):
 					if k + '.z' in output_df:
 						output_df[k + '.z'] = output_df.apply(lambda row: MiscFxnsCy.FlipZCy(row['a1'], row['a2'], row[k + '.a1'], row[k + '.a2'], row[k + '.z']) if pd.notnull(row[k + '.z']) else row[k + '.z'],1)
 					output_df.drop(labels=[k + '.chr',k + '.pos',k + '.a1',k + '.a2'],axis=1,inplace=True)
-				print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): adding variants from cohort " + str(i_all) + "/" + str(len(cfg['file_order'])) + " (" + k + "): " + str(chunkdf.shape[0])
+				print "region " + str(r + 1) + "/" + str(len(region_list.index)) + " (" + reg + "): adding variants from cohort " + str(i_all) + "/" + str(len(cfg['file_order'])) + " (" + k + "): " + str(chunkdf.shape[0])
 
 		##### FILL IN MISSING COLUMNS #####
 		for k in cfg['file_order']:
@@ -164,7 +164,7 @@ def Meta(cfg):
 			##### APPLY GC #####
 			for k in cfg['file_order']:
 				if 'gc' in cfg['data_info'][k]:
-					print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): applying genomic control for " + k + ": " + str(cfg['data_info'][k]['gc'])
+					print "region " + str(r + 1) + "/" + str(len(region_list.index)) + " (" + reg + "): applying genomic control for " + k + ": " + str(cfg['data_info'][k]['gc'])
 					if 'stderr_col' in cfg['data_info'][k]:
 						output_df[k + '.stderr'] = output_df.apply(lambda row: float(row[k + '.stderr']) * math.sqrt(float(cfg['data_info'][k]['gc'])) if pd.notnull(row[k + '.stderr']) else row[k + '.stderr'],1)
 					if 'z_col' in cfg['data_info'][k]:
@@ -177,7 +177,7 @@ def Meta(cfg):
 
 			##### META ANALYSIS #####
 			for meta in cfg['meta_order']:
-				print "region " + str(r + 1) + "/" + str(len(reglist.index)) + " (" + reg + "): running " + meta
+				print "region " + str(r + 1) + "/" + str(len(region_list.index)) + " (" + reg + "): running " + meta
 				if cfg['method'] == 'sample_size':
 					output_df[meta + '.dir'] = ''
 					for tag in cfg['meta_info'][meta]:

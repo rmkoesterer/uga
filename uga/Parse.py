@@ -87,7 +87,7 @@ def Parser():
 	model_parser.add_argument('--pheno', 
 						action=AddString, 
 						help='phenotype file')
-	model_parser.add_argument('--varlist', 
+	model_parser.add_argument('--variant-list', 
 						action=AddString, 
 						help='variant list file')
 	model_parser.add_argument('--fid', 
@@ -195,18 +195,18 @@ def Parser():
 	model_parser_split_group1.add_argument('--region', 
 						action=AddString, 
 						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
-	model_parser_split_group1.add_argument('--reglist', 
+	model_parser_split_group1.add_argument('--region-list', 
 						action=AddString, 
 						help='filename for a list of tabix format regions')
 	model_parser_split_group2 = model_parser.add_mutually_exclusive_group()
 	model_parser_split_group2.add_argument('--split', 
 						nargs=0, 
 						action=AddTrue, 
-						help='split reglist into an individual job for each line in file (requires --reglist)')
+						help='split region_list into an individual job for each line in file (requires --region-list)')
 	model_parser_split_group2.add_argument('--split-n', 
 						action=AddString, 
 						type=int, 
-						help='split reglist into n individual jobs each with a subset of regions in the file (requires --reglist)')
+						help='split region_list into n individual jobs each with a subset of regions in the file (requires --region-list)')
 	model_parser_split_group2.add_argument('--split-chr', 
 						nargs=0, 
 						action=AddTrue,  
@@ -215,10 +215,10 @@ def Parser():
 	model_parser_split_group3.add_argument('--job', 
 						action=AddString, 
 						type=int, 
-						help='run a particular job (use with --reglist and --split with value a tabix format region or --split-n with value a number from 1..n)')
+						help='run a particular job (use with --region-list and --split with value a tabix format region or --split-n with value a number from 1..n)')
 	model_parser_split_group3.add_argument('--jobs', 
 						action=AddString, 
-						help='filename for a list of jobs to run (use with --reglist and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+						help='filename for a list of jobs to run (use with --region-list and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 	model_parser.add_argument('--oxford', 
 						action=AddString, 
 						help='oxford format genotype data file')
@@ -385,18 +385,18 @@ def Parser():
 	meta_parser_split_group1.add_argument('--region', 
 						action=AddString, 
 						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
-	meta_parser_split_group1.add_argument('--reglist', 
+	meta_parser_split_group1.add_argument('--region-list', 
 						action=AddString, 
 						help='filename for a list of tabix format regions')
 	meta_parser_split_group2 = meta_parser.add_mutually_exclusive_group()
 	meta_parser_split_group2.add_argument('--split', 
 						nargs=0, 
 						action=AddTrue, 
-						help='split reglist into an individual job for each line in file (requires --reglist)')
+						help='split region_list into an individual job for each line in file (requires --region-list)')
 	meta_parser_split_group2.add_argument('--split-n', 
 						action=AddString, 
 						type=int, 
-						help='split reglist into n individual jobs each with a subset of regions in the file (requires --reglist)')
+						help='split region_list into n individual jobs each with a subset of regions in the file (requires --region-list)')
 	meta_parser_split_group2.add_argument('--split-chr', 
 						nargs=0, 
 						action=AddTrue,  
@@ -405,10 +405,10 @@ def Parser():
 	meta_parser_split_group3.add_argument('--job', 
 						action=AddString, 
 						type=int, 
-						help='run a particular job (use with --reglist and --split with value a tabix format region or --split-n with value a number from 1..n)')
+						help='run a particular job (use with --region-list and --split with value a tabix format region or --split-n with value a number from 1..n)')
 	meta_parser_split_group3.add_argument('--jobs', 
 						action=AddString, 
-						help='filename for a list of jobs to run (use with --reglist and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+						help='filename for a list of jobs to run (use with --region-list and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 
 	##### MAP PARSER ######
 	map_parser = subparsers.add_parser('map', help='map non-empty regions in genotype/imputed data files', parents=[parser])
@@ -588,7 +588,7 @@ def Parser():
 	explore_parser_split_group.add_argument('--region', 
 						action=AddString, 
 						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
-	explore_parser_split_group.add_argument('--reglist', 
+	explore_parser_split_group.add_argument('--region-list', 
 						action=AddString, 
 						help='filename for a list of tabix format regions')
 	explore_parser.add_argument('--lz-source', 
@@ -656,8 +656,8 @@ def Parse(top_parser):
 			assert not args.job, top_parser.error("argument -j/--job: not allowed with argument --region")
 			assert not args.jobs, top_parser.error("argument --jobs: not allowed with argument --region")
 			assert not args.split_chr, top_parser.error("argument --split-chr: not allowed with argument --region")
-		if args.reglist:
-			assert os.path.exists(args.reglist), top_parser.error("argument --reglist: file does not exist")
+		if args.region_list:
+			assert os.path.exists(args.region_list), top_parser.error("argument --region-list: file does not exist")
 		if args.jobs:
 			assert os.path.exists(args.jobs), top_parser.error("argument --jobs: file does not exist")
 	if args.which == 'map' and not (args.b or args.kb or args.mb or args.n):
@@ -669,16 +669,16 @@ def Parse(top_parser):
 	return args
 
 def GenerateModelCfg(args):
-	config = {'out': None, 'buffer': 100, 'reglist': None, 'region': None,'id': None, 'write_header': False, 'write_eof': False,
+	config = {'out': None, 'buffer': 100, 'region_list': None, 'region': None,'id': None, 'write_header': False, 'write_eof': False,
 					'models': {}, 'model_order': [], 'meta': []}
 
 	##### add top level variables to config
-	top_args = [a for a in args if a[0] in ['out','buffer','reglist','region','id']]
+	top_args = [a for a in args if a[0] in ['out','buffer','region_list','region','id']]
 	for arg in top_args:
 		config[arg[0]] = arg[1]
 
 	# list all possible model level arguments
-	model_vars = ['tag','sample','pheno','varlist','fid','iid','focus','ped','sex', 
+	model_vars = ['tag','sample','pheno','variant_list','fid','iid','focus','ped','sex', 
 					'male','female','miss','maf','maxmaf','rsq','hwe','rho','case','ctrl','corstr','sep','lmer_ctrl',
 					'reml','lrt','cph_ctrl','skat_wts','burden_wts','skat_method',
 					'ggee','bgee','gglm','bglm','glme','blme','cph','neff',
@@ -704,8 +704,8 @@ def GenerateModelCfg(args):
 		elif k in ['oxford','vcf','plink','dos1','dos2'] and model_args_global[k] is not None:
 			model_args_global['data'] = model_args_global[k]
 			model_args_global['format'] = k
-			if not 'varlist' in model_args_global:
-				model_args_global['varlist'] = None
+			if not 'variant_list' in model_args_global:
+				model_args_global['variant_list'] = None
 			if not 'sample' in model_args_global:
 				model_args_global['sample'] = None
 		else:
@@ -751,8 +751,8 @@ def GenerateModelCfg(args):
 						del config['models'][tag][k]
 				config['models'][tag]['data'] = l[i][1]
 				config['models'][tag]['format'] = l[i][0]
-		if not 'varlist' in config['models'][tag]:
-			config['models'][tag]['varlist'] = None
+		if not 'variant_list' in config['models'][tag]:
+			config['models'][tag]['variant_list'] = None
 		if not 'sample' in config['models'][tag]:
 			config['models'][tag]['sample'] = None
 
@@ -847,11 +847,11 @@ def PrintModelOptions(cfg):
 	print ''
 
 def GenerateMetaCfg(args):
-	config = {'out': None, 'method': None, 'buffer': 100, 'reglist': None, 'region': None, 'id': None, 'write_header': False, 'write_eof': False,
+	config = {'out': None, 'method': None, 'buffer': 100, 'region_list': None, 'region': None, 'id': None, 'write_header': False, 'write_eof': False,
 					'data_info': {}, 'meta_info': {}, 'meta_order': [], 'file_order': []}
 
 	##### add top level variables to config
-	top_args = [a for a in args if a[0] in ['out','method','buffer','reglist','region','id']]
+	top_args = [a for a in args if a[0] in ['out','method','buffer','region_list','region','id']]
 	for arg in top_args:
 		config[arg[0]] = arg[1]
 
@@ -920,7 +920,7 @@ def PrintMetaOptions(cfg):
 def GenerateExploreCfg(args, ini):
 	config = {'file': None, 'qq': False, 'qq_strat': False, 'qq_n': False, 'mht': False, 'color': False, 'plot_gc': False,
 				'set_gc': None, 'ext': 'tiff', 'sig': 0.000000054, 'stat': 'marker', 'top': None, 'region': None, 'region_id': None, 
-				'reglist': None, 'pmax': 1e-4, 'tag': None, 'unrel': False, 'lz_source': None, 'lz_build': None, 'lz_pop': None, 
+				'region_list': None, 'pmax': 1e-4, 'tag': None, 'unrel': False, 'lz_source': None, 'lz_build': None, 'lz_pop': None, 
 				'callrate': None, 'rsq': None, 'maf': None, 'hwe': None, 'effect': None, 'stderr': None, 'odds_ratio': None, 'df': None}
 	for arg in args:
 		config[arg[0]] = arg[1]

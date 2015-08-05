@@ -70,9 +70,9 @@ def main(args=None):
 	if args.which in ['model','meta']:
 		n = 1
 		dist_mode = 'full'
-		if args.reglist:
+		if args.region_list:
 			print "generating list of genomic regions ...", 
-			region_df = FileFxns.LoadCoordinates(args.reglist)
+			region_df = FileFxns.LoadCoordinates(args.region_list)
 			if args.split or args.split_n:
 				if not args.split_n or args.split_n > len(region_df.index):
 					n = len(region_df.index)
@@ -302,12 +302,12 @@ def main(args=None):
 				config['out'] = out_files['%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))]
 				if n > 1:
 					config['region'] = '%s:%s-%s' % (str(region_df['chr'][i]), str(region_df['start'][i]), str(region_df['end'][i]))
-					config['reglist'] = None
+					config['region_list'] = None
 			elif dist_mode == 'split-list-n':
 				config['out'] = out_files[i]
-				rlist = config['out'] + '.reglist'
+				rlist = config['out'] + '.region_list'
 				region_df.loc[np.array_split(np.array(region_df.index), n)[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'id'])
-				config['reglist'] = rlist
+				config['region_list'] = rlist
 			elif dist_mode == 'chr':
 				config['out'] = out_files['%s' % (str(region_df['chr'][i]))]
 			if args.replace:

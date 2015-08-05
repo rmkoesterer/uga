@@ -65,17 +65,17 @@ def Explore(cfg):
 
 	##### GENERATE REGION LIST #####
 	regions = None
-	if not cfg['reglist'] is None:
+	if not cfg['region_list'] is None:
 		print "loading region list"
-		varlist = FileFxns.LoadCoordinates(cfg['reglist'])
-		regions = list(varlist['region'])
+		variant_list = FileFxns.LoadCoordinates(cfg['region_list'])
+		regions = list(variant_list['region'])
 	elif not cfg['region'] is None:
 		if len(cfg['region'].split(':')) > 1:
-			varlist = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
+			variant_list = pd.DataFrame({'chr': [re.split(':|-',cfg['region'])[0]],'start': [re.split(':|-',cfg['region'])[1]],'end': [re.split(':|-',cfg['region'])[2]],'region': [cfg['region']]})
 		else:
-			varlist = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
-		varlist['id'] = 'NA'
-		regions = list(varlist['region'])
+			variant_list = pd.DataFrame({'chr': [cfg['region']],'start': ['NA'],'end': ['NA'],'region': [cfg['region']]})
+		variant_list['id'] = 'NA'
+		regions = list(variant_list['region'])
 
 	##### read data from file #####
 	print "loading results from file"
@@ -104,8 +104,8 @@ def Explore(cfg):
 		header = header.strip()
 		header = header.split()		
 		reader = tabix.open(cfg['file'])
-		for r in range(len(varlist.index)):
-			reg = varlist['region'][r]
+		for r in range(len(variant_list.index)):
+			reg = variant_list['region'][r]
 			try:
 				records = reader.querys(reg)
 			except:
@@ -121,7 +121,7 @@ def Explore(cfg):
 						pvals = chunk
 					else:
 						pvals = pvals.append(chunk)
-			print "   processed region " + str(r+1) + "/" + str(len(varlist.index)) + " (" + str(varlist['id'][r]) + " " + str(varlist['region'][r]) + "): " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
+			print "   processed region " + str(r+1) + "/" + str(len(variant_list.index)) + " (" + str(variant_list['id'][r]) + " " + str(variant_list['region'][r]) + "): " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
 		pvals[pvals == 'NA'] = float('nan')
 	pvals.columns = [a.replace('#','') for a in pvals.columns]
 	chr_col = 'chr'
