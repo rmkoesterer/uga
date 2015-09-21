@@ -23,7 +23,7 @@ def GC(cfg):
 
 	##### read data from file #####
 	print "loading results from file"
-	reader = pd.read_table(cfg['data'], sep='\t', chunksize=1000000,compression='gzip',dtype=object)
+	reader = pd.read_table(cfg['file'], sep='\t', chunksize=1000000,compression='gzip',dtype=object)
 	bgzfile = bgzf.BgzfWriter(cfg['file'].replace('.gz','') + '.gc.gz', 'wb')
 	i = 0
 	for results in reader:

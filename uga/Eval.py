@@ -18,7 +18,7 @@ import scipy.stats as scipy
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 
-def Explore(cfg):
+def Eval(cfg):
 	Parse.PrintExploreOptions(cfg)
 
 	if cfg['qq'] or cfg['mht']:
@@ -250,11 +250,11 @@ def Explore(cfg):
 
 			print "generating frequency stratified qq plot"
 			if cfg['ext'] == 'tiff':
-				grdevices.tiff(cfg['file'].replace('.gz','') + '.qq_strat.' + cfg['ext'],width=4,height=4,units="in",bg="white",compression="lzw",res=300)
+				grdevices.tiff(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.qq_strat.' + cfg['ext'],width=4,height=4,units="in",bg="white",compression="lzw",res=300)
 			elif cfg['ext'] == 'eps':
-				grdevices.postscript(cfg['file'].replace('.gz','') + '.qq_strat.' + cfg['ext'],width=4,height=4,bg="white",horizontal=False)
+				grdevices.postscript(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.qq_strat.' + cfg['ext'],width=4,height=4,bg="white",horizontal=False)
 			else:
-				grdevices.pdf(cfg['file'].replace('.gz','') + '.qq_strat.' + cfg['ext'],width=4,height=4,bg="white")
+				grdevices.pdf(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.qq_strat.' + cfg['ext'],width=4,height=4,bg="white")
 			gp = ggplot2.ggplot(df)
 			pp = gp + \
 					ggplot2.aes_string(x='a',y='b') + \
@@ -286,11 +286,11 @@ def Explore(cfg):
 
 			print "generating qq plot"
 			if cfg['ext'] == 'tiff':
-				grdevices.tiff(cfg['file'].replace('.gz','') + '.qq.' + cfg['ext'],width=4,height=4,units="in",bg="white",compression="lzw",res=300)
+				grdevices.tiff(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.qq.' + cfg['ext'],width=4,height=4,units="in",bg="white",compression="lzw",res=300)
 			elif cfg['ext'] == 'eps':
-				grdevices.postscript(cfg['file'].replace('.gz','') + '.qq.' + cfg['ext'],width=4,height=4,bg="white",horizontal=False)
+				grdevices.postscript(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.qq.' + cfg['ext'],width=4,height=4,bg="white",horizontal=False)
 			else:
-				grdevices.pdf(cfg['file'].replace('.gz','') + '.qq.' + cfg['ext'],width=4,height=4,bg="white")
+				grdevices.pdf(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.qq.' + cfg['ext'],width=4,height=4,bg="white")
 			gp = ggplot2.ggplot(df)
 			pp = gp + \
 					ggplot2.aes_string(x='a',y='b') + \
@@ -380,11 +380,11 @@ def Explore(cfg):
 				y_labels = range(0,maxy)
 			rdf = ro.DataFrame({'gpos': ro.FloatVector(df['gpos']), 'logp': ro.FloatVector(df['logp']), 'colours': ro.FactorVector(df['colours'])})
 			if cfg['ext'] == 'tiff':
-				grdevices.tiff(cfg['file'].replace('.gz','') + '.mht.' + cfg['ext'],width=12,height=4,units="in",bg="white",compression="lzw",res=300)
+				grdevices.tiff(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.mht.' + cfg['ext'],width=12,height=4,units="in",bg="white",compression="lzw",res=300)
 			elif cfg['ext'] == 'eps':
-				grdevices.postscript(cfg['file'].replace('.gz','') + '.mht.' + cfg['ext'],width=12,height=4,bg="white",horizontal=False)
+				grdevices.postscript(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.mht.' + cfg['ext'],width=12,height=4,bg="white",horizontal=False)
 			else:
-				grdevices.pdf(cfg['file'].replace('.gz','') + '.mht.' + cfg['ext'],width=12,height=4,bg="white")
+				grdevices.pdf(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.mht.' + cfg['ext'],width=12,height=4,bg="white")
 			print "generating manhattan plot"
 			if nchr == 1:
 				gp = ggplot2.ggplot(rdf)
@@ -436,7 +436,7 @@ def Explore(cfg):
 		if 'MAF' in pvals_out:
 			pvals_out.drop('MAF',axis=1,inplace=True)
 		pvals_out.fillna('NA',inplace=True)
-		pvals_out.to_csv(cfg['file'].replace('.gz','') + '.top_results', header=True, index=False, sep="\t")
+		pvals_out.to_csv(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.top_results', header=True, index=False, sep="\t")
 
 	else:
 		if cfg['set_gc'] is not None:
@@ -456,8 +456,8 @@ def Explore(cfg):
 			pvals_region['P-value'] = pvals_region[p_col].values
 			pvals_region.sort(columns=['P-value'], inplace=True)
 			pvals_region = pvals_region[['MarkerName','P-value','pos']]
-			pvals_region.to_csv(cfg['file'].replace('.gz','') + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata',header=True, index=False, sep='\t')
-			cmd = cfg['locuszoom'] + ' --metal ' + cfg['file'].replace('.gz','') + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata --chr ' + str(chr) + ' --start ' + str(start) + ' --end ' + str(end) + ' --plotonly --cache None --prefix ' + cfg['file'].replace('.gz','')
+			pvals_region.to_csv(cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata',header=True, index=False, sep='\t')
+			cmd = cfg['locuszoom'] + ' --metal ' + cfg['file'].replace('.gz','') + '.' + cfg['stat'] + '.rgnl.chr' + reg.replace(':','bp') + '.plotdata --chr ' + str(chr) + ' --start ' + str(start) + ' --end ' + str(end) + ' --plotonly --cache None --prefix ' + cfg['file'].replace('.gz','') + '.' + cfg['stat']
 			if cfg['lz_pop'] is not None:
 				cmd = cmd + ' --source ' + cfg['lz_source'] + ' --build ' + cfg['lz_build'] + ' --pop ' + cfg['lz_pop'] 
 			else:

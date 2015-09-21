@@ -13,85 +13,14 @@
 ##    You should have received a copy of the GNU General Public License
 ##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __main__ import *
 from progressbar import ProgressBar, Counter, Timer
 from multiprocessing import Process, Manager, cpu_count
 import signal
-
-def LoadCoordinates(filename):
-	with open(filename) as f:
-		regions = pd.read_table(f, header=None)
-	if regions.shape[1] == 2:
-		regions.columns=['region','id']
-	elif regions.shape[1] == 1:
-		regions.columns=['region']
-	else:
-		print SystemFxns.Error("too many columns in region list")
-		return
-	if not 'id' in regions.columns:
-		regions['id'] = 'NA'
-	regions['chr'] = regions['region'].apply(lambda row: int(row.split(':')[0]),1)
-	regions['start'] = regions['region'].apply(lambda row: int(row.split(':')[1].split('-')[0]),1)
-	regions['end'] = regions['region'].apply(lambda row: int(row.split(':')[1].split('-')[1]),1)
-	regions['chr'] = regions['chr'].astype(int)
-	regions['start'] = regions['start'].astype(int)
-	regions['end'] = regions['end'].astype(int)
-	regions = regions.sort_index(by=['chr','start'],ascending=[True,True])
-	return regions
-
-def PrepareChrDirs(regions, directory):
-	try:
-		os.mkdir(directory.replace('chr[CHR]/',''))
-	except OSError:
-		pass
-	for chr in set([a.split(":")[0] for a in regions]):
-		try:
-			os.mkdir(directory.replace("[CHR]",chr))
-		except OSError:
-			continue
-
-def PrepareListDirs(n, directory):
-	try:
-		os.mkdir(directory.replace('list[LIST]/',''))
-	except OSError:
-		pass
-	for a in range(int(np.ceil(n/100.0))):
-		try:
-			os.mkdir(directory.replace("[LIST]",str(int(np.floor(a/100.0) + 100*a)) + '-' + str(int(np.floor(a/100.0) + 100*a+ + 99))))
-		except OSError:
-			continue
-			
-def GenerateSubFiles(region_df, f, dist_mode, n):
-	out_files=collections.OrderedDict()
-	for i in range(n):
-		if dist_mode in ['region','split-list']:
-			of = f.replace('[CHR]',str(region_df['chr'][i])) + '.chr' + str(region_df['chr'][i]) + 'bp' + str(region_df['start'][i]) + '-' + str(region_df['end'][i])
-			out_files[str(region_df['chr'][i]) + ':' + str(region_df['start'][i]) + '-' + str(region_df['end'][i])] = of
-		elif dist_mode == 'split-list-n':
-			of = f.replace('[LIST]',str(int(np.floor(i/100.0) + 99*np.floor(i/100.0))) + '-' + str(int(np.floor(i/100.0) + 99*np.floor(i/100.0) + 99))) + '.list' + str(i)
-			out_files[i] = of
-		elif dist_mode == 'chr':
-			of = f + '.chr' + str(region_df['chr'][i])
-			out_files[str(region_df['chr'][i])] = of
-		else:
-			print SystemFxns.Error("invalid dist_mode: " + dist_mode)
-			return
-	return out_files
-
-def FindSubFiles(f):
-	out_files=collections.OrderedDict()
-	list_files = glob.glob("list*/" + f + ".list*.gz")
-	chr_files = glob.glob("chr*/" + f + ".chr*.gz")
-	if len(list_files) > 0 and len(chr_files) > 0:
-		print SystemFxns.Error("found both list and chr directories containing valid data files")
-		return
-	elif len(list_files) > 0:
-		for t in sorted([(int(k.split('list')[2].split('.')[0]),k.replace('.gz','')) for k in list_files],key=lambda l: l[0]):
-			out_files[t[0]] = t[1]
-	else:
-		for t in sorted([(int(k.split('chr')[2].split('bp')[0]),int(k.split('chr')[2].split('bp')[1].split('-')[0]),int(k.split('chr')[2].split('bp')[1].split('-')[1].split('.')[0]),k.replace('.gz','')) for k in chr_files],key=lambda l: (l[0],l[1],l[2])):
-			out_files[str(t[0]) + ':' + str(t[1]) + '-' + str(t[2])] = t[3]
-	return out_files
+import math
+import glob
+import os
+import subprocess
+from Bio import bgzf
 
 def CheckResults(file_dict, out, cpus=1):
 	print "verifying results"
@@ -245,7 +174,6 @@ def CheckResults(file_dict, out, cpus=1):
 
 def CompileResults(out_files, out):
 	print "compiling results"
-	#bgzfile = bgzf.BgzfWriter(out + '.gz', 'wb')
 	bgzfile = file(out + '.gz', 'w')
 	logfile = file(out + '.log', 'w')
 	pbar = ProgressBar(maxval=len(out_files.keys()), widgets = ['   processed ', Counter(), ' of ' + str(len(out_files.keys())) + ' regions (', Timer(), ')'])
@@ -253,16 +181,11 @@ def CompileResults(out_files, out):
 	pbar.start()
 	for reg in out_files.keys():
 		i = i + 1
-		#sed = ['awk','{print $0}'] if i == 1 else ['sed','1d']
 		resfile = out_files[reg]
 		resfile = resfile + ".gz"
-		#p1 = subprocess.Popen(['zcat',resfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
 		p1 = subprocess.Popen(['cat',resfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
-		#p2 = subprocess.Popen(sed, stdin=p1.stdout, stdout=subprocess.PIPE)
-		#bgzfile.write(p2.communicate()[0])
 		bgzfile.write(p1.communicate()[0])
 		p1.wait()
-		#p2.wait()
 		outlog = glob.glob(out_files[reg] + "*.log")
 		if i == 1:
 			p3 = subprocess.Popen(['cat',outlog[0]], stdout=subprocess.PIPE)
@@ -287,6 +210,160 @@ def CompileResults(out_files, out):
 	p7 = subprocess.Popen(['zcat',out + '.gz'], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
 	p8 = subprocess.Popen(['head','-1'], stdin=p7.stdout, stdout=subprocess.PIPE)
 	header = p8.communicate()[0]
+	header = header.split()
+
+	if 'pos' in header:
+		b = header.index('pos') + 1
+		e = b
+	elif 'chr.pos' in header:
+		b = header.index('chr.pos') + 1
+		e = b
+	else:
+		b = header.index('start') + 1
+		e = header.index('end') + 1
+	cmd = 'tabix -b ' + str(b) + ' -e ' + str(e) + ' ' + out + '.gz'
+	p = subprocess.Popen(cmd, shell=True)
+	p.wait()
+	print "file compilation complete"
+	return True
+
+def CompileResultsSplit(out_files, out):
+	print "compiling results"
+	bgzfile = bgzf.BgzfWriter(out + '.gz', 'wb')
+	logfile = file(out + '.log', 'w')
+	pbar = ProgressBar(maxval=len(out_files.keys()), widgets = ['   processed ', Counter(), ' of ' + str(len(out_files.keys())) + ' regions (', Timer(), ')'])
+	i=0
+	pbar.start()
+	for reg in out_files.keys():
+		i = i + 1
+		sed = ['awk','{print $0}'] if i == 1 else ['sed','1d']
+		resfile = out_files[reg]
+		resfile = resfile + ".gz"
+		p1 = subprocess.Popen(['zcat',resfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+		p2 = subprocess.Popen(sed, stdin=p1.stdout, stdout=subprocess.PIPE)
+		bgzfile.write(p2.communicate()[0])
+		p1.wait()
+		p2.wait()
+		outlog = glob.glob(out_files[reg] + "*.log")
+		if i == 1:
+			p3 = subprocess.Popen(['cat',outlog[0]], stdout=subprocess.PIPE)
+			p4 = subprocess.Popen(['awk','{print \"      \"$0}'], stdin=p3.stdout, stdout=subprocess.PIPE)
+			logfile.write('Sample log file from ' + outlog[0] + '\n\n')
+			logfile.write(p4.communicate()[0])
+			p3.wait()
+			p4.wait()
+			logfile.write('\nElapsed time and max memory used for each job in list\n\n')
+		p5 = subprocess.Popen(['grep','time elapsed:',outlog[0]], stdout=subprocess.PIPE)
+		elap = p5.communicate()[0].strip()
+		p5.wait()
+		p6 = subprocess.Popen(['grep','memory used:',outlog[0]], stdout=subprocess.PIPE)
+		maxmem = p6.communicate()[0].strip()
+		p6.wait()
+		logfile.write('      job ' + str(reg) + '   -   ' + elap + '   ' + maxmem + '\n')
+		pbar.update(i)
+	pbar.finish()
+	bgzfile.close()
+	logfile.close()
+	print "mapping compiled file"
+	p7 = subprocess.Popen(['zcat',out + '.gz'], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+	p8 = subprocess.Popen(['head','-1'], stdin=p7.stdout, stdout=subprocess.PIPE)
+	header = p8.communicate()[0]
+	header = header.split()
+
+	if 'pos' in header:
+		b = header.index('pos') + 1
+		e = b
+	elif 'chr.pos' in header:
+		b = header.index('chr.pos') + 1
+		e = b
+	else:
+		b = header.index('start') + 1
+		e = header.index('end') + 1
+	cmd = 'tabix -b ' + str(b) + ' -e ' + str(e) + ' ' + out + '.gz'
+	p = subprocess.Popen(cmd, shell=True)
+	p.wait()
+	print "file compilation complete"
+	return True
+
+def CompileResultsSplitChr(out_files, out):
+	print "compiling results"
+	bgzfile = file(out + '.gz', 'w')
+	logfile = file(out + '.log', 'w')
+	pbar = ProgressBar(maxval=len(out_files.keys()), widgets = ['   processed ', Counter(), ' of ' + str(len(out_files.keys())) + ' regions (', Timer(), ')'])
+	i=0
+	pbar.start()
+	chrs = list(set([int(x.split(':')[0]) for x in out_files.keys()]))
+	for c in xrange(len(chrs)):
+		chr = chrs[c]
+		j = 0
+		chrfile = out + '.chr' + str(chr) + '.compiled.gz'
+		firstfile = out + '.chr' + str(chr) + '.first.gz'
+		eoffile = out + '.chr' + str(chr) + '.eof.gz'
+		chrbgzfile = file(chrfile, 'w')
+		firstbgzfile = bgzf.BgzfWriter(firstfile, 'wb')
+		eofbgzfile = bgzf.BgzfWriter(eoffile, 'wb')
+		chr_regions = [k for k, v in out_files.iteritems() if k.split(':')[0] == str(chr)]
+		for reg in chr_regions:
+			i = i + 1
+			j = j + 1
+			resfile = out_files[reg]
+			resfile = resfile + ".gz"
+			if reg != chr_regions[-1]:
+				if i == 1 or j != 1:
+					p1 = subprocess.Popen(['cat',resfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+					chrbgzfile.write(p1.communicate()[0])
+					p1.wait()
+					chrbgzfile.flush()
+				else:
+					p1 = subprocess.Popen(['zcat',resfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+					p2 = subprocess.Popen(['sed','1d'], stdin=p1.stdout, stdout=subprocess.PIPE)
+					firstbgzfile.write(p2.communicate()[0])
+					p1.wait()
+					p2.wait()
+					firstbgzfile.flush()
+					p3 = subprocess.Popen(['cat',firstfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+					chrbgzfile.write(p3.communicate()[0])
+					p3.wait()
+					chrbgzfile.flush()
+			else:
+				p1 = subprocess.Popen(['zcat',resfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+				eofbgzfile.write(p1.communicate()[0])
+				p1.wait()
+				eofbgzfile.flush()
+				p2 = subprocess.Popen(['cat',eoffile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+				chrbgzfile.write(p2.communicate()[0])
+				p2.wait()
+				chrbgzfile.flush()
+			outlog = glob.glob(out_files[reg] + "*.log")
+			if i == 1:
+				p4 = subprocess.Popen(['cat',outlog[0]], stdout=subprocess.PIPE)
+				p5 = subprocess.Popen(['awk','{print \"      \"$0}'], stdin=p4.stdout, stdout=subprocess.PIPE)
+				logfile.write('Sample log file from ' + outlog[0] + '\n\n')
+				logfile.write(p5.communicate()[0])
+				p4.wait()
+				p5.wait()
+				logfile.write('\nElapsed time and max memory used for each job in list\n\n')
+			p6 = subprocess.Popen(['grep','time elapsed:',outlog[0]], stdout=subprocess.PIPE)
+			elap = p6.communicate()[0].strip()
+			p6.wait()
+			p7 = subprocess.Popen(['grep','memory used:',outlog[0]], stdout=subprocess.PIPE)
+			maxmem = p7.communicate()[0].strip()
+			p7.wait()
+			logfile.write('      job ' + str(reg) + '   -   ' + elap + '   ' + maxmem + '\n')
+			pbar.update(i)
+		os.remove(firstfile)
+		os.remove(eoffile)
+		p8 = subprocess.Popen(['cat',chrfile], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+		bgzfile.write(p8.communicate()[0])
+		p8.wait()
+		os.remove(chrfile)
+	pbar.finish()
+	bgzfile.close()
+	logfile.close()
+	print "mapping compiled file"
+	p8 = subprocess.Popen(['zcat',out + '.gz'], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+	p9 = subprocess.Popen(['head','-1'], stdin=p8.stdout, stdout=subprocess.PIPE)
+	header = p9.communicate()[0]
 	header = header.split()
 
 	if 'pos' in header:

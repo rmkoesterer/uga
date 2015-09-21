@@ -17,7 +17,7 @@ setup(
     url='',
     author='Ryan Koesterer',
 	author_email='uga-feedback@gmail.com', 
-	ext_modules = cythonize(["uga/MiscFxnsCy.pyx"]), 
+	ext_modules = cythonize(["uga/Align.pyx","uga/Geno.pyx","uga/Model.pyx","uga/Variant.pyx","uga/Variant.pxd"]), 
 	install_requires=['singledispatch', 
 						'rpy2', 
 						'multi-key-dict', 
@@ -38,7 +38,7 @@ setup(
            ],
        },
     packages=['uga'],
-	package_data={'uga': ['data/*','settings.ini',]},
+	package_data={'uga': ['Data/*','settings.ini',]},
     classifiers = [
         'Programming Language :: Python :: 2.7',
         'Development Status :: 4 - Beta',

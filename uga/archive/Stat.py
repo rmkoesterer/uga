@@ -32,8 +32,8 @@ import StatsFxns
 pandas2ri.activate()
 ro.r('options(warn=1)')
 
-def Model(cfg):
-	Parse.PrintModelOptions(cfg)
+def Stat(cfg):
+	PrintStatOptions(cfg)
 	for k in cfg['models']:
 		cfg['models'][k]['sep'] = MiscFxnsCy.GetDelimiterCy(cfg['models'][k]['sep'])
 
@@ -350,8 +350,9 @@ def Model(cfg):
 						mdb = MiscFxns.MdbAppend(mdb, chunkdf)
 					##### FILL IN ANY MISSING ALT ALLELES FROM PREVIOUS RESULTS WITH ALT ALLELES FROM UPDATED MARKER DATABASE #####
 					for t in cfg['model_order'][0:cfg['model_order'].index(k)]:
-						if cfg['models'][t]['results'][cfg['models'][t]['results']['a2'] == 'NA'].shape[0] > 0:
-							cfg['models'][t]['results']['a2'][cfg['models'][t]['results']['a2'] == 'NA'] = cfg['models'][t]['results'][cfg['models'][t]['results']['a2'] == 'NA'].apply(lambda row: MiscFxns.UpdateAltAllele(row, mdb), 1)		
+						if cfg['models'][t]['model_fxn_type'] == 'marker':
+							if cfg['models'][t]['results'][cfg['models'][t]['results']['a2'] == 'NA'].shape[0] > 0:
+								cfg['models'][t]['results']['a2'][cfg['models'][t]['results']['a2'] == 'NA'] = cfg['models'][t]['results'][cfg['models'][t]['results']['a2'] == 'NA'].apply(lambda row: MiscFxns.UpdateAltAllele(row, mdb), 1)		
 
 				##### EXTRACT MARKER INFO AND MARKER DATA #####
 				marker_info = chunkdf.ix[:,:5]

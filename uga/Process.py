@@ -13,26 +13,23 @@
 ##    You should have received a copy of the GNU General Public License
 ##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __main__ import *
+import sys
 import psutil
-from __init__ import version
+import subprocess
 
-def Error(m):
-	return "\n   *** Error: " + m + "\n"
+class Error(Exception):
+	def __init__(self, msg):
+		self.msg = 'ERROR: ' + msg
 
-def Highlight(m):
-	return "\n   ... " + m + "\n"
-	
-def Bold(m):
-	return "\033[1m" + m + "\033[0m"
-
-def Qsub(command):
+def Qsub(qsub_pre,cmd):
 	try:
-		p = subprocess.Popen(command,shell=True)
+		p = subprocess.Popen(qsub_pre + [cmd[1:-1]],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+		for line in iter(p.stdout.readline, ''):
+			sys.stdout.write(line)
 		p.wait()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
-		print Highlight("process terminated by user")
+		print "   ... process terminated by user"
 		sys.exit(1)
 
 def Interactive(submit, cmd, log_file = None):
@@ -49,8 +46,8 @@ def Interactive(submit, cmd, log_file = None):
 			log.close()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
-		print Highlight("process terminated by user")
-		sys.exit(1)
+		print "   ... process terminated by user"
+	sys.exit(1)
 
 def kill_all(pid):
 	parent = psutil.Process(pid)

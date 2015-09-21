@@ -3,12 +3,14 @@
 #$ -j y
 #$ -V
 
+#from memory_profiler import memory_usage
 import os
 import pwd
 import psutil
 import resource
 import subprocess
 import sys
+from Process import Error
 from time import strftime, localtime, time, gmtime
 
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
@@ -46,26 +48,29 @@ def main(argv):
 	if 'SGE_TASK_ID' in env_vars.keys():
 		print "task index number: " + env_vars['SGE_TASK_ID']
 
-	if argv[1].split('(')[0] == "Model":
-		from uga.Model import Model
-	elif argv[1].split('(')[0] == "Meta":
-		from uga.Meta import Meta
-	elif argv[1].split('(')[0] == "Map":
-		from uga.Map import Map
-	elif argv[1].split('(')[0] == "Explore":
-		from uga.Explore import Explore
-	elif argv[1].split('(')[0] == "GC":
-		from uga.GC import GC
-	elif argv[1].split('(')[0] == "Annot":
-		from uga.Annot import Annot
-	eval(argv[1])
+	#if argv[1].split('(')[0] == "Stat":
+	#	from uga.Stat import Stat
+	#if argv[1].split('(')[0] == "Bglm":
+	from uga.RunModels import RunModels
+	#elif argv[1].split('(')[0] == "Meta":
+	#	from uga.Meta import Meta
+	#elif argv[1].split('(')[0] == "Map":
+	#	from uga.Map import Map
+	#elif argv[1].split('(')[0] == "Eval":
+	#	from uga.Eval import Eval
+	#elif argv[1].split('(')[0] == "GC":
+	#	from uga.GC import GC
+	#elif argv[1].split('(')[0] == "Annot":
+	#	from uga.Annot import Annot
 
-	end_time = (localtime(), time())
-	process = psutil.Process(os.getpid())
-	mem=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000.0
-	print 'finish time: ' + strftime("%Y-%m-%d %H:%M:%S", end_time[0])
-	print 'time elapsed: ' + strftime('%H:%M:%S', gmtime(end_time[1] - start_time[1]))
-	print 'memory used: ' + str('%.2f' % mem) + ' MB'
+	exec('r=' + argv[1])
+	if r == 0:
+		end_time = (localtime(), time())
+		process = psutil.Process(os.getpid())
+		mem=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000.0
+		print 'finish time: ' + strftime("%Y-%m-%d %H:%M:%S", end_time[0])
+		print 'time elapsed: ' + strftime('%H:%M:%S', gmtime(end_time[1] - start_time[1]))
+		print 'max memory used: ' + str('%.2f' % mem) + ' MB'
 
 if __name__ == "__main__":
 	main(sys.argv)
