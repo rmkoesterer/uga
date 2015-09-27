@@ -34,23 +34,37 @@ def Eval(cfg):
 	fcols.append('hwe.unrel')
 	fcols.append('samples')
 	fcols.append('n')
-	fcols.append(cfg['stat'] + '.effect')
-	fcols.append(cfg['stat'] + '.stderr')
-	fcols.append(cfg['stat'] + '.or')
-	fcols.append(cfg['stat'] + '.z')
-	fcols.append(cfg['stat'] + '.p')
-	fcols.append(cfg['stat'] + '.dir')
 	chr_col = '#chr'
 	pos_col = 'pos'
 	rsq_col = 'rsq.unrel' if cfg['unrel'] else 'rsq'
 	freq_col = 'freq.unrel' if cfg['unrel'] else 'freq'
 	hwe_col = 'hwe.unrel' if cfg['unrel'] else 'hwe'
-	effect_col = cfg['stat'] + '.effect'
-	stderr_col = cfg['stat'] + '.stderr'
-	oddsratio_col = cfg['stat'] + '.or'
-	z_col = cfg['stat'] + '.z'
-	p_col = cfg['stat'] + '.p'
-	meta_dir_col = cfg['stat'] + '.dir'
+	if cfg['stat'] != '':
+		fcols.append(cfg['stat'] + '.effect')
+		fcols.append(cfg['stat'] + '.stderr')
+		fcols.append(cfg['stat'] + '.or')
+		fcols.append(cfg['stat'] + '.z')
+		fcols.append(cfg['stat'] + '.p')
+		fcols.append(cfg['stat'] + '.dir')
+		effect_col = cfg['stat'] + '.effect'
+		stderr_col = cfg['stat'] + '.stderr'
+		oddsratio_col = cfg['stat'] + '.or'
+		z_col = cfg['stat'] + '.z'
+		p_col = cfg['stat'] + '.p'
+		meta_dir_col = cfg['stat'] + '.dir'
+	else:
+		fcols.append('effect')
+		fcols.append('stderr')
+		fcols.append('or')
+		fcols.append('z')
+		fcols.append('p')
+		fcols.append('dir')
+		effect_col = 'effect'
+		stderr_col = 'stderr'
+		oddsratio_col = 'or'
+		z_col = 'z'
+		p_col = 'p'
+		meta_dir_col = 'dir'
 	if cfg['tag'] is not None:
 		fcols = [cfg['tag'] + '.' + x if x not in ['#chr','pos','a1','a2'] else x for x in fcols]
 		rsq_col = cfg['tag'] + '.' + rsq_col

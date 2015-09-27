@@ -61,6 +61,10 @@ def ModelArgs(model_parser):
 	model_parser.add_argument('--pheno', 
 						action=AddString, 
 						help='phenotype file')
+	model_parser.add_argument('--cpus', 
+						action=AddString, 
+						type=int, 
+						help='number of cpus')
 	model_parser.add_argument('--variant-list', 
 						action=AddString, 
 						help='variant list file')
@@ -196,7 +200,10 @@ def ModelArgs(model_parser):
 						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
 	model_parser.add_argument('--bssmeta', 
 						action=AddString, 
-						help='model string for bssmeta binomial analysis')
+						help='model string for bssmeta (binomial singlesnpMeta)')
+	model_parser.add_argument('--bskato', 
+						action=AddString, 
+						help='model string for bskato (binomial skatOMeta)')
 	model_parser.add_argument('--meta', 
 						action=AddString, 
 						help='a meta analysis string')

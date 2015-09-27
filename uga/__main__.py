@@ -285,9 +285,9 @@ def main(args=None):
 	elif args.which in ['model','meta']:
 		print "preparing output directories"
 		if dist_mode == 'split-list' and n > 1:
-			PrepareChrDirs(regions.df['region'], directory)
+			IO.PrepareChrDirs(regions.df['region'], directory)
 		elif dist_mode == 'split-list-n' and n > 1:
-			PrepareListDirs(n, directory)
+			IO.PrepareListDirs(n, directory)
 		if args.qsub:
 			print "submitting jobs\n"
 		joblist = []
@@ -300,22 +300,22 @@ def main(args=None):
 		for i in joblist:
 			if dist_mode in ['split-list', 'region']:
 				args.out = out_files['%s:%s-%s' % (str(regions.df['chr'][i]), str(regions.df['start'][i]), str(regions.df['end'][i]))]
-				args.ordered_args = [x if x[0] != 'out' else ('out',args.out) for x in args.ordered_args]
+				args.ordered_args = [x for x in args.ordered_args if x[0] != 'out'] + [('out',args.out)]
 				if n > 1:
 					args.region = '%s:%s-%s' % (str(regions.df['chr'][i]), str(regions.df['start'][i]), str(regions.df['end'][i]))
 					args.region_list = None
-					args.ordered_args = [x if x[0] != 'region' else ('region',args.region) for x in args.ordered_args]
-					args.ordered_args = [x if x[0] != 'region_list' else ('region_list',args.region_list) for x in args.ordered_args]
+					args.ordered_args = [x for x in args.ordered_args if x[0] != 'region'] + [('region',args.region)]
+					args.ordered_args = [x for x in args.ordered_args if x[0] != 'region_list'] + [('region_list',args.region_list)]
 			elif dist_mode == 'split-list-n':
 				args.out = out_files[i]
-				args.ordered_args = [x if x[0] != 'out' else ('out',args.out) for x in args.ordered_args]
+				args.ordered_args = [x for x in args.ordered_args if x[0] != 'out'] + [('out',args.out)]
 				rlist = args.out + '.region_list'
 				regions.df.loc[np.array_split(np.array(regions.df.index), n)[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'id'])
 				args.region_list = rlist
-				args.ordered_args = [x if x[0] != 'region_list' else ('region_list',args.region_list) for x in args.ordered_args]
+				args.ordered_args = [x for x in args.ordered_args if x[0] != 'region_list'] + [('region_list',args.region_list)]
 			elif dist_mode == 'chr':
 				args.out = out_files['%s' % (str(regions.df['chr'][i]))]
-				args.ordered_args = [x if x[0] != 'out' else ('out',args.out) for x in args.ordered_args]
+				args.ordered_args = [x for x in args.ordered_args if x[0] != 'out'] + [('out',args.out)]
 			if args.replace:
 				for f in [args.out, args.out + '.' + args.which + '.log',args.out + '.gz', args.out + '.gz.tbi']:
 					try:

@@ -298,7 +298,7 @@ def GenerateModelCfg(args):
 	#config = {'out': None, 'pheno': None, 'formula': None, 'variant_list': None, 'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sample': None, 
 	#			'sex': None, 'male': 1, 'female': 2, 'buffer': 100, 'miss': 0.5, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 3.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None, 'region': None, 'region_list': None, 
 	#			'oxford': None, 'dos1': None, 'dos2': None, 'plink': None, 'vcf': None, 'case_code': 1, 'ctrl_code': 0, 'write_header': True, 'write_eof': True, 'fxn': 'bssmeta',
-	config = {'out': None, 'buffer': 1000, 'region': None, 'region_list': None, 'id': None, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': [], 'replace': False}
+	config = {'out': None, 'buffer': 1000, 'region': None, 'region_list': None, 'id': None, 'cpus': 1, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': [], 'replace': False}
 	#config = {'out': None, 'formula': None, 'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 'male': 1, 'female': 2,
 	#			'buffer': 100, 'miss': 0.5, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 3.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None, 'region': None, 'region_list': None, 
 	#			'case_code': 1, 'ctrl_code': 0, 'write_header': True, 'write_eof': True, 'fxn': 'bssmeta',
@@ -312,27 +312,31 @@ def GenerateModelCfg(args):
 			config['region'] = arg[1]
 		if arg[0] == 'region_list':
 			config['region_list'] = arg[1]
+		if arg[0] == 'id':
+			config['id'] = arg[1]
+		if arg[0] == 'cpus':
+			config['cpus'] = arg[1]
 		if arg[0] == 'meta':
 			config['meta'][arg[1].split(':')[0]] = arg[1].split(':')[1]
 
 	tags_idx = [args.index((x,y)) for x, y in args if x == 'tag'] + [len(args)]
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'formula': None, 'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
-							'male': 1, 'female': 2, 'miss': 0.5, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 3.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
+							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 3.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'variant_list': None}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default
 			for arg in global_args:
-				if arg[0] in ['bssmeta']:
+				if arg[0] in ['bssmeta','bskato']:
 					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
 					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['bssmeta']:
+				if arg[0] in ['bssmeta','bskato']:
 					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
 					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
 			for arg in global_args:
-				if arg[0] in ['bssmeta']:
+				if arg[0] in ['bssmeta','bskato']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
 				elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:
@@ -341,7 +345,7 @@ def GenerateModelCfg(args):
 				else:
 					config['models'][args[tags_idx[i]][1]][arg[0]] = arg[1]
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['bssmeta']:
+				if arg[0] in ['bssmeta','bskato']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
 				elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:
@@ -353,12 +357,12 @@ def GenerateModelCfg(args):
 				
 	else:
 		config['models']['___no_tag___'] = config_default
-		for arg in args:
-			if arg[0] in ['bssmeta']:
+		for arg in global_args:
+			if arg[0] in ['bssmeta','bskato']:
 				config['models']['___no_tag___']['case_code'] = 1
 				config['models']['___no_tag___']['ctrl_code'] = 0
-		for arg in args:
-			if arg[0] in ['bssmeta']:
+		for arg in global_args:
+			if arg[0] in ['bssmeta','bskato']:
 				config['models']['___no_tag___']['fxn'] = arg[0]
 				config['models']['___no_tag___']['formula'] = arg[1]
 			elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:
