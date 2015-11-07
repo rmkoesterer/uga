@@ -229,7 +229,7 @@ class Regions(object):
 		if self.filename is not None and self.region is not None:
 			print "region list option provided, region option will be ignored"
 		elif self.filename is None and self.region is None:
-			self.df = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': [None for i in range(26)],'end': [None for i in range(26)],'region': [str(i+1) for i in range(26)],'id': [None for i in range(26)]})
+			self.df = pd.DataFrame({'chr': [str(i+1) for i in range(26)],'start': [1 for i in range(26)],'end': [1000000000 for i in range(26)],'region': [str(i+1) + ':1-1000000000' for i in range(26)],'id': [None for i in range(26)]})
 		elif self.filename is not None:
 			print "loading region list"
 			try:
@@ -257,5 +257,5 @@ class Regions(object):
 			if len(self.region.split(':')) > 1:
 				self.df = pd.DataFrame({'chr': [re_split(':|-',self.region)[0]],'start': [re_split(':|-',self.region)[1]],'end': [re_split(':|-',self.region)[2]],'region': [self.region],'id': [self.id]})
 			else:
-				self.df = pd.DataFrame({'chr': [self.region],'start': [None],'end': [None],'region': [self.region],'id': [self.id]})
+				self.df = pd.DataFrame({'chr': [self.region],'start': [1],'end': [1000000000],'region': [self.region + ':1-1000000000'],'id': [self.id]})
 			self.id = self.id if not self.id is None else 'NA'

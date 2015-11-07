@@ -100,6 +100,7 @@ def Eval(cfg):
 			i = i+1
 			chunk = chunk[[x for x in chunk.columns if x in fcols]]
 			lines = len(chunk)
+			chunk = chunk[chunk[p_col] != 'NA']
 			chunk = chunk[pd.notnull(chunk[p_col])]
 			chunk = chunk[chunk[p_col] != 0]
 			if len(chunk) > 0:
@@ -128,6 +129,7 @@ def Eval(cfg):
 				chunk = pd.DataFrame([record for record in records])
 				chunk.columns = header
 				chunk = chunk[chunk[p_col] != 'NA']
+				chunk[p_col] = chunk[p_col].astype('float64')
 				chunk = chunk[pd.notnull(chunk[p_col])]
 				chunk = chunk[chunk[p_col] != 0]
 				if len(chunk) > 0:
@@ -136,7 +138,7 @@ def Eval(cfg):
 					else:
 						pvals = pvals.append(chunk)
 			print "   processed region " + str(r+1) + "/" + str(len(variant_list.index)) + " (" + str(variant_list['id'][r]) + " " + str(variant_list['region'][r]) + "): " + str(len(chunk)) + " markers added: " + str(len(pvals.index)) + " total"
-		pvals[pvals == 'NA'] = float('nan')
+		#pvals[pvals == 'NA'] = float('nan')
 	pvals.columns = [a.replace('#','') for a in pvals.columns]
 	chr_col = 'chr'
 	conv_cols = [chr_col,pos_col] + [x for x in pvals.columns if 'rsq' in x or 'hwe' in x or 'freq' in x or '.effect' in x or '.stderr' in x or '.or' in x or '.z' in x or '.p' in x]

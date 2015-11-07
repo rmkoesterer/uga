@@ -37,12 +37,12 @@ cdef class Model(object):
 	cdef public unsigned int case_code, ctrl_code, tbx_start, tbx_end
 	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx
 	cdef public np.ndarray focus, model_cols, results_header, results_dtypes, marker_stats, results, unique_idx, founders_idx, founders_ctrls_idx, males_idx, females_idx
-	cdef public bytes formula, format, snv_list_file, pheno_file, biodata_file, type, iid, fid, matid, patid, sex, pheno_sep, results_header_metadata, a1, a2
-	cdef public unsigned int male, female, nobs, nunique, nfounders, nlongitudinal, nfamilies, nunrelated, ncases, nctrls, nmales, nfemales
+	cdef public bytes formula, format, variant_list_file, pheno_file, biodata_file, type, iid, fid, matid, patid, sex, pheno_sep, results_header_metadata, a1, a2
+	cdef public unsigned int male, female, nobs, nunique, nfounders, nlongitudinal, nfamilies, ncases, nctrls, nmales, nfemales
 	cdef public dict fields
 	cdef public object pheno, biodata, out
 	cdef public bint all_founders
-	def __cinit__(self, formula, format, biodata_file, pheno_file, type, iid, fid, case_code = None, ctrl_code = None, snv_list_file = None, all_founders = False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = '\t'):
+	def __cinit__(self, formula, format, biodata_file, pheno_file, type, iid, fid, case_code = None, ctrl_code = None, variant_list_file = None, all_founders = False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = '\t'):
 		self.formula = formula
 		self.format = format
 		self.biodata_file = biodata_file
@@ -52,7 +52,7 @@ cdef class Model(object):
 		self.fid = fid
 		self.case_code = case_code
 		self.ctrl_code = ctrl_code
-		self.snv_list_file = snv_list_file
+		self.variant_list_file = variant_list_file
 		self.matid = matid
 		self.patid = patid
 		self.sex = sex
@@ -64,7 +64,7 @@ cdef class Model(object):
 
 	def load(self):
 		try:
-			self.biodata = getattr(Geno,self.format.capitalize())(self.biodata_file, self.snv_list_file)
+			self.biodata = getattr(Geno,self.format.capitalize())(self.biodata_file, self.variant_list_file)
 		except Error as err:
 			raise err
 		else:
@@ -119,7 +119,6 @@ cdef class Model(object):
 			except:
 				raise Error("phenotype file and data file contain no common samples")
 			iids_unique, iids_counts = np.unique(self.pheno[self.iid], return_counts=True)
-			fids_unique, fids_counts = np.unique(self.pheno[self.fid], return_counts=True)
 			self.unique_idx = np.in1d(self.pheno[self.iid],iids_unique)
 			if self.all_founders or self.matid is None or self.patid is None:
 				self.founders_idx = self.unique_idx.copy()
@@ -128,14 +127,12 @@ cdef class Model(object):
 			self.nobs = self.pheno.shape[0]
 			self.nunique = len(iids_unique)
 			self.nlongitudinal = len(iids_counts[iids_counts != 1])
-			self.nfamilies = len(fids_counts[fids_counts > 1])
-			self.nunrelated = len(fids_counts[fids_counts == 1])
+			self.nfamilies = len(np.unique(self.pheno[self.fid]))
 			print "data summary ..."
 			print "   " + str(self.nobs) + " total observations"
 			print "   " + str(self.nunique) + " unique samples"
-			print "   " + str(self.nlongitudinal) + " multiple observation samples"
+			print "   " + str(self.nlongitudinal) + " samples with >1 observations"
 			print "   " + str(self.nfamilies) + " families"
-			print "   " + str(self.nunrelated) + " unrelated samples"
 			if self.matid is not None and self.patid is not None:
 				self.nfounders = self.pheno[self.unique_idx][(self.pheno[self.unique_idx][self.matid] == '0') & (self.pheno[self.unique_idx][self.patid] == '0')].shape[0]
 				print "   " + str(self.nfounders) + " founders"
@@ -230,8 +227,8 @@ cdef class Model(object):
 				self.marker_stats['filter'][i] += 1
 
 cdef class Bssmeta(Model):
-	def __cinit__(self, formula, format, snv_list_file, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
-		super(Bssmeta, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, snv_list_file=snv_list_file, all_founders=all_founders, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
+	def __cinit__(self, formula, format, variant_list_file, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
+		super(Bssmeta, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, variant_list_file=variant_list_file, all_founders=all_founders, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
 		self.results_header = np.array(['chr','pos','marker','a1','a2','id','filter','callrate','mac','freq','freq.case','freq.ctrl','rsq','hwe'])
 		self.out = None
 		self.tbx_start = 1
@@ -278,9 +275,8 @@ cdef class Bssmeta(Model):
 									'## formula: ' + self.formula + '\n' + \
 									'## total observations: ' + str(self.nobs) + '\n' + \
 									'## unique samples: ' + str(self.nunique) + '\n' + \
-									'## multiple observation samples: ' + str(self.nlongitudinal) + '\n' + \
+									'## samples with >1 observations: ' + str(self.nlongitudinal) + '\n' + \
 									'## families: ' + str(self.nfamilies) + '\n' + \
-									'## unrelated samples: ' + str(self.nunrelated) + '\n' + \
 									'## founders: ' + str(self.nfounders) + '\n' + \
 									'## males: ' + str(self.nmales) + '\n' + \
 									'## females: ' + str(self.nfemales) + '\n' + \
@@ -388,8 +384,8 @@ cdef class Bssmeta(Model):
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.biodata.marker_info,self.marker_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
 
 cdef class Bskato(Model):
-	def __cinit__(self, formula, format, snv_list_file, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
-		super(Bskato, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, snv_list_file=snv_list_file, all_founders=all_founders, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
+	def __cinit__(self, formula, format, variant_list_file, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
+		super(Bskato, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, variant_list_file=variant_list_file, all_founders=all_founders, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
 		self.results_header = np.array(['chr','start','end','id'])
 		self.out = None
 		self.tbx_start = 1
@@ -436,9 +432,8 @@ cdef class Bskato(Model):
 									'## formula: ' + self.formula + '\n' + \
 									'## total observations: ' + str(self.nobs) + '\n' + \
 									'## unique samples: ' + str(self.nunique) + '\n' + \
-									'## multiple observation samples: ' + str(self.nlongitudinal) + '\n' + \
+									'## samples with >1 observations: ' + str(self.nlongitudinal) + '\n' + \
 									'## families: ' + str(self.nfamilies) + '\n' + \
-									'## unrelated samples: ' + str(self.nunrelated) + '\n' + \
 									'## founders: ' + str(self.nfounders) + '\n' + \
 									'## males: ' + str(self.nmales) + '\n' + \
 									'## females: ' + str(self.nfemales) + '\n' + \
@@ -454,7 +449,7 @@ cdef class Bskato(Model):
 									'## *.cmaf: cumulative minor allele frequency' + '\n' + \
 									'## *.p: gene p-value' + '\n' + \
 									'## *.pmin: minimum snp p-value' + '\n' + \
-									'## *.rho: skato rho parameter' + '\n#'
+									'## *.rho: p-value' + '\n#'
 
 	cpdef calc_marker_stats(self):
 		self.marker_stats = np.zeros((self.biodata.marker_info.shape[0],1), dtype=[('filter','uint32'),('mac','uint32'),('callrate','>f8'),('freq','>f8'),('freq.case','>f8'),('freq.ctrl','>f8'),('rsq','>f8'),('hwe','>f8')])
@@ -480,113 +475,45 @@ cdef class Bskato(Model):
 
 	cpdef calc_model(self):
 		pheno_df = pd.DataFrame(self.pheno,dtype='object')
-		passed = list(np.where(self.marker_stats['filter'] == 0)[0])
-		passed_marker_data = list(np.where(self.marker_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','|S100'),('start','|S100'),('end','|S100'),('id','|S100'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
-		self.results['chr'][0] = self.biodata.chr
-		self.results['start'][0] = self.biodata.start
-		self.results['end'][0] = self.biodata.end
-		self.results['id'][0] = self.biodata.id
-		if len(passed) > 0:
-			biodata_df = pd.DataFrame(self.biodata.marker_data[:,[0] + passed_marker_data],dtype='object')
-			biodata_df.columns = [self.iid] + list(self.biodata.marker_info['marker_unique'][passed])
-			ro.globalenv['model_df'] = py2r.convert_to_r_dataframe(pheno_df.merge(biodata_df, on=self.iid, how='left'), strings_as_factors=False)
-			for col in list(self.model_cols) + list(self.biodata.marker_info['marker_unique'][passed]):
-				ro.r('class(model_df$' + col + ')<-"numeric"')
-			ro.globalenv['markers'] = ro.StrVector(list(self.biodata.marker_info['marker_unique'][passed]))
-			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
-			ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': list(self.biodata.marker_info['marker_unique'][passed]), 'gene': 'NA'}), strings_as_factors=False)
-			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% markers])')
-			if len(passed) == 1:
-				ro.r('colnames(z)<-"' + self.biodata.marker_info['marker_unique'][passed][0] + '"')
-			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='binomial')"
-			try:
-				ro.globalenv['ps'] = ro.r(cmd)
-			except RRuntimeError as rerr:
-				self.results['err'][0] = 2
-				raise Error(rerr.message)
-			cmd = 'skatOMeta(ps,SNPInfo=snp_info,rho=seq(0,1,0.1))'
-			try:
-				ro.globalenv['result'] = ro.r(cmd)
-			except RRuntimeError as rerr:
-				self.results['err'][0] = 3
-				raise Error(rerr.message)
-			else:
-				ro.r('result$err<-0')
-				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-				ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$pmin[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$rho[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
-				self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
-				self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-				self.results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
-				self.results['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
-				self.results['pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
-				self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
-				self.results['rho'][0] = np.array(ro.r('result$rho'))[:,None]
-		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		#self.out=pd.DataFrame({'chr': [self.biodata.chr], 'start': [self.biodata.start], 'end': [self.biodata.end], 'id': [self.biodata.id], 'err': [np.nan], 'nmiss': [np.nan], 'nsnps': [np.nan], 'cmaf': [np.nan], 'p': [np.nan], 'pmin': [np.nan], 'rho': [np.nan]})
-		#passed = list(np.where(self.marker_stats['filter'] == 0)[0])
-		#if len(passed) > 1:
-		#	pheno_df = pd.DataFrame(self.pheno,dtype='object')
-		#	biodata_df = pd.DataFrame(self.biodata.marker_data[:,[0] + passed],dtype='object')
-		#	biodata_df.columns = [self.iid] + list(self.biodata.marker_info['marker_unique'][np.where(self.marker_stats['filter'] == 0)[0]])
-		#	ro.globalenv['model_df'] = py2r.convert_to_r_dataframe(pheno_df.merge(biodata_df, on=self.iid, how='left'), strings_as_factors=False)
-		#	#self.results = np.full((self.biodata.marker_info.shape[0],1), fill_value=np.nan, dtype=[('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
-		#	#self.results = np.empty((1,1),dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
-		#	ro.globalenv['markers'] = ro.StrVector(self.biodata.marker_info['marker_unique'][np.where(self.marker_stats['filter'] == 0)[0]])
-		#	ro.globalenv['model_cols'] = ro.StrVector(self.model_cols)
-		#	ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': self.biodata.marker_info['marker_unique'][np.where(self.marker_stats['filter'] == 0)[0]], 'gene': 'NA'}), strings_as_factors=False)
-		#	ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% markers,drop=FALSE])')
-		#	ro.globalenv['pheno'] = ro.r('model_df[model_cols]')
-		#	cmd = 'prepScores2(Z=z,formula=' + self.formula + ',SNPInfo=snp_info,data=pheno,family="binomial")'
-		#	try:
-		#		ro.globalenv['ps'] = ro.r(cmd)
-		#	except RRuntimeError as rerr:
-		#		self.out['err'][0] = 2
-		#		raise Error(rerr.message)
-		#	cmd = 'skatOMeta(ps,SNPInfo=snp_info)'
-		#	try:
-		#		ro.globalenv['result'] = ro.r(cmd)
-		#	except RRuntimeError as rerr:
-		#		self.out['err'][0] = 3
-		#		raise Error(rerr.message)
-		#	else:
-		#		ro.r('result$err<-0')
-		#		ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-		#		ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-		#		ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
-		#		ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-		#		ro.r('result$pmin[! is.na(result$err) & result$err == 1]<-NA')
-		#		ro.r('result$rho[! is.na(result$err) & result$err == 1]<-NA')
-		#		ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
-		#		self.out['err'][0] = np.array(ro.r('result$err'))[:,None]
-		#		self.out['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-		#		self.out['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
-		#		self.out['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
-		#		self.out['pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
-		#		self.out['p'][0] = np.array(ro.r('result$p'))[:,None]
-		#		self.out['rho'][0] = np.array(ro.r('result$rho'))[:,None]
+		biodata_df = pd.DataFrame(self.biodata.marker_data[:,[0] + list(np.where(self.marker_stats['filter'] == 0)[0])],dtype='object')
+		biodata_df.columns = [self.iid] + list(self.biodata.marker_info['marker_unique'][np.where(self.marker_stats['filter'] == 0)[0]])
+		ro.globalenv['model_df'] = py2r.convert_to_r_dataframe(pheno_df.merge(biodata_df, on=self.iid, how='left'), strings_as_factors=False)
+		#self.results = np.full((self.biodata.marker_info.shape[0],1), fill_value=np.nan, dtype=[('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
+		#self.results = np.empty((1,1),dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
+		self.out=pd.DataFrame({'chr': [self.biodata.chr], 'start': [self.biodata.start], 'end': [self.biodata.end], 'id': [self.biodata.id], 'err': [np.nan], 'nmiss': [np.nan], 'nsnps': [np.nan], 'cmaf': [np.nan], 'p': [np.nan], 'pmin': [np.nan], 'rho': [np.nan]})
+		ro.globalenv['markers'] = ro.StrVector(self.biodata.marker_info['marker_unique'][np.where(self.marker_stats['filter'] == 0)[0]])
+		ro.globalenv['model_cols'] = ro.StrVector(self.model_cols)
+		ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': self.biodata.marker_info['marker_unique'][np.where(self.marker_stats['filter'] == 0)[0]], 'gene': 'NA'}), strings_as_factors=False)
+		ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% markers])')
+		ro.globalenv['pheno'] = ro.r('model_df[model_cols]')
+		cmd = 'prepScores2(Z=z,formula=' + self.formula + ',SNPInfo=snp_info,data=pheno,family="binomial")'
+		try:
+			ro.globalenv['ps'] = ro.r(cmd)
+		except RRuntimeError as rerr:
+			self.out['err'][0] = 2
+			raise Error(rerr.message)
+		cmd = 'skatOMeta(ps,SNPInfo=snp_info)'
+		try:
+			ro.globalenv['result'] = ro.r(cmd)
+		except RRuntimeError as rerr:
+			self.out['err'][0] = 3
+			raise Error(rerr.message)
+		else:
+			ro.r('result$err<-0')
+			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+			ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$pmin[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$rho[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
+			self.out['err'][0] = np.array(ro.r('result$err'))[:,None]
+			self.out['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+			self.out['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+			self.out['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+			self.out['pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
+			self.out['p'][0] = np.array(ro.r('result$p'))[:,None]
+			self.out['rho'][0] = np.array(ro.r('result$rho'))[:,None]
 
 """
 class BglmFrame(ModelFrame):

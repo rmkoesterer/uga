@@ -49,8 +49,8 @@ def main(argv):
 
 	#if argv[1].split('(')[0] == "Stat":
 	#	from uga.Stat import Stat
-	if argv[1].split('(')[0] == "RunSnv":
-		from uga.RunSnv import RunSnv
+	#if argv[1].split('(')[0] == "Bglm":
+	from uga.RunModels import RunModels
 	#elif argv[1].split('(')[0] == "Meta":
 	#	from uga.Meta import Meta
 	#elif argv[1].split('(')[0] == "Map":

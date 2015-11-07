@@ -21,15 +21,6 @@ class Error(Exception):
 	def __init__(self, msg):
 		self.msg = 'ERROR: ' + msg
 
-def PrintError(e):
-	return "\nERROR: " + e + "\n"
-
-def Highlight(m):
-	return "\n   ... " + m + "\n"
-	
-def Bold(m):
-	return "\033[1m" + m + "\033[0m"
-
 def Qsub(qsub_pre,cmd):
 	try:
 		p = subprocess.Popen(qsub_pre + [cmd[1:-1]],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
@@ -56,7 +47,7 @@ def Interactive(submit, cmd, log_file = None):
 	except KeyboardInterrupt:
 		kill_all(p.pid)
 		print "   ... process terminated by user"
-		sys.exit(1)
+	sys.exit(1)
 
 def kill_all(pid):
 	parent = psutil.Process(pid)

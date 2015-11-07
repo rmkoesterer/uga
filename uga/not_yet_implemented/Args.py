@@ -54,303 +54,194 @@ def SetArgs(set_parser):
 						help='set full path to locuszoom executable')
 	return set_parser
 
-def SnvArgs(snv_parser):
-	snv_parser.add_argument('--out', 
+def ModelArgs(model_parser):
+	model_parser.add_argument('--out', 
 						action=AddString, 
 						help='output file basename (do not include path or extension)')
-	snv_parser.add_argument('--pheno', 
+	model_parser.add_argument('--pheno', 
 						action=AddString, 
 						help='phenotype file')
-	snv_parser.add_argument('--cpus', 
+	model_parser.add_argument('--cpus', 
 						action=AddString, 
 						type=int, 
 						help='number of cpus')
-	snv_parser.add_argument('--snv-list', 
+	model_parser.add_argument('--variant-list', 
 						action=AddString, 
 						help='variant list file')
-	snv_parser.add_argument('--fid', 
+	model_parser.add_argument('--fid', 
 						action=AddString, 
 						help='column name with family ID')
-	snv_parser.add_argument('--iid', 
+	model_parser.add_argument('--iid', 
 						action=AddString, 
 						help='column name with sample ID (The IDs in this column must match the --samples file)')
-	snv_parser.add_argument('--matid', 
+	model_parser.add_argument('--matid', 
 						action=AddString, 
 						help='column name with maternal ID (used to determine founders for marker stats and for analyses requiring a pedigree)')
-	snv_parser.add_argument('--patid', 
+	model_parser.add_argument('--patid', 
 						action=AddString, 
 						help='column name with paternal ID (used to determine founders for marker stats and for analyses requiring a pedigree)')
-	snv_parser.add_argument('--all-founders', 
+	model_parser.add_argument('--all-founders', 
 						nargs=0, 
 						action=AddTrue, 
 						help='use all samples to calculate variant statistics regardless of --matid and --patid column information')
-	snv_parser.add_argument('--sep', 
+	model_parser.add_argument('--sep', 
 						action=AddString, 
 						choices=['tab','space','comma'], 
 						help='phenotype file delimiter (default: tab)')
-	snv_parser.add_argument('--sample', 
+	model_parser.add_argument('--sample', 
 						action=AddString, 
 						help='sample file (not required for Plink format files)')
-	snv_parser.add_argument('--sex', 
+	model_parser.add_argument('--sex', 
 						action=AddString, 
 						help='name of the column containing male/female status (requires --male and --female)')
-	snv_parser.add_argument('--male', 
+	model_parser.add_argument('--male', 
 						action=AddString, 
 						type=int, 
 						help='code for male (default: 1; requires --sex and --female)')
-	snv_parser.add_argument('--female', 
+	model_parser.add_argument('--female', 
 						action=AddString, 
 						type=int, 
 						help='code for female (default: 2; requires --sex and --male)')
-	snv_parser.add_argument('--buffer', 
+	model_parser.add_argument('--buffer', 
 						action=AddString, 
 						type=int, 
 						help='value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
-	snv_parser.add_argument('--miss', 
+	model_parser.add_argument('--miss', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for missingness (ie. 0.95 allows for up to 5%% missingness)')
-	snv_parser.add_argument('--maf', 
+	model_parser.add_argument('--maf', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for minimum minor allele frequency (ie. 0.03 filters out markers with maf < 0.03)')
-	snv_parser.add_argument('--maxmaf', 
+	model_parser.add_argument('--maxmaf', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for maximum minor allele frequency (ie. 0.01 filters out markers with maf >= 0.01)')
-	snv_parser.add_argument('--mac', 
+	model_parser.add_argument('--mac', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for minimum minor allele count (ie. 3 filters out markers with mac < 3)')
-	snv_parser.add_argument('--rsq', 
+	model_parser.add_argument('--rsq', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for imputation quality (ie. 0.8 filters out markers with rsq < 0.8)')
-	snv_parser.add_argument('--hwe', 
+	model_parser.add_argument('--hwe', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for Hardy Weinberg p-value (ie. 1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
-	snv_parser.add_argument('--hwe-maf', 
+	model_parser.add_argument('--hwe-maf', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for minimum minor allele frequency for which Hardy Weinberg p-value threshold is evaluated (ie. 0.01 only filters markers with maf >= 0.01 that do not pass hwe threshold)')
-	snv_parser.add_argument('--replace', 
+	model_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 
 						help='replace any existing output files')
-	snv_parser.add_argument('--mb', 
-						action=AddString, 
-						help='region size in megabases to use for split analyses (default: 1)')
-	snv_parser.add_argument('--qsub', 
+	model_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
-	#snv_parser.add_argument('--id', 
-	#					action=AddString, 
-	#					help='add id column to indicate region / locus')
-	snv_parser.add_argument('--tag', 
+	model_parser.add_argument('--id', 
+						action=AddString, 
+						help='add id column to indicate region / locus')
+	model_parser.add_argument('--tag', 
 						action=AddString, 
 						help='tag for individual model')
-	snv_parser_split_group1 = snv_parser.add_mutually_exclusive_group()
-	snv_parser_split_group1.add_argument('--region', 
+	model_parser_split_group1 = model_parser.add_mutually_exclusive_group()
+	model_parser_split_group1.add_argument('--region', 
 						action=AddString, 
-						help='genomic region specified in Tabix format of any size up to an entire chromosome (ie. 1:1-1000000, 21).')
-	snv_parser_split_group1.add_argument('--region-file', 
+						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
+	model_parser_split_group1.add_argument('--region-list', 
 						action=AddString, 
-						help='filename for a list of tabix format regions of any size up to an entire chromosome (ie. 1:1-1000000, 21)')
-	snv_parser_split_group2 = snv_parser.add_mutually_exclusive_group()
-	snv_parser_split_group2.add_argument('--split', 
+						help='filename for a list of tabix format regions')
+	model_parser_split_group2 = model_parser.add_mutually_exclusive_group()
+	model_parser_split_group2.add_argument('--split', 
 						nargs=0, 
 						action=AddTrue, 
-						help='split --region-file into an individual job for each line in file (requires --region-file)')
-	snv_parser_split_group2.add_argument('--split-n', 
+						help='split region_list into an individual job for each line in file (requires --region-list)')
+	model_parser_split_group2.add_argument('--split-n', 
 						action=AddString, 
 						type=int, 
-						help='split --region-file into n individual jobs each with a subset of regions in the file (requires --region-file)')
-	snv_parser_split_group2.add_argument('--split-chr', 
+						help='split region_list into n individual jobs each with a subset of regions in the file (requires --region-list)')
+	model_parser_split_group2.add_argument('--split-chr', 
 						nargs=0, 
 						action=AddTrue,  
 						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	snv_parser_split_group3 = snv_parser.add_mutually_exclusive_group()
-	snv_parser_split_group3.add_argument('--job', 
+	model_parser_split_group3 = model_parser.add_mutually_exclusive_group()
+	model_parser_split_group3.add_argument('--job', 
 						action=AddString, 
 						type=int, 
-						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
-	snv_parser_split_group3.add_argument('--jobs', 
+						help='run a particular job (use with --region-list and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	model_parser_split_group3.add_argument('--jobs', 
 						action=AddString, 
-						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
-	snv_parser.add_argument('--oxford', 
+						help='filename for a list of jobs to run (use with --region-list and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+	model_parser.add_argument('--oxford', 
 						action=AddString, 
 						help='oxford format genotype data file')
-	snv_parser.add_argument('--dos1', 
+	model_parser.add_argument('--dos1', 
 						action=AddString, 
 						help='dos1 format genotype data file')
-	snv_parser.add_argument('--dos2', 
+	model_parser.add_argument('--dos2', 
 						action=AddString, 
 						help='dos2 format genotype data file')
-	snv_parser.add_argument('--plink', 
+	model_parser.add_argument('--plink', 
 						action=AddString, 
 						help='Plink binary format genotype data file (without extension)')
-	snv_parser.add_argument('--vcf', 
+	model_parser.add_argument('--vcf', 
 						action=AddString, 
 						help='vcf 4.1/4.2 format genotype data file')
-	snv_parser.add_argument('--case-code', 
+	model_parser.add_argument('--case-code', 
 						action=AddString, 
 						type=int, 
 						help='code for case in the dependent variable column (requires --ctrl-code; binomial fxn family only; default: 1)')
-	snv_parser.add_argument('--ctrl-code', 
+	model_parser.add_argument('--ctrl-code', 
 						action=AddString, 
 						type=int, 
 						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
-	snv_parser.add_argument('--bssmeta', 
+	model_parser.add_argument('--bssmeta', 
 						action=AddString, 
 						help='model string for bssmeta (binomial singlesnpMeta)')
-	snv_parser.add_argument('--meta', 
-						action=AddString, 
-						help='a meta analysis string')
-	return snv_parser
-
-def GeneArgs(gene_parser):
-	gene_parser.add_argument('--out', 
-						action=AddString, 
-						help='output file basename (do not include path or extension)')
-	gene_parser.add_argument('--pheno', 
-						action=AddString, 
-						help='phenotype file')
-	gene_parser.add_argument('--cpus', 
-						action=AddString, 
-						type=int, 
-						help='number of cpus')
-	gene_parser.add_argument('--fid', 
-						action=AddString, 
-						help='column name with family ID')
-	gene_parser.add_argument('--iid', 
-						action=AddString, 
-						help='column name with sample ID (The IDs in this column must match the --samples file)')
-	gene_parser.add_argument('--matid', 
-						action=AddString, 
-						help='column name with maternal ID (used to determine founders for marker stats and for analyses requiring a pedigree)')
-	gene_parser.add_argument('--patid', 
-						action=AddString, 
-						help='column name with paternal ID (used to determine founders for marker stats and for analyses requiring a pedigree)')
-	gene_parser.add_argument('--all-founders', 
-						nargs=0, 
-						action=AddTrue, 
-						help='use all samples to calculate variant statistics regardless of --matid and --patid column information')
-	gene_parser.add_argument('--sep', 
-						action=AddString, 
-						choices=['tab','space','comma'], 
-						help='phenotype file delimiter (default: tab)')
-	gene_parser.add_argument('--sample', 
-						action=AddString, 
-						help='sample file (not required for Plink format files)')
-	gene_parser.add_argument('--sex', 
-						action=AddString, 
-						help='name of the column containing male/female status (requires --male and --female)')
-	gene_parser.add_argument('--male', 
-						action=AddString, 
-						type=int, 
-						help='code for male (default: 1; requires --sex and --female)')
-	gene_parser.add_argument('--female', 
-						action=AddString, 
-						type=int, 
-						help='code for female (default: 2; requires --sex and --male)')
-	gene_parser.add_argument('--buffer', 
-						action=AddString, 
-						type=int, 
-						help='value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
-	gene_parser.add_argument('--miss', 
-						action=AddString, 
-						type=float, 
-						help='threshold value for missingness (ie. 0.95 allows for up to 5%% missingness)')
-	gene_parser.add_argument('--maf', 
-						action=AddString, 
-						type=float, 
-						help='threshold value for minimum minor allele frequency (ie. 0.03 filters out markers with maf < 0.03)')
-	gene_parser.add_argument('--maxmaf', 
-						action=AddString, 
-						type=float, 
-						help='threshold value for maximum minor allele frequency (ie. 0.01 filters out markers with maf >= 0.01)')
-	gene_parser.add_argument('--mac', 
-						action=AddString, 
-						type=float, 
-						help='threshold value for minimum minor allele count (ie. 3 filters out markers with mac < 3)')
-	gene_parser.add_argument('--rsq', 
-						action=AddString, 
-						type=float, 
-						help='threshold value for imputation quality (ie. 0.8 filters out markers with rsq < 0.8)')
-	gene_parser.add_argument('--hwe', 
-						action=AddString, 
-						type=float, 
-						help='threshold value for Hardy Weinberg p-value (ie. 1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
-	gene_parser.add_argument('--hwe-maf', 
-						action=AddString, 
-						type=float, 
-						help='threshold value for minimum minor allele frequency for which Hardy Weinberg p-value threshold is evaluated (ie. 0.01 only filters markers with maf >= 0.01 that do not pass hwe threshold)')
-	gene_parser.add_argument('--replace', 
-						nargs=0, 
-						action=AddTrue, 
-						help='replace any existing output files')
-	gene_parser.add_argument('--qsub', 
-						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
-	gene_parser.add_argument('--tag', 
-						action=AddString, 
-						help='tag for individual model')
-	gene_parser_split_group1 = gene_parser.add_mutually_exclusive_group()
-	gene_parser_split_group1.add_argument('--gene-map', 
-						action=AddString, 
-						help='filename for list of tabix formatted single variant regions (ie. 1:100-100) and gene name (or any categorical naming scheme) assignments')
-	gene_parser_split_group2 = gene_parser.add_mutually_exclusive_group()
-	gene_parser_split_group2.add_argument('--split', 
-						nargs=0, 
-						action=AddTrue, 
-						help='split --region-file into an individual job for each line in file (requires --region-file)')
-	gene_parser_split_group2.add_argument('--split-n', 
-						action=AddString, 
-						type=int, 
-						help='split --region-file into n individual jobs each with a subset of regions in the file (requires --region-file)')
-	gene_parser_split_group2.add_argument('--split-chr', 
-						nargs=0, 
-						action=AddTrue,  
-						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	gene_parser_split_group3 = gene_parser.add_mutually_exclusive_group()
-	gene_parser_split_group3.add_argument('--job', 
-						action=AddString, 
-						type=int, 
-						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
-	gene_parser_split_group3.add_argument('--jobs', 
-						action=AddString, 
-						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
-	gene_parser.add_argument('--oxford', 
-						action=AddString, 
-						help='oxford format genotype data file')
-	gene_parser.add_argument('--dos1', 
-						action=AddString, 
-						help='dos1 format genotype data file')
-	gene_parser.add_argument('--dos2', 
-						action=AddString, 
-						help='dos2 format genotype data file')
-	gene_parser.add_argument('--plink', 
-						action=AddString, 
-						help='Plink binary format genotype data file (without extension)')
-	gene_parser.add_argument('--vcf', 
-						action=AddString, 
-						help='vcf 4.1/4.2 format genotype data file')
-	gene_parser.add_argument('--case-code', 
-						action=AddString, 
-						type=int, 
-						help='code for case in the dependent variable column (requires --ctrl-code; binomial fxn family only; default: 1)')
-	gene_parser.add_argument('--ctrl-code', 
-						action=AddString, 
-						type=int, 
-						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
-	gene_parser.add_argument('--bskato', 
+	model_parser.add_argument('--bskato', 
 						action=AddString, 
 						help='model string for bskato (binomial skatOMeta)')
-	gene_parser.add_argument('--meta', 
+	model_parser.add_argument('--meta', 
 						action=AddString, 
 						help='a meta analysis string')
-	return gene_parser
+	return model_parser
+
+#def BGlmArgs(bglm_parser):
+#	bglm_parser.add_argument('--case', 
+#						action=AddString, 
+#						type=int, 
+#						help='code for case in the dependent variable column (requires --ctrl; binomial fxn family only; default: 1)')
+#	bglm_parser.add_argument('--ctrl', 
+#						action=AddString, 
+#						type=int, 
+#						help='code for control in the dependent variable column (requires --case; binomial fxn family only; default: 0)')
+#	bglm_parser.add_argument('--formula', 
+#						action=AddString, 
+#						help='model string for glm binomial analysis')
+#	return bglm_parser
+#
+#def GGlmArgs(gglm_parser):
+#	gglm_parser.add_argument('--formula', 
+#						action=AddString, 
+#						help='model string for glm gaussian analysis')
+#	return gglm_parser
+
+#def BSsMetaArgs(bssmeta_parser):
+#	bssmeta_parser.add_argument('--case-code', 
+#						action=AddString, 
+#						type=int, 
+#						help='code for case in the dependent variable column (requires --ctrl-code; binomial fxn family only; default: 1)')
+#	bssmeta_parser.add_argument('--ctrl-code', 
+#						action=AddString, 
+#						type=int, 
+#						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
+#	bssmeta_parser.add_argument('--formula', 
+#						action=AddString, 
+#						help='model string for bssmeta binomial analysis')
+#	return bssmeta_parser
 
 def MetaArgs(meta_parser):
 	meta_required = meta_parser.add_argument_group('required arguments')
@@ -437,18 +328,18 @@ def MetaArgs(meta_parser):
 	meta_parser_split_group1.add_argument('--region', 
 						action=AddString, 
 						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
-	meta_parser_split_group1.add_argument('--region-file', 
+	meta_parser_split_group1.add_argument('--region-list', 
 						action=AddString, 
 						help='filename for a list of tabix format regions')
 	meta_parser_split_group2 = meta_parser.add_mutually_exclusive_group()
 	meta_parser_split_group2.add_argument('--split', 
 						nargs=0, 
 						action=AddTrue, 
-						help='split region_file into an individual job for each line in file (requires --region-file)')
+						help='split region_list into an individual job for each line in file (requires --region-list)')
 	meta_parser_split_group2.add_argument('--split-n', 
 						action=AddString, 
 						type=int, 
-						help='split region_file into n individual jobs each with a subset of regions in the file (requires --region-file)')
+						help='split region_list into n individual jobs each with a subset of regions in the file (requires --region-list)')
 	meta_parser_split_group2.add_argument('--split-chr', 
 						nargs=0, 
 						action=AddTrue,  
@@ -457,10 +348,10 @@ def MetaArgs(meta_parser):
 	meta_parser_split_group3.add_argument('--job', 
 						action=AddString, 
 						type=int, 
-						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
+						help='run a particular job (use with --region-list and --split with value a tabix format region or --split-n with value a number from 1..n)')
 	meta_parser_split_group3.add_argument('--jobs', 
 						action=AddString, 
-						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+						help='filename for a list of jobs to run (use with --region-list and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 	return meta_parser
 
 def MapArgs(map_parser):
@@ -648,7 +539,7 @@ def EvalArgs(eval_parser):
 	eval_parser_split_group.add_argument('--region', 
 						action=AddString, 
 						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
-	eval_parser_split_group.add_argument('--region-file', 
+	eval_parser_split_group.add_argument('--region-list', 
 						action=AddString, 
 						help='filename for a list of tabix format regions')
 	eval_parser.add_argument('--lz-source', 

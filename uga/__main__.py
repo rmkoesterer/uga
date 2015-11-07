@@ -17,114 +17,152 @@
 
 import os
 import numpy as np
+import pandas as pd
 from collections import OrderedDict
 from glob import glob
 from ConfigParser import SafeConfigParser
 from pkg_resources import resource_filename
+import shutil
 import Parse
 import Process
-import Stdout
-import IO
-import Compile
+import Map
 
 def main(args=None):
 	args = Parse.GetArgs(Parse.GetParser())
+	cfg = getattr(Parse, 'Generate' + args.which.capitalize() + 'Cfg')(args.ordered_args)
 
 	##### read settings file #####
 	ini = SafeConfigParser()
 	ini.read(resource_filename('uga', 'settings.ini'))
 
-	##### read cfg file into dictionary #####
-	#if args.which == 'meta':
-	#	print "reading configuration from file"
-	#	from Parse import GenerateMetaCfg
-	#	config = GenerateMetaCfg(args.ordered_args)
-	#	args.cfg = 1
-	#elif args.which == 'stat':
-	#	print "preparing stat configuration"
-	#	from parse import GenerateStatCfg
-	#	config = GenerateStatCfg(args.ordered_args)
-	#	args.cfg = 1
-	#elif args.which == 'eval':
-	#	print "preparing eval configuration"
-	#	from Parse import GenerateEvalCfg
-	#	config = GenerateEvalCfg(args.ordered_args, ini)
-	#	args.cfg = 1
-	#elif args.which == 'gc':
-	#	print "preparing gc configuration"
-	#	from Parse import GenerateGcCfg
-	#	config = GenerateGcCfg(args.ordered_args, ini)
-	#	args.cfg = 1
-	#elif args.which == 'annot':
-	#	print "preparing annot configuration"
-	#	from Parse import GenerateAnnotCfg
-	#	config = GenerateAnnotCfg(args.ordered_args, ini)
-	#	args.cfg = 1
-	#elif args.which == 'bglm':
-	#	print "preparing bglm configuration"
-	#	from Parse import GenerateBglmCfg
-	#	config = GenerateBglmCfg(args.ordered_args)
-	#	args.cfg = 1
-	#elif args.which == 'bssmeta':
-	#	print "preparing bssmeta configuration"
-	#	from Parse import GenerateBssmetaCfg
-	#	#config = GenerateBssmetaCfg(args.ordered_args)
-	#	#args.cfg = 1
-	#print config; return
-	##### define region list #####
-	if args.which in ['model','meta']:
-		n = 1
-		dist_mode = 'full'
-		regions = IO.Regions(filename=args.region_list,region=args.region,id=None)
-		if args.region_list:
-			if args.split or args.split_n:
-				if not args.split_n or args.split_n > len(regions.df.index):
-					n = len(regions.df.index)
-					dist_mode = 'split-list'
-				else:
-					n = args.split_n
-					dist_mode = 'split-list-n'
-			else:
-				dist_mode = 'list'
-			print " " + str(len(regions.df.index)) + " regions found"
-		elif args.region:
-			if len(args.region.split(':')) > 1:
-				dist_mode = 'region'
-			else:
-				dist_mode = 'chr'
-			n = 1
+	##### distribute jobs #####
+	run_type = 0
+	if cfg['cpus'] is not None and cfg['cpus'] > 1:
+		run_type = run_type + 1
+	if cfg['split']:
+		run_type = run_type + 10
+	if cfg['split_n']:
+		run_type = run_type + 100
+
+	if args.which == 'snv':
+		#	generate regions dataframe with M rows, either from --snv-map or by splitting data file or --snv-region according to --mb
+		#	run_type = 0:   run as single job
+		#	run_type = 1:   --cpus C (distribute M regions over C cpus and run single job, 1 job C cpus)
+		#	run_type = 10:  --split (split M regions into single region jobs, M jobs 1 cpu)
+		#	run_type = 100: --split-n N (distribute M regions over N jobs, N jobs 1 cpu)
+		#	run_type = 11:  --split, --cpus C (split M regions into chunks of size M / C and run M jobs, M jobs C cpus)
+		#	run_type = 101: --split-n N, --cpus C (distribute M regions over N jobs and distribute each over C cpus, N jobs C cpus)
+
+		if cfg['region_file']:
+			regions_df = pd.read_table(cfg['region_file'],header=None,names=['region','id'])
+			regions_df['chr'] = [x.split(':')[0] for x in regions_df['region']]
+			regions_df['start'] = [x.split(':')[1].split('-')[0] for x in regions_df['region']]
+			regions_df['end'] = [x.split(':')[1].split('-')[1] for x in regions_df['region']]
+			regions_df['job'] = 1
+			regions_df['cpu'] = 1
 		else:
-			n = 1
+			snv_map = []
+			data_files = []
+			for m in cfg['models']:
+				if cfg['models'][m]['file'] not in data_files:
+					snv_map.extend(Map.Map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region'], format=cfg['models'][m]['format']))
+					data_files.append(cfg['models'][m]['file'])
+			snv_map = list(set(snv_map))
+			regions_df = pd.DataFrame({'region': snv_map, 'chr': [x.split(':')[0] for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
+			regions_df.sort(columns=['chr','start'],inplace=True)
+			regions_df.reset_index(drop=True,inplace=True)
+			regions_df['job'] = 1
+			regions_df['cpu'] = 1
+			del data_files
+			del snv_map
+		regions_df = regions_df[['chr','start','end','region','job','cpu']]
 
-		##### get job list from file #####
-		if 'jobs' in vars(args).keys() and args.jobs is not None:
-			jobs = []
-			with open(args.jobs) as f:
-				lines = (line.rstrip() for line in f)
-				lines = (line for line in lines if line)
-				for line in lines:
-					if line.find(':') != -1:
-						jobs.append(regions.df['region'][regions.df['region'] == line].index[0])
-					else:
-						jobs.append(int(line))
-			print "" + str(len(jobs)) + " jobs read from job list file"
+	if args.which == 'gene':
+		#	generate regions dataframe with M rows from --gene-map
+		#	run_type = 0:   run as single job
+		#	run_type = 1:   --cpus C (distribute M genes over C cpus and run single job, 1 job C cpus)
+		#	run_type = 10:  --split (split M genes into single region jobs, M jobs 1 cpu)
+		#	run_type = 100: --split-n N (distribute M genes over N jobs, N jobs 1 cpu)
+		#	run_type = 101: --split-n N, --cpus C (distribute M genes over N jobs and distribute each job over C cpus, N jobs C cpus)
+		gene_map = pd.read_table(cfg['gene_map'],header=None,names=['chr','pos','marker','gene'])
+		regions_df = gene_map
+		regions_df['start'] = [min(x) for x in [regions_df['pos'][regions_df['gene'] == y] for y in regions_df['gene']]]
+		regions_df['end'] = [max(x) for x in [regions_df['pos'][regions_df['gene'] == y] for y in regions_df['gene']]]
+		regions_df['region'] = regions_df.chr.map(str) + ':' + regions_df.start.map(str) + '-' + regions_df.end.map(str)
+		regions_df['job'] = 1
+		regions_df['cpu'] = 1
+		regions_df = regions_df[['chr','start','end','region','gene','job','cpu']]
+		regions_df.drop_duplicates(inplace=True)
+		regions_df.reset_index(drop=True,inplace=True)
 
-		##### define output directory and update out file name #####
-		directory = os.getcwd() + '/'
-		if n > 1:
-			if dist_mode == 'split-list':
-				directory = directory + 'chr[CHR]/'
-			elif dist_mode == 'split-list-n':
-				directory = directory + 'list[LIST]/'
-		if 'out' in vars(args).keys() and args.which in ['model','meta']:
-			args.out = directory + args.out
+	if run_type == 1:
+		n = int(np.ceil(regions_df.shape[0] / float(cfg['cpus'])))
+		n_remain = int(regions_df.shape[0] - (n-1) * cfg['cpus'])
+		regions_df['cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)) + 1
+	elif run_type == 10:
+		regions_df['job'] = regions_df.index.values + 1
+	elif run_type == 100:
+		n = int(np.ceil(regions_df.shape[0] / float(cfg['split_n'])))
+		n_remain = int(regions_df.shape[0] - (n-1) * cfg['split_n'])
+		regions_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)) + 1
+	elif run_type == 11 and args.which != 'gene':
+		cfg['split_n'] = int(np.ceil(regions_df.shape[0] / float(cfg['cpus'])))
+		n = int(np.ceil(regions_df.shape[0] / float(cfg['split_n'])))
+		n_remain = int(regions_df.shape[0] - (n-1) * cfg['split_n'])
+		regions_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)) + 1
+		for i in range(1,int(max(regions_df['job'])) + 1):
+			n = int(np.ceil(regions_df[regions_df['job'] == i].shape[0] / float(cfg['cpus'])))
+			n_remain = int(regions_df[regions_df['job'] == i].shape[0] - (n-1) * cfg['cpus'])
+			regions_df.loc[regions_df['job'] == i,'cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)) + 1
+		cfg['split'] = None
+	elif run_type == 101:
+		n = int(np.ceil(regions_df.shape[0] / float(cfg['split_n'])))
+		n_remain = int(regions_df.shape[0] - (n-1) * cfg['split_n'])
+		regions_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)) + 1
+		for i in range(1,int(max(regions_df['job'])) + 1):
+			n = int(np.ceil(regions_df[regions_df['job'] == i].shape[0] / float(cfg['cpus'])))
+			n_remain = int(regions_df[regions_df['job'] == i].shape[0] - (n-1) * cfg['cpus'])
+			regions_df.loc[regions_df['job'] == i,'cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)) + 1
+	if int(max(regions_df['job'])) + 1 > 100000:
+		print Process.PrintError('number of jobs exceeds 100,000, consider using --split-n to reduce the total number of jobs')
+		return
 
-		##### generate out file names for split jobs or chr/region specific jobs #####
-		out_files = {}
-		if dist_mode in ['chr','region','split-list','split-list-n']:
-			out_files = IO.GenerateSubFiles(region_df = regions.df, f = args.out, dist_mode = dist_mode, n = n)
+	##### generate output directories #####
+	directory = os.getcwd()
 
-	##### get user home directory #####
+	if args.which in ['snv','gene','meta']:
+		directory = directory + '/' + cfg['out']
+		if os.path.exists(directory):
+			if args.replace:
+				print 'replacing existing results'
+				try:
+					shutil.rmtree(directory)
+				except OSError:
+					print Process.PrintError('unable to replace results directory' + directory)
+			else:
+				print Process.PrintError('results directory ' + directory + ' already exists, use --replace to overwrite existing results')
+				return
+		try:
+			os.mkdir(directory)
+		except OSError:
+			pass
+
+		for j in range(1, int(max(regions_df['job'])) + 1):
+			try:
+				os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))
+			except OSError:
+				pass
+			try:
+				os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j))
+			except OSError:
+				pass
+			for chr in regions_df['chr'][regions_df['job'] == j]:
+				try:
+					os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/chr' + str(chr))
+				except OSError:
+					continue
+
+	##### locate qsub wrapper #####
 	qsub_wrapper = resource_filename('uga', 'Qsub.py')
 
 	if args.which == 'set':
@@ -138,202 +176,190 @@ def main(args=None):
 			for k in ini.options(s):
 				print '   ' + k + ' = ' + ini.get(s,k)
 
-	elif args.which == 'map':
-		config = '{\'out\': \'' + args.out + '\''
-		for x in ['oxford','dos1','dos2','plink','vcf','region','b','kb','mb','n','chr','shift_mb','shift_kb','shift_b']:
-			if x in vars(args).keys() and not vars(args)[x] in [False,None]:
-				if type(vars(args)[x]) is str:
-					config = config + ',\'' + x + '\': \'' + str(vars(args)[x]) + '\''
-				else:
-					config = config + ',\'' + x + '\': ' + str(vars(args)[x])
-		config = config + '}'
-		cmd = 'memory_usage((' + args.which.capitalize() + ', (),' + config + '), interval=0.1)'
-		if args.replace:
-			for f in [args.out, args.out + '.map.log']:
-				try:
-					os.remove(f)
-				except OSError:
-					continue
-		else:
-			for f in [args.out, args.out + '.map.log']:
-				if os.path.exists(f):
-					print Stdout.PrintError("1 or more output files already exists (use --replace flag to replace)")
-					return
-		if args.qsub:
-			Process.Qsub('qsub ' + args.qsub + ' -o ' + args.out + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
-		else:
-			Process.Interactive(qsub_wrapper, cmd, args.out + '.' + args.which + '.log')
-
-	elif args.which == 'compile':
-		out_files = {}
-		if args.which == "compile":
-			out_files = FindSubFiles(f = args.file)
-		if len(out_files.keys()) > 1:
-			existing_files = glob(args.file + '.gz*') + glob(args.file + '.log')
-			if len(existing_files) > 0:
-				if not args.replace:
-					print Stdout.PrintError("1 or more output files or files with similar basename already exists (use --replace flag to replace)")
-					return
-				else:
-					for f in existing_files:
-						try:
-							os.remove(f)
-						except OSError:
-							continue
-			complete, complete_reg = Compile.CheckResults(file_dict=out_files, out=args.file + '.verify')
-			if not complete:
-				print Stdout.PrintError("results could not be verified")
-				return
-			out_files = OrderedDict([(x, out_files[x]) for x in out_files.keys() if str(x) in complete_reg])
-			if args.split:
-				compile_fxn = 'Compile.CompileResultsSplit'
-			elif args.split_chr:
-				compile_fxn = 'Compile.CompileResultsSplitChr'
-			else:
-				compile_fxn = 'Compile.CompileResults'
-			if not globals()[compile_fxn](out_files, args.file):
-				print Stdout.PrintError("results could not be compiled")
-				return
-		else:
-			print Stdout.PrintError("no split results to compile")
-			return
-
-	elif args.which == 'eval':
-		check_files = [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.eval.log']
-		check_files = [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.top_results']
-		check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq.tiff'] if 'qq' in vars(args).keys() else check_files
-		check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq_strat.tiff'] if 'qq_strat' in vars(args).keys() else check_files
-		check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq.eps'] if 'qq' in vars(args).keys() else check_files
-		check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq_strat.eps'] if 'qq_strat' in vars(args).keys() else check_files
-		check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq.pdf'] if 'qq' in vars(args).keys() else check_files
-		check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq_strat.pdf'] if 'qq_strat' in vars(args).keys() else check_files
-		check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.mht.tiff'] if 'mht' in vars(args).keys() else check_files
-		check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.mht.eps'] if 'mht' in vars(args).keys() else check_files
-		check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.mht.pdf'] if 'mht' in vars(args).keys() else check_files
-		existing_files = []
-		for f in check_files:
-			if os.path.exists(f):
-				if not args.replace:
-					existing_files = existing_files + [f]
-					print "found file " + str(f)
-				else:
-					try:
-						os.remove(f)
-					except OSError:
-						continue
-		if len(existing_files) > 0:
-			print Stdout.PrintError("above files already exist (use --replace flag to replace)")
-			return
-		cmd = 'memory_usage((' + args.which.capitalize() + ', (' + str(config) + ',)), interval=0.1)'
-		if args.qsub:
-			Process.Qsub('qsub ' + args.qsub + ' -o ' + config['file'].replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
-		else:
-			Process.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.eval.log')
-
-	elif args.which == 'gc':
-		check_files = [args.file.replace('.gz','') + '.gc.log']
-		check_files = check_files + [args.file.replace('.gz','') + '.gc.gz']
-		check_files = check_files + [args.file.replace('.gz','') + '.gc.gz.tbi']
-		existing_files = []
-		for f in check_files:
-			if os.path.exists(f):
-				if not args.replace:
-					existing_files = existing_files + [f]
-					print "found file " + str(f)
-				else:
-					try:
-						os.remove(f)
-					except OSError:
-						continue
-		if len(existing_files) > 0:
-			print Stdout.PrintError("above files already exist (use --replace flag to replace)")
-			return
-		cmd = 'memory_usage((' + args.which.upper() + ', (' + str(config) + ',)), interval=0.1)'
-		if args.qsub:
-			Process.Qsub('qsub ' + args.qsub + ' -o ' + config['file'].replace('.gz','') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
-		else:
-			Process.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.gc.log')
-
-	elif args.which == 'annot':
-		check_files = [args.file.replace('.gz','') + '.annot.xlsx']
-		check_files = check_files + [args.file.replace('.gz','') + '.annot.log']
-		check_files = check_files + [args.file.replace('.gz','') + '.annot1']
-		check_files = check_files + [args.file.replace('.gz','') + '.annot2']
-		check_files = check_files + [args.file.replace('.gz','') + '.annot3']
-		check_files = check_files + [args.file.replace('.gz','') + '.annot.summary.genes.txt']
-		check_files = check_files + [args.file.replace('.gz','') + '.annot.summary.html']
-		existing_files = []
-		for f in check_files:
-			if os.path.exists(f):
-				if not args.replace:
-					existing_files = existing_files + [f]
-					print "found file " + str(f)
-				else:
-					try:
-						os.remove(f)
-					except OSError:
-						continue
-		if len(existing_files) > 0:
-			print Stdout.PrintError("above files already exist (use --replace flag to replace)")
-			return
-		cmd = 'memory_usage((' + args.which.capitalize() + ', (' + str(config) + ',)), interval=0.1)'
-		if args.qsub:
-			Process.Qsub('qsub ' + args.qsub + ' -o ' + config['file'].replace('.gz','') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
-		else:
-			Process.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.annot.log')
-
-	elif args.which in ['model','meta']:
-		print "preparing output directories"
-		if dist_mode == 'split-list' and n > 1:
-			IO.PrepareChrDirs(regions.df['region'], directory)
-		elif dist_mode == 'split-list-n' and n > 1:
-			IO.PrepareListDirs(n, directory)
-		if args.qsub:
+	elif args.which == 'snv':
+		if cfg['qsub']:
 			print "submitting jobs\n"
-		joblist = []
-		if not args.job is None:
-			joblist.append(args.job)
-		elif not args.jobs is None:
-			joblist.extend(jobs)
-		else:
-			joblist.extend(range(n))
-		for i in joblist:
-			if dist_mode in ['split-list', 'region']:
-				args.out = out_files['%s:%s-%s' % (str(regions.df['chr'][i]), str(regions.df['start'][i]), str(regions.df['end'][i]))]
-				args.ordered_args = [x for x in args.ordered_args if x[0] != 'out'] + [('out',args.out)]
-				if n > 1:
-					args.region = '%s:%s-%s' % (str(regions.df['chr'][i]), str(regions.df['start'][i]), str(regions.df['end'][i]))
-					args.region_list = None
-					args.ordered_args = [x for x in args.ordered_args if x[0] != 'region'] + [('region',args.region)]
-					args.ordered_args = [x for x in args.ordered_args if x[0] != 'region_list'] + [('region_list',args.region_list)]
-			elif dist_mode == 'split-list-n':
-				args.out = out_files[i]
-				args.ordered_args = [x for x in args.ordered_args if x[0] != 'out'] + [('out',args.out)]
-				rlist = args.out + '.region_list'
-				regions.df.loc[np.array_split(np.array(regions.df.index), n)[i]].to_csv(rlist, header=False, index=False, sep='\t', columns=['region', 'id'])
-				args.region_list = rlist
-				args.ordered_args = [x for x in args.ordered_args if x[0] != 'region_list'] + [('region_list',args.region_list)]
-			elif dist_mode == 'chr':
-				args.out = out_files['%s' % (str(regions.df['chr'][i]))]
-				args.ordered_args = [x for x in args.ordered_args if x[0] != 'out'] + [('out',args.out)]
-			if args.replace:
-				for f in [args.out, args.out + '.' + args.which + '.log',args.out + '.gz', args.out + '.gz.tbi']:
-					try:
-						os.remove(f)
-					except OSError:
-						continue
+		out = cfg['out']
+		for j in range(1, int(max(regions_df['job'])) + 1):
+			regions_job_df = regions_df[regions_df['job'] == j].reset_index(drop=True)
+			if int(max(regions_df['job'])) > 1:
+				cfg['out'] = directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + out + '.job' + str(j)
+				regions_job_df.to_csv(cfg['out'] + '.regions', index = False, header = True, sep='\t', na_rep='None')
 			else:
-				for f in [args.out,args.out + '.log',args.out + '.gz', args.out + '.gz.tbi']:
-					if not os.path.exists(f):
-						print Stdout.PrintError("1 or more output files already exists (use --replace flag to replace)")
-						return
-			cmd = 'RunModels(' + str(args.ordered_args) + ')'
-			if args.qsub:
-				Process.Qsub(['qsub'] + args.qsub.split() + ['-o',args.out + '.' + args.which + '.log',qsub_wrapper],'\"' + cmd + '\"')
+				cfg['out'] = directory + '/' + out
+				regions_job_df.to_csv(cfg['out'] + '.regions', index = False, header = True, sep='\t', na_rep='None')
+			args.ordered_args = [('out',cfg['out']),('region_file',cfg['out'] + '.regions'),('cpus',int(max(regions_job_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
+			cmd = 'RunSnv(' + str(args.ordered_args) + ')'
+			if cfg['qsub']:
+				Process.Qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['out'] + '.' + args.which + '.log',qsub_wrapper],'\"' + cmd + '\"')
 			else:
-				Process.Interactive(qsub_wrapper, cmd, args.out + '.' + args.which + '.log')
+				Process.Interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
+
+	elif args.which == 'gene':
+		if cfg['qsub']:
+			print "submitting jobs\n"
+		out = cfg['out']
+		for j in range(1, int(max(regions_df['job'])) + 1):
+			regions_job_df = regions_df[regions_df['job'] == j].reset_index(drop=True)
+			if int(max(regions_df['job'])) > 1:
+				cfg['out'] = directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + out + '.job' + str(j)
+				regions_job_df.to_csv(cfg['out'] + '.regions', index = False, header = True, sep='\t', na_rep='None')
+			else:
+				cfg['out'] = directory + '/' + out
+				regions_job_df.to_csv(cfg['out'] + '.regions', index = False, header = True, sep='\t', na_rep='None')
+			args.ordered_args = [('out',cfg['out']),('region_file',cfg['out'] + '.regions'),('cpus',int(max(regions_job_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
+			cmd = 'RunSnv(' + str(args.ordered_args) + ')'
+			if cfg['qsub']:
+				Process.Qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['out'] + '.' + args.which + '.log',qsub_wrapper],'\"' + cmd + '\"')
+			else:
+				Process.Interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
+
+	#elif args.which == 'map':
+	#	config = '{\'out\': \'' + cfg['out'] + '\''
+	#	for x in ['oxford','dos1','dos2','plink','vcf','region','b','kb','mb','n','chr','shift_mb','shift_kb','shift_b']:
+	#		if x in vars(args).keys() and not vars(args)[x] in [False,None]:
+	#			if type(vars(args)[x]) is str:
+	#				config = config + ',\'' + x + '\': \'' + str(vars(args)[x]) + '\''
+	#			else:
+	#				config = config + ',\'' + x + '\': ' + str(vars(args)[x])
+	#	config = config + '}'
+	#	cmd = 'memory_usage((' + args.which.capitalize() + ', (),' + config + '), interval=0.1)'
+	#	if args.replace:
+	#		for f in [cfg['out'], cfg['out'] + '.map.log']:
+	#			try:
+	#				os.remove(f)
+	#			except OSError:
+	#				continue
+	#	else:
+	#		for f in [cfg['out'], cfg['out'] + '.map.log']:
+	#			if os.path.exists(f):
+	#				print Process.PrintError("1 or more output files already exists (use --replace flag to replace)")
+	#				return
+	#	if cfg['qsub']:
+	#		Process.Qsub('qsub ' + cfg['qsub'] + ' -o ' + cfg['out'] + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
+	#	else:
+	#		Process.Interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
+
+	#elif args.which == 'compile':
+	#	out_files = {}
+	#	if args.which == "compile":
+	#		out_files = FindSubFiles(f = args.file)
+	#	if len(out_files.keys()) > 1:
+	#		existing_files = glob(args.file + '.gz*') + glob(args.file + '.log')
+	#		if len(existing_files) > 0:
+	#			if not args.replace:
+	#				print Process.PrintError("1 or more output files or files with similar basename already exists (use --replace flag to replace)")
+	#				return
+	#			else:
+	#				for f in existing_files:
+	#					try:
+	#						os.remove(f)
+	#					except OSError:
+	#						continue
+	#		complete, complete_reg = Compile.CheckResults(file_dict=out_files, out=args.file + '.verify')
+	#		if not complete:
+	#			print Process.PrintError("results could not be verified")
+	#			return
+	#		out_files = OrderedDict([(x, out_files[x]) for x in out_files.keys() if str(x) in complete_reg])
+	#		if cfg['split']:
+	#			compile_fxn = 'Compile.CompileResultsSplit'
+	#		elif cfg['split']_chr:
+	#			compile_fxn = 'Compile.CompileResultsSplitChr'
+	#		else:
+	#			compile_fxn = 'Compile.CompileResults'
+	#		if not globals()[compile_fxn](out_files, args.file):
+	#			print Process.PrintError("results could not be compiled")
+	#			return
+	#	else:
+	#		print Process.PrintError("no split results to compile")
+	#		return
+
+	#elif args.which == 'eval':
+	#	check_files = [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.eval.log']
+	#	check_files = [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.top_results']
+	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq.tiff'] if 'qq' in vars(args).keys() else check_files
+	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq_strat.tiff'] if 'qq_strat' in vars(args).keys() else check_files
+	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq.eps'] if 'qq' in vars(args).keys() else check_files
+	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq_strat.eps'] if 'qq_strat' in vars(args).keys() else check_files
+	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq.pdf'] if 'qq' in vars(args).keys() else check_files
+	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq_strat.pdf'] if 'qq_strat' in vars(args).keys() else check_files
+	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.mht.tiff'] if 'mht' in vars(args).keys() else check_files
+	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.mht.eps'] if 'mht' in vars(args).keys() else check_files
+	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.mht.pdf'] if 'mht' in vars(args).keys() else check_files
+	#	existing_files = []
+	#	for f in check_files:
+	#		if os.path.exists(f):
+	#			if not args.replace:
+	#				existing_files = existing_files + [f]
+	#				print "found file " + str(f)
+	#			else:
+	#				try:
+	#					os.remove(f)
+	#				except OSError:
+	#					continue
+	#	if len(existing_files) > 0:
+	#		print Process.PrintError("above files already exist (use --replace flag to replace)")
+	#		return
+	#	cmd = 'memory_usage((' + args.which.capitalize() + ', (' + str(config) + ',)), interval=0.1)'
+	#	if cfg['qsub']:
+	#		Process.Qsub('qsub ' + cfg['qsub'] + ' -o ' + config['file'].replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
+	#	else:
+	#		Process.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.eval.log')
+
+	#elif args.which == 'gc':
+	#	check_files = [args.file.replace('.gz','') + '.gc.log']
+	#	check_files = check_files + [args.file.replace('.gz','') + '.gc.gz']
+	#	check_files = check_files + [args.file.replace('.gz','') + '.gc.gz.tbi']
+	#	existing_files = []
+	#	for f in check_files:
+	#		if os.path.exists(f):
+	#			if not args.replace:
+	#				existing_files = existing_files + [f]
+	#				print "found file " + str(f)
+	#			else:
+	#				try:
+	#					os.remove(f)
+	#				except OSError:
+	#					continue
+	#	if len(existing_files) > 0:
+	#		print Process.PrintError("above files already exist (use --replace flag to replace)")
+	#		return
+	#	cmd = 'memory_usage((' + args.which.upper() + ', (' + str(config) + ',)), interval=0.1)'
+	#	if cfg['qsub']:
+	#		Process.Qsub('qsub ' + cfg['qsub'] + ' -o ' + config['file'].replace('.gz','') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
+	#	else:
+	#		Process.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.gc.log')
+
+	#elif args.which == 'annot':
+	#	check_files = [args.file.replace('.gz','') + '.annot.xlsx']
+	#	check_files = check_files + [args.file.replace('.gz','') + '.annot.log']
+	#	check_files = check_files + [args.file.replace('.gz','') + '.annot1']
+	#	check_files = check_files + [args.file.replace('.gz','') + '.annot2']
+	#	check_files = check_files + [args.file.replace('.gz','') + '.annot3']
+	#	check_files = check_files + [args.file.replace('.gz','') + '.annot.summary.genes.txt']
+	#	check_files = check_files + [args.file.replace('.gz','') + '.annot.summary.html']
+	#	existing_files = []
+	#	for f in check_files:
+	#		if os.path.exists(f):
+	#			if not args.replace:
+	#				existing_files = existing_files + [f]
+	#				print "found file " + str(f)
+	#			else:
+	#				try:
+	#					os.remove(f)
+	#				except OSError:
+	#					continue
+	#	if len(existing_files) > 0:
+	#		print Process.PrintError("above files already exist (use --replace flag to replace)")
+	#		return
+	#	cmd = 'memory_usage((' + args.which.capitalize() + ', (' + str(config) + ',)), interval=0.1)'
+	#	if cfg['qsub']:
+	#		Process.Qsub('qsub ' + cfg['qsub'] + ' -o ' + config['file'].replace('.gz','') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
+	#	else:
+	#		Process.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.annot.log')
+
 	else:
-		print Stdout.PrintError(args.which + " not a module")
+		print Process.PrintError(args.which + " not a module")
 
 	print ''
 
