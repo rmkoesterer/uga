@@ -96,10 +96,10 @@ def GenerateSnvCfg(args):
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'formula': None, 'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
 							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 3.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
-							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'snv_list': None}
+							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
-			config['models'][args[tags_idx[i]][1]] = config_default
+			config['models'][args[tags_idx[i]][1]] = config_default.copy()
 			for arg in global_args:
 				if arg[0] in ['bssmeta']:
 					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
@@ -173,7 +173,7 @@ def PrintSnvOptions(cfg):
 			print "      {0:>{1}}".format(str('--meta ' + m), len(max(['--' + k for k in cfg['meta_order']],key=len))) + ":" + str(cfg['meta'][m])
 
 def GenerateGeneCfg(args):
-	config = {'out': None, 'buffer': 1000, 'id': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'gene_map': None, 
+	config = {'out': None, 'buffer': 1000, 'id': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'gene_map': None, 'region_file': None, 
 					'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
 	for arg in args:
 		if arg[0] == 'out':
@@ -192,6 +192,8 @@ def GenerateGeneCfg(args):
 			config['split_n'] = arg[1]
 		if arg[0] == 'gene_map':
 			config['gene_map'] = arg[1]
+		if arg[0] == 'region_file':
+			config['region_file'] = arg[1]
 
 	tags_idx = [args.index((x,y)) for x, y in args if x == 'tag'] + [len(args)]
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
@@ -200,7 +202,7 @@ def GenerateGeneCfg(args):
 							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
-			config['models'][args[tags_idx[i]][1]] = config_default
+			config['models'][args[tags_idx[i]][1]] = config_default.copy()
 			for arg in global_args:
 				if arg[0] in ['bskato']:
 					config['models'][args[tags_idx[i]][1]]['case_code'] = 1

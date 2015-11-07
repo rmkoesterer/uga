@@ -58,7 +58,7 @@ def process_regions(regions_df, cfg, models, cpu, log):
 			i = 0
 			written = False
 			results_final = pd.DataFrame({})
-			print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['region'][k] + ')',
+			print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['gene'][k] + ":" + regions_df['region'][k] + ')',
 
 			try:
 				m.get_region(regions_df['region'][k])
@@ -115,11 +115,12 @@ def process_regions(regions_df, cfg, models, cpu, log):
 	else:
 		return -1
 
-def RunSnv(args):
-	cfg = Parse.GenerateSnvCfg(args)
-	Parse.PrintSnvOptions(cfg)
+def RunGene(args):
+	cfg = Parse.GenerateGeneCfg(args)
+	Parse.PrintGeneOptions(cfg)
 
 	regions_df = pd.read_table(cfg['region_file'])
+	print regions_df
 	return_values = {}
 	models = {}
 	bgzfiles = {}

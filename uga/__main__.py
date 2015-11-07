@@ -147,18 +147,25 @@ def main(args=None):
 		except OSError:
 			pass
 
-		for j in range(1, int(max(regions_df['job'])) + 1):
-			try:
-				os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))
-			except OSError:
-				pass
-			try:
-				os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j))
-			except OSError:
-				pass
-			for chr in regions_df['chr'][regions_df['job'] == j]:
+		if run_type in [10,11,100,101]:
+			for j in range(1, int(max(regions_df['job'])) + 1):
 				try:
-					os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/chr' + str(chr))
+					os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))
+				except OSError:
+					pass
+				try:
+					os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j))
+				except OSError:
+					pass
+				for chr in np.unique(regions_df['chr'][regions_df['job'] == j]):
+					try:
+						os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/chr' + str(chr))
+					except OSError:
+						continue
+		else:
+			for chr in np.unique(regions_df['chr']):
+				try:
+					os.mkdir(directory + '/chr' + str(chr))
 				except OSError:
 					continue
 
@@ -208,7 +215,7 @@ def main(args=None):
 				cfg['out'] = directory + '/' + out
 				regions_job_df.to_csv(cfg['out'] + '.regions', index = False, header = True, sep='\t', na_rep='None')
 			args.ordered_args = [('out',cfg['out']),('region_file',cfg['out'] + '.regions'),('cpus',int(max(regions_job_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
-			cmd = 'RunSnv(' + str(args.ordered_args) + ')'
+			cmd = 'RunGene(' + str(args.ordered_args) + ')'
 			if cfg['qsub']:
 				Process.Qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['out'] + '.' + args.which + '.log',qsub_wrapper],'\"' + cmd + '\"')
 			else:

@@ -49,25 +49,17 @@ cdef double[:] Vcf2Dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 	return dose
 
 cdef class Biodata(object):
-	cdef public bytes filename, snv_list_file, region, id
+	cdef public bytes filename, region, id
 	cdef public np.ndarray samples
-	cdef public object handle, snv_list_handle, region_iter
+	cdef public object handle, region_iter
 	cdef public unsigned int chr, start, end
-	cdef public np.ndarray snv_list, chunk, genos, marker_data, marker_info
-	def __cinit__(self, filename, snv_list_file = None):
+	cdef public np.ndarray chunk, genos, marker_data, marker_info
+	def __cinit__(self, filename):
 		self.filename = filename
-		self.snv_list_file = snv_list_file
-
-		if self.snv_list_file is not None:
-			print "loading variant list"
-			try:
-				self.snv_list_handle=pysam.TabixFile(filename=self.snv_list_file,parser=pysam.asTuple())
-			except:
-				raise Error("failed to load variant list iterator")
 
 cdef class Vcf(Biodata):
-	def __cinit__(self, filename, snv_list_file = None):
-		super(Vcf, self).__init__(filename, snv_list_file)
+	def __cinit__(self, filename):
+		super(Vcf, self).__init__(filename)
 
 		print "loading vcf file"
 		try:
@@ -91,13 +83,6 @@ cdef class Vcf(Biodata):
 			self.region_iter = self.handle.fetch(region=region, parser=pysam.asTuple())
 		except:
 			raise Exception
-		if self.snv_list_file is not None:
-			try:
-				v = self.snv_list_handle.fetch(region=region, parser=pysam.asTuple())
-			except:
-				pass
-			else:
-				self.snv_list = np.array(['chr' + x[0] + 'bp' + x[1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',x[2][0:60]) + '_'  + x[3][0:20] + '_'  + x[4][0:20] for x in v if int(x[1]) >= self.start and int(x[1]) <= self.end])
 
 	cpdef get_chunk(self, int buffer):
 		c = np.empty((buffer,10 + len(self.samples)), dtype='object')
@@ -146,8 +131,6 @@ cdef class Vcf(Biodata):
 					c[i,9] = 'chr' + c[i,0] + 'bp' + c[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i,2][0:60]) + '_'  + re_sub('&','_',c[i,3][0:20]) + '_'  + c[i,4][0:20]
 					i += 1
 			c = c[(c[:i,1].astype(int) >= self.start) & (c[:i,1].astype(int) <= self.end)]
-			if self.snv_list is not None:
-				c = c[np.in1d(c[:,9],np.intersect1d(c[:,9],self.snv_list))]
 			self.marker_info = np.array([tuple(row) for row in c[:,[0,1,2,3,4,5,9]]], dtype=zip(np.array(['chr','pos','marker','a1','a2','id','marker_unique']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100'])))
 			self.marker_data = np.column_stack((self.samples, c[:,10:].transpose()))
 			np.place(self.marker_data, self.marker_data == 'NA',np.nan)

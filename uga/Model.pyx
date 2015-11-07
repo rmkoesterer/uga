@@ -37,12 +37,12 @@ cdef class Model(object):
 	cdef public unsigned int case_code, ctrl_code, tbx_start, tbx_end
 	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx
 	cdef public np.ndarray focus, model_cols, results_header, results_dtypes, marker_stats, results, unique_idx, founders_idx, founders_ctrls_idx, males_idx, females_idx
-	cdef public bytes formula, format, snv_list_file, pheno_file, biodata_file, type, iid, fid, matid, patid, sex, pheno_sep, results_header_metadata, a1, a2
+	cdef public bytes formula, format, pheno_file, biodata_file, type, iid, fid, matid, patid, sex, pheno_sep, results_header_metadata, a1, a2
 	cdef public unsigned int male, female, nobs, nunique, nfounders, nlongitudinal, nfamilies, nunrelated, ncases, nctrls, nmales, nfemales
 	cdef public dict fields
 	cdef public object pheno, biodata, out
 	cdef public bint all_founders
-	def __cinit__(self, formula, format, biodata_file, pheno_file, type, iid, fid, case_code = None, ctrl_code = None, snv_list_file = None, all_founders = False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = '\t'):
+	def __cinit__(self, formula, format, biodata_file, pheno_file, type, iid, fid, case_code = None, ctrl_code = None, all_founders = False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = '\t'):
 		self.formula = formula
 		self.format = format
 		self.biodata_file = biodata_file
@@ -52,7 +52,6 @@ cdef class Model(object):
 		self.fid = fid
 		self.case_code = case_code
 		self.ctrl_code = ctrl_code
-		self.snv_list_file = snv_list_file
 		self.matid = matid
 		self.patid = patid
 		self.sex = sex
@@ -64,7 +63,7 @@ cdef class Model(object):
 
 	def load(self):
 		try:
-			self.biodata = getattr(Geno,self.format.capitalize())(self.biodata_file, self.snv_list_file)
+			self.biodata = getattr(Geno,self.format.capitalize())(self.biodata_file)
 		except Error as err:
 			raise err
 		else:
@@ -79,7 +78,7 @@ cdef class Model(object):
 			try:
 				self.pheno = np.genfromtxt(fname=self.pheno_file, delimiter=self.pheno_sep, dtype=p_dtypes, names=True, usecols=p_names)
 			except:
-				raise Error("unable to load phenotype file")
+				raise Error("unable to load phenotype file " + self.pheno_file + " with columns " + ', '.join(p_names))
 			for x in [y for y in dtypes if dtypes[y] == '>f8']:
 				self.pheno = self.pheno[~np.isnan(self.pheno[x])]
 			for x in [y for y in dtypes if dtypes[y] == '|S100']:
@@ -230,9 +229,9 @@ cdef class Model(object):
 				self.marker_stats['filter'][i] += 1
 
 cdef class Bssmeta(Model):
-	def __cinit__(self, formula, format, snv_list_file, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
-		super(Bssmeta, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, snv_list_file=snv_list_file, all_founders=all_founders, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
-		self.results_header = np.array(['chr','pos','marker','a1','a2','id','filter','callrate','mac','freq','freq.case','freq.ctrl','rsq','hwe'])
+	def __cinit__(self, formula, format, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
+		super(Bssmeta, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, all_founders=all_founders, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
+		self.results_header = np.array(['chr','pos','marker','a1','a2','filter','callrate','mac','freq','freq.case','freq.ctrl','rsq','hwe'])
 		self.out = None
 		self.tbx_start = 1
 		self.tbx_end = 1
@@ -291,7 +290,6 @@ cdef class Bssmeta(Model):
 									'## marker: variant name' + '\n' + \
 									'## a1: reference (coded) allele used for stat calculations' + '\n' + \
 									'## a2: alternate (non-coded) allele' + '\n' + \
-									'## id: user defined region id (coded as NA if not defined by user)' + '\n' + \
 									'## filter: filter code (+1 = failed hwe, +10 = failed rsq, +100 = failed mac, +1000 = failed maf, +10000 = failed miss' + '\n' + \
 									'## callrate: callrate' + '\n' + \
 									'## mac: minor allele count (calculated only if dosages are in [0,1,2], otherwise coded as NA)' + '\n' + \
@@ -388,8 +386,8 @@ cdef class Bssmeta(Model):
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.biodata.marker_info,self.marker_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
 
 cdef class Bskato(Model):
-	def __cinit__(self, formula, format, snv_list_file, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
-		super(Bskato, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, snv_list_file=snv_list_file, all_founders=all_founders, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
+	def __cinit__(self, formula, format, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
+		super(Bskato, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, all_founders=all_founders, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
 		self.results_header = np.array(['chr','start','end','id'])
 		self.out = None
 		self.tbx_start = 1

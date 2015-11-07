@@ -65,9 +65,9 @@ def SnvArgs(snv_parser):
 						action=AddString, 
 						type=int, 
 						help='number of cpus')
-	snv_parser.add_argument('--snv-list', 
-						action=AddString, 
-						help='variant list file')
+	#snv_parser.add_argument('--snv-list', 
+	#					action=AddString, 
+	#					help='variant list file')
 	snv_parser.add_argument('--fid', 
 						action=AddString, 
 						help='column name with family ID')
