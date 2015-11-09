@@ -95,7 +95,7 @@ def GenerateSnvCfg(args):
 	tags_idx = [args.index((x,y)) for x, y in args if x == 'tag'] + [len(args)]
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'formula': None, 'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
-							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 3.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
+							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 1.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
@@ -198,7 +198,7 @@ def GenerateGeneCfg(args):
 	tags_idx = [args.index((x,y)) for x, y in args if x == 'tag'] + [len(args)]
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'formula': None, 'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
-							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 3.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
+							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 1.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):

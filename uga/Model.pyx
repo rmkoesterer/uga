@@ -37,16 +37,17 @@ cdef class Model(object):
 	cdef public unsigned int case_code, ctrl_code, tbx_start, tbx_end
 	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx
 	cdef public np.ndarray focus, model_cols, results_header, results_dtypes, marker_stats, results, unique_idx, founders_idx, founders_ctrls_idx, males_idx, females_idx
-	cdef public bytes formula, format, pheno_file, biodata_file, type, iid, fid, matid, patid, sex, pheno_sep, results_header_metadata, a1, a2
+	cdef public bytes formula, format, pheno_file, biodata_file, gene_map, type, iid, fid, matid, patid, sex, pheno_sep, results_header_metadata, a1, a2
 	cdef public unsigned int male, female, nobs, nunique, nfounders, nlongitudinal, nfamilies, nunrelated, ncases, nctrls, nmales, nfemales
 	cdef public dict fields
 	cdef public object pheno, biodata, out
 	cdef public bint all_founders
-	def __cinit__(self, formula, format, biodata_file, pheno_file, type, iid, fid, case_code = None, ctrl_code = None, all_founders = False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = '\t'):
+	def __cinit__(self, formula, format, biodata_file, pheno_file, type, iid, fid, gene_map = None, case_code = None, ctrl_code = None, all_founders = False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = '\t'):
 		self.formula = formula
 		self.format = format
 		self.biodata_file = biodata_file
 		self.pheno_file = pheno_file
+		self.gene_map = gene_map
 		self.type = type
 		self.iid = iid
 		self.fid = fid
@@ -187,6 +188,19 @@ cdef class Model(object):
 			else:
 				self.calc_marker_stats()
 
+	cpdef get_gene(self, gene):
+		try:
+			self.biodata.get_gene(gene)
+		except:
+			raise
+		else:
+			try:
+				self.biodata.marker_data = self.biodata.marker_data[np.in1d(self.biodata.marker_data[:,0],np.intersect1d(self.pheno[self.iid],self.biodata.marker_data[:,0]))]
+			except:
+				raise Error("phenotype file and data file contain no common samples")
+			else:
+				self.calc_marker_stats()
+
 	def print_fields(self):
 		print "model fields ..."
 		print "      {0:>{1}}".format("field", len(max(["field"] + [key for key in self.fields.keys()],key=len))) + "   " + "{0:>{1}}".format("type", len(max(["type"] + [self.fields[key]['type'] for key in self.fields],key=len))) + "   " + "{0:>{1}}".format("class", len(max(["class"] + [self.fields[key]['class'] for key in self.fields],key=len)))
@@ -196,6 +210,28 @@ cdef class Model(object):
 
 	cdef add_id_col(self):
 		self.results_header = np.append(self.results_header,np.array(['id']))
+
+	cpdef calc_marker_stats(self):
+		self.marker_stats = np.zeros((self.biodata.marker_info.shape[0],1), dtype=[('filter','uint32'),('mac','uint32'),('callrate','>f8'),('freq','>f8'),('freq.case','>f8'),('freq.ctrl','>f8'),('rsq','>f8'),('hwe','>f8')])
+		cdef unsigned int i
+		if self.biodata.chr == 23:
+			for i in xrange(self.biodata.marker_info.shape[0]):
+				self.marker_stats['mac'][i] = Variant.CalcMAC(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
+				self.marker_stats['callrate'][i] = Variant.CalcCallrate(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
+				self.marker_stats['rsq'][i] = Variant.CalcRsq(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
+				self.marker_stats['freq'][i] = Variant.CalcFreqX(male=self.biodata.marker_data[self.male_idx,i+1].astype('float64'), female=self.biodata.marker_data[self.female_idx,i+1].astype('float64')) if len(self.male_idx) > 0 and len(self.female_idx) > 0 else np.nan
+				self.marker_stats['freq.case'][i] = Variant.CalcFreqX(male=self.biodata.marker_data[self.male_cases_idx,i+1].astype('float64'), female=self.biodata.marker_data[self.female_cases_idx,i+1].astype('float64')) if len(self.male_cases_idx) > 0 and len(self.female_cases_idx) > 0 else np.nan
+				self.marker_stats['freq.ctrl'][i] = Variant.CalcFreqX(male=self.biodata.marker_data[self.male_ctrls_idx,i+1].astype('float64'), female=self.biodata.marker_data[self.female_ctrls_idx,i+1].astype('float64')) if len(self.male_ctrls_idx) > 0 and len(self.female_ctrls_idx) > 0 else np.nan
+				self.marker_stats['hwe'][i] = Variant.CalcHWE(self.biodata.marker_data[self.founders_ctrls_idx,i+1].astype('float64')) if len(self.founders_ctrls_idx) > 0 else np.nan
+		else:
+			for i in xrange(self.biodata.marker_info.shape[0]):
+				self.marker_stats['mac'][i] = Variant.CalcMAC(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
+				self.marker_stats['callrate'][i] = Variant.CalcCallrate(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
+				self.marker_stats['rsq'][i] = Variant.CalcRsq(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
+				self.marker_stats['freq'][i] = Variant.CalcFreq(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
+				self.marker_stats['freq.case'][i] = Variant.CalcFreq(self.biodata.marker_data[self.cases_idx,i+1].astype('float64')) if len(self.cases_idx) > 0 else np.nan
+				self.marker_stats['freq.ctrl'][i] = Variant.CalcFreq(self.biodata.marker_data[self.ctrls_idx,i+1].astype('float64')) if len(self.ctrls_idx) > 0 else np.nan
+				self.marker_stats['hwe'][i] = Variant.CalcHWE(self.biodata.marker_data[self.founders_ctrls_idx,i+1].astype('float64')) if len(self.founders_ctrls_idx) > 0 else np.nan
 
 	cpdef filter(self, np.float miss_thresh=None, np.float maf_thresh=None, np.float maxmaf_thresh=None, np.float mac_thresh=None, 
 								np.float rsq_thresh=None, np.float hwe_thresh=None, np.float hwe_maf_thresh=None, no_mono=True):
@@ -229,7 +265,7 @@ cdef class Model(object):
 				self.marker_stats['filter'][i] += 1
 
 cdef class Bssmeta(Model):
-	def __cinit__(self, formula, format, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
+	def __cinit__(self, formula, format, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, gene_map = None, all_founders = False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
 		super(Bssmeta, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, all_founders=all_founders, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
 		self.results_header = np.array(['chr','pos','marker','a1','a2','filter','callrate','mac','freq','freq.case','freq.ctrl','rsq','hwe'])
 		self.out = None
@@ -306,28 +342,6 @@ cdef class Bssmeta(Model):
 									'## *.or: odds ratio (exp(effect), not provided by seqMeta)' + '\n' + \
 									'## *.p: p-value' + '\n#'
 
-	cpdef calc_marker_stats(self):
-		self.marker_stats = np.zeros((self.biodata.marker_info.shape[0],1), dtype=[('filter','uint32'),('mac','>f8'),('callrate','>f8'),('freq','>f8'),('freq.case','>f8'),('freq.ctrl','>f8'),('rsq','>f8'),('hwe','>f8')])
-		cdef unsigned int i
-		if self.biodata.chr == 23:
-			for i in xrange(self.biodata.marker_info.shape[0]):
-				self.marker_stats['mac'][i] = Variant.CalcMAC(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['callrate'][i] = Variant.CalcCallrate(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['rsq'][i] = Variant.CalcRsq(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['freq'][i] = Variant.CalcFreqX(male=self.biodata.marker_data[self.male_idx,i+1].astype('float64'), female=self.biodata.marker_data[self.female_idx,i+1].astype('float64')) if len(self.male_idx) > 0 and len(self.female_idx) > 0 else np.nan
-				self.marker_stats['freq.case'][i] = Variant.CalcFreqX(male=self.biodata.marker_data[self.male_cases_idx,i+1].astype('float64'), female=self.biodata.marker_data[self.female_cases_idx,i+1].astype('float64')) if len(self.male_cases_idx) > 0 and len(self.female_cases_idx) > 0 else np.nan
-				self.marker_stats['freq.ctrl'][i] = Variant.CalcFreqX(male=self.biodata.marker_data[self.male_ctrls_idx,i+1].astype('float64'), female=self.biodata.marker_data[self.female_ctrls_idx,i+1].astype('float64')) if len(self.male_ctrls_idx) > 0 and len(self.female_ctrls_idx) > 0 else np.nan
-				self.marker_stats['hwe'][i] = Variant.CalcHWE(self.biodata.marker_data[self.founders_ctrls_idx,i+1].astype('float64')) if len(self.founders_ctrls_idx) > 0 else np.nan
-		else:
-			for i in xrange(self.biodata.marker_info.shape[0]):
-				self.marker_stats['mac'][i] = Variant.CalcMAC(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['callrate'][i] = Variant.CalcCallrate(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['rsq'][i] = Variant.CalcRsq(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['freq'][i] = Variant.CalcFreq(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['freq.case'][i] = Variant.CalcFreq(self.biodata.marker_data[self.cases_idx,i+1].astype('float64')) if len(self.cases_idx) > 0 else np.nan
-				self.marker_stats['freq.ctrl'][i] = Variant.CalcFreq(self.biodata.marker_data[self.ctrls_idx,i+1].astype('float64')) if len(self.ctrls_idx) > 0 else np.nan
-				self.marker_stats['hwe'][i] = Variant.CalcHWE(self.biodata.marker_data[self.founders_ctrls_idx,i+1].astype('float64')) if len(self.founders_ctrls_idx) > 0 else np.nan
-
 	cpdef calc_model(self):
 		pheno_df = pd.DataFrame(self.pheno,dtype='object')
 		passed = list(np.where(self.marker_stats['filter'] == 0)[0])
@@ -386,8 +400,8 @@ cdef class Bssmeta(Model):
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.biodata.marker_info,self.marker_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
 
 cdef class Bskato(Model):
-	def __cinit__(self, formula, format, pheno_file, biodata_file, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
-		super(Bskato, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, all_founders=all_founders, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
+	def __cinit__(self, formula, format, pheno_file, biodata_file, gene_map, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
+		super(Bskato, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, all_founders=all_founders, gene_map=gene_map, pheno_file=pheno_file, biodata_file=biodata_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
 		self.results_header = np.array(['chr','start','end','id'])
 		self.out = None
 		self.tbx_start = 1
@@ -396,7 +410,7 @@ cdef class Bskato(Model):
 		# set marker as the focus variable (which is only statistic provided by singlesnpMeta())
 		# to get list of model variables from R, use
 		# self.focus = np.array([x for x in list(ro.r('labels')(ro.r('terms')(ro.r('formula')(self.formula)))) if 'marker' in x])
-		self.focus = np.array(['marker'])
+		#self.focus = np.array(['marker'])
 
 		# parse formula into dictionary
 		#
@@ -412,11 +426,12 @@ cdef class Bskato(Model):
 				self.fields[x] = {'class': 'factor', 'type': mtype, 'dtype': '>f8'}
 			else:
 				self.fields[x] = {'class': 'numeric', 'type': mtype, 'dtype': '>f8'}
-		if len(self.focus) > 1:
-			for x in self.focus:
-				self.results_header = np.append(self.results_header,np.array([x + '.err',x + '.nmiss',x + '.nsnps',x + '.cmaf',x + '.p',x + '.pmin',x + '.rho']))
-		else:
-			self.results_header = np.append(self.results_header,np.array(['err','nmiss','nsnps','cmaf','p','pmin','rho']))
+		#if len(self.focus) > 1:
+		#	for x in self.focus:
+		#		self.results_header = np.append(self.results_header,np.array([x + '.err',x + '.nmiss',x + '.nsnps',x + '.cmaf',x + '.p',x + '.pmin',x + '.rho']))
+		#else:
+		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
+
 		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'marker'])))
 
 		from rpy2.robjects.packages import importr
@@ -425,6 +440,11 @@ cdef class Bskato(Model):
 
 		try:
 			self.load()
+		except Error as err:
+			raise err
+
+		try:
+			self.biodata.load_gene_map(self.gene_map)
 		except Error as err:
 			raise err
 
@@ -446,6 +466,7 @@ cdef class Bskato(Model):
 									'## start: start chromosomal position' + '\n' + \
 									'## end: end chromosomal position' + '\n' + \
 									'## id: region id (ie. gene)' + '\n' + \
+									'## *.mac: minor allele count for the gene' + '\n' + \
 									'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatOMeta)' + '\n' + \
 									'## *.nmiss: number of missing genotypes in gene' + '\n' + \
 									'## *.nsnps: number of snps in the gene' + '\n' + \
@@ -454,33 +475,11 @@ cdef class Bskato(Model):
 									'## *.pmin: minimum snp p-value' + '\n' + \
 									'## *.rho: skato rho parameter' + '\n#'
 
-	cpdef calc_marker_stats(self):
-		self.marker_stats = np.zeros((self.biodata.marker_info.shape[0],1), dtype=[('filter','uint32'),('mac','uint32'),('callrate','>f8'),('freq','>f8'),('freq.case','>f8'),('freq.ctrl','>f8'),('rsq','>f8'),('hwe','>f8')])
-		cdef unsigned int i
-		if self.biodata.chr == 23:
-			for i in xrange(self.biodata.marker_info.shape[0]):
-				self.marker_stats['mac'][i] = Variant.CalcMAC(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['callrate'][i] = Variant.CalcCallrate(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['rsq'][i] = Variant.CalcRsq(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['freq'][i] = Variant.CalcFreqX(male=self.biodata.marker_data[self.male_idx,i+1].astype('float64'), female=self.biodata.marker_data[self.female_idx,i+1].astype('float64')) if len(self.male_idx) > 0 and len(self.female_idx) > 0 else np.nan
-				self.marker_stats['freq.case'][i] = Variant.CalcFreqX(male=self.biodata.marker_data[self.male_cases_idx,i+1].astype('float64'), female=self.biodata.marker_data[self.female_cases_idx,i+1].astype('float64')) if len(self.male_cases_idx) > 0 and len(self.female_cases_idx) > 0 else np.nan
-				self.marker_stats['freq.ctrl'][i] = Variant.CalcFreqX(male=self.biodata.marker_data[self.male_ctrls_idx,i+1].astype('float64'), female=self.biodata.marker_data[self.female_ctrls_idx,i+1].astype('float64')) if len(self.male_ctrls_idx) > 0 and len(self.female_ctrls_idx) > 0 else np.nan
-				self.marker_stats['hwe'][i] = Variant.CalcHWE(self.biodata.marker_data[self.founders_ctrls_idx,i+1].astype('float64')) if len(self.founders_ctrls_idx) > 0 else np.nan
-		else:
-			for i in xrange(self.biodata.marker_info.shape[0]):
-				self.marker_stats['mac'][i] = Variant.CalcMAC(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['callrate'][i] = Variant.CalcCallrate(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['rsq'][i] = Variant.CalcRsq(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['freq'][i] = Variant.CalcFreq(self.biodata.marker_data[self.unique_idx,i+1].astype('float64'))
-				self.marker_stats['freq.case'][i] = Variant.CalcFreq(self.biodata.marker_data[self.cases_idx,i+1].astype('float64')) if len(self.cases_idx) > 0 else np.nan
-				self.marker_stats['freq.ctrl'][i] = Variant.CalcFreq(self.biodata.marker_data[self.ctrls_idx,i+1].astype('float64')) if len(self.ctrls_idx) > 0 else np.nan
-				self.marker_stats['hwe'][i] = Variant.CalcHWE(self.biodata.marker_data[self.founders_ctrls_idx,i+1].astype('float64')) if len(self.founders_ctrls_idx) > 0 else np.nan
-
 	cpdef calc_model(self):
 		pheno_df = pd.DataFrame(self.pheno,dtype='object')
 		passed = list(np.where(self.marker_stats['filter'] == 0)[0])
 		passed_marker_data = list(np.where(self.marker_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','|S100'),('start','|S100'),('end','|S100'),('id','|S100'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','|S100'),('start','|S100'),('end','|S100'),('id','|S100'),('mac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
 		self.results['chr'][0] = self.biodata.chr
 		self.results['start'][0] = self.biodata.start
 		self.results['end'][0] = self.biodata.end
@@ -495,6 +494,7 @@ cdef class Bskato(Model):
 			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
 			ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': list(self.biodata.marker_info['marker_unique'][passed]), 'gene': 'NA'}), strings_as_factors=False)
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% markers])')
+			self.results['mac'][0] = ro.r('sum(z)')
 			if len(passed) == 1:
 				ro.r('colnames(z)<-"' + self.biodata.marker_info['marker_unique'][passed][0] + '"')
 			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='binomial')"
@@ -527,8 +527,64 @@ cdef class Bskato(Model):
 				self.results['rho'][0] = np.array(ro.r('result$rho'))[:,None]
 		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
 
+	cpdef tag_results(self, tag):
+		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']]))
+		self.results = self.results.view(dtype=[('chr','|S100'),('start','|S100'),('end','|S100'),('id','|S100'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
+		if not np.isnan(self.results[tag + '.p'][0]):
+			ro.r(tag + '_ps<-ps')
+
+def align_biodata(model_order, models):
+	biodata_db = {}
+	for m in model_order:
+		i = 0
+		for row in models[m].biodata.marker_info:
+			i += 1
+			if not row['uid'][0] in biodata_db:
+				biodata_db[row['uid']] = {}
+				biodata_db[row['uid']]['marker'] = row['marker']
+				biodata_db[row['uid']]['marker_unique'] = row['marker_unique']
+				biodata_db[row['uid']]['a1'] = row['a1'][0]
+				biodata_db[row['uid']]['a2'] = row['a2'][0]
+			else:
+				if (biodata_db[row['uid']]['a1'] + biodata_db[row['uid']]['a2'] == Geno.complement(row['a2'][0]) + Geno.complement(row['a1'][0]) or biodata_db[row['uid']]['a1'] + biodata_db[row['uid']]['a2'] == row['a2'] + row['a1'] or biodata_db[row['uid']]['a1'] + biodata_db[row['uid']]['a2'] == Geno.complement(row['a2'][0]) + 'NA' or biodata_db[row['uid']]['a1'] + biodata_db[row['uid']]['a2'] == row['a2'] + 'NA') and biodata_db[row['uid']]['a1'] + biodata_db[row['uid']]['a2'] != "AT" and biodata_db[row['uid']]['a1'] + biodata_db[row['uid']]['a2'] != "TA" and biodata_db[row['uid']]['a1'] + biodata_db[row['uid']]['a2'] != "GC" and biodata_db[row['uid']]['a1'] + biodata_db[row['uid']]['a2'] != "CG":
+					models[m].biodata.marker_info['a1'][i] = biodata_db[row['uid']]['a1']
+					models[m].biodata.marker_info['a2'][i] = biodata_db[row['uid']]['a2']
+					models[m].biodata.marker_info['marker'][i] = biodata_db[row['uid']]['marker']
+					models[m].biodata.marker_info['marker_unique'][i] = biodata_db[row['uid']]['marker_unique']
+					models[m].biodata.marker_data[:,i+1] = 2.0 - models[m].biodata.marker_data[:,i+1].astype(float)
 
 
+
+	###### UPDATE DATABASE AND FLIP MARKERS WHERE NECESSARY #####
+	#if len(cfg['model_order']) > 1:
+	#	##### GENERATE ANALOGS FOR ALL MARKERS IN CHUNK #####
+	#	chunkdf['analogs'] = chunkdf.apply(lambda row: MiscFxnsCy.ListCompatibleMarkersCy(row['chr'],row['pos'],row['a1'],row['a2'],'><'),axis=1)
+	#	if k == cfg['model_order'][0] or mdb is None:
+	#		##### GENERATE INITIAL REFERENCE MARKER DATABASE #####
+	#		mdb = pd.DataFrame({'chr': list(chunkdf['chr']),'pos': list(chunkdf['pos']),'marker': list(chunkdf['marker']),'a1': chunkdf['a1'].astype(str).replace('-','_'),'a2': chunkdf['a2'].astype(str).replace('-','_'), 
+	#									'analogs': chunkdf.apply(lambda row: MiscFxnsCy.ListCompatibleMarkersCy(row['chr'],row['pos'],row['a1'],row['a2'],'><'),axis=1)})
+	#	else:
+	#		##### FLIP CHUNK MARKERS IF NECESSARY #####
+	#		chunkdf = chunkdf.apply(lambda row: MiscFxns.ChunkFlip(row, mdb),1)
+	#		##### UPDATE REFERENCE MARKER DATABASE #####
+	#		mdb = mdb.apply(lambda row: MiscFxns.MdbUpdate(row,chunkdf),1)
+	#		##### APPEND ANY NEW MARKERS TO REFERENCE MARKER DATABASE #####
+	#		mdb = MiscFxns.MdbAppend(mdb, chunkdf)
+	#	##### FILL IN ANY MISSING ALT ALLELES FROM PREVIOUS RESULTS WITH ALT ALLELES FROM UPDATED MARKER DATABASE #####
+	#	for t in cfg['model_order'][0:cfg['model_order'].index(k)]:
+	#		if 'a2' in cfg['models'][t]['results'] and cfg['models'][t]['results'][cfg['models'][t]['results']['a2'] == 'NA'].shape[0] > 0:
+	#			cfg['models'][t]['results']['a2'][cfg['models'][t]['results']['a2'] == 'NA'] = cfg['models'][t]['results'][cfg['models'][t]['results']['a2'] == 'NA'].apply(lambda row: MiscFxns.UpdateAltAllele(row, mdb), 1)		
+
+	#cpdef calc_meta(meta_tags, metas, meta_incl):
+	#	meta_dtypes = []
+	#	meta_dtypes.extend([('chr','|S100'),('start','|S100'),('end','|S100'),('id','|S100')])
+	#	for meta in meta_tags:
+	#		meta_dtypes.extend([(meta + '.err','>f8'),(meta + '.nmiss','>f8'),(meta + '.nsnps','>f8'),(meta + '.cmaf','>f8'),(meta + '.p','>f8'),(meta + '.pmin','>f8'),(meta + '.rho','>f8')])
+	#	self.meta_results = np.full((1,1), fill_value=np.nan, dtypes=meta_dtypes)
+	#	self.meta_results['chr'][0] = self.biodata.chr
+	#	self.meta_results['start'][0] = self.biodata.start
+	#	self.meta_results['end'][0] = self.biodata.end
+	#	self.meta_results['id'][0] = self.biodata.id
 
 
 

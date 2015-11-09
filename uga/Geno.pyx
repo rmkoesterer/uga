@@ -30,8 +30,61 @@ from cython.view cimport array
 from collections import OrderedDict
 from Process import Error
 
-#def IndexChunk(chunkdf):
-#	return chunkdf['chr'].astype(str) + '><' + chunkdf['pos'].astype(str) + '><'  + chunkdf['a1'].astype(str).str[0:20].replace('-','_') + '><'  + chunkdf['a2'].astype(str).str[0:20].replace('-','_')
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def complement(allele):
+	cdef str x = allele
+	if x != "NA":
+		letters = list(x)
+		comp = []
+		for l in letters:
+			if l == 'T': 
+				c = 'A'
+			elif l == 'A':
+				c = 'T'
+			elif l == 'G': 
+				c = 'C'
+			elif l == 'C':
+				c = 'G'
+			elif l == '0':
+				c = '0'
+			elif l == ',':
+				c = ','
+			elif l == 'NA':
+				c = 'NA'
+			elif l == '-':
+				c = '-'
+			elif l == 'I':
+				c = 'D'
+			elif l == 'D':
+				c = 'I'
+			elif l in ['1','2','3','4','5','6','7','8','9','0']:
+				c = l
+			else:
+				c = 'X'
+			comp.append(c)
+	else:
+		comp = ['NA']
+	return ''.join(comp)
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def get_universal_marker_id(chr_py,pos_py,a1_py,a2_py,delim_py):
+	cdef str chr = chr_py
+	cdef str pos = pos_py
+	cdef str a1 = a1_py[0:20]
+	cdef str a2 = a2_py[0:20]
+	cdef str delim = delim_py
+	analogs = [chr + delim + pos + delim + a1 + delim + a2, 
+					chr + delim + pos + delim + complement(a1) + delim + complement(a2)]
+	if a2 != 'NA':	
+		analogs = analogs + [chr + delim + pos + delim + complement(a2) + delim + complement(a1),
+							chr + delim + pos + delim + a2 + delim + a1, 
+							chr + delim + pos + delim + a1 + delim + 'NA', 
+							chr + delim + pos + delim + complement(a1) + delim + 'NA', 
+							chr + delim + pos + delim + complement(a2) + delim + 'NA', 
+							chr + delim + pos + delim + a2 + delim + 'NA']
+	return "_".join(sorted(list(set(analogs))))
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -51,7 +104,7 @@ cdef double[:] Vcf2Dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 cdef class Biodata(object):
 	cdef public bytes filename, region, id
 	cdef public np.ndarray samples
-	cdef public object handle, region_iter
+	cdef public object handle, region_iter, gene_map
 	cdef public unsigned int chr, start, end
 	cdef public np.ndarray chunk, genos, marker_data, marker_info
 	def __cinit__(self, filename):
@@ -69,6 +122,13 @@ cdef class Vcf(Biodata):
 		else:
 			self.samples = np.array([a for a in self.handle.header][-1].split('\t')[9:])
 
+	def load_gene_map(self, gene_map):
+		print "loading gene map"
+		try:
+			self.gene_map=pd.read_table(gene_map,names=['chr','pos','marker','gene'])
+		except:
+			raise Error("failed to load gene map")
+
 	def get_region(self, region, id = None):
 		self.id = id
 		if ':' in region:
@@ -85,7 +145,7 @@ cdef class Vcf(Biodata):
 			raise Exception
 
 	cpdef get_chunk(self, int buffer):
-		c = np.empty((buffer,10 + len(self.samples)), dtype='object')
+		c = np.empty((buffer,11 + len(self.samples)), dtype='object')
 		cdef unsigned int i = 0
 		slice = islice(self.region_iter, buffer)
 		try:
@@ -106,35 +166,87 @@ cdef class Vcf(Biodata):
 						hom1 = list(set(['0/0'] + [str(a+1) + '/' + str(a+1) for a in oth] + ['0|0'] + [str(a+1) + '|' + str(a+1) for a in oth]))
 						hom2 = list(set([str(alt+1) + '/' + str(alt+1)] + [str(alt+1) + '|' + str(alt+1)]))
 						c[i,:9] = record[:9]
-						c[i,10:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
+						c[i,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
 						c[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
 						c[i,4] = alts[alt]
 						c[i,5] = self.id
 						c[i,9] = 'chr' + c[i,0] + 'bp' + c[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i,2][0:60]) + '_'  + re_sub('&','_',c[i,3][0:20]) + '_'  + c[i,4][0:20]
+						c[i,10] = get_universal_marker_id(c[i,0],c[i,1],c[i,3],c[i,4],'><')
 						het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
 						hom1 = ['0/0','0|0']
 						hom2 = [str(alt+1) + '/' + str(alt+1), str(alt+1) + '|' + str(alt+1)]
 						c[i+1,:9] = record[:9]
-						c[i+1,10:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
+						c[i+1,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
 						c[i+1,3] = record[3]
 						c[i+1,4] = alts[alt]
 						c[i+1,5] = self.id
 						c[i+1,9] = 'chr' + c[i+1,0] + 'bp' + c[i+1,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i+1,2][0:60]) + '_'  + re_sub('&','_',c[i+1,3][0:20]) + '_'  + c[i+1,4][0:20]
+						c[i+1,10] = get_universal_marker_id(c[i+1,0],c[i+1,1],c[i+1,3],c[i+1,4],'><')
 						i += 2
 				else:
 					het = ['1/0','0/1','1|0','0|1']
 					hom1 = ['0/0','0|0']
 					hom2 = ['1/1','1|1']
 					c[i,:9] = record[:9]
-					c[i,10:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
+					c[i,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
 					c[i,5] = self.id
 					c[i,9] = 'chr' + c[i,0] + 'bp' + c[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i,2][0:60]) + '_'  + re_sub('&','_',c[i,3][0:20]) + '_'  + c[i,4][0:20]
+					c[i,10] = get_universal_marker_id(c[i,0],c[i,1],c[i,3],c[i,4],'><')
 					i += 1
 			c = c[(c[:i,1].astype(int) >= self.start) & (c[:i,1].astype(int) <= self.end)]
-			self.marker_info = np.array([tuple(row) for row in c[:,[0,1,2,3,4,5,9]]], dtype=zip(np.array(['chr','pos','marker','a1','a2','id','marker_unique']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100'])))
-			self.marker_data = np.column_stack((self.samples, c[:,10:].transpose()))
+			self.marker_info = np.array([tuple(row) for row in c[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','marker','a1','a2','id','marker_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+			self.marker_data = np.column_stack((self.samples, c[:,11:].transpose()))
 			np.place(self.marker_data, self.marker_data == 'NA',np.nan)
 
+	cpdef get_gene(self, gene):
+		c = np.empty((100000,11 + len(self.samples)), dtype='object')
+		gene_snvs = list(self.gene_map['marker'][self.gene_map['gene'] == gene])
+		cdef unsigned int i = 0
+		for r in self.region_iter:
+			record = np.array(r)
+			if record[2] in gene_snvs:
+				gt = record[8].split(':').index('GT')
+				alts = record[4].split(',')
+				if len(alts) > 1:
+					c = np.append(c, np.empty((2*len(alts),10 + len(self.samples)), dtype='object'),axis=0)
+					for alt in xrange(len(alts)):
+						oth = [alts.index(a) for a in alts if a != alts[alt]]
+						het = het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']] + [str(alts.index(k)+1) + sep + str(alt+1) for k in alts if k != alts[alt] for sep in ['/','|']] + [str(alt+1) + sep + str(alts.index(k)+1) for k in alts if k != alts[alt] for sep in ['/','|']]))
+						hom1 = list(set(['0/0'] + [str(a+1) + '/' + str(a+1) for a in oth] + ['0|0'] + [str(a+1) + '|' + str(a+1) for a in oth]))
+						hom2 = list(set([str(alt+1) + '/' + str(alt+1)] + [str(alt+1) + '|' + str(alt+1)]))
+						c[i,:9] = record[:9]
+						c[i,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
+						c[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
+						c[i,4] = alts[alt]
+						c[i,5] = self.id
+						c[i,9] = 'chr' + c[i,0] + 'bp' + c[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i,2][0:60]) + '_'  + re_sub('&','_',c[i,3][0:20]) + '_'  + c[i,4][0:20]
+						c[i,10] = get_universal_marker_id(c[i,0],c[i,1],c[i,3],c[i,4],'><')
+						het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
+						hom1 = ['0/0','0|0']
+						hom2 = [str(alt+1) + '/' + str(alt+1), str(alt+1) + '|' + str(alt+1)]
+						c[i+1,:9] = record[:9]
+						c[i+1,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
+						c[i+1,3] = record[3]
+						c[i+1,4] = alts[alt]
+						c[i+1,5] = self.id
+						c[i+1,9] = 'chr' + c[i+1,0] + 'bp' + c[i+1,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i+1,2][0:60]) + '_'  + re_sub('&','_',c[i+1,3][0:20]) + '_'  + c[i+1,4][0:20]
+						c[i+1,10] = get_universal_marker_id(c[i+1,0],c[i+1,1],c[i+1,3],c[i+1,4],'><')
+						i += 2
+				else:
+					het = ['1/0','0/1','1|0','0|1']
+					hom1 = ['0/0','0|0']
+					hom2 = ['1/1','1|1']
+					c[i,:9] = record[:9]
+					c[i,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
+					c[i,5] = self.id
+					c[i,9] = 'chr' + c[i,0] + 'bp' + c[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i,2][0:60]) + '_'  + re_sub('&','_',c[i,3][0:20]) + '_'  + c[i,4][0:20]
+					c[i,10] = get_universal_marker_id(c[i,0],c[i,1],c[i,3],c[i,4],'><')
+					i += 1
+		c = c[(c[:i,1].astype(int) >= self.start) & (c[:i,1].astype(int) <= self.end)]
+		self.marker_info = np.array([tuple(row) for row in c[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','marker','a1','a2','id','marker_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+		self.marker_data = np.column_stack((self.samples, c[:,11:].transpose()))
+		np.place(self.marker_data, self.marker_data == 'NA',np.nan)
+		
 """
 def ExtractPlink(data_handle, reg, snv_list = None):
 	if ':' not in reg:

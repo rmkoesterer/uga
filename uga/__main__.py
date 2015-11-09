@@ -91,7 +91,7 @@ def main(args=None):
 		regions_df['region'] = regions_df.chr.map(str) + ':' + regions_df.start.map(str) + '-' + regions_df.end.map(str)
 		regions_df['job'] = 1
 		regions_df['cpu'] = 1
-		regions_df = regions_df[['chr','start','end','region','gene','job','cpu']]
+		regions_df = regions_df[['chr','start','end','region','gene','job','cpu']].reset_index(drop=True)
 		regions_df.drop_duplicates(inplace=True)
 		regions_df.reset_index(drop=True,inplace=True)
 

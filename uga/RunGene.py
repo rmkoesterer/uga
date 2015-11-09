@@ -30,6 +30,7 @@ import resource
 def process_regions(regions_df, cfg, models, cpu, log):
 	regions_df = regions_df[regions_df['cpu'] == cpu].reset_index(drop=True)
 
+	models_obj = {}
 	for n in cfg['model_order']:
 		model_out = models[n] + '.cpu' + str(cpu)
 		if log:
@@ -44,7 +45,7 @@ def process_regions(regions_df, cfg, models, cpu, log):
 
 		print "\nloading model " + n if n != '___no_tag___' else "\nloading model"
 		try:
-			m = getattr(Model,cfg['models'][n]['fxn'].capitalize())(formula=cfg['models'][n]['formula'],format=cfg['models'][n]['format'], 
+			models_obj[n] = getattr(Model,cfg['models'][n]['fxn'].capitalize())(formula=cfg['models'][n]['formula'],format=cfg['models'][n]['format'],gene_map=cfg['gene_map'],
 									all_founders=cfg['models'][n]['all_founders'],case_code=cfg['models'][n]['case_code'],ctrl_code=cfg['models'][n]['ctrl_code'],
 									pheno_file=cfg['models'][n]['pheno'],biodata_file=cfg['models'][n]['file'],type=cfg['models'][n]['fxn'],fid=cfg['models'][n]['fid'],
 									iid=cfg['models'][n]['iid'],matid=cfg['models'][n]['matid'],patid=cfg['models'][n]['patid'],sex=cfg['models'][n]['sex'],
@@ -53,62 +54,77 @@ def process_regions(regions_df, cfg, models, cpu, log):
 			print err.msg
 			return 1
 
-		variants_found = False
-		for k in xrange(len(regions_df.index)):
-			i = 0
-			written = False
-			results_final = pd.DataFrame({})
-			print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['gene'][k] + ":" + regions_df['region'][k] + ')',
+	variants_found = False
+	for k in xrange(len(regions_df.index)):
+		meta_incl = []
+		print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['gene'][k] + ":" + regions_df['region'][k] + ')',
+		for n in cfg['model_order']:
+			#written = False
+			#results_final = pd.DataFrame({})
 
 			try:
-				m.get_region(regions_df['region'][k])
+				models_obj[n].get_region(regions_df['region'][k], id=regions_df['gene'][k])
 			except:
-				print " <-- chromosome not found"
+				print " <-- region not found"
 				pass
 			else:
 				print '...'
-				while True:
-					i = i + 1
-					try:
-						m.get_chunk(cfg['buffer'])
-					except:
-						break
-					variants_found = True
+				try:
+					models_obj[n].get_gene(regions_df['gene'][k])
+				except Error as err:
+					print err.msg
+					break
+				variants_found = True
 
-					try:
-						m.filter(miss_thresh=cfg['models'][n]['miss'], maf_thresh=cfg['models'][n]['maf'], maxmaf_thresh=cfg['models'][n]['maxmaf'], 
-										mac_thresh=cfg['models'][n]['mac'], rsq_thresh=cfg['models'][n]['rsq'], hwe_thresh=cfg['models'][n]['hwe'], 
-										hwe_maf_thresh=cfg['models'][n]['hwe_maf'])
-					except:
-						break
+		Model.align_biodata(cfg['model_order'], models_obj)
 
-					try:
-						m.calc_model()
-					except Error as err:
-						print err.msg
-						break
 
-					if not written:
-						results_final = m.out
-						written = True
-					else:
-						results_final = results_final.append(m.out, ignore_index=True)
-					analyzed = len(m.marker_stats['filter'][m.marker_stats['filter'] == 0])
 
-					cur_markers = str(min(i*cfg['buffer'],(i-1)*cfg['buffer'] + m.biodata.marker_info.shape[0]))
-					status = '   processed ' + cur_markers + ' variants, ' + str(analyzed) + ' passed filters'
-					print status
+		#***** make sure aligning correctly
 
-			store = pd.HDFStore('/'.join(model_out.split('/')[0:-1]) + '/chr' + str(regions_df['chr'][k]) + '/' + model_out.split('/')[-1] + '.chr' + str(regions_df['chr'][k]) + 'bp' + str(regions_df['start'][k]) + '-' + str(regions_df['end'][k]) + '.h5')
-			store.put('df',results_final)
-			store.get_storer('df').attrs.results_header_metadata = m.results_header_metadata
-			store.get_storer('df').attrs.results_header = m.results_header
-			store.get_storer('df').attrs.tbx_start = m.tbx_start
-			store.get_storer('df').attrs.tbx_end = m.tbx_end
-			store.close()
-		if log:
-			sys.stdout = stdout_orig
-			log_file.close()
+
+
+		for n in cfg['model_order']:
+			try:
+				models_obj[n].filter(miss_thresh=cfg['models'][n]['miss'], maf_thresh=cfg['models'][n]['maf'], maxmaf_thresh=cfg['models'][n]['maxmaf'], 
+								mac_thresh=cfg['models'][n]['mac'], rsq_thresh=cfg['models'][n]['rsq'], hwe_thresh=cfg['models'][n]['hwe'], 
+								hwe_maf_thresh=cfg['models'][n]['hwe_maf'])
+			except:
+				break
+
+			try:
+				models_obj[n].calc_model()
+			except Error as err:
+				print err.msg
+				break
+
+			if not np.isnan(models_obj[n].results['err'][0]):
+				meta_incl.append(n)
+
+			if len(cfg['model_order']) > 1:
+				models_obj[n].tag_results(n)
+
+			#if not written:
+			#	results_final = models[n].out
+			#	written = True
+			#else:
+			#	results_final = results_final.append(models[n].out, ignore_index=True)
+			analyzed = len(models_obj[n].marker_stats['filter'][models_obj[n].marker_stats['filter'] == 0])
+
+			status = '   (' + n + ') processed ' + str(models_obj[n].biodata.marker_info.shape[0]) + ' variants, ' + str(analyzed) + ' passed filters'
+			print status
+		
+			#store = pd.HDFStore('/'.join(model_out.split('/')[0:-1]) + '/chr' + str(regions_df['chr'][k]) + '/' + model_out.split('/')[-1] + '.chr' + str(regions_df['chr'][k]) + 'bp' + str(regions_df['start'][k]) + '-' + str(regions_df['end'][k]) + '.h5')
+			#store = pd.HDFStore('/'.join(model_out.split('/')[0:-1]) + '/chr' + str(regions_df['chr'][k]) + '/' + model_out.split('/')[-1] + '.' + regions_df['gene'][k] + '.h5')
+			#store.put('df',results_final)
+			#store.get_storer('df').attrs.results_header_metadata = models[n].results_header_metadata
+			#store.get_storer('df').attrs.results_header = models[n].results_header
+			#store.get_storer('df').attrs.tbx_start = models[n].tbx_start
+			#store.get_storer('df').attrs.tbx_end = models[n].tbx_end
+			#store.close()
+	if log:
+		sys.stdout = stdout_orig
+		log_file.close()
 
 	if variants_found:
 		return 0
@@ -120,7 +136,7 @@ def RunGene(args):
 	Parse.PrintGeneOptions(cfg)
 
 	regions_df = pd.read_table(cfg['region_file'])
-	print regions_df
+
 	return_values = {}
 	models = {}
 	bgzfiles = {}

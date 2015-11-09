@@ -63,7 +63,7 @@ def process_regions(regions_df, cfg, models, cpu, log):
 			try:
 				m.get_region(regions_df['region'][k])
 			except:
-				print " <-- chromosome not found"
+				print " <-- region not found"
 				pass
 			else:
 				print '...'
