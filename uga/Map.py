@@ -42,7 +42,10 @@ def Map(out,
 			if len(region.split(':')) > 1:
 				start = region.split(':')[1].split('-')[0]
 				end = region.split(':')[1].split('-')[1]
-			starts = range(int(start),int(end),s-shift)
+			if start != end:
+				starts = range(int(start),int(end),s-shift)
+			else:
+				starts = [int(start)]
 			for rp in starts:
 				regions.append(region.split(':')[0] + ":" + str(rp) + "-" + str(min(rp+s-1,int(end))))
 		else:

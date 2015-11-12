@@ -17,6 +17,7 @@ import pandas as pd
 import numpy as np
 import Model
 import Parse
+import Geno
 import pysam
 import Fxns
 import time
@@ -47,44 +48,40 @@ def process_regions(regions_df, cfg, models, cpu, log):
 		try:
 			models_obj[n] = getattr(Model,cfg['models'][n]['fxn'].capitalize())(formula=cfg['models'][n]['formula'],format=cfg['models'][n]['format'],gene_map=cfg['gene_map'],
 									all_founders=cfg['models'][n]['all_founders'],case_code=cfg['models'][n]['case_code'],ctrl_code=cfg['models'][n]['ctrl_code'],
-									pheno_file=cfg['models'][n]['pheno'],biodata_file=cfg['models'][n]['file'],type=cfg['models'][n]['fxn'],fid=cfg['models'][n]['fid'],
+									pheno_file=cfg['models'][n]['pheno'],variants_file=cfg['models'][n]['file'],type=cfg['models'][n]['fxn'],fid=cfg['models'][n]['fid'],
 									iid=cfg['models'][n]['iid'],matid=cfg['models'][n]['matid'],patid=cfg['models'][n]['patid'],sex=cfg['models'][n]['sex'],
 									pheno_sep=Fxns.GetDelimiter(cfg['models'][n]['sep']))
 		except Error as err:
-			print err.msg
+			print err.out
 			return 1
 
 	variants_found = False
 	for k in xrange(len(regions_df.index)):
 		meta_incl = []
-		print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['gene'][k] + ":" + regions_df['region'][k] + ')',
+		variants_db = {}
+		#written = False
+		#results_final = pd.DataFrame({})
+		print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['gene'][k] + ": " + regions_df['region'][k] + ') ...'
 		for n in cfg['model_order']:
-			#written = False
-			#results_final = pd.DataFrame({})
-
 			try:
 				models_obj[n].get_region(regions_df['region'][k], id=regions_df['gene'][k])
 			except:
 				print " <-- region not found"
 				pass
 			else:
-				print '...'
 				try:
-					models_obj[n].get_gene(regions_df['gene'][k])
+					models_obj[n].get_gene(cfg['buffer'], regions_df['gene'][k])
 				except Error as err:
-					print err.msg
+					print err.out
 					break
 				variants_found = True
 
-		Model.align_biodata(cfg['model_order'], models_obj)
+			if n == cfg['model_order'][0]:
+				ref = Geno.VariantRef(models_obj[n].variants)
+			else:
+				ref.update(models_obj[n].variants)
+				models_obj[n].variants.align(ref)
 
-
-
-		#***** make sure aligning correctly
-
-
-
-		for n in cfg['model_order']:
 			try:
 				models_obj[n].filter(miss_thresh=cfg['models'][n]['miss'], maf_thresh=cfg['models'][n]['maf'], maxmaf_thresh=cfg['models'][n]['maxmaf'], 
 								mac_thresh=cfg['models'][n]['mac'], rsq_thresh=cfg['models'][n]['rsq'], hwe_thresh=cfg['models'][n]['hwe'], 
@@ -95,7 +92,7 @@ def process_regions(regions_df, cfg, models, cpu, log):
 			try:
 				models_obj[n].calc_model()
 			except Error as err:
-				print err.msg
+				print err.out
 				break
 
 			if not np.isnan(models_obj[n].results['err'][0]):
@@ -109,9 +106,9 @@ def process_regions(regions_df, cfg, models, cpu, log):
 			#	written = True
 			#else:
 			#	results_final = results_final.append(models[n].out, ignore_index=True)
-			analyzed = len(models_obj[n].marker_stats['filter'][models_obj[n].marker_stats['filter'] == 0])
+			analyzed = len(models_obj[n].variant_stats['filter'][models_obj[n].variant_stats['filter'] == 0])
 
-			status = '   (' + n + ') processed ' + str(models_obj[n].biodata.marker_info.shape[0]) + ' variants, ' + str(analyzed) + ' passed filters'
+			status = '   (' + n + ') processed ' + str(models_obj[n].variants.info.shape[0]) + ' variants, ' + str(analyzed) + ' passed filters'
 			print status
 		
 			#store = pd.HDFStore('/'.join(model_out.split('/')[0:-1]) + '/chr' + str(regions_df['chr'][k]) + '/' + model_out.split('/')[-1] + '.chr' + str(regions_df['chr'][k]) + 'bp' + str(regions_df['start'][k]) + '-' + str(regions_df['end'][k]) + '.h5')
@@ -146,7 +143,7 @@ def RunGene(args):
 		try:
 			bgzfiles[m] = bgzf.BgzfWriter(models[m] + '.gz', 'wb')
 		except:
-			print Error("failed to initialize bgzip format out file " + models[m] + '.gz').msg
+			print Error("failed to initialize bgzip format out file " + models[m] + '.gz').out
 			return 1
 
 	if cfg['cpus'] > 1:
@@ -158,13 +155,13 @@ def RunGene(args):
 		pool.join()
 
 		if 1 in [return_values[i].get() for i in return_values]:
-			print Error("error detected, see log files").msg
+			print Error("error detected, see log files").out
 			return 1
 
 	else:
 		return_values[1] = process_regions(regions_df,cfg,models,1,True)
 		if return_values[1] == -1:
-			print Error("error detected, see log files").msg
+			print Error("error detected, see log files").out
 			return 1
 
 	for m in cfg['model_order']:
@@ -172,7 +169,7 @@ def RunGene(args):
 			try:
 				logfile = open(models[m] + '.cpu' + str(i) + '.log', 'r')
 			except:
-				print Error("failed to initialize log file " + models[m] + '.cpu' + str(i) + '.log').msg
+				print Error("failed to initialize log file " + models[m] + '.cpu' + str(i) + '.log').out
 				return 1
 			print logfile.read()
 			logfile.close()
@@ -200,7 +197,7 @@ def RunGene(args):
 		try:
 			pysam.tabix_index(models[m] + '.gz',seq_col=0,start_col=tbx_start,end_col=tbx_end,force=True)
 		except:
-			print Error('failed to generate index for file ' + models[m] + '.gz').msg
+			print Error('failed to generate index for file ' + models[m] + '.gz').out
 			return 1
 
 	print "process complete"

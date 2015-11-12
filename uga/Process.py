@@ -19,7 +19,8 @@ import subprocess
 
 class Error(Exception):
 	def __init__(self, msg):
-		self.msg = 'ERROR: ' + msg
+		self.out = 'ERROR: ' + msg
+		self.msg = msg
 
 def PrintError(e):
 	return "\nERROR: " + e + "\n"

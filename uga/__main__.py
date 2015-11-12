@@ -43,6 +43,7 @@ def main(args=None):
 		run_type = run_type + 10
 	if cfg['split_n']:
 		run_type = run_type + 100
+	print "activating run type " + str(run_type)
 
 	if args.which == 'snv':
 		#	generate regions dataframe with M rows, either from --snv-map or by splitting data file or --snv-region according to --mb
@@ -147,7 +148,7 @@ def main(args=None):
 		except OSError:
 			pass
 
-		if run_type in [10,11,100,101]:
+		if run_type in [10,11,100,101] and regions_df.shape[0] > 1:
 			for j in range(1, int(max(regions_df['job'])) + 1):
 				try:
 					os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))

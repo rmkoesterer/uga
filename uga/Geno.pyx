@@ -69,7 +69,7 @@ def complement(allele):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def get_universal_marker_id(chr_py,pos_py,a1_py,a2_py,delim_py):
+def get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py):
 	cdef str chr = chr_py
 	cdef str pos = pos_py
 	cdef str a1 = a1_py[0:20]
@@ -88,7 +88,7 @@ def get_universal_marker_id(chr_py,pos_py,a1_py,a2_py,delim_py):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef double[:] Vcf2Dose(np.ndarray genos, hom1, het, hom2, np.int gt):
+cdef double[:] vcf2dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 	cdef double[:] dose = np.ndarray(len(genos))
 	for i in xrange(len(genos)):
 		geno = genos[i].split(':')[gt]
@@ -101,16 +101,39 @@ cdef double[:] Vcf2Dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 			dose[i] = 0.0
 	return dose
 
-cdef class Biodata(object):
+cdef class Variants(object):
 	cdef public bytes filename, region, id
 	cdef public np.ndarray samples
 	cdef public object handle, region_iter, gene_map
 	cdef public unsigned int chr, start, end
-	cdef public np.ndarray chunk, genos, marker_data, marker_info
+	cdef public np.ndarray genos, data, info, snv_chunk, gene_chunk
 	def __cinit__(self, filename):
 		self.filename = filename
 
-cdef class Vcf(Biodata):
+	cpdef align(self, VariantRef ref):
+		cdef unsigned int i = 0
+		for row in self.info:
+			i += 1
+			if ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a1'] + row['a2']:
+				self.info['a1'][i-1] = ref.db[row['uid']]['a1']
+				self.info['a2'][i-1] = ref.db[row['uid']]['a2']
+				self.info['variant'][i-1] = ref.db[row['uid']]['variant']
+				self.info['variant_unique'][i-1] = ref.db[row['uid']]['variant_unique']
+			if ((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == complement(row['a2'][0]) + complement(row['a1'][0]) or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == complement(row['a2'][0]) + 'NA' or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + 'NA') and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "AT" and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "TA" and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "GC" and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "CG"):
+				self.info['a1'][i-1] = ref.db[row['uid']]['a1']
+				self.info['a2'][i-1] = ref.db[row['uid']]['a2']
+				self.info['variant'][i-1] = ref.db[row['uid']]['variant']
+				self.info['variant_unique'][i-1] = ref.db[row['uid']]['variant_unique']
+				self.data[:,i] = 2.0 - self.data[:,i].astype(float)
+
+cdef class Vcf(Variants):
 	def __cinit__(self, filename):
 		super(Vcf, self).__init__(filename)
 
@@ -125,7 +148,7 @@ cdef class Vcf(Biodata):
 	def load_gene_map(self, gene_map):
 		print "loading gene map"
 		try:
-			self.gene_map=pd.read_table(gene_map,names=['chr','pos','marker','gene'])
+			self.gene_map=pd.read_table(gene_map,names=['chr','pos','variant','gene'])
 		except:
 			raise Error("failed to load gene map")
 
@@ -142,10 +165,10 @@ cdef class Vcf(Biodata):
 		try:
 			self.region_iter = self.handle.fetch(region=region, parser=pysam.asTuple())
 		except:
-			raise Exception
+			raise
 
 	cpdef get_chunk(self, int buffer):
-		c = np.empty((buffer,11 + len(self.samples)), dtype='object')
+		self.snv_chunk = np.empty((buffer,11 + len(self.samples)), dtype='object')
 		cdef unsigned int i = 0
 		slice = islice(self.region_iter, buffer)
 		try:
@@ -159,94 +182,199 @@ cdef class Vcf(Biodata):
 				gt = record[8].split(':').index('GT')
 				alts = record[4].split(',')
 				if len(alts) > 1:
-					c = np.append(c, np.empty((2*len(alts),10 + len(self.samples)), dtype='object'),axis=0)
+					self.snv_chunk = np.append(self.snv_chunk, np.empty((2*len(alts),11 + len(self.samples)), dtype='object'),axis=0)
 					for alt in xrange(len(alts)):
 						oth = [alts.index(a) for a in alts if a != alts[alt]]
 						het = het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']] + [str(alts.index(k)+1) + sep + str(alt+1) for k in alts if k != alts[alt] for sep in ['/','|']] + [str(alt+1) + sep + str(alts.index(k)+1) for k in alts if k != alts[alt] for sep in ['/','|']]))
 						hom1 = list(set(['0/0'] + [str(a+1) + '/' + str(a+1) for a in oth] + ['0|0'] + [str(a+1) + '|' + str(a+1) for a in oth]))
 						hom2 = list(set([str(alt+1) + '/' + str(alt+1)] + [str(alt+1) + '|' + str(alt+1)]))
-						c[i,:9] = record[:9]
-						c[i,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
-						c[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
-						c[i,4] = alts[alt]
-						c[i,5] = self.id
-						c[i,9] = 'chr' + c[i,0] + 'bp' + c[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i,2][0:60]) + '_'  + re_sub('&','_',c[i,3][0:20]) + '_'  + c[i,4][0:20]
-						c[i,10] = get_universal_marker_id(c[i,0],c[i,1],c[i,3],c[i,4],'><')
+						self.snv_chunk[i,:9] = record[:9]
+						self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+						self.snv_chunk[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
+						self.snv_chunk[i,4] = alts[alt]
+						self.snv_chunk[i,5] = self.id
+						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i,3][0:20]) + '_'  + self.snv_chunk[i,4][0:20]
+						self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 						het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
 						hom1 = ['0/0','0|0']
 						hom2 = [str(alt+1) + '/' + str(alt+1), str(alt+1) + '|' + str(alt+1)]
-						c[i+1,:9] = record[:9]
-						c[i+1,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
-						c[i+1,3] = record[3]
-						c[i+1,4] = alts[alt]
-						c[i+1,5] = self.id
-						c[i+1,9] = 'chr' + c[i+1,0] + 'bp' + c[i+1,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i+1,2][0:60]) + '_'  + re_sub('&','_',c[i+1,3][0:20]) + '_'  + c[i+1,4][0:20]
-						c[i+1,10] = get_universal_marker_id(c[i+1,0],c[i+1,1],c[i+1,3],c[i+1,4],'><')
+						self.snv_chunk[i+1,:9] = record[:9]
+						self.snv_chunk[i+1,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+						self.snv_chunk[i+1,3] = record[3]
+						self.snv_chunk[i+1,4] = alts[alt]
+						self.snv_chunk[i+1,5] = self.id
+						self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i+1,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i+1,3][0:20]) + '_'  + self.snv_chunk[i+1,4][0:20]
+						self.snv_chunk[i+1,10] = get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
 						i += 2
 				else:
 					het = ['1/0','0/1','1|0','0|1']
 					hom1 = ['0/0','0|0']
 					hom2 = ['1/1','1|1']
-					c[i,:9] = record[:9]
-					c[i,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
-					c[i,5] = self.id
-					c[i,9] = 'chr' + c[i,0] + 'bp' + c[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i,2][0:60]) + '_'  + re_sub('&','_',c[i,3][0:20]) + '_'  + c[i,4][0:20]
-					c[i,10] = get_universal_marker_id(c[i,0],c[i,1],c[i,3],c[i,4],'><')
+					self.snv_chunk[i,:9] = record[:9]
+					self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+					self.snv_chunk[i,5] = self.id
+					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i,3][0:20]) + '_'  + self.snv_chunk[i,4][0:20]
+					self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 					i += 1
-			c = c[(c[:i,1].astype(int) >= self.start) & (c[:i,1].astype(int) <= self.end)]
-			self.marker_info = np.array([tuple(row) for row in c[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','marker','a1','a2','id','marker_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
-			self.marker_data = np.column_stack((self.samples, c[:,11:].transpose()))
-			np.place(self.marker_data, self.marker_data == 'NA',np.nan)
+			self.snv_chunk = self.snv_chunk[(self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end)]
 
-	cpdef get_gene(self, gene):
-		c = np.empty((100000,11 + len(self.samples)), dtype='object')
-		gene_snvs = list(self.gene_map['marker'][self.gene_map['gene'] == gene])
+	cpdef get_snvs(self, int buffer):
+		try:
+			self.get_chunk(buffer)
+		except:
+			raise
+		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+		self.data = np.column_stack((self.samples, self.snv_chunk[:,11:].transpose()))
+		np.place(self.data, self.data == 'NA',np.nan)
+
+	cpdef get_gene(self, int buffer, gene):
 		cdef unsigned int i = 0
-		for r in self.region_iter:
-			record = np.array(r)
-			if record[2] in gene_snvs:
-				gt = record[8].split(':').index('GT')
-				alts = record[4].split(',')
-				if len(alts) > 1:
-					c = np.append(c, np.empty((2*len(alts),10 + len(self.samples)), dtype='object'),axis=0)
-					for alt in xrange(len(alts)):
-						oth = [alts.index(a) for a in alts if a != alts[alt]]
-						het = het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']] + [str(alts.index(k)+1) + sep + str(alt+1) for k in alts if k != alts[alt] for sep in ['/','|']] + [str(alt+1) + sep + str(alts.index(k)+1) for k in alts if k != alts[alt] for sep in ['/','|']]))
-						hom1 = list(set(['0/0'] + [str(a+1) + '/' + str(a+1) for a in oth] + ['0|0'] + [str(a+1) + '|' + str(a+1) for a in oth]))
-						hom2 = list(set([str(alt+1) + '/' + str(alt+1)] + [str(alt+1) + '|' + str(alt+1)]))
-						c[i,:9] = record[:9]
-						c[i,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
-						c[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
-						c[i,4] = alts[alt]
-						c[i,5] = self.id
-						c[i,9] = 'chr' + c[i,0] + 'bp' + c[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i,2][0:60]) + '_'  + re_sub('&','_',c[i,3][0:20]) + '_'  + c[i,4][0:20]
-						c[i,10] = get_universal_marker_id(c[i,0],c[i,1],c[i,3],c[i,4],'><')
-						het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
-						hom1 = ['0/0','0|0']
-						hom2 = [str(alt+1) + '/' + str(alt+1), str(alt+1) + '|' + str(alt+1)]
-						c[i+1,:9] = record[:9]
-						c[i+1,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
-						c[i+1,3] = record[3]
-						c[i+1,4] = alts[alt]
-						c[i+1,5] = self.id
-						c[i+1,9] = 'chr' + c[i+1,0] + 'bp' + c[i+1,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i+1,2][0:60]) + '_'  + re_sub('&','_',c[i+1,3][0:20]) + '_'  + c[i+1,4][0:20]
-						c[i+1,10] = get_universal_marker_id(c[i+1,0],c[i+1,1],c[i+1,3],c[i+1,4],'><')
-						i += 2
-				else:
-					het = ['1/0','0/1','1|0','0|1']
-					hom1 = ['0/0','0|0']
-					hom2 = ['1/1','1|1']
-					c[i,:9] = record[:9]
-					c[i,11:] = Vcf2Dose(record[9:], hom1, het, hom2, gt)
-					c[i,5] = self.id
-					c[i,9] = 'chr' + c[i,0] + 'bp' + c[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',c[i,2][0:60]) + '_'  + re_sub('&','_',c[i,3][0:20]) + '_'  + c[i,4][0:20]
-					c[i,10] = get_universal_marker_id(c[i,0],c[i,1],c[i,3],c[i,4],'><')
-					i += 1
-		c = c[(c[:i,1].astype(int) >= self.start) & (c[:i,1].astype(int) <= self.end)]
-		self.marker_info = np.array([tuple(row) for row in c[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','marker','a1','a2','id','marker_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
-		self.marker_data = np.column_stack((self.samples, c[:,11:].transpose()))
-		np.place(self.marker_data, self.marker_data == 'NA',np.nan)
+		self.gene_chunk = np.empty((0,11 + len(self.samples)), dtype='object')
+		gene_snvs = list(self.gene_map['variant'][self.gene_map['gene'] == gene])
+		while True:
+			try:
+				self.get_chunk(buffer)
+			except:
+				break
+			i = i + 1
+			self.snv_chunk = self.snv_chunk[np.where(np.in1d(self.snv_chunk[:,2],gene_snvs))]
+			self.gene_chunk = np.vstack((self.gene_chunk,self.snv_chunk))
+		if i == 0:
+			raise
+		else:
+			self.info = np.array([tuple(row) for row in self.gene_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+			self.data = np.column_stack((self.samples, self.gene_chunk[:,11:].transpose()))
+			np.place(self.data, self.data == 'NA',np.nan)
+
+
+		#while True:
+		#	i = 0
+		#	c = np.empty((buffer,11 + len(self.samples)), dtype='object')
+		#	slice = islice(self.region_iter, buffer)
+		#	try:
+		#		first = slice.next()
+		#		print first
+		#	except StopIteration:
+		#		print "HERE"
+		#		raise
+		#	else:
+		#		slice = chain([first], slice)
+		#		for r in slice:
+		#			record = np.array(r)
+		#			if record[2] in gene_snvs:
+		#				gt = record[8].split(':').index('GT')
+		#				alts = record[4].split(',')
+		#				if len(alts) > 1:
+		#					c = np.append(c, np.empty((2*len(alts),10 + len(self.samples)), dtype='object'),axis=0)
+		#					for alt in xrange(len(alts)):
+		#						oth = [alts.index(a) for a in alts if a != alts[alt]]
+		#						het = het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']] + [str(alts.index(k)+1) + sep + str(alt+1) for k in alts if k != alts[alt] for sep in ['/','|']] + [str(alt+1) + sep + str(alts.index(k)+1) for k in alts if k != alts[alt] for sep in ['/','|']]))
+		#						hom1 = list(set(['0/0'] + [str(a+1) + '/' + str(a+1) for a in oth] + ['0|0'] + [str(a+1) + '|' + str(a+1) for a in oth]))
+		#						hom2 = list(set([str(alt+1) + '/' + str(alt+1)] + [str(alt+1) + '|' + str(alt+1)]))
+		#						self.snv_chunk[i,:9] = record[:9]
+		#						self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+		#						self.snv_chunk[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
+		#						self.snv_chunk[i,4] = alts[alt]
+		#						self.snv_chunk[i,5] = self.id
+		#						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i,3][0:20]) + '_'  + self.snv_chunk[i,4][0:20]
+		#						self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+		#						het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
+		#						hom1 = ['0/0','0|0']
+		#						hom2 = [str(alt+1) + '/' + str(alt+1), str(alt+1) + '|' + str(alt+1)]
+		#						self.snv_chunk[i+1,:9] = record[:9]
+		#						self.snv_chunk[i+1,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+		#						self.snv_chunk[i+1,3] = record[3]
+		#						self.snv_chunk[i+1,4] = alts[alt]
+		#						self.snv_chunk[i+1,5] = self.id
+		#						self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i+1,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i+1,3][0:20]) + '_'  + self.snv_chunk[i+1,4][0:20]
+		#						self.snv_chunk[i+1,10] = get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
+		#						i += 2
+		#				else:
+		#					het = ['1/0','0/1','1|0','0|1']
+		#					hom1 = ['0/0','0|0']
+		#					hom2 = ['1/1','1|1']
+		#					self.snv_chunk[i,:9] = record[:9]
+		#					self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+		#					self.snv_chunk[i,5] = self.id
+		#					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i,3][0:20]) + '_'  + self.snv_chunk[i,4][0:20]
+		#					self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+		#					i += 1
+		#		c = self.snv_chunk[(self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end)]
+		#	c_compiled = np.vstack((c_compiled,c))
+		#self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+		#self.data = np.column_stack((self.samples, self.snv_chunk[:,11:].transpose()))
+		#np.place(self.data, self.data == 'NA',np.nan)
 		
+
+	#cpdef get_gene(self, gene):
+	#	c = np.empty((100000,11 + len(self.samples)), dtype='object')
+	#	gene_snvs = list(self.gene_map['variant'][self.gene_map['gene'] == gene])
+	#	cdef unsigned int i = 0
+	#	for r in self.region_iter:
+	#		record = np.array(r)
+	#		if record[2] in gene_snvs:
+	#			gt = record[8].split(':').index('GT')
+	#			alts = record[4].split(',')
+	#			if len(alts) > 1:
+	#				c = np.append(c, np.empty((2*len(alts),10 + len(self.samples)), dtype='object'),axis=0)
+	#				for alt in xrange(len(alts)):
+	#					oth = [alts.index(a) for a in alts if a != alts[alt]]
+	#					het = het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']] + [str(alts.index(k)+1) + sep + str(alt+1) for k in alts if k != alts[alt] for sep in ['/','|']] + [str(alt+1) + sep + str(alts.index(k)+1) for k in alts if k != alts[alt] for sep in ['/','|']]))
+	#					hom1 = list(set(['0/0'] + [str(a+1) + '/' + str(a+1) for a in oth] + ['0|0'] + [str(a+1) + '|' + str(a+1) for a in oth]))
+	#					hom2 = list(set([str(alt+1) + '/' + str(alt+1)] + [str(alt+1) + '|' + str(alt+1)]))
+	#					self.snv_chunk[i,:9] = record[:9]
+	#					self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+	#					self.snv_chunk[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
+	#					self.snv_chunk[i,4] = alts[alt]
+	#					self.snv_chunk[i,5] = self.id
+	#					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i,3][0:20]) + '_'  + self.snv_chunk[i,4][0:20]
+	#					self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+	#					het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
+	#					hom1 = ['0/0','0|0']
+	#					hom2 = [str(alt+1) + '/' + str(alt+1), str(alt+1) + '|' + str(alt+1)]
+	#					self.snv_chunk[i+1,:9] = record[:9]
+	#					self.snv_chunk[i+1,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+	#					self.snv_chunk[i+1,3] = record[3]
+	#					self.snv_chunk[i+1,4] = alts[alt]
+	#					self.snv_chunk[i+1,5] = self.id
+	#					self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i+1,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i+1,3][0:20]) + '_'  + self.snv_chunk[i+1,4][0:20]
+	#					self.snv_chunk[i+1,10] = get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
+	#					i += 2
+	#			else:
+	#				het = ['1/0','0/1','1|0','0|1']
+	#				hom1 = ['0/0','0|0']
+	#				hom2 = ['1/1','1|1']
+	#				self.snv_chunk[i,:9] = record[:9]
+	#				self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+	#				self.snv_chunk[i,5] = self.id
+	#				self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i,3][0:20]) + '_'  + self.snv_chunk[i,4][0:20]
+	#				self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+	#				i += 1
+	#	c = self.snv_chunk[(self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end)]
+	#	self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+	#	self.data = np.column_stack((self.samples, self.snv_chunk[:,11:].transpose()))
+	#	np.place(self.data, self.data == 'NA',np.nan)
+
+cdef class VariantRef(object):
+	cdef public object db
+	def __cinit__(self, Variants v):
+		self.db = {}
+		for row in v.info:
+			self.db[row['uid']] = {}
+			self.db[row['uid']]['variant'] = row['variant']
+			self.db[row['uid']]['variant_unique'] = row['variant_unique']
+			self.db[row['uid']]['a1'] = row['a1']
+			self.db[row['uid']]['a2'] = row['a2']
+
+	cpdef update(self, Variants v):
+		for row in v.info:
+			if not row['uid'] in self.db:
+				self.db[row['uid']] = {}
+				self.db[row['uid']]['variant'] = row['variant']
+				self.db[row['uid']]['variant_unique'] = row['variant_unique']
+				self.db[row['uid']]['a1'] = row['a1']
+				self.db[row['uid']]['a2'] = row['a2']
+
 """
 def ExtractPlink(data_handle, reg, snv_list = None):
 	if ':' not in reg:
@@ -266,32 +394,32 @@ def ExtractPlink(data_handle, reg, snv_list = None):
 	return records
 
 def ConvertPlink(chunk, sample_ids, iid_col):
-	marker_info=OrderedDict()
-	marker_info['chr'] = OrderedDict()
-	marker_info['pos'] = OrderedDict()
-	marker_info['marker'] = OrderedDict()
-	marker_info['a1'] = OrderedDict()
-	marker_info['a2'] = OrderedDict()
-	marker_data=OrderedDict()
+	info=OrderedDict()
+	info['chr'] = OrderedDict()
+	info['pos'] = OrderedDict()
+	info['variant'] = OrderedDict()
+	info['a1'] = OrderedDict()
+	info['a2'] = OrderedDict()
+	data=OrderedDict()
 	for locus, row in chunk:
 		if locus.allele1 == '0':
 			locus.allele1 = locus.allele2
-		marker_unique = 'chr' + str(locus.chromosome) + 'bp' + str(locus.bp_position) + '.'  + str(locus.name) + '.' + str(locus.allele2) + '.' + str(locus.allele1)
-		marker_info['chr'][marker_unique] = str(locus.chromosome)
-		marker_info['marker'][marker_unique] = str(locus.name)
-		marker_info['pos'][marker_unique] = str(locus.bp_position)
-		marker_info['a1'][marker_unique] = str(locus.allele2)
-		marker_info['a2'][marker_unique] = str(locus.allele1)
+		variant_unique = 'chr' + str(locus.chromosome) + 'bp' + str(locus.bp_position) + '.'  + str(locus.name) + '.' + str(locus.allele2) + '.' + str(locus.allele1)
+		info['chr'][variant_unique] = str(locus.chromosome)
+		info['variant'][variant_unique] = str(locus.name)
+		info['pos'][variant_unique] = str(locus.bp_position)
+		info['a1'][variant_unique] = str(locus.allele2)
+		info['a2'][variant_unique] = str(locus.allele1)
 		for sample, geno in zip(sample_ids, row):
-			if not marker_unique in marker_data.keys():
-				marker_data[marker_unique] = OrderedDict({sample.iid: geno})
+			if not variant_unique in data.keys():
+				data[variant_unique] = OrderedDict({sample.iid: geno})
 			else:
-				marker_data[marker_unique][sample.iid] = geno if geno != 3 else 'NA'
-	marker_info = pd.DataFrame(marker_info)
-	marker_data = pd.DataFrame(marker_data)
-	marker_data = marker_data.convert_objects(convert_numeric=True)
-	marker_data[iid_col] = marker_data.index
-	chunkdf = marker_info.join(marker_data.transpose())
+				data[variant_unique][sample.iid] = geno if geno != 3 else 'NA'
+	info = pd.DataFrame(info)
+	data = pd.DataFrame(data)
+	data = data.convert_objects(convert_numeric=True)
+	data[iid_col] = data.index
+	chunkdf = info.join(data.transpose())
 	chunkdf.index = IndexChunk(chunkdf)
 	return chunkdf
 
@@ -311,7 +439,7 @@ def ExtractDos1(data_handle, reg, snv_list = None):
 def ConvertDos1(chunk, sample_ids, iid_col):
 	chunkdf = pd.DataFrame(chunk)
 	chunkdf = chunkdf[[0,2,1] + range(3,len(chunkdf.columns))]
-	chunkdf.columns = ['chr','pos','marker','a1','a2'] + sample_ids
+	chunkdf.columns = ['chr','pos','variant','a1','a2'] + sample_ids
 	chunkdf.index=IndexChunk(chunkdf)
 	return chunkdf
 
@@ -330,7 +458,7 @@ def ExtractDos2(data_handle, reg, snv_list = None):
 
 def ConvertDos2(chunk, sample_ids, iid_col):
 	chunkdf = pd.DataFrame(chunk)
-	chunkdf.columns = ['chr','pos','marker','a1','a2'] + sample_ids
+	chunkdf.columns = ['chr','pos','variant','a1','a2'] + sample_ids
 	chunkdf.index=IndexChunk(chunkdf)
 	return chunkdf
 
@@ -356,7 +484,7 @@ def ConvertDosage(row):
 def ConvertOxford(chunk, sample_ids, iid_col):
 	chunk = [ConvertDosage(row) for row in chunk]
 	chunkdf = pd.DataFrame(chunk)
-	chunkdf.columns = ['chr','pos','marker','a1','a2'] + sample_ids
+	chunkdf.columns = ['chr','pos','variant','a1','a2'] + sample_ids
 	chunkdf.index=IndexChunk(chunkdf)
 	return chunkdf
 """
