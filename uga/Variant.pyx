@@ -43,8 +43,8 @@ cdef double CalcFreq(np.ndarray[np.float64_t, ndim=1] x):
 cdef double CalcMAC(np.ndarray[np.float64_t, ndim=1] x):
 	cdef double n
 	x = x[~np.isnan(x)]
-	if len(x) > 0 and set(x).issubset(set([0,1,2])):
-		n = min(2.0 * len(x[x == 2]) + len(x[x == 1]),2.0 * len(x[x == 0]) + len(x[x == 1]))
+	if len(x) > 0:
+		n = min(2.0 * len(x) - np.sum(x),np.sum(x))
 	else:
 		n = float('nan')
 	return n

@@ -48,7 +48,7 @@ def process_regions(regions_df, cfg, cpu, log):
 									all_founders=cfg['models'][n]['all_founders'],case_code=cfg['models'][n]['case_code'],ctrl_code=cfg['models'][n]['ctrl_code'],
 									pheno_file=cfg['models'][n]['pheno'],variants_file=cfg['models'][n]['file'],type=cfg['models'][n]['fxn'],fid=cfg['models'][n]['fid'],
 									iid=cfg['models'][n]['iid'],matid=cfg['models'][n]['matid'],patid=cfg['models'][n]['patid'],sex=cfg['models'][n]['sex'],
-									pheno_sep=Fxns.GetDelimiter(cfg['models'][n]['sep']))
+									male=cfg['models'][n]['male'],female=cfg['models'][n]['female'],pheno_sep=Fxns.GetDelimiter(cfg['models'][n]['sep']))
 		except Error as err:
 			print err.out
 			return 1
@@ -99,10 +99,11 @@ def process_regions(regions_df, cfg, cpu, log):
 					cur_variants = str(min(i*cfg['buffer'],(i-1)*cfg['buffer'] + models_obj[n].variants.info.shape[0]))
 					status = '   processed ' + cur_variants + ' variants, ' + str(analyzed) + ' passed filters (model: ' + n + ')' if n != '___no_tag___' else '   processed ' + cur_variants + ' variants, ' + str(analyzed) + ' passed filters'
 					print status
+					sys.stdout.flush()
 
 			store = pd.HDFStore('/'.join(cfg['out'].split('/')[0:-1]) + '/chr' + str(regions_df['chr'][k]) + '/' + (cfg['out'] + '.cpu' + str(cpu) + '.' + n).split('/')[-1] + '.chr' + str(regions_df['chr'][k]) + 'bp' + str(regions_df['start'][k]) + '-' + str(regions_df['end'][k]) + '.h5')
 			store.put('df',results_final)
-			store.get_storer('df').attrs.results_header_metadata = models_obj[n].results_header_metadata
+			store.get_storer('df').attrs.metadata = models_obj[n].metadata
 			store.get_storer('df').attrs.results_header = models_obj[n].results_header
 			store.get_storer('df').attrs.tbx_start = models_obj[n].tbx_start
 			store.get_storer('df').attrs.tbx_end = models_obj[n].tbx_end
@@ -169,7 +170,7 @@ def RunSnv(args):
 				out_model_range = '/'.join(cfg['out'].split('/')[0:-1]) + '/chr' + str(regions_cpu_df['chr'][j]) + '/' + (cfg['out'] + '.cpu' + str(i) + '.' + m).split('/')[-1] + '.chr' + str(regions_cpu_df['chr'][j]) + 'bp' + str(regions_cpu_df['start'][j]) + '-' + str(regions_cpu_df['end'][j]) + '.h5'
 				store = pd.HDFStore(out_model_range)
 				if not written:
-					bgzfiles[m].write(store.get_storer('df').attrs.results_header_metadata)
+					bgzfiles[m].write(store.get_storer('df').attrs.metadata)
 					bgzfiles[m].write('\t'.join(store.get_storer('df').attrs.results_header) + '\n')
 					tbx_start = store.get_storer('df').attrs.tbx_start
 					tbx_end = store.get_storer('df').attrs.tbx_end

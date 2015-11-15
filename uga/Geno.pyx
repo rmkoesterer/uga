@@ -104,11 +104,12 @@ cdef double[:] vcf2dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 cdef class Variants(object):
 	cdef public bytes filename, region, id
 	cdef public np.ndarray samples
-	cdef public object handle, region_iter, gene_map
+	cdef public object handle, region_iter, snvgroup_map
 	cdef public unsigned int chr, start, end
-	cdef public np.ndarray genos, data, info, snv_chunk, gene_chunk
+	cdef public np.ndarray genos, data, info, snv_chunk, snvgroup_chunk
 	def __cinit__(self, filename):
 		self.filename = filename
+		self.snvgroup_map = None
 
 	cpdef align(self, VariantRef ref):
 		cdef unsigned int i = 0
@@ -133,6 +134,13 @@ cdef class Variants(object):
 				self.info['variant_unique'][i-1] = ref.db[row['uid']]['variant_unique']
 				self.data[:,i] = 2.0 - self.data[:,i].astype(float)
 
+	def load_snvgroup_map(self, snvgroup_map):
+		print "loading snvgroup map"
+		try:
+			self.snvgroup_map=pd.read_table(snvgroup_map,names=['chr','pos','variant','id'])
+		except:
+			raise Error("failed to load snvgroup map")
+
 cdef class Vcf(Variants):
 	def __cinit__(self, filename):
 		super(Vcf, self).__init__(filename)
@@ -144,13 +152,6 @@ cdef class Vcf(Variants):
 			raise Error("failed to load vcf file")
 		else:
 			self.samples = np.array([a for a in self.handle.header][-1].split('\t')[9:])
-
-	def load_gene_map(self, gene_map):
-		print "loading gene map"
-		try:
-			self.gene_map=pd.read_table(gene_map,names=['chr','pos','variant','gene'])
-		except:
-			raise Error("failed to load gene map")
 
 	def get_region(self, region, id = None):
 		self.id = id
@@ -227,23 +228,25 @@ cdef class Vcf(Variants):
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,11:].transpose()))
 		np.place(self.data, self.data == 'NA',np.nan)
 
-	cpdef get_gene(self, int buffer, gene):
+	cpdef get_snvgroup(self, int buffer, id):
 		cdef unsigned int i = 0
-		self.gene_chunk = np.empty((0,11 + len(self.samples)), dtype='object')
-		gene_snvs = list(self.gene_map['variant'][self.gene_map['gene'] == gene])
+		self.snvgroup_chunk = np.empty((0,11 + len(self.samples)), dtype='object')
+		if self.snvgroup_map is not None:
+			snvgroup_snvs = list(self.snvgroup_map['variant'][self.snvgroup_map['id'] == id])
 		while True:
 			try:
 				self.get_chunk(buffer)
 			except:
 				break
 			i = i + 1
-			self.snv_chunk = self.snv_chunk[np.where(np.in1d(self.snv_chunk[:,2],gene_snvs))]
-			self.gene_chunk = np.vstack((self.gene_chunk,self.snv_chunk))
+			self.snv_chunk = self.snv_chunk[np.where(np.in1d(self.snv_chunk[:,2],snvgroup_snvs))]
+			if self.snvgroup_map is not None:
+				self.snvgroup_chunk = np.vstack((self.snvgroup_chunk,self.snv_chunk))
 		if i == 0:
 			raise
 		else:
-			self.info = np.array([tuple(row) for row in self.gene_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
-			self.data = np.column_stack((self.samples, self.gene_chunk[:,11:].transpose()))
+			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,11:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)
 
 

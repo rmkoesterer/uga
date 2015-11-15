@@ -36,18 +36,25 @@ pd.options.mode.chained_assignment = None
 cdef class Model(object):
 	cdef public unsigned int case_code, ctrl_code, tbx_start, tbx_end
 	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx
-	cdef public np.ndarray focus, model_cols, results_header, results_dtypes, variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, males_idx, females_idx
-	cdef public bytes formula, format, pheno_file, variants_file, gene_map, type, iid, fid, matid, patid, sex, pheno_sep, results_header_metadata, a1, a2
-	cdef public unsigned int male, female, nobs, nunique, nfounders, nlongitudinal, nfamilies, nunrelated, ncases, nctrls, nmales, nfemales
+	cdef public np.ndarray focus, model_cols, results_header, results_dtypes, \
+							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, males_idx, females_idx
+	cdef public bytes formula, format, pheno_file, variants_file, type, \
+						iid, fid, matid, patid, sex, pheno_sep, a1, a2
+	cdef public str metadata, metadata_cc
+	cdef public unsigned int male, female, nobs, nunique, nfounders, nlongitudinal, \
+								nfamilies, nunrelated, ncases, nctrls, nmales, nfemales
 	cdef public dict fields
 	cdef public object pheno, variants, out
 	cdef public bint all_founders
-	def __cinit__(self, formula, format, variants_file, pheno_file, type, iid, fid, gene_map = None, case_code = None, ctrl_code = None, all_founders = False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = '\t'):
+	def __cinit__(self, formula, format, variants_file, pheno_file, type, iid, fid, 
+					case_code = None, ctrl_code = None, all_founders = False, 
+					matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = '\t', **kwargs):
+		super(Model, self).__init__(**kwargs)
+		self.out = None
 		self.formula = formula
 		self.format = format
 		self.variants_file = variants_file
 		self.pheno_file = pheno_file
-		self.gene_map = gene_map
 		self.type = type
 		self.iid = iid
 		self.fid = fid
@@ -62,7 +69,24 @@ cdef class Model(object):
 		self.all_founders = all_founders
 		self.fields = {}
 
-	def load(self):
+		# parse formula into dictionary
+		#
+		# currently valid symbols for right hand side terms in these models
+		# SYMBOL			EXAMPLE				ACTION
+		# +					+x					estimates: the global effect of x
+		# :					x:y					estimates: the global effect of the interaction between x and y
+		# *					x*y					estimates: the global effect of x, y, and the interaction between x and y
+		# factor			factor(x)			specify x as a categorical variable (factor)
+		for x in [a for a in list(set([b for b in re_split('~|\+|-|\*|:|factor|\(|\)',self.formula) if b not in ['1','0']])) if a != '']:
+			mtype = "dependent" if x in re_split('factor|\(|\)',re_split('~',self.formula)[0]) else "independent"
+			if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
+				self.fields[x] = {'class': 'factor', 'type': mtype, 'dtype': '>f8'}
+			else:
+				self.fields[x] = {'class': 'numeric', 'type': mtype, 'dtype': '>f8'}
+
+		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'variant'])))
+
+		#def load(self):
 		try:
 			self.variants = getattr(Geno,self.format.capitalize())(self.variants_file)
 		except Error as err:
@@ -169,37 +193,21 @@ cdef class Model(object):
 			else:
 				raise Error("phenotype file and data file contain no common samples")
 
-	def get_region(self, region, id = None):
-		try:
-			self.variants.get_region(region, id)
-		except:
-			raise
+		self.metadata = '## source: uga' + version + '\n' + \
+						'## date: ' + time.strftime("%Y%m%d") + '\n' + \
+						'## method: bskato' + '\n' + \
+						'## formula: ' + self.formula + '\n' + \
+						'## total observations: ' + str(self.nobs) + '\n' + \
+						'## unique samples: ' + str(self.nunique) + '\n' + \
+						'## multiple observation samples: ' + str(self.nlongitudinal) + '\n' + \
+						'## families: ' + str(self.nfamilies) + '\n' + \
+						'## unrelated samples: ' + str(self.nunrelated) + '\n' + \
+						'## founders: ' + str(self.nfounders) + '\n' + \
+						'## males: ' + str(self.nmales) + '\n' + \
+						'## females: ' + str(self.nfemales)
 
-	cpdef get_snvs(self, int buffer):
-		try:
-			self.variants.get_snvs(buffer)
-		except:
-			raise
-		else:
-			try:
-				self.variants.data = self.variants.data[np.in1d(self.variants.data[:,0],np.intersect1d(self.pheno[self.iid],self.variants.data[:,0]))]
-			except:
-				raise Error("phenotype file and data file contain no common samples")
-			else:
-				self.calc_variant_stats()
-
-	cpdef get_gene(self, int buffer, gene):
-		try:
-			self.variants.get_gene(buffer, gene)
-		except:
-			raise
-		else:
-			try:
-				self.variants.data = self.variants.data[np.in1d(self.variants.data[:,0],np.intersect1d(self.pheno[self.iid],self.variants.data[:,0]))]
-			except:
-				raise Error("phenotype file and data file contain no common samples")
-			else:
-				self.calc_variant_stats()
+		self.metadata_cc = '## cases: ' + str(self.ncases) + '\n' + \
+							'## controls: ' + str(self.nctrls)
 
 	def print_fields(self):
 		print "model fields ..."
@@ -208,8 +216,11 @@ cdef class Model(object):
 		for k in self.fields:
 			print "      {0:>{1}}".format(str(k), len(max(["field"] + [key for key in self.fields.keys()],key=len))) + "   " + "{0:>{1}}".format(str(self.fields[k]['type']), len(max(["type"] + [self.fields[key]['type'] for key in self.fields],key=len))) + "   " + "{0:>{1}}".format(str(self.fields[k]['class']), len(max(["class"] + [self.fields[key]['class'] for key in self.fields],key=len)))
 
-	cdef add_id_col(self):
-		self.results_header = np.append(self.results_header,np.array(['id']))
+	def get_region(self, region, id = None):
+		try:
+			self.variants.get_region(region, id)
+		except:
+			raise
 
 	cpdef calc_variant_stats(self):
 		self.variant_stats = np.zeros((self.variants.info.shape[0],1), dtype=[('filter','uint32'),('mac','>f8'),('callrate','>f8'),('freq','>f8'),('freq.case','>f8'),('freq.ctrl','>f8'),('rsq','>f8'),('hwe','>f8')])
@@ -264,33 +275,84 @@ cdef class Model(object):
 			if not hwe_thresh is None and not hwe_maf_thresh is None and not np.isnan(self.variant_stats['hwe'][i]) and not np.isnan(self.variant_stats['freq'][i]) and ((self.variant_stats['freq'][i] <= 0.5 and self.variant_stats['freq'][i] > hwe_maf_thresh and self.variant_stats['hwe'][i] < hwe_thresh) or (self.variant_stats['freq'][i] > 0.5 and 1-self.variant_stats['freq'][i] > hwe_maf_thresh and self.variant_stats['hwe'][i] < hwe_thresh)):
 				self.variant_stats['filter'][i] += 1
 
-cdef class Bssmeta(Model):
-	def __cinit__(self, formula, format, pheno_file, variants_file, type, iid, fid, case_code=2, ctrl_code=1, gene_map = None, all_founders = False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
-		super(Bssmeta, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, all_founders=all_founders, pheno_file=pheno_file, variants_file=variants_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
-		self.results_header = np.array(['chr','pos','variant','a1','a2','filter','callrate','mac','freq','freq.case','freq.ctrl','rsq','hwe'])
-		self.out = None
+cdef class SnvModel(Model):
+	cdef public str metadata_snv, metadata_snv_cc
+	def __cinit__(self, **kwargs):
+		super(SnvModel, self).__init__(**kwargs)
 		self.tbx_start = 1
 		self.tbx_end = 1
+		self.results_header = np.array(['chr','pos','variant','a1','a2','filter','callrate','mac','freq','freq.case','freq.ctrl','rsq','hwe'])
+
+		self.metadata_snv = '## chr: chromosome' + '\n' + \
+							'## pos: chromosomal position' + '\n' + \
+							'## variant: variant name' + '\n' + \
+							'## a1: reference (coded) allele used for stat calculations' + '\n' + \
+							'## a2: alternate (non-coded) allele' + '\n' + \
+							'## filter: filter code (+1 = failed hwe, +10 = failed rsq, +100 = failed mac, +1000 = failed maf, +10000 = failed miss' + '\n' + \
+							'## callrate: callrate' + '\n' + \
+							'## rsq: imputation info metric (calculated only for variants exhibiting probabilistic genotypes, otherwise coded as NA)' + '\n' + \
+							'## hwe: Hardy Weinberg p-value (calculated only if dosages are in [0,1,2], otherwise coded as NA; calculated in founders only if pedigree information available, otherwise calculated in all samples)' + '\n' + \
+							'## mac: minor allele count' + '\n' + \
+							'## freq: reference (coded) allele frequency'
+
+		self.metadata_snv_cc = '## freq.case: reference (coded) allele frequency in cases' + '\n' + \
+								'## freq.ctrl: reference (coded) allele frequency in controls'
+
+	cpdef get_snvs(self, int buffer):
+		try:
+			self.variants.get_snvs(buffer)
+		except:
+			raise
+		else:
+			try:
+				self.variants.data = self.variants.data[np.in1d(self.variants.data[:,0],np.intersect1d(self.pheno[self.iid],self.variants.data[:,0]))]
+			except:
+				raise Error("phenotype file and data file contain no common samples")
+			else:
+				self.calc_variant_stats()
+
+cdef class SnvgroupModel(Model):
+	cdef public str snvgroup_map, metadata_gene
+	def __cinit__(self, snvgroup_map = None, **kwargs):
+		self.snvgroup_map = snvgroup_map
+		super(SnvgroupModel, self).__init__(**kwargs)
+		self.tbx_start = 1
+		self.tbx_end = 2
+		self.results_header = np.array(['chr','start','end','id'])
+
+		if self.snvgroup_map is not None:
+			try:
+				self.variants.load_snvgroup_map(self.snvgroup_map)
+			except Error as err:
+				raise Error(err.msg)
+
+		self.metadata_gene = '## chr: chromosome' + '\n' + \
+								'## start: start chromosomal position' + '\n' + \
+								'## end: end chromosomal position' + '\n' + \
+								'## id: snv group name (ie. gene name)'
+
+	cpdef get_snvgroup(self, int buffer, id):
+		try:
+			self.variants.get_snvgroup(buffer, id)
+		except:
+			raise
+		else:
+			try:
+				self.variants.data = self.variants.data[np.in1d(self.variants.data[:,0],np.intersect1d(self.pheno[self.iid],self.variants.data[:,0]))]
+			except:
+				raise Error("phenotype file and data file contain no common samples")
+			else:
+				self.calc_variant_stats()
+
+cdef class Bssmeta(SnvModel):
+	def __cinit__(self, **kwargs):
+		super(Bssmeta, self).__init__(**kwargs)
 
 		# set variant as the focus variable (which is only statistic provided by singlesnpMeta())
 		# to get list of model variables from R, use
 		# self.focus = np.array([x for x in list(ro.r('labels')(ro.r('terms')(ro.r('formula')(self.formula)))) if 'variant' in x])
 		self.focus = np.array(['variant'])
 
-		# parse formula into dictionary
-		#
-		# currently valid symbols for right hand side terms in these models
-		# SYMBOL			EXAMPLE				ACTION
-		# +					+x					estimates: the global effect of x
-		# :					x:y					estimates: the global effect of the interaction between x and y
-		# *					x*y					estimates: the global effect of x, y, and the interaction between x and y
-		# factor			factor(x)			specify x as a categorical variable (factor)
-		for x in [a for a in list(set([b for b in re_split('~|\+|-|\*|:|factor|\(|\)',self.formula) if b not in ['1','0']])) if a != '']:
-			mtype = "dependent" if x in re_split('factor|\(|\)',re_split('~',self.formula)[0]) else "independent"
-			if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-				self.fields[x] = {'class': 'factor', 'type': mtype, 'dtype': '>f8'}
-			else:
-				self.fields[x] = {'class': 'numeric', 'type': mtype, 'dtype': '>f8'}
 		if len(self.focus) > 1:
 			for x in self.focus:
 				self.results_header = np.append(self.results_header,np.array([x + '.err',x + '.nmiss',x + '.ntotal',x + '.effect',x + '.stderr',x + '.or',x + '.p']))
@@ -302,45 +364,17 @@ cdef class Bssmeta(Model):
 		print "loading R package seqMeta"
 		importr('seqMeta')
 
-		try:
-			self.load()
-		except Error as err:
-			raise Error(err.msg)
-
-		self.results_header_metadata = '## source: uga' + version + '\n' + \
-									'## date: ' + time.strftime("%Y%m%d") + '\n' + \
-									'## method: bssmeta' + '\n' + \
-									'## formula: ' + self.formula + '\n' + \
-									'## total observations: ' + str(self.nobs) + '\n' + \
-									'## unique samples: ' + str(self.nunique) + '\n' + \
-									'## multiple observation samples: ' + str(self.nlongitudinal) + '\n' + \
-									'## families: ' + str(self.nfamilies) + '\n' + \
-									'## unrelated samples: ' + str(self.nunrelated) + '\n' + \
-									'## founders: ' + str(self.nfounders) + '\n' + \
-									'## males: ' + str(self.nmales) + '\n' + \
-									'## females: ' + str(self.nfemales) + '\n' + \
-									'## cases: ' + str(self.ncases) + '\n' + \
-									'## controls: ' + str(self.nctrls) + '\n' + \
-									'## chr: chromosome' + '\n' + \
-									'## pos: chromosomal position' + '\n' + \
-									'## variant: variant name' + '\n' + \
-									'## a1: reference (coded) allele used for stat calculations' + '\n' + \
-									'## a2: alternate (non-coded) allele' + '\n' + \
-									'## filter: filter code (+1 = failed hwe, +10 = failed rsq, +100 = failed mac, +1000 = failed maf, +10000 = failed miss' + '\n' + \
-									'## callrate: callrate' + '\n' + \
-									'## mac: minor allele count (calculated only if dosages are in [0,1,2], otherwise coded as NA)' + '\n' + \
-									'## freq: reference (coded) allele frequency' + '\n' + \
-									'## freq.case: reference (coded) allele frequency in cases' + '\n' + \
-									'## freq.ctrl: reference (coded) allele frequency in controls' + '\n' + \
-									'## rsq: imputation info metric (calculated only for variants exhibiting probabilistic genotypes, otherwise coded as NA)' + '\n' + \
-									'## hwe: Hardy Weinberg p-value (calculated only if dosages are in [0,1,2], otherwise coded as NA; calculated in founders only if pedigree information available, otherwise calculated in all samples)' + '\n' + \
-									'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed singlesnpMeta)' + '\n' + \
-									'## *.nmiss: number of missing samples' + '\n' + \
-									'## *.ntotal: total number of included samples' + '\n' + \
-									'## *.effect: effect size' + '\n' + \
-									'## *.stderr: standard error' + '\n' + \
-									'## *.or: odds ratio (exp(effect), not provided by seqMeta)' + '\n' + \
-									'## *.p: p-value' + '\n#'
+		self.metadata = self.metadata + '\n' + \
+						self.metadata_cc + '\n' + \
+						self.metadata_snv + '\n' + \
+						self.metadata_snv_cc + '\n' + \
+						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed singlesnpMeta)' + '\n' + \
+						'## *.nmiss: number of missing samples' + '\n' + \
+						'## *.ntotal: total number of included samples' + '\n' + \
+						'## *.effect: effect size' + '\n' + \
+						'## *.stderr: standard error' + '\n' + \
+						'## *.or: odds ratio (exp(effect), not provided by seqMeta)' + '\n' + \
+						'## *.p: p-value' + '\n#'
 
 	cpdef calc_model(self):
 		pheno_df = pd.DataFrame(self.pheno,dtype='object')
@@ -399,87 +433,33 @@ cdef class Bssmeta(Model):
 					self.results['or'][i] = 1 / self.results['or'][i]
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
 
-cdef class Bskato(Model):
-	def __cinit__(self, formula, format, pheno_file, variants_file, gene_map, type, iid, fid, case_code=2, ctrl_code=1, all_founders=False, matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep='\t'):
-		super(Bskato, self).__init__(formula=formula, format=format, case_code=case_code, ctrl_code=ctrl_code, all_founders=all_founders, gene_map=gene_map, pheno_file=pheno_file, variants_file=variants_file, type=type, iid=iid, fid=fid, matid=matid, patid=patid, sex=sex, male=male, female=female, pheno_sep=pheno_sep)
-		self.results_header = np.array(['chr','start','end','id'])
-		self.out = None
-		self.tbx_start = 1
-		self.tbx_end = 2
+cdef class Bskato(SnvgroupModel):
+	def __cinit__(self, **kwargs):
+		super(Bskato, self).__init__(**kwargs)
 
-		# set variant as the focus variable (which is only statistic provided by singlesnpMeta())
-		# to get list of model variables from R, use
-		# self.focus = np.array([x for x in list(ro.r('labels')(ro.r('terms')(ro.r('formula')(self.formula)))) if 'variant' in x])
-		#self.focus = np.array(['variant'])
-
-		# parse formula into dictionary
-		#
-		# currently valid symbols for right hand side terms in these models
-		# SYMBOL			EXAMPLE				ACTION
-		# +					+x					estimates: the global effect of x
-		# :					x:y					estimates: the global effect of the interaction between x and y
-		# *					x*y					estimates: the global effect of x, y, and the interaction between x and y
-		# factor			factor(x)			specify x as a categorical variable (factor)
-		for x in [a for a in list(set([b for b in re_split('~|\+|-|\*|:|factor|\(|\)',self.formula) if b not in ['1','0']])) if a != '']:
-			mtype = "dependent" if x in re_split('factor|\(|\)',re_split('~',self.formula)[0]) else "independent"
-			if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-				self.fields[x] = {'class': 'factor', 'type': mtype, 'dtype': '>f8'}
-			else:
-				self.fields[x] = {'class': 'numeric', 'type': mtype, 'dtype': '>f8'}
-		#if len(self.focus) > 1:
-		#	for x in self.focus:
-		#		self.results_header = np.append(self.results_header,np.array([x + '.err',x + '.nmiss',x + '.nsnps',x + '.cmaf',x + '.p',x + '.pmin',x + '.rho']))
-		#else:
 		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
-
-		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'variant'])))
 
 		from rpy2.robjects.packages import importr
 		print "loading R package seqMeta"
 		importr('seqMeta')
 
-		try:
-			self.load()
-		except Error as err:
-			raise Error(err.msg)
+		self.metadata = self.metadata + '\n' + \
+						self.metadata_cc + '\n' + \
+						self.metadata_gene + '\n' + \
+						'## *.mac: minor allele count for the group' + '\n' + \
+						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatOMeta, 4: skatOMeta errflag > 0, 5: analysis skipped)' + '\n' + \
+						'## *.nmiss: number of missing genotypes in group' + '\n' + \
+						'## *.nsnps: number of snps in the group' + '\n' + \
+						'## *.cmaf: cumulative minor allele frequency' + '\n' + \
+						'## *.p: group p-value' + '\n' + \
+						'## *.pmin: minimum snp p-value' + '\n' + \
+						'## *.rho: skato rho parameter' + '\n#'
 
-		try:
-			self.variants.load_gene_map(self.gene_map)
-		except Error as err:
-			raise Error(err.msg)
-
-		self.results_header_metadata = '## source: uga' + version + '\n' + \
-									'## date: ' + time.strftime("%Y%m%d") + '\n' + \
-									'## method: bskato' + '\n' + \
-									'## formula: ' + self.formula + '\n' + \
-									'## total observations: ' + str(self.nobs) + '\n' + \
-									'## unique samples: ' + str(self.nunique) + '\n' + \
-									'## multiple observation samples: ' + str(self.nlongitudinal) + '\n' + \
-									'## families: ' + str(self.nfamilies) + '\n' + \
-									'## unrelated samples: ' + str(self.nunrelated) + '\n' + \
-									'## founders: ' + str(self.nfounders) + '\n' + \
-									'## males: ' + str(self.nmales) + '\n' + \
-									'## females: ' + str(self.nfemales) + '\n' + \
-									'## cases: ' + str(self.ncases) + '\n' + \
-									'## controls: ' + str(self.nctrls) + '\n' + \
-									'## chr: chromosome' + '\n' + \
-									'## start: start chromosomal position' + '\n' + \
-									'## end: end chromosomal position' + '\n' + \
-									'## id: region id (ie. gene)' + '\n' + \
-									'## *.mac: minor allele count for the gene' + '\n' + \
-									'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatOMeta)' + '\n' + \
-									'## *.nmiss: number of missing genotypes in gene' + '\n' + \
-									'## *.nsnps: number of snps in the gene' + '\n' + \
-									'## *.cmaf: cumulative minor allele frequency' + '\n' + \
-									'## *.p: gene p-value' + '\n' + \
-									'## *.pmin: minimum snp p-value' + '\n' + \
-									'## *.rho: skato rho parameter' + '\n#'
-
-	cpdef calc_model(self):
+	cpdef calc_model(self, meta = None):
 		pheno_df = pd.DataFrame(self.pheno,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','|S100'),('start','|S100'),('end','|S100'),('id','|S100'),('mac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('mac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -494,7 +474,7 @@ cdef class Bskato(Model):
 			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
 			ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'}), strings_as_factors=False)
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
-			self.results['mac'][0] = ro.r('sum(z)')
+			self.results['mac'][0] = ro.r('sum(apply(z,2,function(x){ifelse(sum(x,na.rm=T) > length(x), 2*length(x) - sum(x,na.rm=T), sum(x,na.rm=T))}))')
 			if len(passed) == 1:
 				ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
 			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='binomial')"
@@ -512,6 +492,7 @@ cdef class Bskato(Model):
 			else:
 				ro.r('result$err<-0')
 				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+				ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
 				ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
 				ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
 				ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
@@ -525,14 +506,65 @@ cdef class Bskato(Model):
 				self.results['pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
 				self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
 				self.results['rho'][0] = np.array(ro.r('result$rho'))[:,None]
+		else:
+			self.results['err'][0] = 5
+			self.results['nmiss'][0] = np.nan
+			self.results['nsnps'][0] = np.nan
+			self.results['cmaf'][0] = np.nan
+			self.results['pmin'][0] = np.nan
+			self.results['p'][0] = np.nan
+			self.results['rho'][0] = np.nan
 		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
 
 	cpdef tag_results(self, tag):
 		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']]))
-		self.results = self.results.view(dtype=[('chr','|S100'),('start','|S100'),('end','|S100'),('id','|S100'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
+		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
+		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
+			ro.r(tag + '_snp_info<-snp_info')
 
+def BskatoMeta(tag, meta, meta_incl):
+	for m in meta_incl:
+		if m == meta_incl[0]:
+			ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')
+		else:
+			ro.r('snp_info_meta<-merge(snp_info_meta,' + m + '_snp_info,all=TRUE)')
+	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
+	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
+	if str(results[tag + '.incl'][0]).count('+') > 1:
+		cmd = 'skatOMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,rho=seq(0,1,0.1))'
+		try:
+			ro.globalenv['result'] = ro.r(cmd)
+		except RRuntimeError as rerr:
+			results[tag + '.err'][0] = 3
+			raise Error(rerr.message)
+		else:
+			ro.r('result$err<-0')
+			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+			ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
+			ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$pmin[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$rho[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
+			results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
+			results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+			results[tag + '.nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+			results[tag + '.cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+			results[tag + '.pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
+			results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
+			results[tag + '.rho'][0] = np.array(ro.r('result$rho'))[:,None]
+	else:
+		results[tag + '.err'][0] = 5
+		results[tag + '.nmiss'][0] = np.nan
+		results[tag + '.nsnps'][0] = np.nan
+		results[tag + '.cmaf'][0] = np.nan
+		results[tag + '.pmin'][0] = np.nan
+		results[tag + '.p'][0] = np.nan
+		results[tag + '.rho'][0] = np.nan
+	return pd.DataFrame(results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
 
 """
 class BglmFrame(ModelFrame):

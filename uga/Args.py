@@ -209,148 +209,154 @@ def SnvArgs(snv_parser):
 						help='a meta analysis string')
 	return snv_parser
 
-def GeneArgs(gene_parser):
-	gene_parser.add_argument('--out', 
+def SnvgroupArgs(snvgroup_parser):
+	snvgroup_parser.add_argument('--out', 
 						action=AddString, 
 						help='output file basename (do not include path or extension)')
-	gene_parser.add_argument('--pheno', 
+	snvgroup_parser.add_argument('--pheno', 
 						action=AddString, 
 						help='phenotype file')
-	gene_parser.add_argument('--cpus', 
+	snvgroup_parser.add_argument('--cpus', 
 						action=AddString, 
 						type=int, 
 						help='number of cpus')
-	gene_parser.add_argument('--fid', 
+	snvgroup_parser.add_argument('--fid', 
 						action=AddString, 
 						help='column name with family ID')
-	gene_parser.add_argument('--iid', 
+	snvgroup_parser.add_argument('--iid', 
 						action=AddString, 
 						help='column name with sample ID (The IDs in this column must match the --samples file)')
-	gene_parser.add_argument('--matid', 
+	snvgroup_parser.add_argument('--matid', 
 						action=AddString, 
 						help='column name with maternal ID (used to determine founders for marker stats and for analyses requiring a pedigree)')
-	gene_parser.add_argument('--patid', 
+	snvgroup_parser.add_argument('--patid', 
 						action=AddString, 
 						help='column name with paternal ID (used to determine founders for marker stats and for analyses requiring a pedigree)')
-	gene_parser.add_argument('--all-founders', 
+	snvgroup_parser.add_argument('--all-founders', 
 						nargs=0, 
 						action=AddTrue, 
 						help='use all samples to calculate variant statistics regardless of --matid and --patid column information')
-	gene_parser.add_argument('--sep', 
+	snvgroup_parser.add_argument('--sep', 
 						action=AddString, 
 						choices=['tab','space','comma'], 
 						help='phenotype file delimiter (default: tab)')
-	gene_parser.add_argument('--sample', 
+	snvgroup_parser.add_argument('--sample', 
 						action=AddString, 
 						help='sample file (not required for Plink format files)')
-	gene_parser.add_argument('--sex', 
+	snvgroup_parser.add_argument('--sex', 
 						action=AddString, 
 						help='name of the column containing male/female status (requires --male and --female)')
-	gene_parser.add_argument('--male', 
+	snvgroup_parser.add_argument('--male', 
 						action=AddString, 
 						type=int, 
 						help='code for male (default: 1; requires --sex and --female)')
-	gene_parser.add_argument('--female', 
+	snvgroup_parser.add_argument('--female', 
 						action=AddString, 
 						type=int, 
 						help='code for female (default: 2; requires --sex and --male)')
-	gene_parser.add_argument('--buffer', 
+	snvgroup_parser.add_argument('--buffer', 
 						action=AddString, 
 						type=int, 
 						help='value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
-	gene_parser.add_argument('--miss', 
+	snvgroup_parser.add_argument('--miss', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for missingness (ie. 0.95 allows for up to 5%% missingness)')
-	gene_parser.add_argument('--maf', 
+	snvgroup_parser.add_argument('--maf', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for minimum minor allele frequency (ie. 0.03 filters out markers with maf < 0.03)')
-	gene_parser.add_argument('--maxmaf', 
+	snvgroup_parser.add_argument('--maxmaf', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for maximum minor allele frequency (ie. 0.01 filters out markers with maf >= 0.01)')
-	gene_parser.add_argument('--mac', 
+	snvgroup_parser.add_argument('--mac', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for minimum minor allele count (ie. 3 filters out markers with mac < 3)')
-	gene_parser.add_argument('--rsq', 
+	snvgroup_parser.add_argument('--rsq', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for imputation quality (ie. 0.8 filters out markers with rsq < 0.8)')
-	gene_parser.add_argument('--hwe', 
+	snvgroup_parser.add_argument('--hwe', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for Hardy Weinberg p-value (ie. 1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
-	gene_parser.add_argument('--hwe-maf', 
+	snvgroup_parser.add_argument('--hwe-maf', 
 						action=AddString, 
 						type=float, 
 						help='threshold value for minimum minor allele frequency for which Hardy Weinberg p-value threshold is evaluated (ie. 0.01 only filters markers with maf >= 0.01 that do not pass hwe threshold)')
-	gene_parser.add_argument('--replace', 
+	snvgroup_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 
 						help='replace any existing output files')
-	gene_parser.add_argument('--qsub', 
+	snvgroup_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
-	gene_parser.add_argument('--tag', 
+	snvgroup_parser.add_argument('--tag', 
 						action=AddString, 
 						help='tag for individual model')
-	gene_parser_split_group1 = gene_parser.add_mutually_exclusive_group()
-	gene_parser_split_group1.add_argument('--gene-map', 
+	snvgroup_parser.add_argument('--snvgroup-map', 
 						action=AddString, 
-						help='filename for list of tabix formatted single variant regions (ie. 1:100-100) and gene name (or any categorical naming scheme) assignments')
-	gene_parser_split_group2 = gene_parser.add_mutually_exclusive_group()
-	gene_parser_split_group2.add_argument('--split', 
+						help='filename for list of tabix formatted single variant regions (ie. 1:100-100) and snvgroup name (or any categorical naming scheme) assignments')
+	snvgroup_parser_split_group1 = snvgroup_parser.add_mutually_exclusive_group()
+	snvgroup_parser_split_group1.add_argument('--region', 
+						action=AddString, 
+						help='genomic region specified in Tabix format of any size up to an entire chromosome (ie. 1:1-1000000, 21).')
+	snvgroup_parser_split_group1.add_argument('--region-file', 
+						action=AddString, 
+						help='filename for a list of tabix format regions of any size up to an entire chromosome (ie. 1:1-1000000, 21)')
+	snvgroup_parser_split_group2 = snvgroup_parser.add_mutually_exclusive_group()
+	snvgroup_parser_split_group2.add_argument('--split', 
 						nargs=0, 
 						action=AddTrue, 
 						help='split --region-file into an individual job for each line in file (requires --region-file)')
-	gene_parser_split_group2.add_argument('--split-n', 
+	snvgroup_parser_split_group2.add_argument('--split-n', 
 						action=AddString, 
 						type=int, 
 						help='split --region-file into n individual jobs each with a subset of regions in the file (requires --region-file)')
-	gene_parser_split_group2.add_argument('--split-chr', 
+	snvgroup_parser_split_group2.add_argument('--split-chr', 
 						nargs=0, 
 						action=AddTrue,  
 						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	gene_parser_split_group3 = gene_parser.add_mutually_exclusive_group()
-	gene_parser_split_group3.add_argument('--job', 
+	snvgroup_parser_split_group3 = snvgroup_parser.add_mutually_exclusive_group()
+	snvgroup_parser_split_group3.add_argument('--job', 
 						action=AddString, 
 						type=int, 
 						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
-	gene_parser_split_group3.add_argument('--jobs', 
+	snvgroup_parser_split_group3.add_argument('--jobs', 
 						action=AddString, 
 						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
-	gene_parser.add_argument('--oxford', 
+	snvgroup_parser.add_argument('--oxford', 
 						action=AddString, 
 						help='oxford format genotype data file')
-	gene_parser.add_argument('--dos1', 
+	snvgroup_parser.add_argument('--dos1', 
 						action=AddString, 
 						help='dos1 format genotype data file')
-	gene_parser.add_argument('--dos2', 
+	snvgroup_parser.add_argument('--dos2', 
 						action=AddString, 
 						help='dos2 format genotype data file')
-	gene_parser.add_argument('--plink', 
+	snvgroup_parser.add_argument('--plink', 
 						action=AddString, 
 						help='Plink binary format genotype data file (without extension)')
-	gene_parser.add_argument('--vcf', 
+	snvgroup_parser.add_argument('--vcf', 
 						action=AddString, 
 						help='vcf 4.1/4.2 format genotype data file')
-	gene_parser.add_argument('--case-code', 
+	snvgroup_parser.add_argument('--case-code', 
 						action=AddString, 
 						type=int, 
 						help='code for case in the dependent variable column (requires --ctrl-code; binomial fxn family only; default: 1)')
-	gene_parser.add_argument('--ctrl-code', 
+	snvgroup_parser.add_argument('--ctrl-code', 
 						action=AddString, 
 						type=int, 
 						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
-	gene_parser.add_argument('--bskato', 
+	snvgroup_parser.add_argument('--bskato', 
 						action=AddString, 
 						help='model string for bskato (binomial skatOMeta)')
-	gene_parser.add_argument('--meta', 
+	snvgroup_parser.add_argument('--meta', 
 						action=AddString, 
 						help='a meta analysis string')
-	return gene_parser
+	return snvgroup_parser
 
 def MetaArgs(meta_parser):
 	meta_required = meta_parser.add_argument_group('required arguments')

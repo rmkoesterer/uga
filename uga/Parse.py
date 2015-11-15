@@ -42,7 +42,7 @@ def GetParser():
 
 	set_parser = SetArgs(subparsers.add_parser('set', help='user definable settings', parents=[global_parser]))
 	snv_parser = SnvArgs(subparsers.add_parser('snv', help='run single nucleotide variant association models', parents=[global_parser]))
-	gene_parser = GeneArgs(subparsers.add_parser('gene', help='run gene / locus based association models', parents=[global_parser]))
+	snvgroup_parser = SnvgroupArgs(subparsers.add_parser('snvgroup', help='run snv group (ie. gene) based association models', parents=[global_parser]))
 
 	meta_parser = MetaArgs(subparsers.add_parser('meta', help='meta-analysis', parents=[global_parser]))
 	map_parser = MapArgs(subparsers.add_parser('map', help='map non-empty regions in genotype/imputed data files', parents=[global_parser]))
@@ -59,14 +59,14 @@ def GetArgs(parser):
 		for k in args.ordered_args:
 			vars(args).update({k[0]: k[1]})
 	else:
-		if args.which in ['snv','gene','meta','map','compile','eval','gc','annot']:
+		if args.which in ['snv','snvgroup','meta','map','compile','eval','gc','annot']:
 			parser.error("missing argument: no options selected")
 	print ''
 	print 'active module: ' + args.which
 	return args
 
 def GenerateSnvCfg(args):
-	config = {'out': None, 'buffer': 1000, 'region': None, 'region_file': None, 'id': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
+	config = {'out': None, 'buffer': 1000, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
 					'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
 	for arg in args:
 		if arg[0] == 'out':
@@ -77,8 +77,6 @@ def GenerateSnvCfg(args):
 			config['region'] = arg[1]
 		if arg[0] == 'region_file':
 			config['region_file'] = arg[1]
-		if arg[0] == 'id':
-			config['id'] = arg[1]
 		if arg[0] == 'meta':
 			config['meta'][arg[1].split(':')[0]] = arg[1].split(':')[1]
 		if arg[0] == 'cpus' and arg[1] is not None:
@@ -172,8 +170,8 @@ def PrintSnvOptions(cfg):
 		for m in cfg['meta_order']:
 			print "      {0:>{1}}".format(str('--meta ' + m), len(max(['--' + k for k in cfg['meta_order']],key=len))) + ":" + str(cfg['meta'][m])
 
-def GenerateGeneCfg(args):
-	config = {'out': None, 'buffer': 1000, 'id': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'gene_map': None, 'region_file': None, 
+def GenerateSnvgroupCfg(args):
+	config = {'out': None, 'buffer': 1000, 'region': None, 'region_file': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'snvgroup_map': None, 
 					'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
 	for arg in args:
 		if arg[0] == 'out':
@@ -190,8 +188,10 @@ def GenerateGeneCfg(args):
 			config['split'] = arg[1]
 		if arg[0] == 'split_n':
 			config['split_n'] = arg[1]
-		if arg[0] == 'gene_map':
-			config['gene_map'] = arg[1]
+		if arg[0] == 'snvgroup_map':
+			config['snvgroup_map'] = arg[1]
+		if arg[0] == 'region':
+			config['region'] = arg[1]
 		if arg[0] == 'region_file':
 			config['region_file'] = arg[1]
 
@@ -252,7 +252,7 @@ def GenerateGeneCfg(args):
 			config['meta'][arg[1].split(':')[0]] = arg[1].split(':')[1]
 	return config
 
-def PrintGeneOptions(cfg):
+def PrintSnvgroupOptions(cfg):
 	print ''
 	print "main options ..."
 	for k in cfg:

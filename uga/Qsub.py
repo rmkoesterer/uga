@@ -51,8 +51,8 @@ def main(argv):
 	#	from uga.Stat import Stat
 	if argv[1].split('(')[0] == "RunSnv":
 		from uga.RunSnv import RunSnv
-	if argv[1].split('(')[0] == "RunGene":
-		from uga.RunGene import RunGene
+	if argv[1].split('(')[0] == "RunSnvgroup":
+		from uga.RunSnvgroup import RunSnvgroup
 	#elif argv[1].split('(')[0] == "Meta":
 	#	from uga.Meta import Meta
 	#elif argv[1].split('(')[0] == "Map":
