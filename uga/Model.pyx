@@ -524,6 +524,104 @@ cdef class Bskato(SnvgroupModel):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
 
+cdef class Bburden(SnvgroupModel):
+	def __cinit__(self, **kwargs):
+		super(Bburden, self).__init__(**kwargs)
+
+		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']))
+
+		from rpy2.robjects.packages import importr
+		print "loading R package seqMeta"
+		importr('seqMeta')
+
+		self.metadata = self.metadata + '\n' + \
+						self.metadata_cc + '\n' + \
+						self.metadata_gene + '\n' + \
+						'## *.mac: minor allele count for the group' + '\n' + \
+						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed burdenMeta, 5: analysis skipped)' + '\n' + \
+						'## *.nmiss: number of missing snps' + '\n' + \
+						'## *.nsnpsTotal: number of snps in group' + '\n' + \
+						'## *.nsnpsUsed: number of snps used in analysis' + '\n' + \
+						'## *.cmafTotal: cumulative minor allele frequency in group' + '\n' + \
+						'## *.cmafUsed: cumulative minor allele frequency for snps used in analysis' + '\n' + \
+						'## *.beta: coefficient for effect of genotype' + '\n' + \
+						'## *.se: standard error for effect of genotype' + '\n' + \
+						'## *.p: p value for burden test' + '\n#'
+
+	cpdef calc_model(self, meta = None):
+		pheno_df = pd.DataFrame(self.pheno,dtype='object')
+		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
+		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('mac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnpsTotal','>f8'),('nsnpsUsed','>f8'),('cmafTotal','>f8'),('cmafUsed','>f8'),('beta','>f8'),('se','>f8'),('p','>f8')])
+		self.results['chr'][0] = self.variants.chr
+		self.results['start'][0] = self.variants.start
+		self.results['end'][0] = self.variants.end
+		self.results['id'][0] = self.variants.id
+		if len(passed) > 0:
+			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
+			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
+			ro.globalenv['model_df'] = py2r.convert_to_r_dataframe(pheno_df.merge(variants_df, on=self.iid, how='left'), strings_as_factors=False)
+			for col in list(self.model_cols) + list(self.variants.info['variant_unique'][passed]):
+				ro.r('class(model_df$' + col + ')<-"numeric"')
+			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['variant_unique'][passed]))
+			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
+			ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'}), strings_as_factors=False)
+			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
+			self.results['mac'][0] = ro.r('sum(apply(z,2,function(x){ifelse(sum(x,na.rm=T) > length(x), 2*length(x) - sum(x,na.rm=T), sum(x,na.rm=T))}))')
+			if len(passed) == 1:
+				ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
+			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='binomial')"
+			try:
+				ro.globalenv['ps'] = ro.r(cmd)
+			except RRuntimeError as rerr:
+				self.results['err'][0] = 2
+				raise Error(rerr.message)
+			cmd = 'burdenMeta(ps,SNPInfo=snp_info)'
+			try:
+				ro.globalenv['result'] = ro.r(cmd)
+			except RRuntimeError as rerr:
+				self.results['err'][0] = 3
+				raise Error(rerr.message)
+			else:
+				ro.r('result$err<-0')
+				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+				ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$nsnpsTotal[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$nsnpsUsed[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$cmafTotal[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$cmafUsed[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$beta[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$se[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+				self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
+				self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+				self.results['nsnpsTotal'][0] = np.array(ro.r('result$nsnpsTotal'))[:,None]
+				self.results['nsnpsUsed'][0] = np.array(ro.r('result$nsnpsUsed'))[:,None]
+				self.results['cmafTotal'][0] = np.array(ro.r('result$cmafTotal'))[:,None]
+				self.results['cmafUsed'][0] = np.array(ro.r('result$cmafUsed'))[:,None]
+				self.results['beta'][0] = np.array(ro.r('result$beta'))[:,None]
+				self.results['se'][0] = np.array(ro.r('result$se'))[:,None]
+				self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
+		else:
+			self.results['err'][0] = 5
+			self.results['nmiss'][0] = np.nan
+			self.results['nsnpsTotal'][0] = np.nan
+			self.results['nsnpsUsed'][0] = np.nan
+			self.results['cmafTotal'][0] = np.nan
+			self.results['cmafUsed'][0] = np.nan
+			self.results['beta'][0] = np.nan
+			self.results['se'][0] = np.nan
+			self.results['p'][0] = np.nan
+		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+
+	cpdef tag_results(self, tag):
+		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['mac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']]))
+		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
+		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+		if not np.isnan(self.results[tag + '.p'][0]):
+			ro.r(tag + '_ps<-ps')
+			ro.r(tag + '_snp_info<-snp_info')
+
 def BskatoMeta(tag, meta, meta_incl):
 	for m in meta_incl:
 		if m == meta_incl[0]:
@@ -565,6 +663,54 @@ def BskatoMeta(tag, meta, meta_incl):
 		results[tag + '.p'][0] = np.nan
 		results[tag + '.rho'][0] = np.nan
 	return pd.DataFrame(results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+
+def BburdenMeta(tag, meta, meta_incl):
+	for m in meta_incl:
+		if m == meta_incl[0]:
+			ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')
+		else:
+			ro.r('snp_info_meta<-merge(snp_info_meta,' + m + '_snp_info,all=TRUE)')
+	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
+	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
+	if str(results[tag + '.incl'][0]).count('+') > 1:
+		cmd = 'burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta)'
+		try:
+			ro.globalenv['result'] = ro.r(cmd)
+		except RRuntimeError as rerr:
+			results[tag + '.err'][0] = 3
+			raise Error(rerr.message)
+		else:
+			ro.r('result$err<-0')
+			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+			ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$nsnpsTotal[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$nsnpsUsed[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$cmafTotal[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$cmafUsed[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$beta[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$se[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+			results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
+			results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+			results[tag + '.nsnpsTotal'][0] = np.array(ro.r('result$nsnpsTotal'))[:,None]
+			results[tag + '.nsnpsUsed'][0] = np.array(ro.r('result$nsnpsUsed'))[:,None]
+			results[tag + '.cmafTotal'][0] = np.array(ro.r('result$cmafTotal'))[:,None]
+			results[tag + '.cmafUsed'][0] = np.array(ro.r('result$cmafUsed'))[:,None]
+			results[tag + '.beta'][0] = np.array(ro.r('result$beta'))[:,None]
+			results[tag + '.se'][0] = np.array(ro.r('result$se'))[:,None]
+			results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
+	else:
+		results[tag + '.err'][0] = 5
+		results[tag + '.nmiss'][0] = np.nan
+		results[tag + '.nsnpsTotal'][0] = np.nan
+		results[tag + '.nsnpsUsed'][0] = np.nan
+		results[tag + '.cmafTotal'][0] = np.nan
+		results[tag + '.cmafUsed'][0] = np.nan
+		results[tag + '.beta'][0] = np.nan
+		results[tag + '.se'][0] = np.nan
+		results[tag + '.p'][0] = np.nan
+	return pd.DataFrame(results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+
 
 """
 class BglmFrame(ModelFrame):

@@ -160,7 +160,7 @@ def process_regions(regions_df, cfg, cpu, log):
 		store.get_storer('df').attrs.tbx_start = models_obj[cfg['model_order'][0]].tbx_start
 		store.get_storer('df').attrs.tbx_end = models_obj[cfg['model_order'][0]].tbx_end
 		store.close()
-		
+
 	if log:
 		sys.stdout = stdout_orig
 		log_file.close()

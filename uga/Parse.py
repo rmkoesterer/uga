@@ -204,15 +204,15 @@ def GenerateSnvgroupCfg(args):
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
 			for arg in global_args:
-				if arg[0] in ['bskato']:
+				if arg[0] in ['bskato','bburden']:
 					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
 					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['bskato']:
+				if arg[0] in ['bskato','bburden']:
 					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
 					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
 			for arg in global_args:
-				if arg[0] in ['bskato']:
+				if arg[0] in ['bskato','bburden']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
 				elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:
@@ -221,7 +221,7 @@ def GenerateSnvgroupCfg(args):
 				else:
 					config['models'][args[tags_idx[i]][1]][arg[0]] = arg[1]
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['bskato']:
+				if arg[0] in ['bskato','bburden']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
 				elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:

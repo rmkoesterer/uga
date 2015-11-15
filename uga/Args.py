@@ -353,6 +353,9 @@ def SnvgroupArgs(snvgroup_parser):
 	snvgroup_parser.add_argument('--bskato', 
 						action=AddString, 
 						help='model string for bskato (binomial skatOMeta)')
+	snvgroup_parser.add_argument('--bburden', 
+						action=AddString, 
+						help='model string for bburden (binomial burdenMeta)')
 	snvgroup_parser.add_argument('--meta', 
 						action=AddString, 
 						help='a meta analysis string')
