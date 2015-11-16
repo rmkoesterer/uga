@@ -201,6 +201,15 @@ def SnvArgs(snv_parser):
 	snv_parser.add_argument('--score', 
 						action=AddString, 
 						help='model string for score test (singlesnpMeta)')
+	snv_parser.add_argument('--gee', 
+						action=AddString, 
+						help='model string for gee test (R geepack geeglm function)')
+	snv_parser.add_argument('--glm', 
+						action=AddString, 
+						help='model string for glm test')
+	snv_parser.add_argument('--lm', 
+						action=AddString, 
+						help='model string for lm test')
 	return snv_parser
 
 def SnvgroupArgs(snvgroup_parser):
@@ -354,9 +363,15 @@ def SnvgroupArgs(snvgroup_parser):
 	snvgroup_parser.add_argument('--skat-wts', 
 						action=AddString, 
 						help='skat weights (default: beta weights)')
+	snvgroup_parser.add_argument('--skat-method', 
+						action=AddString, 
+						help='skat method for p-value calculation (default: saddlepoint)')
 	snvgroup_parser.add_argument('--burden', 
 						action=AddString, 
 						help='model string for burden (burdenMeta)')
+	snvgroup_parser.add_argument('--burden-mafrange', 
+						action=AddString, 
+						help='maf range for burden test (default: all snvs c(0,0.5))')
 	snvgroup_parser.add_argument('--meta', 
 						action=AddString, 
 						help='a meta analysis string')
