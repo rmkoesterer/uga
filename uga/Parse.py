@@ -67,7 +67,7 @@ def GetArgs(parser):
 
 def GenerateSnvCfg(args):
 	config = {'out': None, 'buffer': 1000, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
+					'models': {}, 'model_order': []}
 	for arg in args:
 		if arg[0] == 'out':
 			config['out'] = arg[1]
@@ -77,8 +77,6 @@ def GenerateSnvCfg(args):
 			config['region'] = arg[1]
 		if arg[0] == 'region_file':
 			config['region_file'] = arg[1]
-		if arg[0] == 'meta':
-			config['meta'][arg[1].split(':')[0]] = arg[1].split(':')[1]
 		if arg[0] == 'cpus' and arg[1] is not None:
 			config['cpus'] = arg[1]
 		if arg[0] == 'mb' and arg[1] is not None:
@@ -90,6 +88,8 @@ def GenerateSnvCfg(args):
 		if arg[0] == 'split_n':
 			config['split_n'] = arg[1]
 
+	args = [x for x in args if x[0] not in config]
+
 	tags_idx = [args.index((x,y)) for x, y in args if x == 'tag'] + [len(args)]
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'formula': None, 'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
@@ -99,27 +99,27 @@ def GenerateSnvCfg(args):
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
 			for arg in global_args:
-				if arg[0] in ['bssmeta']:
+				if arg[0] in ['score']:
 					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
 					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['bssmeta']:
+				if arg[0] in ['score']:
 					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
 					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
 			for arg in global_args:
-				if arg[0] in ['bssmeta']:
+				if arg[0] in ['score']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
-				elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:
+				elif arg[0] in ['vcf','dos1','dos2','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
 				else:
 					config['models'][args[tags_idx[i]][1]][arg[0]] = arg[1]
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['bssmeta']:
+				if arg[0] in ['score']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
-				elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:
+				elif arg[0] in ['vcf','dos1','dos2','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
 				else:
@@ -128,14 +128,14 @@ def GenerateSnvCfg(args):
 	else:
 		config['models']['___no_tag___'] = config_default
 		for arg in global_args:
-			if arg[0] in ['bssmeta']:
+			if arg[0] in ['score']:
 				config['models']['___no_tag___']['case_code'] = 1
 				config['models']['___no_tag___']['ctrl_code'] = 0
 		for arg in global_args:
-			if arg[0] in ['bssmeta']:
+			if arg[0] in ['score']:
 				config['models']['___no_tag___']['fxn'] = arg[0]
 				config['models']['___no_tag___']['formula'] = arg[1]
-			elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:
+			elif arg[0] in ['vcf','dos1','dos2','oxford']:
 				config['models']['___no_tag___']['format'] = arg[0]
 				config['models']['___no_tag___']['file'] = arg[1]
 			else:
@@ -157,7 +157,7 @@ def PrintSnvOptions(cfg):
 					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
 				else:
 					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
-	for m in cfg['models']:
+	for m in cfg['model_order']:
 		print '   model ' + str(m) + ' ...' if len(cfg['models']) > 1 else '   model ...'
 		for n in cfg['models'][m]:
 			if cfg['models'][m][n] is not None and cfg['models'][m][n] is not False:
@@ -180,6 +180,7 @@ def GenerateSnvgroupCfg(args):
 			config['buffer'] = arg[1]
 		if arg[0] == 'meta':
 			config['meta'][arg[1].split(':')[0]] = arg[1].split(':')[1]
+			config['meta_order'].append(arg[1].split(':')[0])
 		if arg[0] == 'cpus' and arg[1] is not None:
 			config['cpus'] = arg[1]
 		if arg[0] == 'qsub':
@@ -195,36 +196,38 @@ def GenerateSnvgroupCfg(args):
 		if arg[0] == 'region_file':
 			config['region_file'] = arg[1]
 
+	args = [x for x in args if x[0] not in config]
+
 	tags_idx = [args.index((x,y)) for x, y in args if x == 'tag'] + [len(args)]
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'formula': None, 'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
-							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 1.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
-							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None}
+							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.000001, 'maxmaf': 1.0, 'mac': 1.0, 'snvgroup_mac': 1.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
+							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'skat_wts': None, 'burden_wts': None}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
 			for arg in global_args:
-				if arg[0] in ['bskato','bburden']:
+				if arg[0] in ['skato','burden']:
 					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
 					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['bskato','bburden']:
+				if arg[0] in ['skato','burden']:
 					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
 					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
 			for arg in global_args:
-				if arg[0] in ['bskato','bburden']:
+				if arg[0] in ['skato','burden']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
-				elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:
+				elif arg[0] in ['vcf','dos1','dos2','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
 				else:
 					config['models'][args[tags_idx[i]][1]][arg[0]] = arg[1]
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['bskato','bburden']:
+				if arg[0] in ['skato','burden']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
-				elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:
+				elif arg[0] in ['vcf','dos1','dos2','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
 				else:
@@ -233,14 +236,14 @@ def GenerateSnvgroupCfg(args):
 	else:
 		config['models']['___no_tag___'] = config_default
 		for arg in global_args:
-			if arg[0] in ['bskato']:
+			if arg[0] in ['skato']:
 				config['models']['___no_tag___']['case_code'] = 1
 				config['models']['___no_tag___']['ctrl_code'] = 0
 		for arg in global_args:
-			if arg[0] in ['bskato']:
+			if arg[0] in ['skato']:
 				config['models']['___no_tag___']['fxn'] = arg[0]
 				config['models']['___no_tag___']['formula'] = arg[1]
-			elif arg[0] in ['plink','vcf','dos1','dos2','oxford']:
+			elif arg[0] in ['vcf','dos1','dos2','oxford']:
 				config['models']['___no_tag___']['format'] = arg[0]
 				config['models']['___no_tag___']['file'] = arg[1]
 			else:
@@ -262,7 +265,7 @@ def PrintSnvgroupOptions(cfg):
 					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
 				else:
 					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
-	for m in cfg['models']:
+	for m in cfg['model_order']:
 		print '   model ' + str(m) + ' ...' if len(cfg['models']) > 1 else '   model ...'
 		for n in cfg['models'][m]:
 			if cfg['models'][m][n] is not None and cfg['models'][m][n] is not False:

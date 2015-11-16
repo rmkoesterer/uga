@@ -144,9 +144,6 @@ def SnvArgs(snv_parser):
 	snv_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
-	#snv_parser.add_argument('--id', 
-	#					action=AddString, 
-	#					help='add id column to indicate region / locus')
 	snv_parser.add_argument('--tag', 
 						action=AddString, 
 						help='tag for individual model')
@@ -178,18 +175,18 @@ def SnvArgs(snv_parser):
 	snv_parser_split_group3.add_argument('--jobs', 
 						action=AddString, 
 						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
-	snv_parser.add_argument('--oxford', 
-						action=AddString, 
-						help='oxford format genotype data file')
-	snv_parser.add_argument('--dos1', 
-						action=AddString, 
-						help='dos1 format genotype data file')
-	snv_parser.add_argument('--dos2', 
-						action=AddString, 
-						help='dos2 format genotype data file')
-	snv_parser.add_argument('--plink', 
-						action=AddString, 
-						help='Plink binary format genotype data file (without extension)')
+	#snv_parser.add_argument('--oxford', 
+	#					action=AddString, 
+	#					help='oxford format genotype data file')
+	#snv_parser.add_argument('--dos1', 
+	#					action=AddString, 
+	#					help='dos1 format genotype data file')
+	#snv_parser.add_argument('--dos2', 
+	#					action=AddString, 
+	#					help='dos2 format genotype data file')
+	#snv_parser.add_argument('--plink', 
+	#					action=AddString, 
+	#					help='Plink binary format genotype data file (without extension)')
 	snv_parser.add_argument('--vcf', 
 						action=AddString, 
 						help='vcf 4.1/4.2 format genotype data file')
@@ -201,12 +198,9 @@ def SnvArgs(snv_parser):
 						action=AddString, 
 						type=int, 
 						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
-	snv_parser.add_argument('--bssmeta', 
+	snv_parser.add_argument('--score', 
 						action=AddString, 
-						help='model string for bssmeta (binomial singlesnpMeta)')
-	snv_parser.add_argument('--meta', 
-						action=AddString, 
-						help='a meta analysis string')
+						help='model string for score test (singlesnpMeta)')
 	return snv_parser
 
 def SnvgroupArgs(snvgroup_parser):
@@ -274,6 +268,10 @@ def SnvgroupArgs(snvgroup_parser):
 						action=AddString, 
 						type=float, 
 						help='threshold value for minimum minor allele count (ie. 3 filters out markers with mac < 3)')
+	snvgroup_parser.add_argument('--snvgroup-mac', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for minimum minor allele count in snv group (ie. 3 filters out snv groups with mac < 3)')
 	snvgroup_parser.add_argument('--rsq', 
 						action=AddString, 
 						type=float, 
@@ -327,18 +325,18 @@ def SnvgroupArgs(snvgroup_parser):
 	snvgroup_parser_split_group3.add_argument('--jobs', 
 						action=AddString, 
 						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
-	snvgroup_parser.add_argument('--oxford', 
-						action=AddString, 
-						help='oxford format genotype data file')
-	snvgroup_parser.add_argument('--dos1', 
-						action=AddString, 
-						help='dos1 format genotype data file')
-	snvgroup_parser.add_argument('--dos2', 
-						action=AddString, 
-						help='dos2 format genotype data file')
-	snvgroup_parser.add_argument('--plink', 
-						action=AddString, 
-						help='Plink binary format genotype data file (without extension)')
+	#snvgroup_parser.add_argument('--oxford', 
+	#					action=AddString, 
+	#					help='oxford format genotype data file')
+	#snvgroup_parser.add_argument('--dos1', 
+	#					action=AddString, 
+	#					help='dos1 format genotype data file')
+	#snvgroup_parser.add_argument('--dos2', 
+	#					action=AddString, 
+	#					help='dos2 format genotype data file')
+	#snvgroup_parser.add_argument('--plink', 
+	#					action=AddString, 
+	#					help='Plink binary format genotype data file (without extension)')
 	snvgroup_parser.add_argument('--vcf', 
 						action=AddString, 
 						help='vcf 4.1/4.2 format genotype data file')
@@ -350,12 +348,15 @@ def SnvgroupArgs(snvgroup_parser):
 						action=AddString, 
 						type=int, 
 						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
-	snvgroup_parser.add_argument('--bskato', 
+	snvgroup_parser.add_argument('--skato', 
 						action=AddString, 
-						help='model string for bskato (binomial skatOMeta)')
-	snvgroup_parser.add_argument('--bburden', 
+						help='model string for skato (skatOMeta)')
+	snvgroup_parser.add_argument('--skat-wts', 
 						action=AddString, 
-						help='model string for bburden (binomial burdenMeta)')
+						help='skat weights (default: beta weights)')
+	snvgroup_parser.add_argument('--burden', 
+						action=AddString, 
+						help='model string for burden (burdenMeta)')
 	snvgroup_parser.add_argument('--meta', 
 						action=AddString, 
 						help='a meta analysis string')

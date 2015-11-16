@@ -34,15 +34,15 @@ ro.r('options(na.action=na.omit)')
 pd.options.mode.chained_assignment = None
 
 cdef class Model(object):
-	cdef public unsigned int case_code, ctrl_code, tbx_start, tbx_end
-	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx
-	cdef public np.ndarray focus, model_cols, results_header, results_dtypes, \
-							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, males_idx, females_idx
+	cdef public unsigned int case_code, ctrl_code, tbx_start, tbx_end, \
+								male, female, nobs, nunique, nfounders, nlongitudinal, \
+								nfamilies, nunrelated, ncases, nctrls, nmales, nfemales
+	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx, \
+							focus, model_cols, results_header, results_dtypes, calc_hwe_idx, \
+							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, male_idx, female_idx
 	cdef public bytes formula, format, pheno_file, variants_file, type, \
 						iid, fid, matid, patid, sex, pheno_sep, a1, a2
-	cdef public str metadata, metadata_cc
-	cdef public unsigned int male, female, nobs, nunique, nfounders, nlongitudinal, \
-								nfamilies, nunrelated, ncases, nctrls, nmales, nfemales
+	cdef public str metadata, metadata_cc, dep_var, family
 	cdef public dict fields
 	cdef public object pheno, variants, out
 	cdef public bint all_founders
@@ -68,6 +68,7 @@ cdef class Model(object):
 		self.pheno_sep = pheno_sep
 		self.all_founders = all_founders
 		self.fields = {}
+		self.family = 'gaussian'
 
 		# parse formula into dictionary
 		#
@@ -86,7 +87,16 @@ cdef class Model(object):
 
 		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'variant'])))
 
-		#def load(self):
+		self.male_idx = np.array([])
+		self.female_idx = np.array([])
+		self.cases_idx = np.array([])
+		self.ctrls_idx = np.array([])
+		self.male_cases_idx = np.array([])
+		self.male_ctrls_idx = np.array([])
+		self.female_cases_idx = np.array([])
+		self.female_ctrls_idx = np.array([])
+		self.founders_ctrls_idx = np.array([])
+		self.calc_hwe_idx = np.array([])
 		try:
 			self.variants = getattr(Geno,self.format.capitalize())(self.variants_file)
 		except Error as err:
@@ -147,6 +157,7 @@ cdef class Model(object):
 					self.founders_idx = self.unique_idx.copy()
 				else:
 					self.founders_idx = np.in1d(self.pheno[self.iid],self.pheno[self.unique_idx][(self.pheno[self.unique_idx][self.matid] == '0') & (self.pheno[self.unique_idx][self.patid] == '0')][self.iid])
+				self.calc_hwe_idx = self.founders_idx.copy()
 				self.nobs = self.pheno.shape[0]
 				self.nunique = len(iids_unique)
 				self.nlongitudinal = len(iids_counts[iids_counts != 1])
@@ -167,35 +178,36 @@ cdef class Model(object):
 				if self.sex is not None:
 					if self.male is not None:
 						self.nmales = self.pheno[self.unique_idx][self.pheno[self.unique_idx][self.sex] == self.male].shape[0]
-						self.males_idx = np.in1d(self.pheno[self.iid],self.pheno[self.unique_idx][self.pheno[self.unique_idx][self.sex] == self.male][self.iid])
+						self.male_idx = np.in1d(self.pheno[self.iid],self.pheno[self.unique_idx][self.pheno[self.unique_idx][self.sex] == self.male][self.iid])
 						print "   " + str(self.nmales) + " male"
 					if self.female is not None:
 						self.nfemales = self.pheno[self.unique_idx][self.pheno[self.unique_idx][self.sex] == self.female].shape[0]
-						self.females_idx = np.in1d(self.pheno[self.iid],self.pheno[self.unique_idx][self.pheno[self.unique_idx][self.sex] == self.female][self.iid])
+						self.female_idx = np.in1d(self.pheno[self.iid],self.pheno[self.unique_idx][self.pheno[self.unique_idx][self.sex] == self.female][self.iid])
 						print "   " + str(self.nfemales) + " female"
-				if hasattr(self, 'case_code') and self.case_code is not None:
-					dep_var = [v for v in self.fields if self.fields[v]['type'] == 'dependent'][0]
-					self.ncases = self.pheno[self.unique_idx][self.pheno[self.unique_idx][dep_var] == self.case_code].shape[0]
-					self.cases_idx = np.in1d(self.pheno[self.iid],self.pheno[self.unique_idx][self.pheno[self.unique_idx][dep_var] == self.case_code][self.iid])
-					if self.sex is not None:
-						self.male_cases_idx = np.in1d(self.pheno[self.iid],self.pheno[self.males_idx][self.pheno[self.males_idx][dep_var] == self.case_code][self.iid])
-						self.female_cases_idx = np.in1d(self.pheno[self.iid],self.pheno[self.females_idx][self.pheno[self.females_idx][dep_var] == self.case_code][self.iid])
-					print "   " + str(self.ncases) + " cases"
-				if hasattr(self, 'ctrl_code') and self.ctrl_code is not None:
-					dep_var = [v for v in self.fields if self.fields[v]['type'] == 'dependent'][0]
-					self.nctrls = self.pheno[self.unique_idx][self.pheno[self.unique_idx][dep_var] == self.ctrl_code].shape[0]
-					self.ctrls_idx = np.in1d(self.pheno[self.iid],self.pheno[self.unique_idx][self.pheno[self.unique_idx][dep_var] == self.ctrl_code][self.iid])
-					self.founders_ctrls_idx = np.in1d(self.pheno[self.iid],self.pheno[self.founders_idx][self.pheno[self.founders_idx][dep_var] == self.ctrl_code][self.iid])
-					if self.sex is not None:
-						self.male_ctrls_idx = np.in1d(self.pheno[self.iid],self.pheno[self.males_idx][self.pheno[self.males_idx][dep_var] == self.ctrl_code][self.iid])
-						self.female_ctrls_idx = np.in1d(self.pheno[self.iid],self.pheno[self.females_idx][self.pheno[self.females_idx][dep_var] == self.ctrl_code][self.iid])
-					print "   " + str(self.nctrls) + " controls"
+				if len([v for v in self.fields if self.fields[v]['type'] == 'dependent']) == 1:
+					self.dep_var = [v for v in self.fields if self.fields[v]['type'] == 'dependent'][0]
+					if len(np.unique(self.pheno[self.dep_var])) == 2:
+						self.family = 'binomial'
+						self.ncases = self.pheno[self.unique_idx][self.pheno[self.unique_idx][self.dep_var] == self.case_code].shape[0]
+						self.cases_idx = np.in1d(self.pheno[self.iid],self.pheno[self.unique_idx][self.pheno[self.unique_idx][self.dep_var] == self.case_code][self.iid])
+						if self.sex is not None:
+							self.male_cases_idx = np.in1d(self.pheno[self.iid],self.pheno[self.male_idx][self.pheno[self.male_idx][self.dep_var] == self.case_code][self.iid])
+							self.female_cases_idx = np.in1d(self.pheno[self.iid],self.pheno[self.female_idx][self.pheno[self.female_idx][self.dep_var] == self.case_code][self.iid])
+						print "   " + str(self.ncases) + " cases"
+						self.nctrls = self.pheno[self.unique_idx][self.pheno[self.unique_idx][self.dep_var] == self.ctrl_code].shape[0]
+						self.ctrls_idx = np.in1d(self.pheno[self.iid],self.pheno[self.unique_idx][self.pheno[self.unique_idx][self.dep_var] == self.ctrl_code][self.iid])
+						self.founders_ctrls_idx = np.in1d(self.pheno[self.iid],self.pheno[self.founders_idx][self.pheno[self.founders_idx][self.dep_var] == self.ctrl_code][self.iid])
+						self.calc_hwe_idx = self.founders_ctrls_idx.copy()
+						if self.sex is not None:
+							self.male_ctrls_idx = np.in1d(self.pheno[self.iid],self.pheno[self.male_idx][self.pheno[self.male_idx][self.dep_var] == self.ctrl_code][self.iid])
+							self.female_ctrls_idx = np.in1d(self.pheno[self.iid],self.pheno[self.female_idx][self.pheno[self.female_idx][self.dep_var] == self.ctrl_code][self.iid])
+						print "   " + str(self.nctrls) + " controls"
 			else:
 				raise Error("phenotype file and data file contain no common samples")
 
 		self.metadata = '## source: uga' + version + '\n' + \
 						'## date: ' + time.strftime("%Y%m%d") + '\n' + \
-						'## method: bskato' + '\n' + \
+						'## method: skato' + '\n' + \
 						'## formula: ' + self.formula + '\n' + \
 						'## total observations: ' + str(self.nobs) + '\n' + \
 						'## unique samples: ' + str(self.nunique) + '\n' + \
@@ -229,20 +241,20 @@ cdef class Model(object):
 			for i in xrange(self.variants.info.shape[0]):
 				self.variant_stats['mac'][i] = Variant.CalcMAC(self.variants.data[self.unique_idx,i+1].astype('float64'))
 				self.variant_stats['callrate'][i] = Variant.CalcCallrate(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['rsq'][i] = Variant.CalcRsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
 				self.variant_stats['freq'][i] = Variant.CalcFreqX(male=self.variants.data[self.male_idx,i+1].astype('float64'), female=self.variants.data[self.female_idx,i+1].astype('float64')) if len(self.male_idx) > 0 and len(self.female_idx) > 0 else np.nan
 				self.variant_stats['freq.case'][i] = Variant.CalcFreqX(male=self.variants.data[self.male_cases_idx,i+1].astype('float64'), female=self.variants.data[self.female_cases_idx,i+1].astype('float64')) if len(self.male_cases_idx) > 0 and len(self.female_cases_idx) > 0 else np.nan
 				self.variant_stats['freq.ctrl'][i] = Variant.CalcFreqX(male=self.variants.data[self.male_ctrls_idx,i+1].astype('float64'), female=self.variants.data[self.female_ctrls_idx,i+1].astype('float64')) if len(self.male_ctrls_idx) > 0 and len(self.female_ctrls_idx) > 0 else np.nan
-				self.variant_stats['hwe'][i] = Variant.CalcHWE(self.variants.data[self.founders_ctrls_idx,i+1].astype('float64')) if len(self.founders_ctrls_idx) > 0 else np.nan
+				self.variant_stats['rsq'][i] = Variant.CalcRsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
+				self.variant_stats['hwe'][i] = Variant.CalcHWE(self.variants.data[self.calc_hwe_idx,i+1].astype('float64')) if len(self.calc_hwe_idx) > 0 else np.nan
 		else:
 			for i in xrange(self.variants.info.shape[0]):
 				self.variant_stats['mac'][i] = Variant.CalcMAC(self.variants.data[self.unique_idx,i+1].astype('float64'))
 				self.variant_stats['callrate'][i] = Variant.CalcCallrate(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['rsq'][i] = Variant.CalcRsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
 				self.variant_stats['freq'][i] = Variant.CalcFreq(self.variants.data[self.unique_idx,i+1].astype('float64'))
 				self.variant_stats['freq.case'][i] = Variant.CalcFreq(self.variants.data[self.cases_idx,i+1].astype('float64')) if len(self.cases_idx) > 0 else np.nan
 				self.variant_stats['freq.ctrl'][i] = Variant.CalcFreq(self.variants.data[self.ctrls_idx,i+1].astype('float64')) if len(self.ctrls_idx) > 0 else np.nan
-				self.variant_stats['hwe'][i] = Variant.CalcHWE(self.variants.data[self.founders_ctrls_idx,i+1].astype('float64')) if len(self.founders_ctrls_idx) > 0 else np.nan
+				self.variant_stats['rsq'][i] = Variant.CalcRsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
+				self.variant_stats['hwe'][i] = Variant.CalcHWE(self.variants.data[self.calc_hwe_idx,i+1].astype('float64')) if len(self.calc_hwe_idx) > 0 else np.nan
 
 	cpdef filter(self, np.float miss_thresh=None, np.float maf_thresh=None, np.float maxmaf_thresh=None, np.float mac_thresh=None, 
 								np.float rsq_thresh=None, np.float hwe_thresh=None, np.float hwe_maf_thresh=None, no_mono=True):
@@ -251,7 +263,11 @@ cdef class Model(object):
 			if (not miss_thresh is None and not np.isnan(self.variant_stats['callrate'][i]) and self.variant_stats['callrate'][i] < miss_thresh) or (not np.isnan(self.variant_stats['callrate'][i]) and self.variant_stats['callrate'][i] == 0) or np.isnan(self.variant_stats['callrate'][i]):
 				self.variant_stats['filter'][i] += 10000
 			if not np.isnan(self.variant_stats['freq'][i]): 
-				if no_mono and ((self.variant_stats['freq'][i] == 0 or self.variant_stats['freq'][i] == 1) or ((self.variant_stats['freq.case'][i] is not None and not np.isnan(self.variant_stats['freq.case'][i]) and (self.variant_stats['freq.case'][i] == 0 or self.variant_stats['freq.case'][i] == 1)) or (self.variant_stats['freq.ctrl'][i] is not None and not np.isnan(self.variant_stats['freq.ctrl'][i]) and (self.variant_stats['freq.ctrl'][i] == 0 or self.variant_stats['freq.ctrl'][i] == 1)))):
+				if no_mono and ((self.variant_stats['freq'][i] == 0 or self.variant_stats['freq'][i] == 1) or 
+								((self.variant_stats['freq.case'][i] is not None and not np.isnan(self.variant_stats['freq.case'][i]) and 
+									(self.variant_stats['freq.case'][i] == 0 or self.variant_stats['freq.case'][i] == 1)) or 
+									(self.variant_stats['freq.ctrl'][i] is not None and not np.isnan(self.variant_stats['freq.ctrl'][i]) and 
+									(self.variant_stats['freq.ctrl'][i] == 0 or self.variant_stats['freq.ctrl'][i] == 1)))):
 					self.variant_stats['filter'][i] += 1000
 				else:
 					if ((	not maf_thresh is None
@@ -313,8 +329,10 @@ cdef class SnvModel(Model):
 
 cdef class SnvgroupModel(Model):
 	cdef public str snvgroup_map, metadata_gene
-	def __cinit__(self, snvgroup_map = None, **kwargs):
+	cdef public unsigned int snvgroup_mac
+	def __cinit__(self, snvgroup_map = None, snvgroup_mac = 1.0, **kwargs):
 		self.snvgroup_map = snvgroup_map
+		self.snvgroup_mac = snvgroup_mac
 		super(SnvgroupModel, self).__init__(**kwargs)
 		self.tbx_start = 1
 		self.tbx_end = 2
@@ -344,9 +362,10 @@ cdef class SnvgroupModel(Model):
 			else:
 				self.calc_variant_stats()
 
-cdef class Bssmeta(SnvModel):
+cdef class Score(SnvModel):
 	def __cinit__(self, **kwargs):
-		super(Bssmeta, self).__init__(**kwargs)
+		super(Score, self).__init__(**kwargs)
+		print "setting score test family option to " + self.family
 
 		# set variant as the focus variable (which is only statistic provided by singlesnpMeta())
 		# to get list of model variables from R, use
@@ -364,10 +383,10 @@ cdef class Bssmeta(SnvModel):
 		print "loading R package seqMeta"
 		importr('seqMeta')
 
+		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
+		self.metadata_snv = self.metadata_snv + '\n' + self.metadata_snv_cc if self.family == 'binomial' else self.metadata_snv
 		self.metadata = self.metadata + '\n' + \
-						self.metadata_cc + '\n' + \
 						self.metadata_snv + '\n' + \
-						self.metadata_snv_cc + '\n' + \
 						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed singlesnpMeta)' + '\n' + \
 						'## *.nmiss: number of missing samples' + '\n' + \
 						'## *.ntotal: total number of included samples' + '\n' + \
@@ -393,7 +412,7 @@ cdef class Bssmeta(SnvModel):
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
 			if len(passed) == 1:
 				ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
-			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='binomial')"
+			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
 			try:
 				ro.globalenv['ps'] = ro.r(cmd)
 			except RRuntimeError as rerr:
@@ -433,9 +452,13 @@ cdef class Bssmeta(SnvModel):
 					self.results['or'][i] = 1 / self.results['or'][i]
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
 
-cdef class Bskato(SnvgroupModel):
-	def __cinit__(self, **kwargs):
-		super(Bskato, self).__init__(**kwargs)
+cdef class Skato(SnvgroupModel):
+	cdef public str skat_wts, burden_wts
+	def __cinit__(self, skat_wts = 'function(maf){dbeta(maf,1,25)}', burden_wts = 'function(maf){maf < 0.01}', **kwargs):
+		super(Skato, self).__init__(**kwargs)
+		self.skat_wts = skat_wts
+		self.burden_wts = burden_wts
+		print "setting skat-o test family option to " + self.family
 
 		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
 
@@ -443,11 +466,11 @@ cdef class Bskato(SnvgroupModel):
 		print "loading R package seqMeta"
 		importr('seqMeta')
 
+		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + \
-						self.metadata_cc + '\n' + \
 						self.metadata_gene + '\n' + \
 						'## *.mac: minor allele count for the group' + '\n' + \
-						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatOMeta, 4: skatOMeta errflag > 0, 5: analysis skipped)' + '\n' + \
+						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatOMeta, 4: skatOMeta errflag > 0, 5: analysis skipped, 6: failed group minor allele count threshold)' + '\n' + \
 						'## *.nmiss: number of missing genotypes in group' + '\n' + \
 						'## *.nsnps: number of snps in the group' + '\n' + \
 						'## *.cmaf: cumulative minor allele frequency' + '\n' + \
@@ -464,6 +487,12 @@ cdef class Bskato(SnvgroupModel):
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
 		self.results['id'][0] = self.variants.id
+		self.results['nmiss'][0] = np.nan
+		self.results['nsnps'][0] = np.nan
+		self.results['cmaf'][0] = np.nan
+		self.results['pmin'][0] = np.nan
+		self.results['p'][0] = np.nan
+		self.results['rho'][0] = np.nan
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
 			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
@@ -475,45 +504,42 @@ cdef class Bskato(SnvgroupModel):
 			ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'}), strings_as_factors=False)
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['mac'][0] = ro.r('sum(apply(z,2,function(x){ifelse(sum(x,na.rm=T) > length(x), 2*length(x) - sum(x,na.rm=T), sum(x,na.rm=T))}))')
-			if len(passed) == 1:
-				ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
-			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='binomial')"
-			try:
-				ro.globalenv['ps'] = ro.r(cmd)
-			except RRuntimeError as rerr:
-				self.results['err'][0] = 2
-				raise Error(rerr.message)
-			cmd = 'skatOMeta(ps,SNPInfo=snp_info,rho=seq(0,1,0.1))'
-			try:
-				ro.globalenv['result'] = ro.r(cmd)
-			except RRuntimeError as rerr:
-				self.results['err'][0] = 3
-				raise Error(rerr.message)
+			if self.results['mac'][0] >= self.snvgroup_mac:
+				if len(passed) == 1:
+					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
+				cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
+				try:
+					ro.globalenv['ps'] = ro.r(cmd)
+				except RRuntimeError as rerr:
+					self.results['err'][0] = 2
+					raise Error(rerr.message)
+				cmd = "skatOMeta(ps,SNPInfo=snp_info,rho=seq(0,1,0.1),skat.wts=" + self.skat_wts + ",burden.wts=" + self.burden_wts + ")"
+				try:
+					ro.globalenv['result'] = ro.r(cmd)
+				except RRuntimeError as rerr:
+					self.results['err'][0] = 3
+					raise Error(rerr.message)
+				else:
+					ro.r('result$err<-0')
+					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+					ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
+					ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$pmin[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$rho[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
+					self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
+					self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+					self.results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+					self.results['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+					self.results['pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
+					self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
+					self.results['rho'][0] = np.array(ro.r('result$rho'))[:,None]
 			else:
-				ro.r('result$err<-0')
-				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-				ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
-				ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$pmin[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$rho[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
-				self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
-				self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-				self.results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
-				self.results['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
-				self.results['pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
-				self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
-				self.results['rho'][0] = np.array(ro.r('result$rho'))[:,None]
+				self.results['err'][0] = 6
 		else:
 			self.results['err'][0] = 5
-			self.results['nmiss'][0] = np.nan
-			self.results['nsnps'][0] = np.nan
-			self.results['cmaf'][0] = np.nan
-			self.results['pmin'][0] = np.nan
-			self.results['p'][0] = np.nan
-			self.results['rho'][0] = np.nan
 		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
 
 	cpdef tag_results(self, tag):
@@ -524,9 +550,10 @@ cdef class Bskato(SnvgroupModel):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
 
-cdef class Bburden(SnvgroupModel):
+cdef class Burden(SnvgroupModel):
 	def __cinit__(self, **kwargs):
-		super(Bburden, self).__init__(**kwargs)
+		super(Burden, self).__init__(**kwargs)
+		print "setting burden test family option to " + self.family
 
 		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']))
 
@@ -534,11 +561,11 @@ cdef class Bburden(SnvgroupModel):
 		print "loading R package seqMeta"
 		importr('seqMeta')
 
+		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + \
-						self.metadata_cc + '\n' + \
 						self.metadata_gene + '\n' + \
 						'## *.mac: minor allele count for the group' + '\n' + \
-						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed burdenMeta, 5: analysis skipped)' + '\n' + \
+						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed burdenMeta, 5: analysis skipped, 6: failed group minor allele count threshold)' + '\n' + \
 						'## *.nmiss: number of missing snps' + '\n' + \
 						'## *.nsnpsTotal: number of snps in group' + '\n' + \
 						'## *.nsnpsUsed: number of snps used in analysis' + '\n' + \
@@ -557,6 +584,14 @@ cdef class Bburden(SnvgroupModel):
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
 		self.results['id'][0] = self.variants.id
+		self.results['nmiss'][0] = np.nan
+		self.results['nsnpsTotal'][0] = np.nan
+		self.results['nsnpsUsed'][0] = np.nan
+		self.results['cmafTotal'][0] = np.nan
+		self.results['cmafUsed'][0] = np.nan
+		self.results['beta'][0] = np.nan
+		self.results['se'][0] = np.nan
+		self.results['p'][0] = np.nan
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
 			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
@@ -568,50 +603,45 @@ cdef class Bburden(SnvgroupModel):
 			ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'}), strings_as_factors=False)
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['mac'][0] = ro.r('sum(apply(z,2,function(x){ifelse(sum(x,na.rm=T) > length(x), 2*length(x) - sum(x,na.rm=T), sum(x,na.rm=T))}))')
-			if len(passed) == 1:
-				ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
-			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='binomial')"
-			try:
-				ro.globalenv['ps'] = ro.r(cmd)
-			except RRuntimeError as rerr:
-				self.results['err'][0] = 2
-				raise Error(rerr.message)
-			cmd = 'burdenMeta(ps,SNPInfo=snp_info)'
-			try:
-				ro.globalenv['result'] = ro.r(cmd)
-			except RRuntimeError as rerr:
-				self.results['err'][0] = 3
-				raise Error(rerr.message)
+			if self.results['mac'][0] >= self.snvgroup_mac:
+				if len(passed) == 1:
+					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
+				cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
+				try:
+					ro.globalenv['ps'] = ro.r(cmd)
+				except RRuntimeError as rerr:
+					self.results['err'][0] = 2
+					raise Error(rerr.message)
+				cmd = 'burdenMeta(ps,SNPInfo=snp_info)'
+				try:
+					ro.globalenv['result'] = ro.r(cmd)
+				except RRuntimeError as rerr:
+					self.results['err'][0] = 3
+					raise Error(rerr.message)
+				else:
+					ro.r('result$err<-0')
+					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+					ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$nsnpsTotal[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$nsnpsUsed[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$cmafTotal[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$cmafUsed[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$beta[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$se[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+					self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
+					self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+					self.results['nsnpsTotal'][0] = np.array(ro.r('result$nsnpsTotal'))[:,None]
+					self.results['nsnpsUsed'][0] = np.array(ro.r('result$nsnpsUsed'))[:,None]
+					self.results['cmafTotal'][0] = np.array(ro.r('result$cmafTotal'))[:,None]
+					self.results['cmafUsed'][0] = np.array(ro.r('result$cmafUsed'))[:,None]
+					self.results['beta'][0] = np.array(ro.r('result$beta'))[:,None]
+					self.results['se'][0] = np.array(ro.r('result$se'))[:,None]
+					self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
 			else:
-				ro.r('result$err<-0')
-				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-				ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$nsnpsTotal[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$nsnpsUsed[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$cmafTotal[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$cmafUsed[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$beta[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$se[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-				self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
-				self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-				self.results['nsnpsTotal'][0] = np.array(ro.r('result$nsnpsTotal'))[:,None]
-				self.results['nsnpsUsed'][0] = np.array(ro.r('result$nsnpsUsed'))[:,None]
-				self.results['cmafTotal'][0] = np.array(ro.r('result$cmafTotal'))[:,None]
-				self.results['cmafUsed'][0] = np.array(ro.r('result$cmafUsed'))[:,None]
-				self.results['beta'][0] = np.array(ro.r('result$beta'))[:,None]
-				self.results['se'][0] = np.array(ro.r('result$se'))[:,None]
-				self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
+				self.results['err'][0] = 6
 		else:
 			self.results['err'][0] = 5
-			self.results['nmiss'][0] = np.nan
-			self.results['nsnpsTotal'][0] = np.nan
-			self.results['nsnpsUsed'][0] = np.nan
-			self.results['cmafTotal'][0] = np.nan
-			self.results['cmafUsed'][0] = np.nan
-			self.results['beta'][0] = np.nan
-			self.results['se'][0] = np.nan
-			self.results['p'][0] = np.nan
 		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
 
 	cpdef tag_results(self, tag):
@@ -622,7 +652,7 @@ cdef class Bburden(SnvgroupModel):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
 
-def BskatoMeta(tag, meta, meta_incl):
+def SkatoMeta(Skato obj, tag, meta, meta_incl):
 	for m in meta_incl:
 		if m == meta_incl[0]:
 			ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')
@@ -631,7 +661,7 @@ def BskatoMeta(tag, meta, meta_incl):
 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
 	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = 'skatOMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,rho=seq(0,1,0.1))'
+		cmd = "skatOMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=seq(0,1,0.1),skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ")"
 		try:
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
@@ -664,7 +694,7 @@ def BskatoMeta(tag, meta, meta_incl):
 		results[tag + '.rho'][0] = np.nan
 	return pd.DataFrame(results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
 
-def BburdenMeta(tag, meta, meta_incl):
+def BurdenMeta(tag, meta, meta_incl):
 	for m in meta_incl:
 		if m == meta_incl[0]:
 			ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')

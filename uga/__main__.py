@@ -98,7 +98,7 @@ def main(args=None):
 			data_files = []
 			for m in cfg['models']:
 				if cfg['models'][m]['file'] not in data_files:
-					snv_map.extend(Map.Map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region'], format=cfg['models'][m]['format']))
+					snv_map.extend(Map.Map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = 1000, region = cfg['region'], format=cfg['models'][m]['format']))
 					data_files.append(cfg['models'][m]['file'])
 			snv_map = list(set(snv_map))
 			regions_df = pd.DataFrame({'region': snv_map, 'chr': [x.split(':')[0] for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})

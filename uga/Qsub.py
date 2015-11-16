@@ -47,16 +47,12 @@ def main(argv):
 	if 'SGE_TASK_ID' in env_vars.keys():
 		print "task index number: " + env_vars['SGE_TASK_ID']
 
-	#if argv[1].split('(')[0] == "Stat":
-	#	from uga.Stat import Stat
 	if argv[1].split('(')[0] == "RunSnv":
 		from uga.RunSnv import RunSnv
 	if argv[1].split('(')[0] == "RunSnvgroup":
 		from uga.RunSnvgroup import RunSnvgroup
 	#elif argv[1].split('(')[0] == "Meta":
 	#	from uga.Meta import Meta
-	#elif argv[1].split('(')[0] == "Map":
-	#	from uga.Map import Map
 	#elif argv[1].split('(')[0] == "Eval":
 	#	from uga.Eval import Eval
 	#elif argv[1].split('(')[0] == "GC":

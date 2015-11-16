@@ -75,12 +75,11 @@ def process_regions(regions_df, cfg, cpu, log):
 				models_obj[n].get_region(regions_df['region'][k], id=regions_df['id'][k])
 			except:
 				pass
-			else:
-				try:
-					models_obj[n].get_snvgroup(cfg['buffer'], regions_df['id'][k])
-				except:
-					pass
-				variants_found = True
+			try:
+				models_obj[n].get_snvgroup(cfg['buffer'], regions_df['id'][k])
+			except:
+				pass
+			variants_found = True
 
 			if n == cfg['model_order'][0]:
 				ref = Geno.VariantRef(models_obj[n].variants)
@@ -130,7 +129,7 @@ def process_regions(regions_df, cfg, cpu, log):
 			h1 = ['chr','start','end','id']
 			h2 = [x for x in results_region if x not in ['chr','start','end','id']]
 			for meta in cfg['meta_order']:
-				meta_result = getattr(Model,cfg['models'][n]['fxn'].capitalize() + 'Meta')(meta, cfg['meta'][meta], meta_incl)
+				meta_result = getattr(Model,cfg['models'][n]['fxn'].capitalize() + 'Meta')(models_obj[cfg['model_order'][0]], meta, cfg['meta'][meta], meta_incl)
 				h1 = h1 + [x for x in meta_result.columns.values]
 				results_region = pd.concat([results_region,meta_result], axis=1)
 			h = h1 + h2
