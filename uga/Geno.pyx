@@ -137,7 +137,7 @@ cdef class Variants(object):
 	def load_snvgroup_map(self, snvgroup_map):
 		print "loading snvgroup map"
 		try:
-			self.snvgroup_map=pd.read_table(snvgroup_map,names=['chr','pos','variant','id'])
+			self.snvgroup_map=pd.read_table(snvgroup_map,names=['chr','pos','variant','id'], compression='gzip' if snvgroup_map.split('.')[-1] == 'gz' else None)
 		except:
 			raise Error("failed to load snvgroup map")
 

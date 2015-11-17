@@ -458,7 +458,9 @@ cdef class Score(SnvModel):
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
 
 cdef class Gee(SnvModel):
-	def __cinit__(self, **kwargs):
+	cdef public str corstr
+	def __cinit__(self, corstr = None, **kwargs):
+		self.corstr = corstr if corstr is not None else 'exchangeable'
 		super(Gee, self).__init__(**kwargs)
 		print "setting gee test family option to " + self.family
 
@@ -480,6 +482,7 @@ cdef class Gee(SnvModel):
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata_snv = self.metadata_snv + '\n' + self.metadata_snv_cc if self.family == 'binomial' else self.metadata_snv
 		self.metadata = self.metadata + '\n' + \
+						'## corstr: ' + self.corstr + '\n' + \
 						self.metadata_snv + '\n' + \
 						'## *.err: error code (0: no error, 1: geeglm error reported, 2: infinite value or zero p-value detected, 3: geeglm failed)' + '\n' + \
 						'## *.effect: effect size' + '\n' + \
@@ -504,7 +507,7 @@ cdef class Gee(SnvModel):
 			for v in passed:
 				vu = self.variants.info['variant_unique'][v]
 				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [self.fid] + [vu]))
-				cmd = 'geeglm(' + self.formula + '+' + vu + ',id=' + self.fid + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + self.family + ',corstr="exchangeable")'
+				cmd = 'geeglm(' + self.formula + '+' + vu + ',id=' + self.fid + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + self.family + ',corstr="' + self.corstr + '")'
 				try:
 					ro.globalenv['result'] = ro.r(cmd)
 				except RRuntimeError as rerr:
@@ -676,13 +679,112 @@ cdef class Lm(SnvModel):
 				self.results['t'][i] = -1 * self.results['t'][i]
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
 
+cdef class Skat(SnvgroupModel):
+	cdef public str skat_wts, skat_method, mafrange
+	def __cinit__(self, skat_wts = None, skat_method = None, mafrange = None, **kwargs):
+		super(Skat, self).__init__(**kwargs)
+		self.skat_wts = skat_wts if skat_wts is not None else 'function(maf){dbeta(maf,1,25)}'
+		self.skat_method = skat_method if skat_method is not None else 'saddlepoint'
+		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
+		print "setting skat test family option to " + self.family
+
+		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
+
+		from rpy2.robjects.packages import importr
+		print "loading R package seqMeta"
+		importr('seqMeta')
+
+		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
+		self.metadata = self.metadata + '\n' + \
+						'## skat wts: ' + self.skat_wts + '\n' + \
+						'## skat method: ' + self.skat_method + '\n' + \
+						'## maf range: ' + self.mafrange + '\n' + \
+						self.metadata_gene + '\n' + \
+						'## *.mac: minor allele count for the group' + '\n' + \
+						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatMeta, 5: analysis skipped, 6: failed group minor allele count threshold)' + '\n' + \
+						'## *.nmiss: number of missing genotypes in group' + '\n' + \
+						'## *.nsnps: number of snps in the group' + '\n' + \
+						'## *.cmaf: cumulative minor allele frequency' + '\n' + \
+						'## *.p: group p-value' + '\n' + \
+						'## *.q: skat q-statistic' + '\n#'
+
+	cpdef calc_model(self, meta = None):
+		pheno_df = pd.DataFrame(self.pheno,dtype='object')
+		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
+		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('mac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('q','>f8')])
+		self.results['chr'][0] = self.variants.chr
+		self.results['start'][0] = self.variants.start
+		self.results['end'][0] = self.variants.end
+		self.results['id'][0] = self.variants.id
+		self.results['nmiss'][0] = np.nan
+		self.results['nsnps'][0] = np.nan
+		self.results['cmaf'][0] = np.nan
+		self.results['p'][0] = np.nan
+		self.results['q'][0] = np.nan
+		if len(passed) > 0:
+			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
+			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
+			ro.globalenv['model_df'] = py2r.convert_to_r_dataframe(pheno_df.merge(variants_df, on=self.iid, how='left'), strings_as_factors=False)
+			for col in list(self.model_cols) + list(self.variants.info['variant_unique'][passed]):
+				ro.r('class(model_df$' + col + ')<-"numeric"')
+			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['variant_unique'][passed]))
+			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
+			ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'}), strings_as_factors=False)
+			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
+			self.results['mac'][0] = ro.r('sum(apply(z,2,function(x){ifelse(sum(x,na.rm=T) > length(x), 2*length(x) - sum(x,na.rm=T), sum(x,na.rm=T))}))')
+			if self.results['mac'][0] >= self.snvgroup_mac:
+				if len(passed) == 1:
+					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
+				cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
+				try:
+					ro.globalenv['ps'] = ro.r(cmd)
+				except RRuntimeError as rerr:
+					self.results['err'][0] = 2
+					raise Error(rerr.message)
+				cmd = "skatMeta(ps,SNPInfo=snp_info,wts=" + self.skat_wts + ",method='" + self.skat_method + "',mafRange=" + self.mafrange + ")"
+				try:
+					ro.globalenv['result'] = ro.r(cmd)
+				except RRuntimeError as rerr:
+					self.results['err'][0] = 3
+					raise Error(rerr.message)
+				else:
+					ro.r('result$err<-0')
+					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+					ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$q[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
+					self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
+					self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+					self.results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+					self.results['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+					self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
+					self.results['q'][0] = np.array(ro.r('result$Q'))[:,None]
+			else:
+				self.results['err'][0] = 6
+		else:
+			self.results['err'][0] = 5
+		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+
+	cpdef tag_results(self, tag):
+		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['mac','err','nmiss','nsnps','cmaf','p','q']]))
+		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
+		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+		if not np.isnan(self.results[tag + '.p'][0]):
+			ro.r(tag + '_ps<-ps')
+			ro.r(tag + '_snp_info<-snp_info')
+
 cdef class Skato(SnvgroupModel):
-	cdef public str skat_wts, burden_wts, skat_method
-	def __cinit__(self, skat_wts = 'function(maf){dbeta(maf,1,25)}', burden_wts = 'function(maf){maf < 0.01}', skat_method = 'saddlepoint', **kwargs):
+	cdef public str skat_wts, burden_wts, skat_method, mafrange, skato_rho
+	def __cinit__(self, skat_wts = None, burden_wts = None, skat_method = None, skato_rho = None, mafrange = None, **kwargs):
 		super(Skato, self).__init__(**kwargs)
-		self.skat_wts = skat_wts
-		self.burden_wts = burden_wts
-		self.skat_method = skat_method
+		self.skat_wts = skat_wts if skat_wts is not None else 'function(maf){dbeta(maf,1,25)}'
+		self.burden_wts = burden_wts if burden_wts is not None else 'function(maf){maf < 0.01}'
+		self.skat_method = skat_method if skat_method is not None else 'saddlepoint'
+		self.skato_rho = skato_rho if skat_method is not None else 'seq(0,1,0.1)'
+		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
 		print "setting skat-o test family option to " + self.family
 
 		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
@@ -693,10 +795,11 @@ cdef class Skato(SnvgroupModel):
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + \
-						self.metadata_gene + '\n' + \
 						'## skat wts: ' + self.skat_wts + '\n' + \
 						'## burden wts: ' + self.burden_wts + '\n' + \
 						'## skat method: ' + self.skat_method + '\n' + \
+						'## maf range: ' + self.mafrange + '\n' + \
+						self.metadata_gene + '\n' + \
 						'## *.mac: minor allele count for the group' + '\n' + \
 						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatOMeta, 4: skatOMeta errflag > 0, 5: analysis skipped, 6: failed group minor allele count threshold)' + '\n' + \
 						'## *.nmiss: number of missing genotypes in group' + '\n' + \
@@ -741,7 +844,7 @@ cdef class Skato(SnvgroupModel):
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 2
 					raise Error(rerr.message)
-				cmd = "skatOMeta(ps,SNPInfo=snp_info,rho=seq(0,1,0.1),skat.wts=" + self.skat_wts + ",burden.wts=" + self.burden_wts + "',method='" + self.skat_method + ")"
+				cmd = "skatOMeta(ps,SNPInfo=snp_info,rho=" + self.skato_rho + ",skat.wts=" + self.skat_wts + ",burden.wts=" + self.burden_wts + ",method='" + self.skat_method + "',mafRange=" + self.mafrange + ")"
 				try:
 					ro.globalenv['result'] = ro.r(cmd)
 				except RRuntimeError as rerr:
@@ -779,9 +882,10 @@ cdef class Skato(SnvgroupModel):
 			ro.r(tag + '_snp_info<-snp_info')
 
 cdef class Burden(SnvgroupModel):
-	cdef public str burden_mafrange
-	def __cinit__(self, burden_mafrange = 'c(0,0.5)', **kwargs):
-		self.burden_mafrange = burden_mafrange
+	cdef public str mafrange, burden_wts
+	def __cinit__(self, mafrange = None, burden_wts = None, **kwargs):
+		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
+		self.burden_wts = burden_wts if burden_wts is not None else '1'
 		super(Burden, self).__init__(**kwargs)
 		print "setting burden test family option to " + self.family
 
@@ -793,8 +897,9 @@ cdef class Burden(SnvgroupModel):
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + \
+						'## burden wts: ' + self.burden_wts + '\n' + \
+						'## maf range: ' + self.mafrange + '\n' + \
 						self.metadata_gene + '\n' + \
-						'## maf range: ' + self.burden_mafrange + '\n' + \
 						'## *.mac: minor allele count for the group' + '\n' + \
 						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed burdenMeta, 5: analysis skipped, 6: failed group minor allele count threshold)' + '\n' + \
 						'## *.nmiss: number of missing snps' + '\n' + \
@@ -843,7 +948,7 @@ cdef class Burden(SnvgroupModel):
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 2
 					raise Error(rerr.message)
-				cmd = 'burdenMeta(ps,SNPInfo=snp_info,mafRange=' + self.burden_mafrange + ')'
+				cmd = 'burdenMeta(ps,SNPInfo=snp_info,mafRange=' + self.mafrange + ',wts=' + self.burden_wts + ')'
 				try:
 					ro.globalenv['result'] = ro.r(cmd)
 				except RRuntimeError as rerr:
@@ -883,6 +988,44 @@ cdef class Burden(SnvgroupModel):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
 
+def SkatMeta(Skat obj, tag, meta, meta_incl):
+	for m in meta_incl:
+		if m == meta_incl[0]:
+			ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')
+		else:
+			ro.r('snp_info_meta<-merge(snp_info_meta,' + m + '_snp_info,all=TRUE)')
+	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
+	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
+	if str(results[tag + '.incl'][0]).count('+') > 1:
+		cmd = "skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + ")"
+		try:
+			ro.globalenv['result'] = ro.r(cmd)
+		except RRuntimeError as rerr:
+			results[tag + '.err'][0] = 3
+			raise Error(rerr.message)
+		else:
+			ro.r('result$err<-0')
+			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+			ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$q[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
+			results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
+			results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+			results[tag + '.nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+			results[tag + '.cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+			results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
+			results[tag + '.q'][0] = np.array(ro.r('result$Q'))[:,None]
+	else:
+		results[tag + '.err'][0] = 5
+		results[tag + '.nmiss'][0] = np.nan
+		results[tag + '.nsnps'][0] = np.nan
+		results[tag + '.cmaf'][0] = np.nan
+		results[tag + '.p'][0] = np.nan
+		results[tag + '.q'][0] = np.nan
+	return pd.DataFrame(results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+
 def SkatoMeta(Skato obj, tag, meta, meta_incl):
 	for m in meta_incl:
 		if m == meta_incl[0]:
@@ -892,7 +1035,7 @@ def SkatoMeta(Skato obj, tag, meta, meta_incl):
 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
 	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = "skatOMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=seq(0,1,0.1),skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + "',method='" + obj.skat_method + ")"
+		cmd = "skatOMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + ")"
 		try:
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
@@ -934,7 +1077,7 @@ def BurdenMeta(Burden obj, tag, meta, meta_incl):
 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
 	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = 'burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.burden_mafrange + ')'
+		cmd = 'burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + ')'
 		try:
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:

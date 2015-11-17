@@ -47,7 +47,7 @@ def process_regions(regions_df, cfg, cpu, log):
 		try:
 			models_obj[n] = getattr(Model,cfg['models'][n]['fxn'].capitalize())(fxn=cfg['models'][n]['fxn'],snvgroup_map=cfg['snvgroup_map'],formula=cfg['models'][n]['formula'],format=cfg['models'][n]['format'],
 									skat_wts=cfg['models'][n]['skat_wts'],burden_wts=cfg['models'][n]['burden_wts'],skat_method=cfg['models'][n]['skat_method'],
-									burden_mafrange=cfg['models'][n]['burden_mafrange'],
+									mafrange=cfg['models'][n]['mafrange'],
 									all_founders=cfg['models'][n]['all_founders'],case_code=cfg['models'][n]['case_code'],ctrl_code=cfg['models'][n]['ctrl_code'],
 									pheno_file=cfg['models'][n]['pheno'],variants_file=cfg['models'][n]['file'],type=cfg['models'][n]['fxn'],fid=cfg['models'][n]['fid'],
 									iid=cfg['models'][n]['iid'],matid=cfg['models'][n]['matid'],patid=cfg['models'][n]['patid'],sex=cfg['models'][n]['sex'],
@@ -92,7 +92,7 @@ def process_regions(regions_df, cfg, cpu, log):
 			try:
 				models_obj[n].filter(miss_thresh=cfg['models'][n]['miss'], maf_thresh=cfg['models'][n]['maf'], maxmaf_thresh=cfg['models'][n]['maxmaf'], 
 								mac_thresh=cfg['models'][n]['mac'], rsq_thresh=cfg['models'][n]['rsq'], hwe_thresh=cfg['models'][n]['hwe'], 
-								hwe_maf_thresh=cfg['models'][n]['hwe_maf'])
+								hwe_maf_thresh=cfg['models'][n]['hwe_maf'], no_mono=False)
 			except:
 				pass
 
@@ -127,11 +127,11 @@ def process_regions(regions_df, cfg, cpu, log):
 			print status
 			sys.stdout.flush()
 
-		if len(cfg['meta_order']) > 1:
+		if len(cfg['meta_order']) > 0:
 			h1 = ['chr','start','end','id']
 			h2 = [x for x in results_region if x not in ['chr','start','end','id']]
 			for meta in cfg['meta_order']:
-				meta_result = getattr(Model,cfg['models'][n]['fxn'].capitalize() + 'Meta')(models_obj[cfg['model_order'][0]], meta, cfg['meta'][meta], meta_incl)
+				meta_result = getattr(Model,cfg['models'][cfg['meta'][meta].split('+')[0]]['fxn'].capitalize() + 'Meta')(models_obj[cfg['meta'][meta].split('+')[0]], meta, cfg['meta'][meta], meta_incl)
 				h1 = h1 + [x for x in meta_result.columns.values]
 				results_region = pd.concat([results_region,meta_result], axis=1)
 			h = h1 + h2
@@ -150,7 +150,7 @@ def process_regions(regions_df, cfg, cpu, log):
 		store.get_storer('df').attrs.tbx_end = models_obj[n].tbx_end
 		store.close()
 
-	if len(cfg['meta_order']) > 1:
+	if len(cfg['meta_order']) > 0:
 		results_final_meta = results_final_meta.sort(columns=['chr','start'])
 		results_final_meta['chr'] = results_final_meta['chr'].astype(np.int64)
 		results_final_meta['start'] = results_final_meta['start'].astype(np.int64)
@@ -175,7 +175,7 @@ def RunSnvgroup(args):
 	cfg = Parse.GenerateSnvgroupCfg(args)
 	Parse.PrintSnvgroupOptions(cfg)
 
-	regions_df = pd.read_table(cfg['region_file'])
+	regions_df = pd.read_table(cfg['region_file'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
 	return_values = {}
 	models_out = {}
 	bgzfiles = {}
@@ -249,7 +249,7 @@ def RunSnvgroup(args):
 			print Error('failed to generate index for file ' + models_out[m] + '.gz').out
 			return 1
 
-	if len(cfg['meta_order']) > 1:
+	if len(cfg['meta_order']) > 0:
 		written = False
 		for i in xrange(1,cfg['cpus']+1):
 			out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.meta.h5'

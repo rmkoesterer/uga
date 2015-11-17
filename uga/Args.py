@@ -204,6 +204,9 @@ def SnvArgs(snv_parser):
 	snv_parser.add_argument('--gee', 
 						action=AddString, 
 						help='model string for gee test (R geepack geeglm function)')
+	snv_parser.add_argument('--corstr', 
+						action=AddString, 
+						help='correlation structure for gee test (default: exchangeable)')
 	snv_parser.add_argument('--glm', 
 						action=AddString, 
 						help='model string for glm test')
@@ -357,21 +360,30 @@ def SnvgroupArgs(snvgroup_parser):
 						action=AddString, 
 						type=int, 
 						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
+	snvgroup_parser.add_argument('--skat', 
+						action=AddString, 
+						help='model string for skat (skatMeta)')
 	snvgroup_parser.add_argument('--skato', 
 						action=AddString, 
 						help='model string for skato (skatOMeta)')
 	snvgroup_parser.add_argument('--skat-wts', 
 						action=AddString, 
-						help='skat weights (default: beta weights)')
+						help='skat weights (default: beta weights: function(maf){dbeta(maf,1,25)})')
+	snvgroup_parser.add_argument('--burden-wts', 
+						action=AddString, 
+						help='burden weights (default: T1 weights for skato test: function(maf){maf < 0.01}; constant weight for burden test: 1)')
 	snvgroup_parser.add_argument('--skat-method', 
 						action=AddString, 
 						help='skat method for p-value calculation (default: saddlepoint)')
+	snvgroup_parser.add_argument('--skato-rho', 
+						action=AddString, 
+						help='skato rho parameter (default: seq(0,1,0.1)))')
 	snvgroup_parser.add_argument('--burden', 
 						action=AddString, 
 						help='model string for burden (burdenMeta)')
-	snvgroup_parser.add_argument('--burden-mafrange', 
+	snvgroup_parser.add_argument('--mafrange', 
 						action=AddString, 
-						help='maf range for burden test (default: all snvs c(0,0.5))')
+						help='maf range for snv group tests which is different from --maxmaf and --maf since it is to be calculated before and during meta analysis (default: all snvs c(0,0.5))')
 	snvgroup_parser.add_argument('--meta', 
 						action=AddString, 
 						help='a meta analysis string')
@@ -488,86 +500,16 @@ def MetaArgs(meta_parser):
 						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 	return meta_parser
 
-def MapArgs(map_parser):
-	map_required = map_parser.add_argument_group('required arguments')
-	map_required.add_argument('--out', 
-						action=AddString, 
-						required=True, 
-						help='output file name')
-	map_parser.add_argument('--replace', 
-						nargs=0, 
-						action=AddTrue, 
-						help='replace any existing out files')
-	map_parser.add_argument('--qsub', 
-						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
-	map_split_group1 = map_parser.add_mutually_exclusive_group()
-	map_split_group1.add_argument('--mb', 
-						action=AddString, 
-						help='region size (megabase)')
-	map_split_group1.add_argument('--kb', 
-						action=AddString, 
-						help='region size (kilobase)')
-	map_split_group1.add_argument('--b', 
-						action=AddString, 
-						help='region size (base)')
-	map_split_group1.add_argument('--n', 
-						action=AddString, 
-						help='number of markers to be included in each region')
-	map_split_group2 = map_parser.add_mutually_exclusive_group()
-	map_split_group2.add_argument('--oxford', 
-						action=AddString, 
-						help='oxford format genotype data file')
-	map_split_group2.add_argument('--dos1', 
-						action=AddString, 
-						help='dos1 format genotype data file')
-	map_split_group2.add_argument('--dos2', 
-						action=AddString, 
-						help='dos2 format genotype data file')
-	map_split_group2.add_argument('--plink', 
-						action=AddString, 
-						help='Plink binary format genotype data file (without extension)')					
-	map_split_group2.add_argument('--vcf', 
-						action=AddString, 
-						help='vcf 4.1/4.2 format genotype data file')
-	map_split_group3 = map_parser.add_mutually_exclusive_group()
-	map_split_group3.add_argument('--shift-mb', 
-						action=AddString, 
-						help='shift size (megabase)')
-	map_split_group3.add_argument('--shift-kb', 
-						action=AddString, 
-						help='shift size (kilobase)')
-	map_split_group3.add_argument('--shift-b', 
-						action=AddString, 
-						help='shift size (base)')
-	map_split_group4 = map_parser.add_mutually_exclusive_group()
-	map_split_group4.add_argument('--chr', 
-						action=AddString, 
-						type=int,  
-						help='chromosome number from 1-26')
-	map_split_group4.add_argument('--region', 
-						action=AddString, 
-						help='genomic region specified in Tabix format (ie. 1:10583-1010582).')
-	return map_parser
-
 def CompileArgs(compile_parser):
 	compile_required = compile_parser.add_argument_group('required arguments')
-	compile_required.add_argument('--file', 
+	compile_required.add_argument('--dir', 
 						action=AddString, 
 						required=True, 
-						help='base filename of existing results (basename only: do not include path or extension or list / region portion of filename; ex. set to X if out file names are of the form chr2/X.chr2bp1-2.gz or list0-99/X.list1.gz)')
+						help='base directory name of existing results')
 	compile_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 
 						help='replace any existing output files')
-	compile_parser.add_argument('--split', 
-						nargs=0, 
-						action=AddTrue, 
-						help='for use if all files to compile contain a header and an end of file marker')
-	compile_parser.add_argument('--split-chr', 
-						nargs=0, 
-						action=AddTrue,  
-						help='for use if each chromosome was run independently (chromosome directories contain a file with a header and a file with an end of file marker')
 	return compile_parser
 
 def EvalArgs(eval_parser):
