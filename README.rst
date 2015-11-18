@@ -6,44 +6,69 @@ It is designed to assist biomedical researchers in complex genomic data analysis
 for rapid integration of emerging analytical strategies. Researchers with access to a high performance computing cluster will find time-saving features for parallel
 analysis using a flexible, yet controlled, commandline interface.
 
-**Notable Features**
-   - Compatibility with standard `VCFv4.1`_ and `VCFv4.2`_, `Oxford`_ (3 probabilities for each genotype), `Plink binary`_, and various single allele dosage formatted filetypes
+This software is currently under rapid development. Updates and bug fixes are being tracked on the `uga github page`_
+
+.. _`uga github page`: https://github.com/rmkoesterer/uga
+
+**Current Features**
+   - Compatibility with standard `VCFv4.1`_ and `VCFv4.2`_
+   - Single variant association modeling (R base: lm, glm; R `geepack`_: geeglm, R `seqMeta`_: burdenMeta, skatMeta, skatOMeta)
+   - Gene/Group based association modeling (with meta analysis)
+   - Family based association modeling (not yet available for gene/group based tests)
+   - Run multiple models as a single submission (alleles are aligned and SNV names need not match)
+   - Alignment of compatible markers based on position and alleles (not including A/T or G/C markers)
    - File mapping based on region size or number of markers for splitting analyses
    - Automatically split jobs on parallel computing systems using `qsub`_
-   - Verification and compilation for parallel distributed jobs
-   - Single variant association modelling
-   - Gene/Locus based association modelling
-   - Family based association modelling
-   - Effective test calculation based on Li and Ji method
-   - Meta analysis
-   - Alignment of compatible markers based on position and alleles (not including A/T or G/C markers)
-   - Genomic control correction
-   - Publication quality Q-Q and Manhattan Plots
-   - Integration with `Locuszoom`_ software for region-based plots
-   - `Gzip`_ and `Bgzip`_ / `Tabix`_ mapped output where possible to save disc space
    - User definable buffered reading for RAM usage control
+   - Verification and compilation for parallel distributed jobs
+   - `Gzip`_ and `Bgzip`_ / `Tabix`_ mapped output where possible to save disc space
+   - A small practice dataset is included with the source code for testing
 
-.. _`Plink binary`: https://www.cog-genomics.org/plink2/input#bed
-.. _`Oxford`: http://www.stats.ox.ac.uk/~marchini/software/gwas/file_format.html
 .. _`VCFv4.1`: http://samtools.github.io/hts-specs/VCFv4.1.pdf
 .. _`VCFv4.2`: http://samtools.github.io/hts-specs/VCFv4.2.pdf
+.. _`geepack`: https://cran.r-project.org/web/packages/geepack/index.html
+.. _`seqMeta`: https://cran.r-project.org/web/packages/seqMeta/index.html
 .. _`qsub`: http://gridscheduler.sourceforge.net/htmlman/htmlman1/qsub.html
 .. _`Gzip`: http://www.gzip.org/
 .. _`Bgzip`: http://www.htslib.org/
 .. _`Tabix`: http://www.htslib.org/
+
+**Features Coming Soon**
+   - Full documentation
+   - Installation with `pip`_
+   - `Oxford`_ (3 probabilities for each genotype), `Plink binary`_, and various single allele dosage formatted filetypes
+   - Additional association models (R `survival`_: coxph; `lme4`_: lmer, `nlme`_: lme)
+   - Family data inclusion in gene/group based tests
+   - Interaction terms for relevant models
+   - Post modeling meta analysis with genomic control correction
+   - Calculation for grouped analysis multiple test correction
+   - Publication quality Q-Q and manhattan plots
+   - Region-based plots via `Locuszoom`_ software
+   - Annotation of results using `SnpEff`_
+
+.. _`Plink binary`: https://www.cog-genomics.org/plink2/input#bed
+.. _`Oxford`: http://www.stats.ox.ac.uk/~marchini/software/gwas/file_format.html
+.. _`pip`: https://pypi.python.org/pypi/pip
+.. _`survival`: https://cran.r-project.org/web/packages/survival/index.html
+.. _`lme4`: https://cran.r-project.org/web/packages/lme4/index.html
+.. _`nlme`: https://cran.r-project.org/web/packages/nlme/index.html
 .. _`Locuszoom`: http://genome.sph.umich.edu/wiki/LocusZoom_Standalone
+.. _`SnpEff`: http://snpeff.sourceforge.net/
+.. _`SnpSift`: http://snpeff.sourceforge.net/SnpSift.html
 
 Since parallel computing is sometimes unreliable, analysts need to be able to verify and possibly rerun failed jobs at various stages of the analysis.
 In the interest of user efficiency and to avoid limitations induced by excessive automation, uga breaks the analytical process into the following modules.
 
    - **set** user definable settings
-   - **map** map non-empty regions in genotype/imputed data files
-   - **model** variant and gene/region-based statistical modeling
-   - **explore** explore results: filter, plot, list top results, etc.
-   - **meta** meta-analysis
-   - **compile** verify and compile results files
-   - **gc** apply genomic control to 1 or more p-value columns
-   - **annot** annotate variant results using `SnpEff`_ and `SnpSift`_
+   - **snv** map non-empty regions in genotype/imputed data files
+   - **snvgroup** variant and gene/region-based statistical modeling
+   - **compile** verify and compile split analysis results
+   - **resubmit** resubmit failed jobs for a project
+   - **plot** Q-Q and manhattan plots (not yet available)
+   - **zoom** region plots (not yet available)
+   - **meta** meta-analysis (not yet available)
+   - **gc** apply genomic control to 1 or more p-value columns (not yet available)
+   - **annot** annotate variant results using `SnpEff`_ and `SnpSift`_ (not yet available)
 
 .. _`SnpEff`: http://snpeff.sourceforge.net/
 .. _`SnpSift`: http://snpeff.sourceforge.net/SnpSift.html
@@ -101,17 +126,19 @@ R libraries needed for certain analytical and plotting tasks, followed by versio
    * `ggplot2`_ (1.0.0)
    * `geepack`_ (1.1-6)
    * `lme4`_ (1.1-7)
+   * `nlme`_ (1.1-7)
    * `survival`_ (2.37-7)
    * `seqMeta`_ (1.5)
    * `kinship2`_ (1.6.0)
 
 .. _`ggplot2`: http://cran.r-project.org/web/packages/ggplot2/index.html
-.. _`geepack`: http://cran.r-project.org/web/packages/geepack/index.html
+.. _`geepack`: https://cran.r-project.org/web/packages/geepack/index.html
+.. _`seqMeta`: https://cran.r-project.org/web/packages/seqMeta/index.html
 .. _`lme4`: http://cran.r-project.org/web/packages/lme4/index.html
+.. _`nlme`: https://cran.r-project.org/web/packages/nlme/index.html
 .. _`survival`: http://cran.r-project.org/web/packages/survival/index.html
-.. _`seqMeta`: http://cran.r-project.org/web/packages/seqMeta/index.html
 .. _`kinship2`: http://cran.r-project.org/web/packages/kinship2/index.html
-   
+
 Some of these R libraries may have dependencies that need to be installed as well.
 
 **Other requirements**
@@ -127,7 +154,7 @@ In order to generate regional plots of variant results, you must install `locusz
 
 **Pre-Installation Requirements**
 
-In order to avoid potential errors during installation, you may need to add the location of the R library libR.so file to your BASH_PROFILE 
+To avoid potential errors during installation, you may need to add the location of the R library libR.so file to your BASH_PROFILE 
 (ie. .bashrc, .bash_profile, etc). The following command will search your system for this file.
    
    >>> find /usr -name libR.so
@@ -153,7 +180,7 @@ For example, you can install and activate a virtual environment called 'uga-env'
 
 You are now operating a clean base Python installation under a virtual environment.
 
-**Installing uga with pip**
+**Installing uga with pip (not yet available)**
 
 The simplest way to install uga is with `pip`_, as follows.
 
@@ -180,10 +207,12 @@ Verify that uga is functional using the following command to display help.
 
 **Parallel computing**
 
-While you may simply run uga on a single cpu system, if you have access to a parallel computing cluster, 
-you will be able to take advantage of the self-managed parallel mode of use for which this software was designed. 
-This release was tested on a system which deploys Sun Grid Engine for job management and will likely be compatible 
+While you may simply run uga on a single cpu system, if you have access to a parallel computing cluster or even a single multiple core
+processor, you will be able to take advantage of the self-managed parallel mode of use for which this software was designed. 
+This release was tested on a system which deploys Sun Grid Engine and `qsub`_ for job management and will likely be compatible 
 with other PBS systems.
+
+.. _`qsub`: http://gridscheduler.sourceforge.net/htmlman/htmlman1/qsub.html
 
 References
 ==========
@@ -195,10 +224,7 @@ Contact
 
 - **Author**: `Ryan Koesterer`_
 
-`Documentation`_
-
-.. _`Ryan Koesterer`: uga-feedback@gmail.com
-.. _`Documentation`: http://rmkoesterer.github.io/uga-doc/
+.. _`Ryan Koesterer`: https://github.com/rmkoesterer/uga
 
 License
 =======
