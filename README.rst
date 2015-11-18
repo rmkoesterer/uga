@@ -77,7 +77,9 @@ Installation
 ************
 
 This software uses an array of Python modules and R packages. Thus, it may be simpler for users to install it within a clean virtual environment to avoid disrupting system 
-Python functionality. The following lists display versions used during development.
+Python functionality. The following lists display versions used during development. These modules can be installed easily with `pip`_, see :ref:`install_from_source`.
+
+.. _`pip`: https://pypi.python.org/pypi/pip
 
 `Python`_ (2.7.7)
 
@@ -180,13 +182,7 @@ For example, you can install and activate a virtual environment called 'uga-env'
 
 You are now operating a clean base Python installation under a virtual environment.
 
-**Installing uga with pip (not yet available)**
-
-The simplest way to install uga is with `pip`_, as follows.
-
-   >>> pip install uga
-
-.. _`pip`: https://pypi.python.org/pypi/pip
+.. _install_from_source:
 
 **Installing uga from source**
 
@@ -196,6 +192,14 @@ Use the following commands to install uga from a source file, uga.tar.gz.
    >>> cd uga
    >>> pip install -r requirements.txt
    >>> python setup.py install
+
+**Installing uga with pip (not yet available)**
+
+The simplest way to install uga is with `pip`_, as follows.
+
+   >>> pip install uga
+
+.. _`pip`: https://pypi.python.org/pypi/pip
 
 **Note**: If you install uga under a virtual environment, you need to source the environment as shown above before running any task in uga.
 
