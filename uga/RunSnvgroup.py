@@ -22,7 +22,7 @@ import pysam
 import Fxns
 import time
 from Bio import bgzf
-from Process import Error
+import Process
 import multiprocessing as mp
 import sys
 import os
@@ -35,11 +35,10 @@ def process_regions(regions_df, cfg, cpu, log):
 		try:
 			log_file = open(cfg['out'] + '.cpu' + str(cpu) + '.log','w')
 		except:
-			print Error("unable to initialize log file " + cfg['out'] + '.cpu' + str(cpu) + '.log')
+			print Process.Error("unable to initialize log file " + cfg['out'] + '.cpu' + str(cpu) + '.log').out
 			return 1
-		else:
-			stdout_orig = sys.stdout
-			sys.stdout = log_file
+		stdout_orig = sys.stdout
+		sys.stdout = log_file
 
 	models_obj = {}
 	for n in cfg['model_order']:
@@ -51,8 +50,8 @@ def process_regions(regions_df, cfg, cpu, log):
 									all_founders=cfg['models'][n]['all_founders'],case_code=cfg['models'][n]['case_code'],ctrl_code=cfg['models'][n]['ctrl_code'],
 									pheno_file=cfg['models'][n]['pheno'],variants_file=cfg['models'][n]['file'],type=cfg['models'][n]['fxn'],fid=cfg['models'][n]['fid'],
 									iid=cfg['models'][n]['iid'],matid=cfg['models'][n]['matid'],patid=cfg['models'][n]['patid'],sex=cfg['models'][n]['sex'],
-									male=cfg['models'][n]['male'],female=cfg['models'][n]['female'],pheno_sep=Fxns.GetDelimiter(cfg['models'][n]['sep']))
-		except Error as err:
+									male=cfg['models'][n]['male'],female=cfg['models'][n]['female'],pheno_sep=Fxns.get_delimiter(cfg['models'][n]['sep']))
+		except Process.Error as err:
 			print err.out
 			return 1
 
@@ -98,7 +97,7 @@ def process_regions(regions_df, cfg, cpu, log):
 
 			try:
 				models_obj[n].calc_model()
-			except Error as err:
+			except error as err:
 				print err.out
 				pass
 
@@ -172,8 +171,8 @@ def process_regions(regions_df, cfg, cpu, log):
 		return -1
 
 def RunSnvgroup(args):
-	cfg = Parse.GenerateSnvgroupCfg(args)
-	Parse.PrintSnvgroupOptions(cfg)
+	cfg = Parse.generate_snvgroup_cfg(args)
+	Parse.print_snvgroup_options(cfg)
 
 	regions_df = pd.read_table(cfg['region_file'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
 	return_values = {}
@@ -185,7 +184,7 @@ def RunSnvgroup(args):
 		try:
 			bgzfiles[m] = bgzf.BgzfWriter(models_out[m] + '.gz', 'wb')
 		except:
-			print Error("failed to initialize bgzip format out file " + models_out[m] + '.gz').out
+			print Process.Error("failed to initialize bgzip format out file " + models_out[m] + '.gz').out
 			return 1
 	if len(cfg['meta_order']) > 0:
 		print "initializing out file for meta results"
@@ -193,7 +192,7 @@ def RunSnvgroup(args):
 		try:
 			bgzfiles['___meta___'] = bgzf.BgzfWriter(models_out['___meta___'] + '.gz', 'wb')
 		except:
-			print Error("failed to initialize bgzip format out file " + models_out['___meta___'] + '.gz').out
+			print Process.Error("failed to initialize bgzip format out file " + models_out['___meta___'] + '.gz').out
 			return 1
 
 	if cfg['cpus'] > 1:
@@ -205,20 +204,20 @@ def RunSnvgroup(args):
 		pool.join()
 
 		if 1 in [return_values[i].get() for i in return_values]:
-			print Error("error detected, see log files").out
+			print Process.Error("error detected, see log files").out
 			return 1
 
 	else:
 		return_values[1] = process_regions(regions_df,cfg,1,True)
 		if return_values[1] == -1:
-			print Error("error detected, see log files").out
+			print Process.Error("error detected, see log files").out
 			return 1
 
 	for i in xrange(1,cfg['cpus']+1):
 		try:
 			logfile = open(cfg['out'] + '.cpu' + str(i) + '.log', 'r')
 		except:
-			print Error("failed to initialize log file " + cfg['out'] + '.cpu' + str(i) + '.log').out
+			print Process.Error("failed to initialize log file " + cfg['out'] + '.cpu' + str(i) + '.log').out
 			return 1
 		print logfile.read()
 		logfile.close()
@@ -246,7 +245,7 @@ def RunSnvgroup(args):
 		try:
 			pysam.tabix_index(models_out[m] + '.gz',seq_col=0,start_col=tbx_start,end_col=tbx_end,force=True)
 		except:
-			print Error('failed to generate index for file ' + models_out[m] + '.gz').out
+			print Process.Error('failed to generate index for file ' + models_out[m] + '.gz').out
 			return 1
 
 	if len(cfg['meta_order']) > 0:
@@ -270,7 +269,7 @@ def RunSnvgroup(args):
 		try:
 			pysam.tabix_index(models_out['___meta___'] + '.gz',seq_col=0,start_col=tbx_start,end_col=tbx_end,force=True)
 		except:
-			print Error('failed to generate index for file ' + models_out['___meta___'] + '.gz').out
+			print Process.Error('failed to generate index for file ' + models_out['___meta___'] + '.gz').out
 			return 1
 
 	print "process complete"

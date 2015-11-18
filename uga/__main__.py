@@ -34,7 +34,7 @@ from Bio import bgzf
 
 def main(args=None):
 	rerun = []
-	args = Parse.GetArgs(Parse.GetParser())
+	args = Parse.get_args(Parse.get_parser())
 
 	if args.which in ['snv','snvgroup','meta','resubmit']:
 		if args.which == 'resubmit':
@@ -42,9 +42,10 @@ def main(args=None):
 				args,cfg = pickle.load(p)
 			with open(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun.pkl', 'rb') as p:
 				rerun = pickle.load(p)
+			os.remove(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun.pkl')
 			cfg['replace'] = True
 		else:
-			cfg = getattr(Parse, 'Generate' + args.which.capitalize() + 'Cfg')(args.ordered_args)
+			cfg = getattr(Parse, 'generate_' + args.which + '_cfg')(args.ordered_args)
 
 	##### read settings file #####
 	ini = SafeConfigParser()
@@ -81,7 +82,7 @@ def main(args=None):
 				data_files = []
 				for m in cfg['models']:
 					if cfg['models'][m]['file'] not in data_files:
-						snv_map.extend(Map.Map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region'], format=cfg['models'][m]['format']))
+						snv_map.extend(Map.map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region'], format=cfg['models'][m]['format']))
 						data_files.append(cfg['models'][m]['file'])
 				snv_map = list(set(snv_map))
 				regions_df = pd.DataFrame({'region': snv_map, 'chr': [x.split(':')[0] for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
@@ -114,7 +115,7 @@ def main(args=None):
 				data_files = []
 				for m in cfg['models']:
 					if cfg['models'][m]['file'] not in data_files:
-						snv_map.extend(Map.Map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = 1000, region = cfg['region'], format=cfg['models'][m]['format']))
+						snv_map.extend(Map.map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = 1000, region = cfg['region'], format=cfg['models'][m]['format']))
 						data_files.append(cfg['models'][m]['file'])
 				snv_map = list(set(snv_map))
 				regions_df = pd.DataFrame({'region': snv_map, 'chr': [x.split(':')[0] for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
@@ -173,7 +174,7 @@ def main(args=None):
 				n_remain = int(regions_df[regions_df['job'] == i].shape[0] - (n-1) * cfg['cpus'])
 				regions_df.loc[regions_df['job'] == i,'cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)) + 1
 		if int(max(regions_df['job'])) + 1 > 100000:
-			print Process.PrintError('number of jobs exceeds 100,000, consider using --split-n to reduce the total number of jobs')
+			print Process.print_error('number of jobs exceeds 100,000, consider using --split-n to reduce the total number of jobs')
 			return
 
 	##### generate output directories #####
@@ -207,9 +208,9 @@ def main(args=None):
 					try:
 						shutil.rmtree(directory)
 					except OSError:
-						print Process.PrintError('unable to replace results directory' + directory)
+						print Process.print_error('unable to replace results directory' + directory)
 				else:
-					print Process.PrintError('results directory ' + directory + ' already exists, use --replace to overwrite existing results')
+					print Process.print_error('results directory ' + directory + ' already exists, use --replace to overwrite existing results')
 					return
 			try:
 				os.mkdir(directory)
@@ -299,187 +300,37 @@ def main(args=None):
 			args.ordered_args = [('out',cfg['out']),('region_file',cfg['out'] + '.regions'),('cpus',int(max(regions_job_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
 			cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
 			if cfg['qsub']:
-				Process.Qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['out'] + '.' + args.which + '.log',qsub_wrapper],'\"' + cmd + '\"')
+				Process.qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['out'] + '.' + args.which + '.log',qsub_wrapper],'\"' + cmd + '\"')
 			else:
-				Process.Interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
+				Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
 
 	elif args.which == 'compile':
 		files = pd.read_table(args.dir + '/' + os.path.basename(args.dir) + '.files', names=['job','out','file'])
-		complete, rerun = Fxns.VerifyResults(args.dir,files)
+		complete, rerun = Fxns.verify_results(args.dir,files)
 		if len(rerun) > 0:
-			print Process.PrintError('detected ' + str(len(rerun)) + ' failed jobs\n       writing failed job numbers to file ' + args.dir + '/' + os.path.basename(args.dir) + '.rerun\n       execute  script with the --resubmit option to resubmit only the failed jobs')
+			print Process.print_error('detected ' + str(len(rerun)) + ' failed jobs\n       writing failed job numbers to file ' + args.dir + '/' + os.path.basename(args.dir) + '.rerun\n       execute  script with the --resubmit option to resubmit only the failed jobs')
 			with open(args.dir + '/' + os.path.basename(args.dir) + '.rerun.pkl', 'wb') as p:
 				pickle.dump(rerun, p)
 		else:
-			complete = Fxns.CompileResults(args.dir,files)
+			complete = Fxns.compile_results(args.dir,files)
 			if complete:
 				input_var = None
 				while input_var not in ['y','n','Y','N']:
-					input_var = raw_input('delete job data directories (yY/nN)? ')
+					input_var = raw_input('delete obselete job subdirectories for this project (yY/nN)? ')
 				if input_var.lower() == 'n':
 					print 'canceled by user'
 				else:
-					print 'deleting job data directories'
+					print 'deleting subdirectories'
 					for d in glob.glob(args.dir + '/jobs*-*'):
 						try:
 							shutil.rmtree(d)
 						except OSError:
-							print Process.PrintError('unable to delete job data directory ' + d)
+							print Process.print_error('unable to delete job data directory ' + d)
 			else:
-				print Process.PrintError('file compilation incomplete')
-
-		#jobs['complete'] = 0
-		#for f in jobs['file']:
-		#	if os.path.exists(f):
-		#		jobs.loc[jobs['file'] == f,'complete'] = 1
-		#incomplete = np.unique(jobs.loc[jobs['complete'] == 0,'job'])
-		#if len(incomplete) > 0:
-		#	with open(directory + '/' + args.dir + '.rerun', 'w') as rerun:
-		#		for x in incomplete:
-		#			rerun.write(str(x) + '\n')
-		#else:
-		#	bgzfile = {}
-		#	for o in np.unique(jobs['out']):
-		#		bgzfile[o] = bgzf.BgzfWriter(o, 'wb')
-		#	for j in np.unique(jobs['job']):
-		#		if j == 1:
-		#			for f in jobs.loc[jobs['job'] == j,'file']:
-		#				p1 = subprocess.Popen(['zcat',f], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
-		#				p2 = subprocess.Popen(['head','-1'], stdin=p1.stdout, stdout=subprocess.PIPE)
-		#				bgzfile[jobs.loc[jobs['file'] == f,'out']].write(p2.communicate()[0])
-		#				p1.wait()
-		#				p2.wait()
-		#		else:
-		#			for f in jobs.loc[jobs['job'] == j,'file']:
-		#				p1 = subprocess.Popen(['zcat',f], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
-		#				p2 = subprocess.Popen(['sed','1d'], stdin=p1.stdout, stdout=subprocess.PIPE)
-		#				bgzfile[jobs.loc[jobs['file'] == f,'out']].write(p2.communicate()[0])
-		#				p1.wait()
-		#				p2.wait()
-		#	for o in np.unique(jobs['out']):
-		#		bgzfile[o].close()
-		#		
-		#print jobs; return
-	#elif args.which == 'compile':
-	#	out_files = {}
-	#	if args.which == "compile":
-	#		out_files = FindSubFiles(f = args.file)
-	#	if len(out_files.keys()) > 1:
-	#		existing_files = glob(args.file + '.gz*') + glob(args.file + '.log')
-	#		if len(existing_files) > 0:
-	#			if not args.replace:
-	#				print Process.PrintError("1 or more output files or files with similar basename already exists (use --replace flag to replace)")
-	#				return
-	#			else:
-	#				for f in existing_files:
-	#					try:
-	#						os.remove(f)
-	#					except OSError:
-	#						continue
-	#		complete, complete_reg = Compile.CheckResults(file_dict=out_files, out=args.file + '.verify')
-	#		if not complete:
-	#			print Process.PrintError("results could not be verified")
-	#			return
-	#		out_files = OrderedDict([(x, out_files[x]) for x in out_files.keys() if str(x) in complete_reg])
-	#		if cfg['split']:
-	#			compile_fxn = 'Compile.CompileResultsSplit'
-	#		elif cfg['split']_chr:
-	#			compile_fxn = 'Compile.CompileResultsSplitChr'
-	#		else:
-	#			compile_fxn = 'Compile.CompileResults'
-	#		if not globals()[compile_fxn](out_files, args.file):
-	#			print Process.PrintError("results could not be compiled")
-	#			return
-	#	else:
-	#		print Process.PrintError("no split results to compile")
-	#		return
-
-	#elif args.which == 'eval':
-	#	check_files = [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.eval.log']
-	#	check_files = [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.top_results']
-	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq.tiff'] if 'qq' in vars(args).keys() else check_files
-	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq_strat.tiff'] if 'qq_strat' in vars(args).keys() else check_files
-	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq.eps'] if 'qq' in vars(args).keys() else check_files
-	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq_strat.eps'] if 'qq_strat' in vars(args).keys() else check_files
-	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq.pdf'] if 'qq' in vars(args).keys() else check_files
-	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.qq_strat.pdf'] if 'qq_strat' in vars(args).keys() else check_files
-	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.mht.tiff'] if 'mht' in vars(args).keys() else check_files
-	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.mht.eps'] if 'mht' in vars(args).keys() else check_files
-	#	check_files = check_files + [args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.mht.pdf'] if 'mht' in vars(args).keys() else check_files
-	#	existing_files = []
-	#	for f in check_files:
-	#		if os.path.exists(f):
-	#			if not args.replace:
-	#				existing_files = existing_files + [f]
-	#				print "found file " + str(f)
-	#			else:
-	#				try:
-	#					os.remove(f)
-	#				except OSError:
-	#					continue
-	#	if len(existing_files) > 0:
-	#		print Process.PrintError("above files already exist (use --replace flag to replace)")
-	#		return
-	#	cmd = 'memory_usage((' + args.which.capitalize() + ', (' + str(config) + ',)), interval=0.1)'
-	#	if cfg['qsub']:
-	#		Process.Qsub('qsub ' + cfg['qsub'] + ' -o ' + config['file'].replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
-	#	else:
-	#		Process.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.' + args.stat.replace('*','_inter_') + '.eval.log')
-
-	#elif args.which == 'gc':
-	#	check_files = [args.file.replace('.gz','') + '.gc.log']
-	#	check_files = check_files + [args.file.replace('.gz','') + '.gc.gz']
-	#	check_files = check_files + [args.file.replace('.gz','') + '.gc.gz.tbi']
-	#	existing_files = []
-	#	for f in check_files:
-	#		if os.path.exists(f):
-	#			if not args.replace:
-	#				existing_files = existing_files + [f]
-	#				print "found file " + str(f)
-	#			else:
-	#				try:
-	#					os.remove(f)
-	#				except OSError:
-	#					continue
-	#	if len(existing_files) > 0:
-	#		print Process.PrintError("above files already exist (use --replace flag to replace)")
-	#		return
-	#	cmd = 'memory_usage((' + args.which.upper() + ', (' + str(config) + ',)), interval=0.1)'
-	#	if cfg['qsub']:
-	#		Process.Qsub('qsub ' + cfg['qsub'] + ' -o ' + config['file'].replace('.gz','') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
-	#	else:
-	#		Process.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.gc.log')
-
-	#elif args.which == 'annot':
-	#	check_files = [args.file.replace('.gz','') + '.annot.xlsx']
-	#	check_files = check_files + [args.file.replace('.gz','') + '.annot.log']
-	#	check_files = check_files + [args.file.replace('.gz','') + '.annot1']
-	#	check_files = check_files + [args.file.replace('.gz','') + '.annot2']
-	#	check_files = check_files + [args.file.replace('.gz','') + '.annot3']
-	#	check_files = check_files + [args.file.replace('.gz','') + '.annot.summary.features.txt']
-	#	check_files = check_files + [args.file.replace('.gz','') + '.annot.summary.html']
-	#	existing_files = []
-	#	for f in check_files:
-	#		if os.path.exists(f):
-	#			if not args.replace:
-	#				existing_files = existing_files + [f]
-	#				print "found file " + str(f)
-	#			else:
-	#				try:
-	#					os.remove(f)
-	#				except OSError:
-	#					continue
-	#	if len(existing_files) > 0:
-	#		print Process.PrintError("above files already exist (use --replace flag to replace)")
-	#		return
-	#	cmd = 'memory_usage((' + args.which.capitalize() + ', (' + str(config) + ',)), interval=0.1)'
-	#	if cfg['qsub']:
-	#		Process.Qsub('qsub ' + cfg['qsub'] + ' -o ' + config['file'].replace('.gz','') + '.' + args.which + '.log ' + qsub_wrapper + ' \"' + cmd + '\"')
-	#	else:
-	#		Process.Interactive(qsub_wrapper, cmd, args.file.replace('.gz','') + '.annot.log')
+				print Process.print_error('file compilation incomplete')
 
 	else:
-		print Process.PrintError(args.which + " not a module")
+		print Process.print_error(args.which + " not a currently available module")
 
 	print ''
 

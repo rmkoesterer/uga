@@ -23,7 +23,7 @@ import os
 from Bio import bgzf
 import pysam
 
-def GetDelimiter(d):
+def get_delimiter(d):
 	if d == 'tab':
 		d = '\t'
 	elif d == 'space':
@@ -32,7 +32,7 @@ def GetDelimiter(d):
 		d = ','
 	return d
 
-def VerifyResults(directory, files):
+def verify_results(directory, files):
 	print "verifying results"
 	reg_complete = []
 	reg_rerun = []
@@ -59,7 +59,7 @@ def VerifyResults(directory, files):
 	pbar.finish()
 	return list(set(reg_complete)), list(set(reg_rerun))
 
-def CompileResults(directory, files):
+def compile_results(directory, files):
 	out = np.unique(files['out'])
 	bgzfile = {}
 	for o in out:

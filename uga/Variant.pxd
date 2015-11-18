@@ -19,8 +19,8 @@ cimport numpy as np
 cimport cython
 import math
 
-cdef double CalcCallrate(np.ndarray[np.float64_t, ndim=1])
-cdef double CalcFreq(np.ndarray[np.float64_t, ndim=1])
-cdef double CalcMAC(np.ndarray[np.float64_t, ndim=1])
-cdef double CalcFreqX(np.ndarray[np.float64_t, ndim=1] male, np.ndarray[np.float64_t, ndim=1] female)
-cdef double CalcRsq(np.ndarray[np.float64_t, ndim=1])
+cdef double calc_callrate(np.ndarray[np.float64_t, ndim=1])
+cdef double calc_freq(np.ndarray[np.float64_t, ndim=1])
+cdef double calc_mac(np.ndarray[np.float64_t, ndim=1])
+cdef double calc_freqx(np.ndarray[np.float64_t, ndim=1] male, np.ndarray[np.float64_t, ndim=1] female)
+cdef double calc_rsq(np.ndarray[np.float64_t, ndim=1])

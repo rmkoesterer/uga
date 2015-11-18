@@ -5,3 +5,5 @@
 build/
 bin/
 uga.egg-info/
+.git
+.gitchangelog.rc

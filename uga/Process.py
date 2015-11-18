@@ -22,16 +22,10 @@ class Error(Exception):
 		self.out = 'ERROR: ' + msg
 		self.msg = msg
 
-def PrintError(e):
+def print_error(e):
 	return "\nERROR: " + e + "\n"
 
-def Highlight(m):
-	return "\n   ... " + m + "\n"
-	
-def Bold(m):
-	return "\033[1m" + m + "\033[0m"
-
-def Qsub(qsub_pre,cmd):
+def qsub(qsub_pre,cmd):
 	try:
 		p = subprocess.Popen(qsub_pre + [cmd[1:-1]],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		for line in iter(p.stdout.readline, ''):
@@ -42,7 +36,7 @@ def Qsub(qsub_pre,cmd):
 		print "   ... process terminated by user"
 		sys.exit(1)
 
-def Interactive(submit, cmd, log_file = None):
+def interactive(submit, cmd, log_file = None):
 	try:
 		p = subprocess.Popen([submit,cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		if log_file:

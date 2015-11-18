@@ -20,7 +20,7 @@ from itertools import islice,groupby
 from operator import attrgetter
 import pysam
 
-def Map(out, 
+def map(out, 
 		file, 
 		format, 
 		region = None, 
@@ -28,7 +28,6 @@ def Map(out,
 		#cpus = '1', 
 		shift_mb = None):
 
-	#mb = float(mb) / cpus
 	s = int(float(mb) * 1000000) if mb else s
 	shift = int(shift_mb) * 1000000 if shift_mb else 0
 

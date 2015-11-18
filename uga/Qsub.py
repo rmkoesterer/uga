@@ -3,7 +3,21 @@
 #$ -j y
 #$ -V
 
-#from memory_profiler import memory_usage
+## Copyright (c) 2015 Ryan Koesterer GNU General Public License v3
+##
+##    This program is free software: you can redistribute it and/or modify
+##    it under the terms of the GNU General Public License as published by
+##    the Free Software Foundation, either version 3 of the License, or
+##    (at your option) any later version.
+##
+##    This program is distributed in the hope that it will be useful,
+##    but WITHOUT ANY WARRANTY; without even the implied warranty of
+##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##    GNU General Public License for more details.
+##
+##    You should have received a copy of the GNU General Public License
+##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
 import pwd
 import psutil
@@ -51,14 +65,6 @@ def main(argv):
 		from uga.RunSnv import RunSnv
 	if argv[1].split('(')[0] == "RunSnvgroup":
 		from uga.RunSnvgroup import RunSnvgroup
-	#elif argv[1].split('(')[0] == "Meta":
-	#	from uga.Meta import Meta
-	#elif argv[1].split('(')[0] == "Eval":
-	#	from uga.Eval import Eval
-	#elif argv[1].split('(')[0] == "GC":
-	#	from uga.GC import GC
-	#elif argv[1].split('(')[0] == "Annot":
-	#	from uga.Annot import Annot
 
 	exec('r=' + argv[1])
 	if r == 0:

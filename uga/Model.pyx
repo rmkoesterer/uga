@@ -16,7 +16,7 @@
 import pandas as pd
 import numpy as np
 from re import split as re_split
-from Process import Error
+import Process
 cimport numpy as np
 cimport cython
 import Geno
@@ -100,8 +100,8 @@ cdef class Model(object):
 		self.calc_hwe_idx = np.array([])
 		try:
 			self.variants = getattr(Geno,self.format.capitalize())(self.variants_file)
-		except Error as err:
-			raise Error(err.msg)
+		except Process.Error as err:
+			raise Process.Error(err.msg)
 		else:
 			print "extracting model fields from pheno file and reducing to complete observations ..."
 			p_names = (self.fid,self.iid) + tuple(x for x in [self.matid, self.patid] if x is not None)
@@ -114,7 +114,7 @@ cdef class Model(object):
 			try:
 				self.pheno = np.genfromtxt(fname=self.pheno_file, delimiter=self.pheno_sep, dtype=p_dtypes, names=True, usecols=p_names)
 			except:
-				raise Error("unable to load phenotype file " + self.pheno_file + " with columns " + ', '.join(p_names))
+				raise Process.Error("unable to load phenotype file " + self.pheno_file + " with columns " + ', '.join(p_names))
 			for x in [y for y in dtypes if dtypes[y] == '>f8']:
 				self.pheno = self.pheno[~np.isnan(self.pheno[x])]
 			for x in [y for y in dtypes if dtypes[y] == '|S100']:
@@ -125,30 +125,30 @@ cdef class Model(object):
 				elif x in ['variant','variant1','variant2','variant.interact']:
 					print "   %s variable %s skipped" % (self.fields[x]['type'], x)
 				else:
-					raise Error("column " + x + " not found in phenotype file " + self.pheno_file)
+					raise Process.Error("column " + x + " not found in phenotype file " + self.pheno_file)
 			if self.fid in self.pheno.dtype.names:
 				print "   fid column %s found" % self.fid
 			else:
-				raise Error("column " + self.fid + " not found in phenotype file " + self.pheno_file)
+				raise Process.Error("column " + self.fid + " not found in phenotype file " + self.pheno_file)
 			if self.iid in self.pheno.dtype.names:
 				print "   iid column %s found" % self.iid
 			else:
-				raise Error("column " + self.iid + " not found in phenotype file " + self.pheno_file)
+				raise Process.Error("column " + self.iid + " not found in phenotype file " + self.pheno_file)
 			if self.matid is not None:
 				if self.matid in self.pheno.dtype.names:
 					print "   matid column %s found" % self.matid
 				else:
-					raise Error("column " + self.matid + " not found in phenotype file " + self.pheno_file)
+					raise Process.Error("column " + self.matid + " not found in phenotype file " + self.pheno_file)
 			if self.patid is not None:
 				if self.patid in self.pheno.dtype.names:
 					print "   patid column %s found" % self.patid
 				else:
-					raise Error("column " + self.patid + " not found in phenotype file " + self.pheno_file)
+					raise Process.Error("column " + self.patid + " not found in phenotype file " + self.pheno_file)
 			if self.sex is not None:
 				if self.sex in self.pheno.dtype.names:
 					print "   sex column %s found" % self.sex
 				else:
-					raise Error("column " + self.sex + " not found in phenotype file " + self.pheno_file)
+					raise Process.Error("column " + self.sex + " not found in phenotype file " + self.pheno_file)
 			self.pheno = self.pheno[np.in1d(self.pheno[self.iid],np.intersect1d(self.pheno[self.iid],self.variants.samples))]
 			if self.pheno.shape[0] > 0:
 				iids_unique, iids_counts = np.unique(self.pheno[self.iid], return_counts=True)
@@ -208,7 +208,7 @@ cdef class Model(object):
 						self.pheno[self.dep_var][self.ctrls_idx] = 0
 						print "   " + str(self.nctrls) + " controls"
 			else:
-				raise Error("phenotype file and data file contain no common samples")
+				raise Process.Error("phenotype file and data file contain no common samples")
 
 		self.metadata = '## source: uga' + version + '\n' + \
 						'## date: ' + time.strftime("%Y%m%d") + '\n' + \
@@ -244,22 +244,22 @@ cdef class Model(object):
 		cdef unsigned int i
 		if self.variants.chr == 23:
 			for i in xrange(self.variants.info.shape[0]):
-				self.variant_stats['mac'][i] = Variant.CalcMAC(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['callrate'][i] = Variant.CalcCallrate(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['freq'][i] = Variant.CalcFreqX(male=self.variants.data[self.male_idx,i+1].astype('float64'), female=self.variants.data[self.female_idx,i+1].astype('float64')) if len(self.male_idx) > 0 and len(self.female_idx) > 0 else np.nan
-				self.variant_stats['freq.case'][i] = Variant.CalcFreqX(male=self.variants.data[self.male_cases_idx,i+1].astype('float64'), female=self.variants.data[self.female_cases_idx,i+1].astype('float64')) if len(self.male_cases_idx) > 0 and len(self.female_cases_idx) > 0 else np.nan
-				self.variant_stats['freq.ctrl'][i] = Variant.CalcFreqX(male=self.variants.data[self.male_ctrls_idx,i+1].astype('float64'), female=self.variants.data[self.female_ctrls_idx,i+1].astype('float64')) if len(self.male_ctrls_idx) > 0 and len(self.female_ctrls_idx) > 0 else np.nan
-				self.variant_stats['rsq'][i] = Variant.CalcRsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['hwe'][i] = Variant.CalcHWE(self.variants.data[self.calc_hwe_idx,i+1].astype('float64')) if len(self.calc_hwe_idx) > 0 else np.nan
+				self.variant_stats['mac'][i] = Variant.calc_mac(self.variants.data[self.unique_idx,i+1].astype('float64'))
+				self.variant_stats['callrate'][i] = Variant.calc_callrate(self.variants.data[self.unique_idx,i+1].astype('float64'))
+				self.variant_stats['freq'][i] = Variant.calc_freqX(male=self.variants.data[self.male_idx,i+1].astype('float64'), female=self.variants.data[self.female_idx,i+1].astype('float64')) if len(self.male_idx) > 0 and len(self.female_idx) > 0 else np.nan
+				self.variant_stats['freq.case'][i] = Variant.calc_freqX(male=self.variants.data[self.male_cases_idx,i+1].astype('float64'), female=self.variants.data[self.female_cases_idx,i+1].astype('float64')) if len(self.male_cases_idx) > 0 and len(self.female_cases_idx) > 0 else np.nan
+				self.variant_stats['freq.ctrl'][i] = Variant.calc_freqX(male=self.variants.data[self.male_ctrls_idx,i+1].astype('float64'), female=self.variants.data[self.female_ctrls_idx,i+1].astype('float64')) if len(self.male_ctrls_idx) > 0 and len(self.female_ctrls_idx) > 0 else np.nan
+				self.variant_stats['rsq'][i] = Variant.calc_rsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
+				self.variant_stats['hwe'][i] = Variant.calc_hwe(self.variants.data[self.calc_hwe_idx,i+1].astype('float64')) if len(self.calc_hwe_idx) > 0 else np.nan
 		else:
 			for i in xrange(self.variants.info.shape[0]):
-				self.variant_stats['mac'][i] = Variant.CalcMAC(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['callrate'][i] = Variant.CalcCallrate(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['freq'][i] = Variant.CalcFreq(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['freq.case'][i] = Variant.CalcFreq(self.variants.data[self.cases_idx,i+1].astype('float64')) if len(self.cases_idx) > 0 else np.nan
-				self.variant_stats['freq.ctrl'][i] = Variant.CalcFreq(self.variants.data[self.ctrls_idx,i+1].astype('float64')) if len(self.ctrls_idx) > 0 else np.nan
-				self.variant_stats['rsq'][i] = Variant.CalcRsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['hwe'][i] = Variant.CalcHWE(self.variants.data[self.calc_hwe_idx,i+1].astype('float64')) if len(self.calc_hwe_idx) > 0 else np.nan
+				self.variant_stats['mac'][i] = Variant.calc_mac(self.variants.data[self.unique_idx,i+1].astype('float64'))
+				self.variant_stats['callrate'][i] = Variant.calc_callrate(self.variants.data[self.unique_idx,i+1].astype('float64'))
+				self.variant_stats['freq'][i] = Variant.calc_freq(self.variants.data[self.unique_idx,i+1].astype('float64'))
+				self.variant_stats['freq.case'][i] = Variant.calc_freq(self.variants.data[self.cases_idx,i+1].astype('float64')) if len(self.cases_idx) > 0 else np.nan
+				self.variant_stats['freq.ctrl'][i] = Variant.calc_freq(self.variants.data[self.ctrls_idx,i+1].astype('float64')) if len(self.ctrls_idx) > 0 else np.nan
+				self.variant_stats['rsq'][i] = Variant.calc_rsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
+				self.variant_stats['hwe'][i] = Variant.calc_hwe(self.variants.data[self.calc_hwe_idx,i+1].astype('float64')) if len(self.calc_hwe_idx) > 0 else np.nan
 
 	cpdef filter(self, np.float miss_thresh=None, np.float maf_thresh=None, np.float maxmaf_thresh=None, np.float mac_thresh=None, 
 								np.float rsq_thresh=None, np.float hwe_thresh=None, np.float hwe_maf_thresh=None, no_mono=True):
@@ -328,7 +328,7 @@ cdef class SnvModel(Model):
 			try:
 				self.variants.data = self.variants.data[np.in1d(self.variants.data[:,0],np.intersect1d(self.pheno[self.iid],self.variants.data[:,0]))]
 			except:
-				raise Error("phenotype file and data file contain no common samples")
+				raise Process.Error("phenotype file and data file contain no common samples")
 			else:
 				self.calc_variant_stats()
 
@@ -346,8 +346,8 @@ cdef class SnvgroupModel(Model):
 		if self.snvgroup_map is not None:
 			try:
 				self.variants.load_snvgroup_map(self.snvgroup_map)
-			except Error as err:
-				raise Error(err.msg)
+			except Process.Error as err:
+				raise Process.Error(err.msg)
 
 		self.metadata_gene = '## chr: chromosome' + '\n' + \
 								'## start: start chromosomal position' + '\n' + \
@@ -363,7 +363,7 @@ cdef class SnvgroupModel(Model):
 			try:
 				self.variants.data = self.variants.data[np.in1d(self.variants.data[:,0],np.intersect1d(self.pheno[self.iid],self.variants.data[:,0]))]
 			except:
-				raise Error("phenotype file and data file contain no common samples")
+				raise Process.Error("phenotype file and data file contain no common samples")
 			else:
 				self.calc_variant_stats()
 
@@ -422,13 +422,13 @@ cdef class Score(SnvModel):
 				ro.globalenv['ps'] = ro.r(cmd)
 			except RRuntimeError as rerr:
 				self.results['err'][passed] = 2
-				raise Error(rerr.message)
+				raise Process.Error(rerr.message)
 			cmd = 'singlesnpMeta(ps,SNPInfo=snp_info)'
 			try:
 				ro.globalenv['result'] = ro.r(cmd)
 			except RRuntimeError as rerr:
 				self.results['err'][passed] = 3
-				raise Error(rerr.message)
+				raise Process.Error(rerr.message)
 			else:
 				ro.r('result$err<-0')
 				ro.r('result$err[! is.finite(result$beta) | ! is.finite(result$se) | ! is.finite(result$p) | result$p == 0]<-1')
@@ -512,7 +512,7 @@ cdef class Gee(SnvModel):
 					ro.globalenv['result'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][v] = 3
-					raise Error(rerr.message)
+					raise Process.Error(rerr.message)
 				else:
 					ro.r('result<-summary(result)')
 					if ro.r('result$error')[0] == 0:
@@ -586,7 +586,7 @@ cdef class Glm(SnvModel):
 					ro.globalenv['result'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][v] = 3
-					raise Error(rerr.message)
+					raise Process.Error(rerr.message)
 				else:
 					ro.r('result<-summary(result)')
 					ro.r('err<-0')
@@ -655,7 +655,7 @@ cdef class Lm(SnvModel):
 					ro.globalenv['result'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][v] = 3
-					raise Error(rerr.message)
+					raise Process.Error(rerr.message)
 				else:
 					ro.r('result<-summary(result)')
 					ro.r('err<-0')
@@ -741,13 +741,13 @@ cdef class Skat(SnvgroupModel):
 					ro.globalenv['ps'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 2
-					raise Error(rerr.message)
+					raise Process.Error(rerr.message)
 				cmd = "skatMeta(ps,SNPInfo=snp_info,wts=" + self.skat_wts + ",method='" + self.skat_method + "',mafRange=" + self.mafrange + ")"
 				try:
 					ro.globalenv['result'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 3
-					raise Error(rerr.message)
+					raise Process.Error(rerr.message)
 				else:
 					ro.r('result$err<-0')
 					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
@@ -786,7 +786,6 @@ cdef class Skato(SnvgroupModel):
 		self.skato_rho = skato_rho if skat_method is not None else 'seq(0,1,0.1)'
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
 		print "setting skat-o test family option to " + self.family
-
 		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
 
 		from rpy2.robjects.packages import importr
@@ -843,13 +842,13 @@ cdef class Skato(SnvgroupModel):
 					ro.globalenv['ps'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 2
-					raise Error(rerr.message)
+					raise Process.Error(rerr.message)
 				cmd = "skatOMeta(ps,SNPInfo=snp_info,rho=" + self.skato_rho + ",skat.wts=" + self.skat_wts + ",burden.wts=" + self.burden_wts + ",method='" + self.skat_method + "',mafRange=" + self.mafrange + ")"
 				try:
 					ro.globalenv['result'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 3
-					raise Error(rerr.message)
+					raise Process.Error(rerr.message)
 				else:
 					ro.r('result$err<-0')
 					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
@@ -947,13 +946,13 @@ cdef class Burden(SnvgroupModel):
 					ro.globalenv['ps'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 2
-					raise Error(rerr.message)
+					raise Process.Error(rerr.message)
 				cmd = 'burdenMeta(ps,SNPInfo=snp_info,mafRange=' + self.mafrange + ',wts=' + self.burden_wts + ')'
 				try:
 					ro.globalenv['result'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 3
-					raise Error(rerr.message)
+					raise Process.Error(rerr.message)
 				else:
 					ro.r('result$err<-0')
 					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
@@ -1002,7 +1001,7 @@ def SkatMeta(Skat obj, tag, meta, meta_incl):
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
 			results[tag + '.err'][0] = 3
-			raise Error(rerr.message)
+			raise Process.Error(rerr.message)
 		else:
 			ro.r('result$err<-0')
 			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
@@ -1040,7 +1039,7 @@ def SkatoMeta(Skato obj, tag, meta, meta_incl):
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
 			results[tag + '.err'][0] = 3
-			raise Error(rerr.message)
+			raise Process.Error(rerr.message)
 		else:
 			ro.r('result$err<-0')
 			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
@@ -1082,7 +1081,7 @@ def BurdenMeta(Burden obj, tag, meta, meta_incl):
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
 			results[tag + '.err'][0] = 3
-			raise Error(rerr.message)
+			raise Process.Error(rerr.message)
 		else:
 			ro.r('result$err<-0')
 			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
@@ -1114,200 +1113,3 @@ def BurdenMeta(Burden obj, tag, meta, meta_incl):
 		results[tag + '.se'][0] = np.nan
 		results[tag + '.p'][0] = np.nan
 	return pd.DataFrame(results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
-
-
-"""
-class BglmFrame(ModelFrame):
-	def __init__(self, formula, type):
-		super(BglmFrame, self).__init__(formula, type)
-		self.header = ['chr','pos','a1','a2','variant','callrate','freq','freq.case','freq.ctrl','mac','rsq','hwe','filter','sample']
-		# parse bglm, gglm, bgee, ggee, fskato, gskato, bskato, fskat, gskat, bskat, fburden, gburden, or bburden formulas into dictionary
-		#
-		# currently valid symbols for right hand side terms in these models
-		# SYMBOL			EXAMPLE				ACTION
-		# +					+x					estimates: the global effect of x
-		# :					x:y					estimates: the global effect of the interaction between x and y
-		# *					x*y					estimates: the global effect of x, y, and the interaction between x and y
-		# factor			factor(x)			specify x as a categorical variable (factor)
-		fields = {}
-		for x in [a for a in list(set(re_split('~|\+|\*|:|1|0|-1|factor|\(|\)',self.formula))) if a != '']:
-			mtype = "dependent" if x == re_split('~',self.formula)[0] else "independent"
-			if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-				fields[x] = {'class': 'factor', 'type': mtype}
-			else:
-				fields[x] = {'class': 'numeric', 'type': mtype}
-		self.dict = fields
-		for x in self.focus:
-			self.header = self.header + [x + '.effect',x + '.stderr',x + '.or',x + '.z',x + '.p']
-		self.header = self.header + ['n','status']
-
-class GglmFrame(ModelFrame):
-	def __init__(self, formula, type):
-		super(GglmFrame, self).__init__(formula, type)
-		self.header = ['chr','pos','a1','a2','variant','callrate','freq','freq.case','freq.ctrl','mac','rsq','hwe','filter','sample']
-		# parse bglm, gglm, bgee, ggee, fskato, gskato, bskato, fskat, gskat, bskat, fburden, gburden, or bburden formulas into dictionary
-		#
-		# currently valid symbols for right hand side terms in these models
-		# SYMBOL			EXAMPLE				ACTION
-		# +					+x					estimates: the global effect of x
-		# :					x:y					estimates: the global effect of the interaction between x and y
-		# *					x*y					estimates: the global effect of x, y, and the interaction between x and y
-		# factor			factor(x)			specify x as a categorical variable (factor)
-		fields = {}
-		for x in [a for a in list(set(re_split('~|\+|\*|:|1|0|-1|factor|\(|\)',self.formula))) if a != '']:
-			mtype = "dependent" if x == re_split('~',self.formula)[0] else "independent"
-			if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-				fields[x] = {'class': 'factor', 'type': mtype}
-			else:
-				fields[x] = {'class': 'numeric', 'type': mtype}
-		self.dict = fields
-		for x in self.focus:
-			self.header = self.header + [x + '.effect',x + '.stderr',x + '.or',x + '.z',x + '.p']
-		self.header = self.header + ['n','status']
-
-class BgeeFrame(ModelFrame):
-	def __init__(self, formula, type):
-		super(BgeeFrame, self).__init__(formula, type)
-		self.header = ['chr','pos','a1','a2','variant','callrate','freq','freq.case','freq.ctrl','mac','rsq','hwe','filter','sample']
-		# parse bglm, gglm, bgee, ggee, fskato, gskato, bskato, fskat, gskat, bskat, fburden, gburden, or bburden formulas into dictionary
-		#
-		# currently valid symbols for right hand side terms in these models
-		# SYMBOL			EXAMPLE				ACTION
-		# +					+x					estimates: the global effect of x
-		# :					x:y					estimates: the global effect of the interaction between x and y
-		# *					x*y					estimates: the global effect of x, y, and the interaction between x and y
-		# factor			factor(x)			specify x as a categorical variable (factor)
-		fields = {}
-		for x in [a for a in list(set(re_split('~|\+|\*|:|1|0|-1|factor|\(|\)',self.formula))) if a != '']:
-			mtype = "dependent" if x == re_split('~',self.formula)[0] else "independent"
-			if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-				fields[x] = {'class': 'factor', 'type': mtype}
-			else:
-				fields[x] = {'class': 'numeric', 'type': mtype}
-		self.dict = fields
-		for x in self.focus:
-			self.header = self.header + [x + '.effect',x + '.stderr',x + '.or',x + '.z',x + '.p']
-		self.header = self.header + ['n','status']
-
-		from rpy2.robjects.packages import importr
-		print "loading R package geepack"
-		importr('geepack')
-
-class GgeeFrame(ModelFrame):
-	def __init__(self, formula, type):
-		super(GgeeFrame, self).__init__(formula, type)
-		self.header = ['chr','pos','a1','a2','variant','callrate','freq','freq.case','freq.ctrl','mac','rsq','hwe','filter','sample']
-		# parse bglm, gglm, bgee, ggee, fskato, gskato, bskato, fskat, gskat, bskat, fburden, gburden, or bburden formulas into dictionary
-		#
-		# currently valid symbols for right hand side terms in these models
-		# SYMBOL			EXAMPLE				ACTION
-		# +					+x					estimates: the global effect of x
-		# :					x:y					estimates: the global effect of the interaction between x and y
-		# *					x*y					estimates: the global effect of x, y, and the interaction between x and y
-		# factor			factor(x)			specify x as a categorical variable (factor)
-		fields = {}
-		for x in [a for a in list(set(re_split('~|\+|\*|:|1|0|-1|factor|\(|\)',self.formula))) if a != '']:
-			mtype = "dependent" if x == re_split('~',self.formula)[0] else "independent"
-			if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-				fields[x] = {'class': 'factor', 'type': mtype}
-			else:
-				fields[x] = {'class': 'numeric', 'type': mtype}
-		self.dict = fields
-		for x in self.focus:
-			self.header = self.header + [x + '.effect',x + '.stderr',x + '.or',x + '.z',x + '.p']
-		self.header = self.header + ['n','status']
-
-		from rpy2.robjects.packages import importr
-		print "loading R package geepack"
-		importr('geepack')
-"""
-
-
-
-"""
-elif self.type in ['bssmeta']:
-			# parse bglm, gglm, bgee, ggee, fskato, gskato, bskato, fskat, gskat, bskat, fburden, gburden, or bburden formulas into dictionary
-			#
-			# currently valid symbols for right hand side terms in these models
-			# SYMBOL			EXAMPLE				ACTION
-			# +					+x					estimates: the global effect of x
-			# :					x:y					estimates: the global effect of the interaction between x and y
-			# *					x*y					estimates: the global effect of x, y, and the interaction between x and y
-			# factor			factor(x)			specify x as a categorical variable (factor)
-			fields = {}
-			for x in [a for a in list(set(re_split('~|\+|\*|:|1|0|-1|factor|\(|\)',self.formula))) if a != '']:
-				mtype = "dependent" if x == re_split('~',self.formula)[0] else "independent"
-				if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-					fields[x] = {'class': 'factor', 'type': mtype}
-				else:
-					fields[x] = {'class': 'numeric', 'type': mtype}
-			self.dict = fields
-			self.header = self.header + ['effect','stderr','or','z','p','nmiss','ntotal','status']
-		elif self.type in ['blme','glme']:
-			# parse blme or glme formulas into dictionary
-			#
-			# currently valid symbols for right hand side terms in these models, where x and y are covariates, o is some know offset, and g, g1, and g2 are grouping factors
-			# EXAMPLE									ACTION
-			# +x										estimates: the global effect of x
-			# x:y										estimates: the global effect of the interaction between x and y
-			# x*y										estimates: the global effect of x, y, and the interaction between x and y
-			# (1|g), 1+(1|g)							estimates: a random intercept with fixed mean
-			# 0+offset(o)+(1|g), -1+offset(o)+(1|g)		estimates: a random intercept with a priori means
-			# (1|g1)+(1|g2), 1+(1|g1)+(1|g2)			estimates: an intercept varying among g1 and g2
-			# (1|g1/g2), (1|g1)+(1|g1:g2)				estimates: an intercept varying among g1 and g2 within g1
-			# x+(x|g), 1+x+(1+x|g) 						estimates: a correlated random intercept and slope
-			# x+(x||g), 1+x+(1|g)+(0+x|g)				estimates: an uncorrelated random intercept and slope
-			# factor			factor(x)				specify x as a categorical variable (factor)
-			fields = {}
-			for x in [a for a in list(set(re_split('\(|\)|~|\+|1|0|-1|\||\*|:|/|factor',self.formula))) if a != '']:
-				mtype = "dependent" if x == re_split('~',self.formula)[0] else "independent"
-				if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-					fields[x] = {'class': 'factor', 'type': mtype}
-				else:
-					fields[x] = {'class': 'numeric', 'type': mtype}
-			self.dict = fields
-		elif self.type == 'coxph':
-			# parse coxph formulas into dictionary
-			#
-			# currently valid symbols for right hand side terms in these models, where x and y are covariates, t1 is the follow up time variable (for right censored data) or the starting
-			# time of the interval (for interval censored data), t2 is the ending time of the interval (for interval censored data), e is the status indicator (eg. case/ctrl) variable
-			# 
-			# EXAMPLE									ACTION
-			# +x										estimates: the global effect of x
-			# x:y										estimates: the global effect of the interaction between x and y
-			# x*y										estimates: the global effect of x, y, and the interaction between x and y
-			# factor(x)									specify x as a categorical variable (factor)
-			# cluster(factor(x))						specify x as a cluster variable (returns robust sandwich variance estimators)
-			# frailty(factor(x))						specify x as a frailty variable (expects x to be a factor, adds a simple random effect for x)
-			#
-			# currently valid symbols for left hand side terms in these models
-			# Surv(t1,e)								a survival object indicating a time (t1) and status (e) variable for right censored data
-			# Surv(t1,t2,e)								a survival object indicating a start time (t1), an end time (t2), and a status (e) variable for interval censored data
-			fields = {}
-			for x in [a for a in list(set(re_split('Surv|\(|\)|,|~|\+|1|0|-1|\*|:|factor|cluster|frailty',self.formula))) if a != '']:
-				surv = re_split('Surv|\(|\)|,',re_split('~',self.formula)[0])
-				if x in surv:
-					if len(surv) == 2:
-						if x == surv[0]:
-							mtype = "time1"
-						else:
-							mtype = "event"
-					else:
-						if x == surv[0]:
-							mtype = "time1"
-						elif x == surv[1]:
-							mtype = "time2"
-						else:
-							mtype = "event"
-				else:
-					mtype = "independent"
-				if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-					fields[x] = {'class': 'factor', 'type': mtype}
-				else:
-					fields[x] = {'class': 'numeric', 'type': mtype}
-			self.dict = fields
-		else:
-			raise Error("model type " + self.type + " unavailable")
-			return
-"""
-
