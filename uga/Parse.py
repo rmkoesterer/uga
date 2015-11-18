@@ -44,6 +44,7 @@ def GetParser():
 	snv_parser = SnvArgs(subparsers.add_parser('snv', help='run single nucleotide variant association models', parents=[global_parser]))
 	snvgroup_parser = SnvgroupArgs(subparsers.add_parser('snvgroup', help='run snv group (ie. gene) based association models', parents=[global_parser]))
 	compile_parser = CompileArgs(subparsers.add_parser('compile', help='verify and compile results files', parents=[global_parser]))
+	resubmit_parser = ResubmitArgs(subparsers.add_parser('resubmit', help='resubmit failed results', parents=[global_parser]))
 
 	#meta_parser = MetaArgs(subparsers.add_parser('meta', help='meta-analysis', parents=[global_parser]))
 	#eval_parser = EvalArgs(subparsers.add_parser('eval', help='evaluate results: filter, plot, list top results, etc.', parents=[global_parser]))

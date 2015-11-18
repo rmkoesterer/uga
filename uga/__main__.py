@@ -19,7 +19,7 @@ import os
 import numpy as np
 import pandas as pd
 from collections import OrderedDict
-from glob import glob
+import glob
 from ConfigParser import SafeConfigParser
 from pkg_resources import resource_filename
 import signal
@@ -28,12 +28,23 @@ import shutil
 import Parse
 import Process
 import Map
+import Fxns
+import pickle
 from Bio import bgzf
 
 def main(args=None):
+	rerun = []
 	args = Parse.GetArgs(Parse.GetParser())
-	if args.which in ['snv','snvgroup','meta']:
-		cfg = getattr(Parse, 'Generate' + args.which.capitalize() + 'Cfg')(args.ordered_args)
+
+	if args.which in ['snv','snvgroup','meta','resubmit']:
+		if args.which == 'resubmit':
+			with open(args.dir + '/' + os.path.basename(args.dir) + '.args.pkl', 'rb') as p:
+				args,cfg = pickle.load(p)
+			with open(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun.pkl', 'rb') as p:
+				rerun = pickle.load(p)
+			cfg['replace'] = True
+		else:
+			cfg = getattr(Parse, 'Generate' + args.which.capitalize() + 'Cfg')(args.ordered_args)
 
 	##### read settings file #####
 	ini = SafeConfigParser()
@@ -169,74 +180,94 @@ def main(args=None):
 	directory = os.getcwd()
 
 	if args.which in ['snv','snvgroup','meta']:
-		if int(max(regions_df['job'])) > 1 and cfg['qsub'] is not None:
-			print 'detected run type ' + str(run_type) + ' ...'
-			if 'mb' in cfg:
-				print '   ' + str(regions_df.shape[0]) + ' regions of size ' + str(cfg['mb']) + 'mb detected'
-			else:
-				print '   ' + str(regions_df.shape[0]) + ' regions detected'
-			print '   ' + str(int(max(regions_df['job']))) + ' jobs will be submitted'
-			print '   <= ' + str(max(np.bincount(regions_df['job']))) + ' regions per job'
-			print '   <= '  + str(int(max(regions_df['cpu']))) + ' cpus per job'
-			print '   qsub options: ' + cfg['qsub']
-			print '   output directory: ' + directory
-			print '   replace: ' + str(cfg['replace'])
-			input_var = None
-			while input_var not in ['y','n','Y','N']:
-				input_var = raw_input('\nsubmit jobs (yY/nN)? ')
-			if input_var.lower() == 'n':
-				print 'canceled by user'
-				return
+		if len(rerun) == 0:
+			if int(max(regions_df['job'])) > 1 and cfg['qsub'] is not None:
+				print 'detected run type ' + str(run_type) + ' ...'
+				if 'mb' in cfg:
+					print '   ' + str(regions_df.shape[0]) + ' regions of size ' + str(cfg['mb']) + 'mb detected'
+				else:
+					print '   ' + str(regions_df.shape[0]) + ' regions detected'
+				print '   ' + str(int(max(regions_df['job']))) + ' jobs will be submitted'
+				print '   <= ' + str(max(np.bincount(regions_df['job']))) + ' regions per job'
+				print '   <= '  + str(int(max(regions_df['cpu']))) + ' cpus per job'
+				print '   qsub options: ' + cfg['qsub']
+				print '   output directory: ' + directory
+				print '   replace: ' + str(cfg['replace'])
+				input_var = None
+				while input_var not in ['y','n','Y','N']:
+					input_var = raw_input('\nsubmit jobs (yY/nN)? ')
+				if input_var.lower() == 'n':
+					print 'canceled by user'
+					return
 
-		directory = directory + '/' + cfg['out']
-		if os.path.exists(directory):
-			if args.replace:
-				print 'replacing existing results'
-				try:
-					shutil.rmtree(directory)
-				except OSError:
-					print Process.PrintError('unable to replace results directory' + directory)
-			else:
-				print Process.PrintError('results directory ' + directory + ' already exists, use --replace to overwrite existing results')
-				return
-		try:
-			os.mkdir(directory)
-		except OSError:
-			pass
+			directory = directory + '/' + os.path.basename(cfg['out'])
+			if os.path.exists(directory):
+				if args.replace:
+					print 'replacing existing results'
+					try:
+						shutil.rmtree(directory)
+					except OSError:
+						print Process.PrintError('unable to replace results directory' + directory)
+				else:
+					print Process.PrintError('results directory ' + directory + ' already exists, use --replace to overwrite existing results')
+					return
+			try:
+				os.mkdir(directory)
+			except OSError:
+				pass
 
-		if run_type in [10,11,100,101] and regions_df.shape[0] > 1:
-			for j in range(1, int(max(regions_df['job'])) + 1):
-				try:
-					os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))
-				except OSError:
-					pass
-				try:
-					os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j))
-				except OSError:
-					pass
+			with open(directory + '/' + os.path.basename(cfg['out']) + '.args.pkl', 'wb') as p:
+				pickle.dump([args, cfg], p)
+
+			if run_type in [10,11,100,101] and regions_df.shape[0] > 1:
+				for j in range(1, int(max(regions_df['job'])) + 1):
+					try:
+						os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))
+					except OSError:
+						pass
+					try:
+						os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j))
+					except OSError:
+						pass
+					if args.which in ['snv','meta']:
+						for chr in np.unique(regions_df['chr'][regions_df['job'] == j]):
+							try:
+								os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/chr' + str(chr))
+							except OSError:
+								continue
+				with open(directory + '/' + cfg['out'] + '.files', 'w') as jlist:
+					for j in range(1, int(max(regions_df['job'])) + 1):
+						if 'model_order' in cfg:
+							for m in cfg['model_order']:
+								jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
+						else:
+							jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
+						if 'meta_order' in cfg:
+							if len(cfg['meta_order']) > 0:
+								jlist.write(str(j) + '\t' + cfg['out'] + '.meta.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.meta.gz\n')
+			else:
 				if args.which in ['snv','meta']:
-					for chr in np.unique(regions_df['chr'][regions_df['job'] == j]):
+					for chr in np.unique(regions_df['chr']):
 						try:
-							os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/chr' + str(chr))
+							os.mkdir(directory + '/chr' + str(chr))
 						except OSError:
 							continue
-			with open(directory + '/' + cfg['out'] + '.files', 'w') as jlist:
-				for j in range(1, int(max(regions_df['job'])) + 1):
-					if 'model_order' in cfg:
-						for m in cfg['model_order']:
-							jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
-					else:
-						jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
-					if 'meta_order' in cfg:
-						for m in cfg['meta_order']:
-							jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
 		else:
-			if args.which in ['snv','meta']:
-				for chr in np.unique(regions_df['chr']):
-					try:
-						os.mkdir(directory + '/chr' + str(chr))
-					except OSError:
-						continue
+			directory = directory + '/' + os.path.basename(cfg['out'])
+			if int(max(regions_df['job'])) > 1 and cfg['qsub'] is not None:
+				print 'detected resubmit ...'
+				print '   ' + str(len(rerun)) + ' jobs will be submitted'
+				print '   <= ' + str(max(np.bincount(regions_df['job']))) + ' regions per job'
+				print '   <= '  + str(int(max(regions_df['cpu']))) + ' cpus per job'
+				print '   qsub options: ' + cfg['qsub']
+				print '   output directory: ' + directory
+				print '   replace: ' + str(cfg['replace'])
+				input_var = None
+				while input_var not in ['y','n','Y','N']:
+					input_var = raw_input('\nresubmit jobs (yY/nN)? ')
+				if input_var.lower() == 'n':
+					print 'canceled by user'
+					return
 
 	##### locate qsub wrapper #####
 	qsub_wrapper = resource_filename('uga', 'Qsub.py')
@@ -252,11 +283,12 @@ def main(args=None):
 			for k in ini.options(s):
 				print '   ' + k + ' = ' + ini.get(s,k)
 
-	elif args.which in ['snv','snvgroup']:
+	elif args.which in ['snv','snvgroup','resubmit']:
 		if cfg['qsub']:
 			print "submitting jobs\n"
 		out = cfg['out']
-		for j in range(1, int(max(regions_df['job'])) + 1):
+		joblist = range(1, int(max(regions_df['job'])) + 1) if len(rerun) == 0 else rerun
+		for j in joblist:
 			regions_job_df = regions_df[regions_df['job'] == j].reset_index(drop=True)
 			if int(max(regions_df['job'])) > 1:
 				cfg['out'] = directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + out + '.job' + str(j)
@@ -272,39 +304,62 @@ def main(args=None):
 				Process.Interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
 
 	elif args.which == 'compile':
-		jobs = pd.read_table(args.dir + '/' + args.dir + '.files', names=['job','out','file'])
-		jobs['complete'] = 0
-		for f in jobs['file']:
-			if os.path.exists(f):
-				jobs.loc[jobs['file'] == f,'complete'] = 1
-		incomplete = np.unique(jobs.loc[jobs['complete'] == 0,'job'])
-		if len(incomplete) > 0:
-			with open(directory + '/' + args.dir + '.rerun', 'w') as rerun:
-				for x in incomplete:
-					rerun.write(str(x) + '\n')
+		files = pd.read_table(args.dir + '/' + os.path.basename(args.dir) + '.files', names=['job','out','file'])
+		complete, rerun = Fxns.VerifyResults(args.dir,files)
+		if len(rerun) > 0:
+			print Process.PrintError('detected ' + str(len(rerun)) + ' failed jobs\n       writing failed job numbers to file ' + args.dir + '/' + os.path.basename(args.dir) + '.rerun\n       execute  script with the --resubmit option to resubmit only the failed jobs')
+			with open(args.dir + '/' + os.path.basename(args.dir) + '.rerun.pkl', 'wb') as p:
+				pickle.dump(rerun, p)
 		else:
-			bgzfile = {}
-			for o in np.unique(jobs['out']):
-				bgzfile[o] = bgzf.BgzfWriter(o, 'wb')
-			for j in np.unique(jobs['job']):
-				if j == 1:
-					for f in jobs.loc[jobs['job'] == j,'file']:
-						p1 = subprocess.Popen(['zcat',f], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
-						p2 = subprocess.Popen(['head','-1'], stdin=p1.stdout, stdout=subprocess.PIPE)
-						bgzfile[jobs.loc[jobs['file'] == f,'out']].write(p2.communicate()[0])
-						p1.wait()
-						p2.wait()
+			complete = Fxns.CompileResults(args.dir,files)
+			if complete:
+				input_var = None
+				while input_var not in ['y','n','Y','N']:
+					input_var = raw_input('delete job data directories (yY/nN)? ')
+				if input_var.lower() == 'n':
+					print 'canceled by user'
 				else:
-					for f in jobs.loc[jobs['job'] == j,'file']:
-						p1 = subprocess.Popen(['zcat',f], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
-						p2 = subprocess.Popen(['sed','1d'], stdin=p1.stdout, stdout=subprocess.PIPE)
-						bgzfile[jobs.loc[jobs['file'] == f,'out']].write(p2.communicate()[0])
-						p1.wait()
-						p2.wait()
-			for o in np.unique(jobs['out']):
-				bgzfile[o].close()
-				
-		print jobs; return
+					print 'deleting job data directories'
+					for d in glob.glob(args.dir + '/jobs*-*'):
+						try:
+							shutil.rmtree(d)
+						except OSError:
+							print Process.PrintError('unable to delete job data directory ' + d)
+			else:
+				print Process.PrintError('file compilation incomplete')
+
+		#jobs['complete'] = 0
+		#for f in jobs['file']:
+		#	if os.path.exists(f):
+		#		jobs.loc[jobs['file'] == f,'complete'] = 1
+		#incomplete = np.unique(jobs.loc[jobs['complete'] == 0,'job'])
+		#if len(incomplete) > 0:
+		#	with open(directory + '/' + args.dir + '.rerun', 'w') as rerun:
+		#		for x in incomplete:
+		#			rerun.write(str(x) + '\n')
+		#else:
+		#	bgzfile = {}
+		#	for o in np.unique(jobs['out']):
+		#		bgzfile[o] = bgzf.BgzfWriter(o, 'wb')
+		#	for j in np.unique(jobs['job']):
+		#		if j == 1:
+		#			for f in jobs.loc[jobs['job'] == j,'file']:
+		#				p1 = subprocess.Popen(['zcat',f], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+		#				p2 = subprocess.Popen(['head','-1'], stdin=p1.stdout, stdout=subprocess.PIPE)
+		#				bgzfile[jobs.loc[jobs['file'] == f,'out']].write(p2.communicate()[0])
+		#				p1.wait()
+		#				p2.wait()
+		#		else:
+		#			for f in jobs.loc[jobs['job'] == j,'file']:
+		#				p1 = subprocess.Popen(['zcat',f], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
+		#				p2 = subprocess.Popen(['sed','1d'], stdin=p1.stdout, stdout=subprocess.PIPE)
+		#				bgzfile[jobs.loc[jobs['file'] == f,'out']].write(p2.communicate()[0])
+		#				p1.wait()
+		#				p2.wait()
+		#	for o in np.unique(jobs['out']):
+		#		bgzfile[o].close()
+		#		
+		#print jobs; return
 	#elif args.which == 'compile':
 	#	out_files = {}
 	#	if args.which == "compile":

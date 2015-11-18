@@ -105,75 +105,75 @@ def CalcHWE(np.ndarray[np.float64_t, ndim=1] x):
 	else:
 		return float('nan')
 
-cpdef int GenerateFilterCode(np.float row_callrate, np.float row_freq, np.float row_mac, np.float row_rsq, np.float row_hwe, np.float row_freq_case=None, 
-						np.float row_freq_ctrl=None, np.float miss_thresh=None, np.float maf_thresh=None, np.float maxmaf_thresh=None, np.float mac_thresh=None, 
-							np.float rsq_thresh=None, np.float hwe_thresh=None, np.float hwe_maf_thresh=None, no_mono=True):
-	cdef unsigned int filter = 0
-	if (not miss_thresh is None and not np.isnan(row_callrate) and row_callrate < miss_thresh) or (not np.isnan(row_callrate) and row_callrate == 0) or np.isnan(row_callrate):
-		filter += 10000
-	if not np.isnan(row_freq): 
-		if no_mono and ((row_freq == 0 or row_freq == 1) or ((row_freq_case is not None and not np.isnan(row_freq_case) and (row_freq_case == 0 or row_freq_case == 1)) or (row_freq_ctrl is not None and not np.isnan(row_freq_ctrl) and (row_freq_ctrl == 0 or row_freq_ctrl == 1)))):
-			filter += 1000
-		else:
-			if ((	not maf_thresh is None
-				and 
-					(		row_freq < maf_thresh
-						 or row_freq > 1-maf_thresh
-					)
-			   ) 
-			  or
-			   (	not maxmaf_thresh is None
-				and    
-					(		row_freq >= maxmaf_thresh
-						and row_freq <= 1-maxmaf_thresh
-					)
-			   )):
-				filter += 1000
-	if not mac_thresh is None and not np.isnan(row_mac) and (row_mac < mac_thresh):
-		filter += 100
-	if not rsq_thresh is None and not np.isnan(row_rsq) and (row_rsq < rsq_thresh):
-		filter += 10
-	if not hwe_thresh is None and not hwe_maf_thresh is None and not np.isnan(row_hwe) and not np.isnan(row_freq) and ((row_freq <= 0.5 and row_freq > hwe_maf_thresh and row_hwe < hwe_thresh) or (row_freq > 0.5 and 1-row_freq > hwe_maf_thresh and row_hwe < hwe_thresh)):
-		filter += 1
-	return filter
-
-def CalcVarStatsBinomial(marker_info, model_df, chr):
-	model_df_nondup = model_df[model_df['___uga_nondup'].isin([1])]
-	marker_info['callrate']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcCallrate(np.array(col).astype(np.float)), raw=True)
-	if chr != 23:
-		marker_info['freq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcFreq(np.array(col).astype(np.float)), raw=True)
-		marker_info['freq.ctrl']=model_df_nondup[model_df_nondup['___uga_ctrl'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcFreq(np.array(col).astype(np.float)), raw=True)
-		marker_info['freq.case']=model_df_nondup[model_df_nondup['___uga_case'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcFreq(np.array(col).astype(np.float)), raw=True)
-		marker_info['rsq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcRsq(np.array(col).astype(np.float)), raw=True)
-		marker_info['hwe']=model_df_nondup[model_df_nondup['___uga_ctrl'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcHWE(np.array(col).astype(np.float)), raw=True)
-		marker_info['mac']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcMAC(np.array(col).astype(np.float)), raw=True)
-	else:
-		male_idx = model_df_nondup[model_df_nondup['___uga_male'].isin([1])].index.values
-		female_idx = model_df_nondup[model_df_nondup['___uga_female'].isin([1])].index.values
-		marker_info['freq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcFreqX(np.array(col[male_idx]).astype(np.float), np.array(col[female_idx]).astype(np.float)), raw=True)
-		marker_info['freq.ctrl']=model_df_nondup[model_df_nondup['___uga_ctrl'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcFreqX(np.array(col[male_idx]).astype(np.float), np.array(col[female_idx]).astype(np.float)), raw=True)
-		marker_info['freq.case']=model_df_nondup[model_df_nondup['___uga_case'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcFreqX(np.array(col[male_idx]).astype(np.float), np.array(col[female_idx]).astype(np.float)), raw=True)
-		marker_info['rsq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcRsq(np.array(col[female_idx]).astype(np.float)), raw=True)
-		marker_info['hwe']=model_df_nondup[model_df_nondup['___uga_ctrl'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcHWE(np.array(col[female_idx]).astype(np.float)), raw=True)
-		marker_info['mac']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcMAC(np.array(col).astype(np.float)), raw=True)
-	return marker_info
-
-def CalcVarStats(marker_info, model_df, chr):
-	model_df_nondup = model_df[model_df['___uga_nondup'].isin([1])]
-	marker_info['callrate']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcCallrate(np.array(col).astype(np.float)), raw=True)
-	if chr != 23:
-		marker_info['freq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcFreq(np.array(col).astype(np.float)), raw=True)
-		marker_info['rsq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcRsq(np.array(col).astype(np.float)), raw=True)
-		marker_info['hwe']=model_df_nondup[model_df_nondup['___uga_founder'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcHWE(np.array(col).astype(np.float)), raw=True)
-		marker_info['mac']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcMAC(np.array(col).astype(np.float)), raw=True)
-	else:
-		male_idx = model_df_nondup[model_df_nondup['___uga_male'].isin([1])].index.values
-		female_idx = model_df_nondup[model_df_nondup['___uga_female'].isin([1])].index.values
-		marker_info['freq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcFreqX(np.array(col[male_idx]).astype(np.float), np.array(col[female_idx]).astype(np.float)), raw=True)
-		marker_info['rsq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcRsq(np.array(col[female_idx]).astype(np.float)), raw=True)
-		marker_info['hwe']=model_df_nondup[model_df_nondup['___uga_founder'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcHWE(np.array(col[female_idx]).astype(np.float)), raw=True)
-		marker_info['mac']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcMAC(np.array(col).astype(np.float)), raw=True)
-	return marker_info
+#cpdef int GenerateFilterCode(np.float row_callrate, np.float row_freq, np.float row_mac, np.float row_rsq, np.float row_hwe, np.float row_freq_case=None, 
+#						np.float row_freq_ctrl=None, np.float miss_thresh=None, np.float maf_thresh=None, np.float maxmaf_thresh=None, np.float mac_thresh=None, 
+#							np.float rsq_thresh=None, np.float hwe_thresh=None, np.float hwe_maf_thresh=None, no_mono=True):
+#	cdef unsigned int filter = 0
+#	if (not miss_thresh is None and not np.isnan(row_callrate) and row_callrate < miss_thresh) or (not np.isnan(row_callrate) and row_callrate == 0) or np.isnan(row_callrate):
+#		filter += 10000
+#	if not np.isnan(row_freq): 
+#		if no_mono and ((row_freq == 0 or row_freq == 1) or ((row_freq_case is not None and not np.isnan(row_freq_case) and (row_freq_case == 0 or row_freq_case == 1)) or (row_freq_ctrl is not None and not np.isnan(row_freq_ctrl) and (row_freq_ctrl == 0 or row_freq_ctrl == 1)))):
+#			filter += 1000
+#		else:
+#			if ((	not maf_thresh is None
+#				and 
+#					(		row_freq < maf_thresh
+#						 or row_freq > 1-maf_thresh
+#					)
+#			   ) 
+#			  or
+#			   (	not maxmaf_thresh is None
+#				and    
+#					(		row_freq >= maxmaf_thresh
+#						and row_freq <= 1-maxmaf_thresh
+#					)
+#			   )):
+#				filter += 1000
+#	if not mac_thresh is None and not np.isnan(row_mac) and (row_mac < mac_thresh):
+#		filter += 100
+#	if not rsq_thresh is None and not np.isnan(row_rsq) and (row_rsq < rsq_thresh):
+#		filter += 10
+#	if not hwe_thresh is None and not hwe_maf_thresh is None and not np.isnan(row_hwe) and not np.isnan(row_freq) and ((row_freq <= 0.5 and row_freq > hwe_maf_thresh and row_hwe < hwe_thresh) or (row_freq > 0.5 and 1-row_freq > hwe_maf_thresh and row_hwe < hwe_thresh)):
+#		filter += 1
+#	return filter
+#
+#def CalcVarStatsBinomial(marker_info, model_df, chr):
+#	model_df_nondup = model_df[model_df['___uga_nondup'].isin([1])]
+#	marker_info['callrate']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcCallrate(np.array(col).astype(np.float)), raw=True)
+#	if chr != 23:
+#		marker_info['freq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcFreq(np.array(col).astype(np.float)), raw=True)
+#		marker_info['freq.ctrl']=model_df_nondup[model_df_nondup['___uga_ctrl'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcFreq(np.array(col).astype(np.float)), raw=True)
+#		marker_info['freq.case']=model_df_nondup[model_df_nondup['___uga_case'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcFreq(np.array(col).astype(np.float)), raw=True)
+#		marker_info['rsq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcRsq(np.array(col).astype(np.float)), raw=True)
+#		marker_info['hwe']=model_df_nondup[model_df_nondup['___uga_ctrl'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcHWE(np.array(col).astype(np.float)), raw=True)
+#		marker_info['mac']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcMAC(np.array(col).astype(np.float)), raw=True)
+#	else:
+#		male_idx = model_df_nondup[model_df_nondup['___uga_male'].isin([1])].index.values
+#		female_idx = model_df_nondup[model_df_nondup['___uga_female'].isin([1])].index.values
+#		marker_info['freq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcFreqX(np.array(col[male_idx]).astype(np.float), np.array(col[female_idx]).astype(np.float)), raw=True)
+#		marker_info['freq.ctrl']=model_df_nondup[model_df_nondup['___uga_ctrl'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcFreqX(np.array(col[male_idx]).astype(np.float), np.array(col[female_idx]).astype(np.float)), raw=True)
+#		marker_info['freq.case']=model_df_nondup[model_df_nondup['___uga_case'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcFreqX(np.array(col[male_idx]).astype(np.float), np.array(col[female_idx]).astype(np.float)), raw=True)
+#		marker_info['rsq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcRsq(np.array(col[female_idx]).astype(np.float)), raw=True)
+#		marker_info['hwe']=model_df_nondup[model_df_nondup['___uga_ctrl'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcHWE(np.array(col[female_idx]).astype(np.float)), raw=True)
+#		marker_info['mac']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcMAC(np.array(col).astype(np.float)), raw=True)
+#	return marker_info
+#
+#def CalcVarStats(marker_info, model_df, chr):
+#	model_df_nondup = model_df[model_df['___uga_nondup'].isin([1])]
+#	marker_info['callrate']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcCallrate(np.array(col).astype(np.float)), raw=True)
+#	if chr != 23:
+#		marker_info['freq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcFreq(np.array(col).astype(np.float)), raw=True)
+#		marker_info['rsq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcRsq(np.array(col).astype(np.float)), raw=True)
+#		marker_info['hwe']=model_df_nondup[model_df_nondup['___uga_founder'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcHWE(np.array(col).astype(np.float)), raw=True)
+#		marker_info['mac']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcMAC(np.array(col).astype(np.float)), raw=True)
+#	else:
+#		male_idx = model_df_nondup[model_df_nondup['___uga_male'].isin([1])].index.values
+#		female_idx = model_df_nondup[model_df_nondup['___uga_female'].isin([1])].index.values
+#		marker_info['freq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcFreqX(np.array(col[male_idx]).astype(np.float), np.array(col[female_idx]).astype(np.float)), raw=True)
+#		marker_info['rsq']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcRsq(np.array(col[female_idx]).astype(np.float)), raw=True)
+#		marker_info['hwe']=model_df_nondup[model_df_nondup['___uga_founder'].isin([1])][marker_info['marker_unique']].apply(lambda col: CalcHWE(np.array(col[female_idx]).astype(np.float)), raw=True)
+#		marker_info['mac']=model_df_nondup[marker_info['marker_unique']].apply(lambda col: CalcMAC(np.array(col).astype(np.float)), raw=True)
+#	return marker_info
 
 #cpdef FlipMinor(np.ndarray row, flip_a1, flip_a2, flip_freq, flip_effect, flip_or, flip_z):
 #	cdef unsigned int i
@@ -191,27 +191,27 @@ def CalcVarStats(marker_info, model_df, chr):
 #		row[i] = -1 * row[i]
 #	return row
 
-cpdef np.ndarray[np.float64_t, ndim=2] Bglm(np.ndarray[np.float64_t, ndim=2] a, formula, np.ndarray focus, np.ndarray markers):
-	cdef unsigned int i = 0
-	cdef unsigned int k = 0
-	for k in xrange(len(markers)):
-		cmd = "".join(['glm(',formula.replace('marker',markers[k]),',data=model_df,family=binomial())'])
-		ro.globalenv['model_out'] = ro.r(cmd)
-		if ro.r('model_out$converged')[0] and not ro.r('model_out$boundary')[0]:
-			ro.globalenv['coef'] = ro.r('coef(summary(model_out))')
-			i = 0
-			for x in [z.replace('marker',markers[k]) for z in focus]:
-				a[k,0 + i*5] = ro.r('coef["' + x + '","Estimate"]')[0]
-				a[k,1 + i*5] = ro.r('coef["' + x + '","Std. Error"]')[0]
-				a[k,2 + i*5] = math.exp(a[k,0 + i*5]) if not a[k,0 + i*5] > 709.782712893384 and not a[k,0 + i*5] < -709.782712893384 else float('nan')
-				a[k,3 + i*5] = ro.r('coef["' + x + '","z value"]')[0]
-				a[k,4 + i*5] = ro.r('coef["' + x + '","Pr(>|z|)"]')[0]
-				i = i + 1
-			a[k,0 + i*5] = len(ro.r('model_df$' + markers[k] + '[! is.na(model_df$' + markers[k] + ')]'))
-			a[k,1 + i*5] = 1
-		else:
-			a[k,1 + i*5] = -2
-	return a
+#cpdef np.ndarray[np.float64_t, ndim=2] Bglm(np.ndarray[np.float64_t, ndim=2] a, formula, np.ndarray focus, np.ndarray markers):
+#	cdef unsigned int i = 0
+#	cdef unsigned int k = 0
+#	for k in xrange(len(markers)):
+#		cmd = "".join(['glm(',formula.replace('marker',markers[k]),',data=model_df,family=binomial())'])
+#		ro.globalenv['model_out'] = ro.r(cmd)
+#		if ro.r('model_out$converged')[0] and not ro.r('model_out$boundary')[0]:
+#			ro.globalenv['coef'] = ro.r('coef(summary(model_out))')
+#			i = 0
+#			for x in [z.replace('marker',markers[k]) for z in focus]:
+#				a[k,0 + i*5] = ro.r('coef["' + x + '","Estimate"]')[0]
+#				a[k,1 + i*5] = ro.r('coef["' + x + '","Std. Error"]')[0]
+#				a[k,2 + i*5] = math.exp(a[k,0 + i*5]) if not a[k,0 + i*5] > 709.782712893384 and not a[k,0 + i*5] < -709.782712893384 else float('nan')
+#				a[k,3 + i*5] = ro.r('coef["' + x + '","z value"]')[0]
+#				a[k,4 + i*5] = ro.r('coef["' + x + '","Pr(>|z|)"]')[0]
+#				i = i + 1
+#			a[k,0 + i*5] = len(ro.r('model_df$' + markers[k] + '[! is.na(model_df$' + markers[k] + ')]'))
+#			a[k,1 + i*5] = 1
+#		else:
+#			a[k,1 + i*5] = -2
+#	return a
 """
 cpdef np.ndarray[np.float64_t, ndim=2] Bssmeta(np.ndarray[np.float64_t, ndim=2] a, formula, np.ndarray focus, np.ndarray markers, np.ndarray model_cols):
 	ro.globalenv['markers'] = ro.StrVector(markers)

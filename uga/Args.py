@@ -512,6 +512,17 @@ def CompileArgs(compile_parser):
 						help='replace any existing output files')
 	return compile_parser
 
+def ResubmitArgs(resubmit_parser):
+	resubmit_required = resubmit_parser.add_argument_group('required arguments')
+	resubmit_required.add_argument('--dir', 
+						action=AddString, 
+						required=True, 
+						help='base directory name of existing results')
+	resubmit_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	return resubmit_parser
+
 def EvalArgs(eval_parser):
 	eval_required = eval_parser.add_argument_group('required arguments')
 	eval_required.add_argument('--file', 
