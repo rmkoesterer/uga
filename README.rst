@@ -90,35 +90,25 @@ Python modules required (may not be part of the Python base install), followed b
 
    * `singledispatch`_ (3.4.0.3)
    * `rpy2`_ (2.5.2)
-   * `multi-key-dict`_ (2.0.1)
    * `numpy`_ (1.9.1)
    * `pandas`_ (0.15.1)
    * `progressbar`_ (2.3)
    * `psutil`_ (2.1.3)
-   * `pytabix`_ (0.1)
-   * `scipy`_ (0.14.0)
    * `biopython`_ (1.64)
-   * `plinkio`_ (0.9.5)
    * `pysam`_ (0.8.2.1)
-   * `PyVCF`_ (0.6.7)
    * `Cython`_ (0.22)
-   * `XlsxWriter`_ (0.7.2)
+   * `tables`_ (3.2.2)
 
 .. _`singledispatch`: https://pypi.python.org/pypi/singledispatch
 .. _`rpy2`: https://pypi.python.org/pypi/rpy2
-.. _`multi-key-dict`: https://pypi.python.org/pypi/multi-key-dict
 .. _`numpy`: https://pypi.python.org/pypi/numpy
 .. _`pandas`: https://pypi.python.org/pypi/pandas
 .. _`progressbar`: https://pypi.python.org/pypi/progressbar
 .. _`psutil`: https://pypi.python.org/pypi/psutil
-.. _`pytabix`: https://pypi.python.org/pypi/pytabix
-.. _`scipy`: https://pypi.python.org/pypi/scipy
 .. _`biopython`: https://pypi.python.org/pypi/biopython
-.. _`plinkio`: https://pypi.python.org/pypi/plinkio
 .. _`pysam`: https://pypi.python.org/pypi/pysam
-.. _`PyVCF`: https://pypi.python.org/pypi/PyVCF
 .. _`Cython`: https://pypi.python.org/pypi/Cython
-.. _`XlsxWriter`: https://pypi.python.org/pypi/XlsxWriter
+.. _`tables`: https://pypi.python.org/pypi/tables
 
 `R`_ (3.1.1)
 
