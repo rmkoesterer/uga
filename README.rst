@@ -2,22 +2,23 @@ Universal Genome Analyst
 ************************
 
 Universal Genome Analyst (**uga**) is an open, flexible, and efficient tool for the distribution, management, and visualization of whole genome data analyses. 
-It is designed to assist biomedical researchers in complex genomic data analysis through the use of a low level interface between the powerful R statistical environment and Python to allow
-for rapid integration of emerging analytical strategies. Researchers with access to a high performance computing cluster will find time-saving features for parallel
-analysis using a flexible, yet controlled, commandline interface.
+It is designed to assist biomedical researchers in complex genomic data analysis through the use of a low level interface between the powerful R statistical environment and Python, allowing
+for rapid integration of emerging analytical strategies. This project uses `Cython`_ for a significant reduction in computation time and researchers with access to a high performance computing cluster or 
+with access to multiple cores will find time-saving features for parallel analysis using a flexible, yet controlled, commandline interface.
 
 This software is currently under rapid development. Updates and bug fixes are being tracked on the `uga github page`_
 
+.. _`Cython: https://pypi.python.org/pypi
 .. _`uga github page`: https://github.com/rmkoesterer/uga
 
 **Current Features**
    - Compatibility with standard `VCFv4.1`_ and `VCFv4.2`_
-   - Single variant association modeling (R base: lm, glm; R `geepack`_: geeglm, R `seqMeta`_: burdenMeta, skatMeta, skatOMeta)
+   - Single SNV association modeling (R base: lm, glm; R `geepack`_: geeglm, R `seqMeta`_: burdenMeta, skatMeta, skatOMeta)
    - Gene/Group based association modeling (with meta analysis)
-   - Family based association modeling (not yet available for gene/group based tests)
+   - Family based association modeling for single SNV tests
    - Run multiple models as a single submission (alleles are aligned and SNV names need not match)
-   - Alignment of compatible markers based on position and alleles (not including A/T or G/C markers)
-   - File mapping based on region size or number of markers for splitting analyses
+   - Alignment of compatible SNVs based on position and alleles (A/T and G/C SNVs are ambiguous and are assumed to be pre-aligned)
+   - File mapping based on region size or number of SNVs for splitting analyses
    - Automatically split jobs on parallel computing systems using `qsub`_
    - User definable buffered reading for RAM usage control
    - Verification and compilation for parallel distributed jobs
@@ -77,7 +78,7 @@ Installation
 ************
 
 This software uses an array of Python modules and R packages. Thus, it may be simpler for users to install it within a clean virtual environment to avoid disrupting system 
-Python functionality. The following lists display versions used during development. These modules can be installed easily with `pip`_, see :ref:`install_from_source`.
+Python functionality. The following lists display versions used during development. These modules can be installed easily with `pip`_.
 
 .. _`pip`: https://pypi.python.org/pypi/pip
 
@@ -143,18 +144,16 @@ R libraries needed for certain analytical and plotting tasks, followed by versio
 
 Some of these R libraries may have dependencies that need to be installed as well.
 
-**Other requirements**
-
-In order to reduce file clutter and encourage the consolidation and compression of data and results files, uga makes extensive use of `tabix/bgzip`_ and `gzip`_.
+Clutter is reduced through consolidation and compression of data and results files via `tabix/bgzip`_ and `gzip`_.
 
 .. _`tabix/bgzip`: http://www.htslib.org/
 .. _`gzip`: http://www.gzip.org/
 
-In order to generate regional plots of variant results, you must install `locuszoom`_.
+Generating regional plots requires the installation of `locuszoom`_.
 
 .. _`locuszoom`: http://genome.sph.umich.edu/wiki/LocusZoom_Standalone
 
-**Pre-Installation Requirements**
+**Pre-Installation**
 
 To avoid potential errors during installation, you may need to add the location of the R library libR.so file to your BASH_PROFILE 
 (ie. .bashrc, .bash_profile, etc). The following command will search your system for this file.
@@ -181,8 +180,6 @@ For example, you can install and activate a virtual environment called 'uga-env'
 .. _`virtualenv`: https://virtualenv.pypa.io/en/latest/
 
 You are now operating a clean base Python installation under a virtual environment.
-
-.. _install_from_source:
 
 **Installing uga from source**
 
