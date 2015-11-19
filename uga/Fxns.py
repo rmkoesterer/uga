@@ -99,10 +99,13 @@ def compile_results(directory, files):
 		p5 = subprocess.Popen(['grep','time elapsed:',lf[0]], stdout=subprocess.PIPE)
 		elap = p5.communicate()[0].strip()
 		p5.wait()
-		p6 = subprocess.Popen(['grep','memory used:',lf[0]], stdout=subprocess.PIPE)
+		p6 = subprocess.Popen(['grep','max memory used by main process:',lf[0]], stdout=subprocess.PIPE)
 		maxmem = p6.communicate()[0].strip()
 		p6.wait()
-		logfile.write('      job ' + str(j+1) + '   -   ' + elap + '   ' + maxmem + '\n')
+		p7 = subprocess.Popen(['grep','max memory used by any subprocess:',lf[0]], stdout=subprocess.PIPE)
+		maxmemsub = p7.communicate()[0].strip()
+		p7.wait()
+		logfile.write('job ' + str(j+1) + ' - time elapsed ' + elap + ' max mem main ' + maxmem + ' max mem sub ' + maxmemsub + '\n')
 		pbar.update(j)
 	pbar.finish()
 	logfile.close()
@@ -114,11 +117,11 @@ def compile_results(directory, files):
 		p7.wait()
 		header = header_full[-1].split()
 		if header[1] == 'pos':
-			b = 2
-			e = 2
+			b = 1
+			e = 1
 		else:
-			b = 2
-			e = 3
-		pysam.tabix_index(directory + '/' + o,seq_col=0,start_col=b,end_col=b,force=True)
+			b = 1
+			e = 2
+		pysam.tabix_index(directory + '/' + o,seq_col=0,start_col=b,end_col=e,force=True)
 	print "file compilation complete"
 	return True

@@ -25,8 +25,9 @@ from cython.view cimport array
 from collections import OrderedDict
 import Process
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
+#@cython.boundscheck(False)
+#@cython.wraparound(False)
+#@cython.nonecheck(False)
 def complement(allele):
 	cdef str x = allele
 	if x != "NA":
@@ -62,8 +63,9 @@ def complement(allele):
 		comp = ['NA']
 	return ''.join(comp)
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
+#@cython.boundscheck(False)
+#@cython.wraparound(False)
+#@cython.nonecheck(False)
 def get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py):
 	cdef str chr = chr_py
 	cdef str pos = pos_py
@@ -83,6 +85,7 @@ def get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.nonecheck(False)
 cdef double[:] vcf2dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 	cdef double[:] dose = np.ndarray(len(genos))
 	for i in xrange(len(genos)):

@@ -13,30 +13,38 @@
 ##    You should have received a copy of the GNU General Public License
 ##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#cython: boundscheck=False
-#cython: wraparound=False
-#cython: cdivision=True
-
 import numpy as np
 import pandas as pd
 cimport numpy as np
 cimport cython
 import math
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
 cdef double calc_callrate(np.ndarray[np.float64_t, ndim=1] x):
 	cdef double xlen = len(x)
 	cdef unsigned int ylen = len(x[~np.isnan(x)])
 	if ylen > 0:
-		return ylen/xlen
+		return ylen/xlen if xlen > 0 else float('nan')
 	else:
 		return 0.0
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
 cdef double calc_freq(np.ndarray[np.float64_t, ndim=1] x):
 	x = x[~np.isnan(x)]
 	cdef unsigned int n = 2 * len(x)
 	cdef double count = x.sum()
-	return count / n if len(x) > 0 else float('nan')
+	return count / n if n > 0 else float('nan')
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+#@cython.cdivision(True)
 cdef double calc_mac(np.ndarray[np.float64_t, ndim=1] x):
 	cdef double n
 	x = x[~np.isnan(x)]
@@ -46,6 +54,10 @@ cdef double calc_mac(np.ndarray[np.float64_t, ndim=1] x):
 		n = float('nan')
 	return n
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
 cdef double calc_freqx(np.ndarray[np.float64_t, ndim=1] male, np.ndarray[np.float64_t, ndim=1] female):
 	male = male[~np.isnan(male)]
 	female = female[~np.isnan(female)]
@@ -53,12 +65,16 @@ cdef double calc_freqx(np.ndarray[np.float64_t, ndim=1] male, np.ndarray[np.floa
 	cdef double count = (male.sum()/2) + female.sum()
 	return count / n if len(male) > 0 and len(female) > 0 else float('nan')
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
 cdef double calc_rsq(np.ndarray[np.float64_t, ndim=1] x):
 	x = x[~np.isnan(x)]
 	cdef double rsq = float('nan')
 	if len(x) > 0 and not set(x).issubset(set([0,1,2])):
 		rsq = x.var(ddof=1) / (2 * (x.mean() / 2) * (1 - (x.mean() / 2))) if x.mean() != 0 and x.mean() != 2 else 0.0
-		return 1 / rsq if rsq > 1 else rsq
+		return rsq if rsq >= 0 and rsq <= 1 else 1 / rsq
 	else:
 		return rsq
 
