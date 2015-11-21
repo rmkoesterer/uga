@@ -7,3 +7,4 @@ bin/
 uga.egg-info/
 .git
 .gitchangelog.rc
+notes.txt

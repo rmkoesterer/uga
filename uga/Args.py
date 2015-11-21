@@ -198,6 +198,10 @@ def snv_args(snv_parser):
 	snv_parser.add_argument('--lm', 
 						action=AddString, 
 						help='model string for lm test')
+	snv_parser.add_argument('--debug', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable debug mode (prints debug info to log file)')
 	return snv_parser
 
 def snvgroup_args(snvgroup_parser):
@@ -360,6 +364,10 @@ def snvgroup_args(snvgroup_parser):
 	snvgroup_parser.add_argument('--meta', 
 						action=AddString, 
 						help='a meta analysis string')
+	snvgroup_parser.add_argument('--debug', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable debug mode (prints debug info to log file)')
 	return snvgroup_parser
 
 def compile_args(compile_parser):

@@ -16,6 +16,7 @@
 import sys
 import psutil
 import subprocess
+import logging
 
 class Error(Exception):
 	def __init__(self, msg):

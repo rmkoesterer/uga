@@ -188,6 +188,14 @@ The simplest way to install uga is with `pip`_, as follows.
 
 .. _`pip`: https://pypi.python.org/pypi/pip
 
+**Cutting Edge Install**
+
+Keeping up with the most current changes may be of interest to you as I will be rapidly adding features through the end of this year. Thus, under the realization 
+that you may encounter unexpected behavior and bugs, you may want to run a fork of this repository rather than installing from source. See this how-to describing
+how to `fork this repository`_
+
+_`fork this repository`: https://help.github.com/articles/fork-a-repo/
+
 **Note**: If you install uga under a virtual environment, you need to source the environment as shown above before running any task in uga.
 
    >>> source uga-env/bin/activate

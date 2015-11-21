@@ -29,9 +29,12 @@ from rpy2.rinterface import RRuntimeError
 from __version__ import version
 import time
 import numpy.lib.recfunctions as recfxns
+import logging
 ro.r('options(warn=1)')
 ro.r('options(na.action=na.omit)')
 pd.options.mode.chained_assignment = None
+
+module_logger = logging.getLogger("Model")
 
 cdef class Model(object):
 	cdef public unsigned int case_code, ctrl_code, tbx_start, tbx_end, \
@@ -48,7 +51,7 @@ cdef class Model(object):
 	cdef public bint all_founders
 	def __cinit__(self, fxn, formula, format, variants_file, pheno_file, type, iid, fid, 
 					case_code = None, ctrl_code = None, all_founders = False, 
-					matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = '\t', **kwargs):
+					matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = 'tab', **kwargs):
 		super(Model, self).__init__(**kwargs)
 		self.out = None
 		self.fxn = fxn
@@ -112,7 +115,7 @@ cdef class Model(object):
 			p_dtypes = p_dtypes + tuple('>f8') if self.sex is not None and self.sex not in self.fields else p_dtypes
 			dtypes = dict(zip(p_names, p_dtypes))
 			try:
-				self.pheno = np.genfromtxt(fname=self.pheno_file, delimiter=self.pheno_sep, dtype=p_dtypes, names=True, usecols=p_names)
+				self.pheno = np.genfromtxt(fname=self.pheno_file, delimiter=Fxns.get_delimiter(self.pheno_sep), dtype=p_dtypes, names=True, usecols=p_names)
 			except:
 				raise Process.Error("unable to load phenotype file " + self.pheno_file + " with columns " + ', '.join(p_names))
 			for x in [y for y in dtypes if dtypes[y] == '>f8']:
@@ -369,6 +372,8 @@ cdef class SnvgroupModel(Model):
 
 cdef class Score(SnvModel):
 	def __cinit__(self, **kwargs):
+		logger = logging.getLogger("Model.Score.__cinit__")
+		logger.debug("initialize Score model")
 		super(Score, self).__init__(**kwargs)
 		print "setting score test family option to " + self.family
 
@@ -460,6 +465,8 @@ cdef class Score(SnvModel):
 cdef class Gee(SnvModel):
 	cdef public str corstr
 	def __cinit__(self, corstr = None, **kwargs):
+		logger = logging.getLogger("Model.Gee.__cinit__")
+		logger.debug("initialize Gee model")
 		self.corstr = corstr if corstr is not None else 'exchangeable'
 		super(Gee, self).__init__(**kwargs)
 		print "setting gee test family option to " + self.family
@@ -541,6 +548,8 @@ cdef class Gee(SnvModel):
 
 cdef class Glm(SnvModel):
 	def __cinit__(self, **kwargs):
+		logger = logging.getLogger("Model.Glm.__cinit__")
+		logger.debug("initialize Glm model")
 		super(Glm, self).__init__(**kwargs)
 		print "setting glm test family option to " + self.family
 
@@ -614,6 +623,8 @@ cdef class Glm(SnvModel):
 
 cdef class Lm(SnvModel):
 	def __cinit__(self, **kwargs):
+		logger = logging.getLogger("Model.Lm.__cinit__")
+		logger.debug("initialize Lm model")
 		super(Lm, self).__init__(**kwargs)
 
 		# to get list of model variables from R, use
@@ -682,10 +693,12 @@ cdef class Lm(SnvModel):
 cdef class Skat(SnvgroupModel):
 	cdef public str skat_wts, skat_method, mafrange
 	def __cinit__(self, skat_wts = None, skat_method = None, mafrange = None, **kwargs):
-		super(Skat, self).__init__(**kwargs)
+		logger = logging.getLogger("Model.Skat.__cinit__")
+		logger.debug("initialize Skat model")
 		self.skat_wts = skat_wts if skat_wts is not None else 'function(maf){dbeta(maf,1,25)}'
 		self.skat_method = skat_method if skat_method is not None else 'saddlepoint'
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
+		super(Skat, self).__init__(**kwargs)
 		print "setting skat test family option to " + self.family
 
 		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
@@ -779,12 +792,14 @@ cdef class Skat(SnvgroupModel):
 cdef class Skato(SnvgroupModel):
 	cdef public str skat_wts, burden_wts, skat_method, mafrange, skato_rho
 	def __cinit__(self, skat_wts = None, burden_wts = None, skat_method = None, skato_rho = None, mafrange = None, **kwargs):
-		super(Skato, self).__init__(**kwargs)
+		logger = logging.getLogger("Model.Skato.__cinit__")
+		logger.debug("initialize Skato model")
 		self.skat_wts = skat_wts if skat_wts is not None else 'function(maf){dbeta(maf,1,25)}'
 		self.burden_wts = burden_wts if burden_wts is not None else 'function(maf){maf < 0.01}'
 		self.skat_method = skat_method if skat_method is not None else 'saddlepoint'
 		self.skato_rho = skato_rho if skat_method is not None else 'seq(0,1,0.1)'
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
+		super(Skato, self).__init__(**kwargs)
 		print "setting skat-o test family option to " + self.family
 		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
 
@@ -883,6 +898,8 @@ cdef class Skato(SnvgroupModel):
 cdef class Burden(SnvgroupModel):
 	cdef public str mafrange, burden_wts
 	def __cinit__(self, mafrange = None, burden_wts = None, **kwargs):
+		logger = logging.getLogger("Model.Burden.__cinit__")
+		logger.debug("initialize Burden model")
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
 		self.burden_wts = burden_wts if burden_wts is not None else '1'
 		super(Burden, self).__init__(**kwargs)

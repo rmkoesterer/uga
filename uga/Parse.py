@@ -62,7 +62,7 @@ def get_args(parser):
 
 def generate_snv_cfg(args):
 	config = {'out': None, 'buffer': 1000, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'models': {}, 'model_order': []}
+					'debug': False, 'models': {}, 'model_order': []}
 	for arg in args:
 		if arg[0] == 'out':
 			config['out'] = arg[1]
@@ -84,6 +84,8 @@ def generate_snv_cfg(args):
 			config['split_n'] = arg[1]
 		if arg[0] == 'replace':
 			config['replace'] = arg[1]
+		if arg[0] == 'debug':
+			config['debug'] = arg[1]
 
 	args = [x for x in args if x[0] not in config]
 
@@ -165,7 +167,7 @@ def print_snv_options(cfg):
 
 def generate_snvgroup_cfg(args):
 	config = {'out': None, 'buffer': 1000, 'region': None, 'region_file': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'snvgroup_map': None, 
-					'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
+					'debug': False, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
 	for arg in args:
 		if arg[0] == 'out':
 			config['out'] = arg[1]
@@ -190,6 +192,8 @@ def generate_snvgroup_cfg(args):
 			config['region_file'] = arg[1]
 		if arg[0] == 'replace':
 			config['replace'] = arg[1]
+		if arg[0] == 'debug':
+			config['debug'] = arg[1]
 
 	args = [x for x in args if x[0] not in config]
 
