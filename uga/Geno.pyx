@@ -21,67 +21,14 @@ import time
 import numpy as np
 cimport numpy as np
 cimport cython
+import Variant
+cimport Variant
 from cython.view cimport array
 from collections import OrderedDict
 import Process
+import logging
 
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
-#@cython.nonecheck(False)
-def complement(allele):
-	cdef str x = allele
-	if x != "NA":
-		letters = list(x)
-		comp = []
-		for l in letters:
-			if l == 'T': 
-				c = 'A'
-			elif l == 'A':
-				c = 'T'
-			elif l == 'G': 
-				c = 'C'
-			elif l == 'C':
-				c = 'G'
-			elif l == '0':
-				c = '0'
-			elif l == ',':
-				c = ','
-			elif l == 'NA':
-				c = 'NA'
-			elif l == '-':
-				c = '-'
-			elif l == 'I':
-				c = 'D'
-			elif l == 'D':
-				c = 'I'
-			elif l in ['1','2','3','4','5','6','7','8','9','0']:
-				c = l
-			else:
-				c = 'X'
-			comp.append(c)
-	else:
-		comp = ['NA']
-	return ''.join(comp)
-
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
-#@cython.nonecheck(False)
-def get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py):
-	cdef str chr = chr_py
-	cdef str pos = pos_py
-	cdef str a1 = a1_py[0:20]
-	cdef str a2 = a2_py[0:20]
-	cdef str delim = delim_py
-	analogs = [chr + delim + pos + delim + a1 + delim + a2, 
-					chr + delim + pos + delim + complement(a1) + delim + complement(a2)]
-	if a2 != 'NA':	
-		analogs = analogs + [chr + delim + pos + delim + complement(a2) + delim + complement(a1),
-							chr + delim + pos + delim + a2 + delim + a1, 
-							chr + delim + pos + delim + a1 + delim + 'NA', 
-							chr + delim + pos + delim + complement(a1) + delim + 'NA', 
-							chr + delim + pos + delim + complement(a2) + delim + 'NA', 
-							chr + delim + pos + delim + a2 + delim + 'NA']
-	return "_".join(sorted(list(set(analogs))))
+module_logger = logging.getLogger("Geno")
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -100,16 +47,16 @@ cdef double[:] vcf2dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 	return dose
 
 cdef class Variants(object):
-	cdef public bytes filename, region, id
-	cdef public np.ndarray samples
-	cdef public object handle, region_iter, snvgroup_map
-	cdef public unsigned int chr, start, end
-	cdef public np.ndarray genos, data, info, snv_chunk, snvgroup_chunk
+
 	def __cinit__(self, filename):
+		logger = logging.getLogger("Geno.Variants.__cinit__")
+		logger.debug("initialize variants")
 		self.filename = filename
 		self.snvgroup_map = None
 
-	cpdef align(self, VariantRef ref):
+	cpdef align(self, Variant.Ref ref):
+		logger = logging.getLogger("Geno.Variants.align")
+		logger.debug("align")
 		cdef unsigned int i = 0
 		for row in self.info:
 			i += 1
@@ -118,9 +65,9 @@ cdef class Variants(object):
 				self.info['a2'][i-1] = ref.db[row['uid']]['a2']
 				self.info['variant'][i-1] = ref.db[row['uid']]['variant']
 				self.info['variant_unique'][i-1] = ref.db[row['uid']]['variant_unique']
-			if ((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == complement(row['a2'][0]) + complement(row['a1'][0]) or 
+			if ((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == complement(row['a2'][0]) + 'NA' or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + 'NA') and 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "AT" and 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "TA" and 
@@ -133,6 +80,8 @@ cdef class Variants(object):
 				self.data[:,i] = 2.0 - self.data[:,i].astype(float)
 
 	def load_snvgroup_map(self, snvgroup_map):
+		logger = logging.getLogger("Geno.Variants.load_snvgroup_map")
+		logger.debug("load_snvgroup_map")
 		print "loading snvgroup map"
 		try:
 			self.snvgroup_map=pd.read_table(snvgroup_map,names=['chr','pos','variant','id'], compression='gzip' if snvgroup_map.split('.')[-1] == 'gz' else None)
@@ -141,6 +90,8 @@ cdef class Variants(object):
 
 cdef class Vcf(Variants):
 	def __cinit__(self, filename):
+		logger = logging.getLogger("Geno.Vcf.__cinit__")
+		logger.debug("initialize vcf")
 		super(Vcf, self).__init__(filename)
 
 		print "loading vcf file"
@@ -152,6 +103,8 @@ cdef class Vcf(Variants):
 			self.samples = np.array([a for a in self.handle.header][-1].split('\t')[9:])
 
 	def get_region(self, region, id = None):
+		logger = logging.getLogger("Geno.Vcf.get_region")
+		logger.debug("get_region " + region)
 		self.id = id
 		if ':' in region:
 			self.chr = int(region.split(':')[0])
@@ -167,6 +120,8 @@ cdef class Vcf(Variants):
 			raise
 
 	cpdef get_chunk(self, int buffer):
+		logger = logging.getLogger("Geno.Vcf.get_chunk")
+		logger.debug("get_chunk")
 		self.snv_chunk = np.empty((buffer,11 + len(self.samples)), dtype='object')
 		cdef unsigned int i = 0
 		slice = islice(self.region_iter, buffer)
@@ -193,7 +148,7 @@ cdef class Vcf(Variants):
 						self.snv_chunk[i,4] = alts[alt]
 						self.snv_chunk[i,5] = self.id
 						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i,3][0:20]) + '_'  + self.snv_chunk[i,4][0:20]
-						self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+						self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 						het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
 						hom1 = ['0/0','0|0']
 						hom2 = [str(alt+1) + '/' + str(alt+1), str(alt+1) + '|' + str(alt+1)]
@@ -203,7 +158,7 @@ cdef class Vcf(Variants):
 						self.snv_chunk[i+1,4] = alts[alt]
 						self.snv_chunk[i+1,5] = self.id
 						self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i+1,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i+1,3][0:20]) + '_'  + self.snv_chunk[i+1,4][0:20]
-						self.snv_chunk[i+1,10] = get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
+						self.snv_chunk[i+1,10] = Variant.get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
 						i += 2
 				else:
 					het = ['1/0','0/1','1|0','0|1']
@@ -213,11 +168,13 @@ cdef class Vcf(Variants):
 					self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
 					self.snv_chunk[i,5] = self.id
 					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub('!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~','_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub('&','_',self.snv_chunk[i,3][0:20]) + '_'  + self.snv_chunk[i,4][0:20]
-					self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+					self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 					i += 1
 			self.snv_chunk = self.snv_chunk[(self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end)]
 
 	cpdef get_snvs(self, int buffer):
+		logger = logging.getLogger("Geno.Vcf.get_snvs")
+		logger.debug("get_snvs")
 		try:
 			self.get_chunk(buffer)
 		except:
@@ -227,6 +184,8 @@ cdef class Vcf(Variants):
 		np.place(self.data, self.data == 'NA',np.nan)
 
 	cpdef get_snvgroup(self, int buffer, id):
+		logger = logging.getLogger("Geno.Vcf.get_snvgroup")
+		logger.debug("get_snvgroup " + id)
 		cdef unsigned int i = 0
 		self.snvgroup_chunk = np.empty((0,11 + len(self.samples)), dtype='object')
 		if self.snvgroup_map is not None:
@@ -246,23 +205,3 @@ cdef class Vcf(Variants):
 			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
 			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,11:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)
-
-cdef class VariantRef(object):
-	cdef public object db
-	def __cinit__(self, Variants v):
-		self.db = {}
-		for row in v.info:
-			self.db[row['uid']] = {}
-			self.db[row['uid']]['variant'] = row['variant']
-			self.db[row['uid']]['variant_unique'] = row['variant_unique']
-			self.db[row['uid']]['a1'] = row['a1']
-			self.db[row['uid']]['a2'] = row['a2']
-
-	cpdef update(self, Variants v):
-		for row in v.info:
-			if not row['uid'] in self.db:
-				self.db[row['uid']] = {}
-				self.db[row['uid']]['variant'] = row['variant']
-				self.db[row['uid']]['variant_unique'] = row['variant_unique']
-				self.db[row['uid']]['a1'] = row['a1']
-				self.db[row['uid']]['a2'] = row['a2']

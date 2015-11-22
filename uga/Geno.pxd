@@ -15,19 +15,16 @@
 
 import numpy as np
 import pandas as pd
-import Geno
-cimport Geno
+import Variant
+cimport Variant
 cimport numpy as np
 cimport cython
 import math
 
-cdef class Ref:
-	cdef public object db
-	cpdef update(self, Geno.Variants v)
-cpdef complement(allele)
-cpdef get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py)
-cdef double calc_callrate(np.ndarray[np.float64_t, ndim=1])
-cdef double calc_freq(np.ndarray[np.float64_t, ndim=1])
-cdef double calc_mac(np.ndarray[np.float64_t, ndim=1])
-cdef double calc_freqx(np.ndarray[np.float64_t, ndim=1] male, np.ndarray[np.float64_t, ndim=1] female)
-cdef double calc_rsq(np.ndarray[np.float64_t, ndim=1])
+cdef class Variants:
+	cdef public bytes filename, region, id
+	cdef public np.ndarray samples
+	cdef public object handle, region_iter, snvgroup_map
+	cdef public unsigned int chr, start, end
+	cdef public np.ndarray genos, data, info, snv_chunk, snvgroup_chunk
+	cpdef align(self, Variant.Ref ref)

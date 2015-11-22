@@ -17,7 +17,7 @@ import pandas as pd
 import numpy as np
 import Model
 import Parse
-import Geno
+import Variant
 import pysam
 import Fxns
 import time
@@ -29,7 +29,7 @@ import os
 import resource
 import logging
 
-logging.basicConfig(format='%(asctime)s: %(name)s - %(message)s',level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s - %(processName)s - %(name)s - %(message)s',level=logging.DEBUG)
 logger = logging.getLogger("RunSnvgroup")
 
 def process_regions(regions_df, cfg, cpu, log):
@@ -87,7 +87,7 @@ def process_regions(regions_df, cfg, cpu, log):
 			variants_found = True
 
 			if n == cfg['model_order'][0]:
-				ref = Geno.VariantRef(models_obj[n].variants)
+				ref = Variant.Ref(models_obj[n].variants)
 			else:
 				ref.update(models_obj[n].variants)
 				models_obj[n].variants.align(ref)

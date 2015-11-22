@@ -53,6 +53,8 @@ cdef class Model(object):
 					case_code = None, ctrl_code = None, all_founders = False, 
 					matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = 'tab', **kwargs):
 		super(Model, self).__init__(**kwargs)
+		logger = logging.getLogger("Model.Model.__cinit__")
+		logger.debug("initialize model")
 		self.out = None
 		self.fxn = fxn
 		self.formula = formula
@@ -237,12 +239,16 @@ cdef class Model(object):
 			print "      {0:>{1}}".format(str(k), len(max(["field"] + [key for key in self.fields.keys()],key=len))) + "   " + "{0:>{1}}".format(str(self.fields[k]['type']), len(max(["type"] + [self.fields[key]['type'] for key in self.fields],key=len))) + "   " + "{0:>{1}}".format(str(self.fields[k]['class']), len(max(["class"] + [self.fields[key]['class'] for key in self.fields],key=len)))
 
 	def get_region(self, region, id = None):
+		logger = logging.getLogger("Model.Model.get_region")
+		logger.debug("get_region " + region)
 		try:
 			self.variants.get_region(region, id)
 		except:
 			raise
 
 	cpdef calc_variant_stats(self):
+		logger = logging.getLogger("Model.Model.calc_variant_stats")
+		logger.debug("calc_variant_stats")
 		self.variant_stats = np.zeros((self.variants.info.shape[0],1), dtype=[('filter','uint32'),('mac','>f8'),('callrate','>f8'),('freq','>f8'),('freq.case','>f8'),('freq.ctrl','>f8'),('rsq','>f8'),('hwe','>f8')])
 		cdef unsigned int i
 		if self.variants.chr == 23:
@@ -266,6 +272,8 @@ cdef class Model(object):
 
 	cpdef filter(self, np.float miss_thresh=None, np.float maf_thresh=None, np.float maxmaf_thresh=None, np.float mac_thresh=None, 
 								np.float rsq_thresh=None, np.float hwe_thresh=None, np.float hwe_maf_thresh=None, no_mono=True):
+		logger = logging.getLogger("Model.Model.filter")
+		logger.debug("filter")
 		cdef unsigned int i
 		for i in xrange(self.variant_stats.shape[0]):
 			if (not miss_thresh is None and not np.isnan(self.variant_stats['callrate'][i]) and self.variant_stats['callrate'][i] < miss_thresh) or (not np.isnan(self.variant_stats['callrate'][i]) and self.variant_stats['callrate'][i] == 0) or np.isnan(self.variant_stats['callrate'][i]):
@@ -302,6 +310,8 @@ cdef class Model(object):
 cdef class SnvModel(Model):
 	cdef public str metadata_snv, metadata_snv_cc
 	def __cinit__(self, **kwargs):
+		logger = logging.getLogger("Model.SnvModel.__cinit__")
+		logger.debug("initialize SnvModel")
 		super(SnvModel, self).__init__(**kwargs)
 		self.tbx_start = 1
 		self.tbx_end = 1
@@ -323,6 +333,8 @@ cdef class SnvModel(Model):
 								'## freq.ctrl: reference (coded) allele frequency in controls'
 
 	cpdef get_snvs(self, int buffer):
+		logger = logging.getLogger("Model.SnvModel.get_snvs")
+		logger.debug("get_snvs")
 		try:
 			self.variants.get_snvs(buffer)
 		except:
@@ -339,6 +351,8 @@ cdef class SnvgroupModel(Model):
 	cdef public str snvgroup_map, metadata_gene
 	cdef public unsigned int snvgroup_mac
 	def __cinit__(self, snvgroup_map = None, snvgroup_mac = 1.0, **kwargs):
+		logger = logging.getLogger("Model.SnvgroupModel.__cinit__")
+		logger.debug("initialize SnvgroupModel")
 		self.snvgroup_map = snvgroup_map
 		self.snvgroup_mac = snvgroup_mac
 		super(SnvgroupModel, self).__init__(**kwargs)
@@ -358,6 +372,8 @@ cdef class SnvgroupModel(Model):
 								'## id: snv group name (ie. gene name)'
 
 	cpdef get_snvgroup(self, int buffer, id):
+		logger = logging.getLogger("Model.SnvgroupModel.get_snvgroup")
+		logger.debug("get_snvgroup")
 		try:
 			self.variants.get_snvgroup(buffer, id)
 		except:
