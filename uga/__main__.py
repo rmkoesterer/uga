@@ -46,6 +46,8 @@ def main(args=None):
 			cfg['replace'] = True
 		else:
 			cfg = getattr(Parse, 'generate_' + args.which + '_cfg')(args.ordered_args)
+	else:
+		cfg = getattr(Parse, 'generate_' + args.which + '_cfg')(args.ordered_args)
 
 	##### read settings file #####
 	ini = SafeConfigParser()
@@ -329,6 +331,14 @@ def main(args=None):
 			else:
 				print Process.print_error('file compilation incomplete')
 
+	elif args.which in ['snvgroupplot','snvplot']:
+		cfg['out'] = '.'.join(cfg['file'].split('.')[0:len(cfg['file'].split('.'))-1]) + '.' + args.which
+		args.ordered_args = [('out',cfg['out'])] + [x for x in args.ordered_args if x[0] not in ['out']]
+		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
+		if cfg['qsub'] is not None:
+			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['out'] + '.log',qsub_wrapper],'\"' + cmd + '\"')
+		else:
+			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.log')
 	else:
 		print Process.print_error(args.which + " not a currently available module")
 

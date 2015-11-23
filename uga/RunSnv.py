@@ -19,7 +19,6 @@ import Model
 import Parse
 import pysam
 import Fxns
-import time
 from Bio import bgzf
 import Process
 import multiprocessing as mp

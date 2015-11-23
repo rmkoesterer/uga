@@ -45,6 +45,7 @@ def get_parser():
 	snvgroup_parser = Args.snvgroup_args(subparsers.add_parser('snvgroup', help='run snv group (ie. gene) based association models', parents=[global_parser]))
 	compile_parser = Args.compile_args(subparsers.add_parser('compile', help='verify and compile results files', parents=[global_parser]))
 	resubmit_parser = Args.resubmit_args(subparsers.add_parser('resubmit', help='resubmit failed results', parents=[global_parser]))
+	snvplot_parser = Args.snvplot_args(subparsers.add_parser('snvplot', help='generate qq and manhattan plots for single variant results', parents=[global_parser]))
 
 	return main_parser
 	
@@ -277,3 +278,45 @@ def print_snvgroup_options(cfg):
 		print '   meta analysis ...'
 		for m in cfg['meta_order']:
 			print "      {0:>{1}}".format(str('--meta ' + m), len(max(['--' + k for k in cfg['meta_order']],key=len))) + ":" + str(cfg['meta'][m])
+
+def generate_snvplot_cfg(args):
+	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'nogc': False, 'color': False, 'qq': False, 'qq_strat': False, 
+				'mht': False, 'crop': 10, 'pcol': None}
+	for arg in args:
+		if arg[0] == 'file':
+			config['file'] = arg[1]
+		if arg[0] == 'qsub':
+			config['qsub'] = arg[1]
+		if arg[0] == 'replace':
+			config['replace'] = arg[1]
+		if arg[0] == 'debug':
+			config['debug'] = arg[1]
+		if arg[0] == 'out':
+			config['out'] = arg[1]
+		if arg[0] == 'ext':
+			config['ext'] = arg[1]
+		if arg[0] == 'nogc':
+			config['nogc'] = arg[1]
+		if arg[0] == 'color':
+			config['color'] = arg[1]
+		if arg[0] == 'qq':
+			config['qq'] = arg[1]
+		if arg[0] == 'qq_strat':
+			config['qq_strat'] = arg[1]
+		if arg[0] == 'mht':
+			config['mht'] = arg[1]
+		if arg[0] == 'crop':
+			config['crop'] = arg[1]
+		if arg[0] == 'pcol':
+			config['pcol'] = arg[1]
+	return config
+
+def print_snvplot_options(cfg):
+	print ''
+	print "main options ..."
+	for k in cfg:
+		if cfg[k] is not None and cfg[k] is not False:
+			if cfg[k] is True:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+			else:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])

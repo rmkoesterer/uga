@@ -27,7 +27,8 @@ setup(
 						'biopython', 
 						'pysam', 
 						'Cython', 
-						'tables'], 
+						'tables',
+						'scipy'], 
     entry_points={
        'console_scripts': [
 			'uga = uga.__main__:main',

@@ -392,3 +392,53 @@ def resubmit_args(resubmit_parser):
 						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	return resubmit_parser
+
+def snvplot_args(snvplot_parser):
+	snvplot_required = snvplot_parser.add_argument_group('required arguments')
+	snvplot_required.add_argument('--file', 
+						action=AddString, 
+						required=True, 
+						help='filename of existing results')
+	snvplot_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
+	snvplot_parser.add_argument('--ext', 
+						action=AddString, 
+						choices=['tiff','eps','pdf'], 
+						help='file type extension for plot files (default: tiff)')
+	snvplot_parser.add_argument('--pcol', 
+						action=AddString, 
+						help='plot a specific p value column (default: plot all p value columns)')
+	snvplot_parser.add_argument('--crop', 
+						action=AddString, 
+						type=float, 
+						help='crop extreme values at this -log10(p) (default: 10)')
+	snvplot_parser.add_argument('--qq', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable qq plot')
+	snvplot_parser.add_argument('--qq-strat', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable frequency stratified qq plot')
+	snvplot_parser.add_argument('--mht', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable manhattan plot')
+	snvplot_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	snvplot_parser.add_argument('--nogc', 
+						nargs=0, 
+						action=AddTrue, 
+						help='disable genomic control adjustment for manhattan plots')
+	snvplot_parser.add_argument('--color', 
+						nargs=0, 
+						action=AddTrue, 
+						help='plot unique color for each chromosome in manhattan plot (default: two-tone blue color manhattan plot)')
+	snvplot_parser.add_argument('--debug', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable debug mode (prints debug info to log file)')
+	return snvplot_parser
