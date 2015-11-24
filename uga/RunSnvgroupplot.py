@@ -23,6 +23,7 @@ import Process
 import rpy2.robjects as ro
 import pandas.rpy.common as py2r
 import logging
+import re
 
 logging.basicConfig(format='%(asctime)s - %(processName)s - %(name)s - %(message)s',level=logging.DEBUG)
 logger = logging.getLogger("RunSnvplot")
@@ -41,17 +42,23 @@ def RunSnvgroupplot(args):
 	header = [x for x in handle.header]
 	skip_rows = len(header)-1
 	cols = header[-1].split()
-	pcols = [x for x in cols if x == 'p' or '.p' in x] if cfg['pcol'] is None else [cfg['pcol']]
-	cmafcols = [x for x in cols if x == 'cmaf' or '.cmaf' in x] if cfg['pcol'] is None else [cfg['pcol'].replace('.p','.cmaf') if '.p' in cfg['pcol'] else 'cmaf']
-	cols_extract = ['#chr','start','end'] + pcols + cmafcols
+	pcols = [x for x in cols if x == 'p' or len(re.findall('.p$',x)) > 0] if cfg['pcol'] is None else [cfg['pcol']]
+	cmafcols = [x for x in cols if x == 'cmaf' or '.cmaf' in x] if cfg['pcol'] is None else [cfg['pcol'].replace('.p','.cmaf') if len(re.findall('.p$',cfg['pcol'])) > 0 else 'cmaf']
+	cols_extract = ['#chr','start','end','id'] + pcols + cmafcols
 	print "importing data"
 	r = pd.read_table(cfg['file'],sep='\t',skiprows=skip_rows,usecols=cols_extract,compression='gzip')
 	print str(r.shape[0]) + " total groups found"
 
 	for pcol in pcols:
-		cmafcol = pcol.replace('.p','.cmaf') if '.p' in pcol else 'cmaf'
+		if len(re.findall('.p$',pcol)) > 0:
+			if pcol.replace('.p','.cmaf') in cmafcols:
+				cmafcol = pcol.replace('.p','.cmaf')
+			else:
+				cmafcol = pcol.replace('.p','.cmafUsed')
+		else:
+			cmafcol = 'cmaf'
 		print "plotting p-values for column " + pcol + " ..."
-		results = r[['#chr','start','end',pcol,cmafcol]]
+		results = r[['#chr','start','end','id',pcol,cmafcol]].copy()
 		results.dropna(inplace=True)
 		results = results[(results[pcol] > 0) & (results[pcol] <= 1)]
 		if cfg['cmaf'] > 0:

@@ -280,6 +280,25 @@ def print_snvgroup_options(cfg):
 		for m in cfg['meta_order']:
 			print "      {0:>{1}}".format(str('--meta ' + m), len(max(['--' + k for k in cfg['meta_order']],key=len))) + ":" + str(cfg['meta'][m])
 
+def generate_compile_cfg(args):
+	config = {'dir': None, 'replace': False}
+	for arg in args:
+		if arg[0] == 'dir':
+			config['dir'] = arg[1]
+		if arg[0] == 'replace':
+			config['replace'] = arg[1]
+	return config
+
+def print_compile_options(cfg):
+	print ''
+	print "main options ..."
+	for k in cfg:
+		if cfg[k] is not None and cfg[k] is not False:
+			if cfg[k] is True:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+			else:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+
 def generate_snvplot_cfg(args):
 	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'nogc': False, 'color': False, 'qq': False, 'qq_strat': False, 
 				'mht': False, 'crop': 10, 'pcol': None}
