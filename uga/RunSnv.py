@@ -52,7 +52,8 @@ def process_regions(regions_df, cfg, cpu, log):
 			models_obj[n] = getattr(Model,cfg['models'][n]['fxn'].capitalize())(fxn=cfg['models'][n]['fxn'],formula=cfg['models'][n]['formula'],format=cfg['models'][n]['format'], 
 									corstr=cfg['models'][n]['corstr'], 
 									all_founders=cfg['models'][n]['all_founders'],case_code=cfg['models'][n]['case_code'],ctrl_code=cfg['models'][n]['ctrl_code'],
-									pheno_file=cfg['models'][n]['pheno'],variants_file=cfg['models'][n]['file'],type=cfg['models'][n]['fxn'],fid=cfg['models'][n]['fid'],
+									pheno_file=cfg['models'][n]['pheno'],variants_file=cfg['models'][n]['file'],samples_file=cfg['models'][n]['sample'],type=cfg['models'][n]['fxn'],
+									fid=cfg['models'][n]['fid'],
 									iid=cfg['models'][n]['iid'],matid=cfg['models'][n]['matid'],patid=cfg['models'][n]['patid'],sex=cfg['models'][n]['sex'],
 									male=cfg['models'][n]['male'],female=cfg['models'][n]['female'],pheno_sep=cfg['models'][n]['sep'])
 		except Process.Error as err:

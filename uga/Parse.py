@@ -42,10 +42,11 @@ def get_parser():
 
 	set_parser = Args.set_args(subparsers.add_parser('set', help='user definable settings', parents=[global_parser]))
 	snv_parser = Args.snv_args(subparsers.add_parser('snv', help='run single nucleotide variant association models', parents=[global_parser]))
-	snvgroup_parser = Args.snvgroup_args(subparsers.add_parser('snvgroup', help='run snv group (ie. gene) based association models', parents=[global_parser]))
+	snvgroup_parser = Args.snvgroup_args(subparsers.add_parser('snvgroup', help='run variant group (ie. gene) based association models', parents=[global_parser]))
 	compile_parser = Args.compile_args(subparsers.add_parser('compile', help='verify and compile results files', parents=[global_parser]))
 	resubmit_parser = Args.resubmit_args(subparsers.add_parser('resubmit', help='resubmit failed results', parents=[global_parser]))
 	snvplot_parser = Args.snvplot_args(subparsers.add_parser('snvplot', help='generate qq and manhattan plots for single variant results', parents=[global_parser]))
+	snvgroupplot_parser = Args.snvgroupplot_args(subparsers.add_parser('snvgroupplot', help='generate qq and manhattan plots for grouped variant results', parents=[global_parser]))
 
 	return main_parser
 	
@@ -110,7 +111,7 @@ def generate_snv_cfg(args):
 				if arg[0] in ['score','lm','glm','gee']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
-				elif arg[0] in ['vcf','dos1','dos2','oxford']:
+				elif arg[0] in ['vcf','dos','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
 				else:
@@ -119,7 +120,7 @@ def generate_snv_cfg(args):
 				if arg[0] in ['score','lm','glm','gee']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
-				elif arg[0] in ['vcf','dos1','dos2','oxford']:
+				elif arg[0] in ['vcf','dos','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
 				else:
@@ -135,7 +136,7 @@ def generate_snv_cfg(args):
 			if arg[0] in ['score','lm','glm','gee']:
 				config['models']['___no_tag___']['fxn'] = arg[0]
 				config['models']['___no_tag___']['formula'] = arg[1]
-			elif arg[0] in ['vcf','dos1','dos2','oxford']:
+			elif arg[0] in ['vcf','dos','oxford']:
 				config['models']['___no_tag___']['format'] = arg[0]
 				config['models']['___no_tag___']['file'] = arg[1]
 			else:
@@ -219,7 +220,7 @@ def generate_snvgroup_cfg(args):
 				if arg[0] in ['skat','skato','burden']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
-				elif arg[0] in ['vcf','dos1','dos2','oxford']:
+				elif arg[0] in ['vcf','dos','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
 				else:
@@ -228,7 +229,7 @@ def generate_snvgroup_cfg(args):
 				if arg[0] in ['skat','skato','burden']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['formula'] = arg[1]
-				elif arg[0] in ['vcf','dos1','dos2','oxford']:
+				elif arg[0] in ['vcf','dos','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
 				else:
@@ -244,7 +245,7 @@ def generate_snvgroup_cfg(args):
 			if arg[0] in ['skat','skato','burden']:
 				config['models']['___no_tag___']['fxn'] = arg[0]
 				config['models']['___no_tag___']['formula'] = arg[1]
-			elif arg[0] in ['vcf','dos1','dos2','oxford']:
+			elif arg[0] in ['vcf','dos','oxford']:
 				config['models']['___no_tag___']['format'] = arg[0]
 				config['models']['___no_tag___']['file'] = arg[1]
 			else:
@@ -312,6 +313,48 @@ def generate_snvplot_cfg(args):
 	return config
 
 def print_snvplot_options(cfg):
+	print ''
+	print "main options ..."
+	for k in cfg:
+		if cfg[k] is not None and cfg[k] is not False:
+			if cfg[k] is True:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+			else:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+
+def generate_snvgroupplot_cfg(args):
+	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'nogc': False, 'color': False, 'qq': False, 
+				'mht': False, 'crop': 10, 'pcol': None, 'cmaf': 0.0}
+	for arg in args:
+		if arg[0] == 'file':
+			config['file'] = arg[1]
+		if arg[0] == 'qsub':
+			config['qsub'] = arg[1]
+		if arg[0] == 'replace':
+			config['replace'] = arg[1]
+		if arg[0] == 'debug':
+			config['debug'] = arg[1]
+		if arg[0] == 'out':
+			config['out'] = arg[1]
+		if arg[0] == 'ext':
+			config['ext'] = arg[1]
+		if arg[0] == 'nogc':
+			config['nogc'] = arg[1]
+		if arg[0] == 'color':
+			config['color'] = arg[1]
+		if arg[0] == 'qq':
+			config['qq'] = arg[1]
+		if arg[0] == 'mht':
+			config['mht'] = arg[1]
+		if arg[0] == 'crop':
+			config['crop'] = arg[1]
+		if arg[0] == 'pcol':
+			config['pcol'] = arg[1]
+		if arg[0] == 'cmaf':
+			config['cmaf'] = arg[1]
+	return config
+
+def print_snvgroupplot_options(cfg):
 	print ''
 	print "main options ..."
 	for k in cfg:

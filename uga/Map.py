@@ -30,7 +30,7 @@ def map(out,
 	s = int(float(mb) * 1000000) if mb else s
 	shift = int(shift_mb) * 1000000 if shift_mb else 0
 
-	if format == 'vcf':
+	if format in ['vcf','dos']:
 		v = pysam.TabixFile(filename=file, parser=pysam.asTuple())
 
 		regions = []
@@ -98,4 +98,5 @@ def map(out,
 							total += 1
 							regions_out.append(chr + ':' + start + '-' + record[1])
 							break
+
 	return regions_out

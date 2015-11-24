@@ -79,6 +79,7 @@ def process_regions(regions_df, cfg, cpu, log):
 				models_obj[n].get_region(regions_df['region'][k], id=regions_df['id'][k])
 			except:
 				pass
+
 			try:
 				models_obj[n].get_snvgroup(cfg['buffer'], regions_df['id'][k])
 			except:

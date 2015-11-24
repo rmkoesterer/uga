@@ -43,14 +43,14 @@ cdef class Model(object):
 	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx, \
 							focus, model_cols, results_header, results_dtypes, calc_hwe_idx, \
 							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, male_idx, female_idx
-	cdef public bytes fxn, formula, format, pheno_file, variants_file, type, \
+	cdef public bytes fxn, formula, format, pheno_file, variants_file, type, samples_file, \
 						iid, fid, matid, patid, sex, pheno_sep, a1, a2
 	cdef public str metadata, metadata_cc, dep_var, family
 	cdef public dict fields
 	cdef public object pheno, variants, out
 	cdef public bint all_founders
 	def __cinit__(self, fxn, formula, format, variants_file, pheno_file, type, iid, fid, 
-					case_code = None, ctrl_code = None, all_founders = False, 
+					case_code = None, ctrl_code = None, all_founders = False, samples_file = None, 
 					matid = None, patid = None, sex = None, male = 1, female = 2, pheno_sep = 'tab', **kwargs):
 		super(Model, self).__init__(**kwargs)
 		logger = logging.getLogger("Model.Model.__cinit__")
@@ -60,6 +60,7 @@ cdef class Model(object):
 		self.formula = formula
 		self.format = format
 		self.variants_file = variants_file
+		self.samples_file = samples_file
 		self.pheno_file = pheno_file
 		self.type = type
 		self.iid = iid
@@ -104,17 +105,17 @@ cdef class Model(object):
 		self.founders_ctrls_idx = np.array([])
 		self.calc_hwe_idx = np.array([])
 		try:
-			self.variants = getattr(Geno,self.format.capitalize())(self.variants_file)
+			self.variants = getattr(Geno,self.format.capitalize())(self.variants_file, self.samples_file)
 		except Process.Error as err:
 			raise Process.Error(err.msg)
 		else:
 			print "extracting model fields from pheno file and reducing to complete observations ..."
 			p_names = (self.fid,self.iid) + tuple(x for x in [self.matid, self.patid] if x is not None)
 			p_names = p_names + tuple(x for x in self.fields if x not in [self.fid,self.iid,self.matid,self.patid])
-			p_names = p_names + tuple(self.sex) if self.sex is not None and self.sex not in self.fields else p_names
+			p_names = p_names + (self.sex,) if self.sex is not None and self.sex not in self.fields else p_names
 			p_dtypes = ('|S100', '|S100') + tuple('|S100' for x in [self.matid, self.patid] if x is not None)
 			p_dtypes = p_dtypes + tuple(self.fields[x]['dtype'] for x in self.fields if x not in [self.fid,self.iid,self.matid,self.patid])
-			p_dtypes = p_dtypes + tuple('>f8') if self.sex is not None and self.sex not in self.fields else p_dtypes
+			p_dtypes = p_dtypes + ('>f8',) if self.sex is not None and self.sex not in self.fields else p_dtypes
 			dtypes = dict(zip(p_names, p_dtypes))
 			try:
 				self.pheno = np.genfromtxt(fname=self.pheno_file, delimiter=Fxns.get_delimiter(self.pheno_sep), dtype=p_dtypes, names=True, usecols=p_names)
@@ -513,7 +514,6 @@ cdef class Gee(SnvModel):
 						'## *.or: odds ratio (included only if binomial family)' + '\n' + \
 						'## *.wald: wald-statistic' + '\n' + \
 						'## *.p: p-value' + '\n#'
-						
 
 	cpdef calc_model(self):
 		pheno_df = pd.DataFrame(self.pheno,dtype='object')
@@ -761,7 +761,7 @@ cdef class Skat(SnvgroupModel):
 			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
 			ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'}), strings_as_factors=False)
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
-			self.results['mac'][0] = ro.r('sum(apply(z,2,function(x){ifelse(sum(x,na.rm=T) > length(x), 2*length(x) - sum(x,na.rm=T), sum(x,na.rm=T))}))')
+			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
@@ -813,7 +813,7 @@ cdef class Skato(SnvgroupModel):
 		self.skat_wts = skat_wts if skat_wts is not None else 'function(maf){dbeta(maf,1,25)}'
 		self.burden_wts = burden_wts if burden_wts is not None else 'function(maf){maf < 0.01}'
 		self.skat_method = skat_method if skat_method is not None else 'saddlepoint'
-		self.skato_rho = skato_rho if skat_method is not None else 'seq(0,1,0.1)'
+		self.skato_rho = skato_rho if skato_rho is not None else 'seq(0,1,0.1)'
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
 		super(Skato, self).__init__(**kwargs)
 		print "setting skat-o test family option to " + self.family
@@ -864,7 +864,7 @@ cdef class Skato(SnvgroupModel):
 			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
 			ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'}), strings_as_factors=False)
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
-			self.results['mac'][0] = ro.r('sum(apply(z,2,function(x){ifelse(sum(x,na.rm=T) > length(x), 2*length(x) - sum(x,na.rm=T), sum(x,na.rm=T))}))')
+			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
@@ -884,12 +884,12 @@ cdef class Skato(SnvgroupModel):
 					ro.r('result$err<-0')
 					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
 					ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
-					ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$pmin[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$rho[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$nmiss[! is.na(result$err) & result$err > 0]<-NA')
+					ro.r('result$nsnps[! is.na(result$err) & result$err > 0]<-NA')
+					ro.r('result$p[! is.na(result$err) & result$err > 0]<-NA')
+					ro.r('result$pmin[! is.na(result$err) & result$err > 0]<-NA')
+					ro.r('result$rho[! is.na(result$err) & result$err > 0]<-NA')
+					ro.r('result$cmaf[! is.na(result$err) & result$err > 0]<-NA')
 					self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
 					self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
 					self.results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
@@ -970,7 +970,7 @@ cdef class Burden(SnvgroupModel):
 			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
 			ro.globalenv['snp_info'] = py2r.convert_to_r_dataframe(pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'}), strings_as_factors=False)
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
-			self.results['mac'][0] = ro.r('sum(apply(z,2,function(x){ifelse(sum(x,na.rm=T) > length(x), 2*length(x) - sum(x,na.rm=T), sum(x,na.rm=T))}))')
+			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
@@ -1077,12 +1077,12 @@ def SkatoMeta(Skato obj, tag, meta, meta_incl):
 			ro.r('result$err<-0')
 			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
 			ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
-			ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$pmin[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$rho[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
+			ro.r('result$nmiss[! is.na(result$err) & result$err > 0]<-NA')
+			ro.r('result$nsnps[! is.na(result$err) & result$err > 0]<-NA')
+			ro.r('result$p[! is.na(result$err) & result$err > 0]<-NA')
+			ro.r('result$pmin[! is.na(result$err) & result$err > 0]<-NA')
+			ro.r('result$rho[! is.na(result$err) & result$err > 0]<-NA')
+			ro.r('result$cmaf[! is.na(result$err) & result$err > 0]<-NA')
 			results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
 			results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
 			results[tag + '.nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]

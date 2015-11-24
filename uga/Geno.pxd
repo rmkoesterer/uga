@@ -22,7 +22,7 @@ cimport cython
 import math
 
 cdef class Variants:
-	cdef public bytes filename, region, id
+	cdef public bytes filename, sample_filename, region, id
 	cdef public np.ndarray samples
 	cdef public object handle, region_iter, snvgroup_map
 	cdef public unsigned int chr, start, end

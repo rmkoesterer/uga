@@ -27,71 +27,45 @@ import logging
 logging.basicConfig(format='%(asctime)s - %(processName)s - %(name)s - %(message)s',level=logging.DEBUG)
 logger = logging.getLogger("RunSnvplot")
 
-def RunSnvplot(args):
-	cfg = Parse.generate_snvplot_cfg(args)
-	Parse.print_snvplot_options(cfg)
+def RunSnvgroupplot(args):
+	cfg = Parse.generate_snvgroupplot_cfg(args)
+	Parse.print_snvgroupplot_options(cfg)
 
 	if not cfg['debug']:
 		logging.disable(logging.CRITICAL)
 
 	ro.r('suppressMessages(library(ggplot2))')
 	ro.r('suppressMessages(library(grid))')
-	#ro.r('library(grDevices)')
 
 	handle=pysam.TabixFile(filename=cfg['file'],parser=pysam.asVCF())
 	header = [x for x in handle.header]
 	skip_rows = len(header)-1
 	cols = header[-1].split()
-	pcols = [x for x in cols if x == 'p' or '.p' in x] if cfg['pcol'] is not None else cfg['pcol']
-	cols_extract = ['#chr','pos','freq'] + pcols
+	pcols = [x for x in cols if x == 'p' or '.p' in x] if cfg['pcol'] is None else [cfg['pcol']]
+	cmafcols = [x for x in cols if x == 'cmaf' or '.cmaf' in x] if cfg['pcol'] is None else [cfg['pcol'].replace('.p','.cmaf') if '.p' in cfg['pcol'] else 'cmaf']
+	cols_extract = ['#chr','start','end'] + pcols + cmafcols
 	print "importing data"
 	r = pd.read_table(cfg['file'],sep='\t',skiprows=skip_rows,usecols=cols_extract,compression='gzip')
-	print str(r.shape[0]) + " total variants found"
+	print str(r.shape[0]) + " total groups found"
 
 	for pcol in pcols:
+		cmafcol = pcol.replace('.p','.cmaf') if '.p' in pcol else 'cmaf'
 		print "plotting p-values for column " + pcol + " ..."
-		results = r[['#chr','pos','freq',pcol]]
+		results = r[['#chr','start','end',pcol,cmafcol]]
 		results.dropna(inplace=True)
-		results = results[(results[pcol] > 0) & (results[pcol] <= 1)].reset_index(drop=True)
-		print "   " + str(results.shape[0]) + " variants with plottable p-values"
+		results = results[(results[pcol] > 0) & (results[pcol] <= 1)]
+		if cfg['cmaf'] > 0:
+			results = results[results[cmafcol] >= cfg['cmaf']]
+		results.reset_index(drop=True, inplace=True)
+		print "   " + str(results.shape[0]) + " groups with plottable p-values"
 
 		results['logp'] = -1 * np.log10(results[pcol]) + 0.0
-
-		results['MAF'] = 'E'
-		results.loc[(results['freq'] >= 0.01) & (results['freq'] <= 0.99),'MAF'] = 'D'
-		results.loc[(results['freq'] >= 0.03) & (results['freq'] <= 0.97),'MAF'] = 'C'
-		results.loc[(results['freq'] >= 0.05) & (results['freq'] <= 0.95),'MAF'] = 'B'
-		results.loc[(results['freq'] >= 0.1) & (results['freq'] <= 0.9),'MAF'] = 'A'
+		results['pos'] = results.start + (results.end - results.start) / 2
 
 		ro.globalenv['results'] = py2r.convert_to_r_dataframe(results, strings_as_factors=False)
 		l = np.median(scipy.chi2.ppf([1-x for x in results[pcol].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 		# in R: median(qchisq(results$p, df=1, lower.tail=FALSE))/qchisq(0.5,1)
 		print "   genomic inflation (all variants) = " + str(l)
-		lA='NA'
-		lB='NA'
-		lC='NA'
-		lD='NA'
-		lE='NA'
-		lE_n=len(results[pcol][(results['freq'] < 0.01) | (results['freq'] > 0.99)])
-		lD_n=len(results[pcol][((results['freq'] >= 0.01) & (results['freq'] < 0.03)) | ((results['freq'] <= 0.99) & (results['freq'] > 0.97))])
-		lC_n=len(results[pcol][((results['freq'] >= 0.03) & (results['freq'] < 0.05)) | ((results['freq'] <= 0.97) & (results['freq'] > 0.95))])
-		lB_n=len(results[pcol][((results['freq'] >= 0.05) & (results['freq'] < 0.1)) | ((results['freq'] <= 0.95) & (results['freq'] > 0.9))])
-		lA_n=len(results[pcol][(results['freq'] >= 0.1) & (results['freq'] <= 0.9)])
-		if lE_n > 0:
-			lE=np.median(scipy.chi2.ppf([1-x for x in results[pcol][(results['freq'] < 0.01) | (results['freq'] > 0.99)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		if lD_n > 0:
-			lD=np.median(scipy.chi2.ppf([1-x for x in results[pcol][((results['freq'] >= 0.01) & (results['freq'] < 0.03)) | ((results['freq'] <= 0.99) & (results['freq'] > 0.97))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		if lC_n > 0:
-			lC=np.median(scipy.chi2.ppf([1-x for x in results[pcol][((results['freq'] >= 0.03) & (results['freq'] < 0.05)) | ((results['freq'] <= 0.97) & (results['freq'] > 0.95))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		if lB_n > 0:
-			lB=np.median(scipy.chi2.ppf([1-x for x in results[pcol][((results['freq'] >= 0.05) & (results['freq'] < 0.1)) | ((results['freq'] <= 0.95) & (results['freq'] > 0.9))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		if lA_n > 0:
-			lA=np.median(scipy.chi2.ppf([1-x for x in results[pcol][(results['freq'] >= 0.1) & (results['freq'] <= 0.9)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		print "   genomic inflation (MAF >= 10%, n=" + str(lA_n) + ") = " + str(lA)
-		print "   genomic inflation (5% <= MAF < 10%, n=" + str(lB_n) + ") = " + str(lB)
-		print "   genomic inflation (3% <= MAF < 5%, n=" + str(lC_n) + ") = " + str(lC)
-		print "   genomic inflation (1% <= MAF < 3%, n=" + str(lD_n) + ") = " + str(lD)
-		print "   genomic inflation (MAF < 1%, n=" + str(lE_n) + ") = " + str(lE)
 
 		if cfg['qq']:
 			print "   generating standard qq plot"
@@ -155,107 +129,6 @@ def RunSnvplot(args):
 						geom_text(aes_string(x='x', y='y', label='lab'), data = dftext, colour="black", vjust=0, hjust=1, size = 4, parse=TRUE) +
 						theme(axis.title.x = element_text(vjust=-0.5,size=14), axis.title.y = element_text(vjust=1,angle=90,size=14), legend.position = 'none', 
 							panel.background = element_blank(), panel.border = element_blank(), panel.grid.minor = element_blank(), 
-							panel.grid.major = element_blank(), axis.line = element_line(colour="black"), axis.text = element_text(size=12))
-					%s
-					""" % (ggsave))
-
-		if cfg['qq_strat']:
-			print "   generating frequency stratified qq plot"
-			a = np.array([])
-			b = np.array([])
-			c = np.array([])
-			if len(results[results['MAF'] == 'E'].index) > 0:
-				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'E'].index)) + ')'))
-				aa.sort()
-				bb = results['logp'][results['MAF'] == 'E']
-				bb.sort()
-				cc = results['MAF'][results['MAF'] == 'E']
-				a = np.append(a,aa)
-				b = np.append(b,bb)
-				c = np.append(c,cc)
-			if len(results[results['MAF'] == 'D'].index) > 0:
-				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'D'].index)) + ')'))
-				aa.sort()
-				bb = results['logp'][results['MAF'] == 'D']
-				bb.sort()
-				cc = results['MAF'][results['MAF'] == 'D']
-				a = np.append(a,aa)
-				b = np.append(b,bb)
-				c = np.append(c,cc)
-			if len(results[results['MAF'] == 'C'].index) > 0:
-				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'C'].index)) + ')'))
-				aa.sort()
-				bb = results['logp'][results['MAF'] == 'C']
-				bb.sort()
-				cc = results['MAF'][results['MAF'] == 'C']
-				a = np.append(a,aa)
-				b = np.append(b,bb)
-				c = np.append(c,cc)
-			if len(results[results['MAF'] == 'B'].index) > 0:
-				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'B'].index)) + ')'))
-				aa.sort()
-				bb = results['logp'][results['MAF'] == 'B']
-				bb.sort()
-				cc = results['MAF'][results['MAF'] == 'B']
-				a = np.append(a,aa)
-				b = np.append(b,bb)
-				c = np.append(c,cc)
-			if len(results[results['MAF'] == 'A'].index) > 0:
-				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'A'].index)) + ')'))
-				aa.sort()
-				bb = results['logp'][results['MAF'] == 'A']
-				bb.sort()
-				cc = results['MAF'][results['MAF'] == 'A']
-				a = np.append(a,aa)
-				b = np.append(b,bb)
-				c = np.append(c,cc)
-
-			ro.globalenv['df'] = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(b), 'MAF': ro.StrVector(c)})
-
-			if cfg['ext'] == 'tiff':
-				ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,units="in",bg="white",compression="lzw",dpi=300)' % (cfg['out'] + '.' + pcol + '.qq_strat.tiff')
-			elif cfg['ext'] == 'eps':
-				ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,bg="white",horizontal=True)' % (cfg['out'] + '.' + pcol + '.qq_strat.eps')
-			else:
-				ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,bg="white")' % (cfg['out'] + '.' + pcol + '.qq_strat.pdf')
-			ro.r("""
-				gp<-ggplot(df, aes_string(x='a',y='b')) +
-					geom_point(aes_string(color='MAF'), size=2) +
-					scale_colour_manual(values=c("E"="#a8ddb5", "D"="#7bccc4", "C"="#4eb3d3", "B"="#2b8cbe", "A"="#08589e"), labels=c("E"="MAF < 1%%","D"="1%% <= MAF < 3%%","C"="3%% <= MAF < 5%%","B"="5%% <= MAF < 10%%","A"="MAF >= 10%%")) +
-					geom_abline(intercept=0, slope=1, alpha=0.5) + 
-					scale_x_continuous(expression(Expected~~-log[10](italic(p)))) +
-					scale_y_continuous(expression(Observed~~-log[10](italic(p)))) +
-					theme_bw(base_size = 12) + 
-					theme(axis.title.x = element_text(vjust=-0.5,size=14), axis.title.y = element_text(vjust=1,angle=90,size=14), legend.title = element_blank(), 
-						legend.key.height = unit(0.1,"in"), legend.text = element_text(size=5), legend.key = element_blank(), legend.justification = c(0,1), 
-						legend.position = c(0,1), panel.background = element_blank(), panel.border = element_blank(), panel.grid.minor = element_blank(), 
-						panel.grid.major = element_blank(), axis.line = element_line(colour="black"), axis.text = element_text(size=12))
-				%s
-				""" % (ggsave))
-
-			if np.max(results['logp']) > cfg['crop']:
-				print "   generating cropped frequency stratified qq plot"
-				ro.r('df$b[df$b > ' + str(cfg['crop']) + ']<-' + str(cfg['crop']))
-				ro.r('df$shape<-0')
-				ro.r('df$shape[df$b == ' + str(cfg['crop']) + ']<-1')
-				if cfg['ext'] == 'tiff':
-					ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,units="in",bg="white",compression="lzw",dpi=300)' % (cfg['out'] + '.' + pcol + '.qq_strat.cropped.tiff')
-				elif cfg['ext'] == 'eps':
-					ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,bg="white",horizontal=True)' % (cfg['out'] + '.' + pcol + '.qq_strat.cropped.eps')
-				else:
-					ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,bg="white")' % (cfg['out'] + '.' + pcol + '.qq_strat.cropped.pdf')
-				ro.r("""
-					gp<-ggplot(df, aes_string(x='a',y='b')) +
-						geom_point(aes(shape=factor(shape), color=MAF), size=2) +
-						scale_colour_manual(values=c("E"="#a8ddb5", "D"="#7bccc4", "C"="#4eb3d3", "B"="#2b8cbe", "A"="#08589e"), labels=c("E"="MAF < 1%%","D"="1%% <= MAF < 3%%","C"="3%% <= MAF < 5%%","B"="5%% <= MAF < 10%%","A"="MAF >= 10%%")) +
-						geom_abline(intercept=0, slope=1, alpha=0.5) + 
-						scale_x_continuous(expression(Expected~~-log[10](italic(p)))) +
-						scale_y_continuous(expression(Observed~~-log[10](italic(p)))) +
-						theme_bw(base_size = 12) + 
-						guides(shape=FALSE) + 
-						theme(axis.title.x = element_text(vjust=-0.5,size=14), axis.title.y = element_text(vjust=1,angle=90,size=14), legend.title = element_blank(), 
-							legend.key.height = unit(0.1,"in"), legend.text = element_text(size=5), legend.key = element_blank(), legend.justification = c(0,1), 
-							legend.position = c(0,1), panel.background = element_blank(), panel.border = element_blank(), panel.grid.minor = element_blank(), 
 							panel.grid.major = element_blank(), axis.line = element_line(colour="black"), axis.text = element_text(size=12))
 					%s
 					""" % (ggsave))

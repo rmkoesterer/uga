@@ -87,7 +87,7 @@ def snv_args(snv_parser):
 						help='phenotype file delimiter (default: tab)')
 	snv_parser.add_argument('--sample', 
 						action=AddString, 
-						help='sample file (not required for Plink format files)')
+						help='sample file (not required for vcf format files)')
 	snv_parser.add_argument('--sex', 
 						action=AddString, 
 						help='name of the column containing male/female status (requires --male and --female)')
@@ -175,6 +175,9 @@ def snv_args(snv_parser):
 	snv_parser.add_argument('--vcf', 
 						action=AddString, 
 						help='vcf 4.1/4.2 format genotype data file')
+	snv_parser.add_argument('--dos', 
+						action=AddString, 
+						help='single allele dosage format genotype data file')
 	snv_parser.add_argument('--case-code', 
 						action=AddString, 
 						type=int, 
@@ -237,7 +240,7 @@ def snvgroup_args(snvgroup_parser):
 						help='phenotype file delimiter (default: tab)')
 	snvgroup_parser.add_argument('--sample', 
 						action=AddString, 
-						help='sample file (not required for Plink format files)')
+						help='sample file (not required for vcf format files)')
 	snvgroup_parser.add_argument('--sex', 
 						action=AddString, 
 						help='name of the column containing male/female status (requires --male and --female)')
@@ -329,6 +332,9 @@ def snvgroup_args(snvgroup_parser):
 	snvgroup_parser.add_argument('--vcf', 
 						action=AddString, 
 						help='vcf 4.1/4.2 format genotype data file')
+	snvgroup_parser.add_argument('--dos', 
+						action=AddString, 
+						help='single allele dosage format genotype data file')
 	snvgroup_parser.add_argument('--case-code', 
 						action=AddString, 
 						type=int, 
@@ -442,3 +448,53 @@ def snvplot_args(snvplot_parser):
 						action=AddTrue, 
 						help='enable debug mode (prints debug info to log file)')
 	return snvplot_parser
+
+def snvgroupplot_args(snvgroupplot_parser):
+	snvgroupplot_required = snvgroupplot_parser.add_argument_group('required arguments')
+	snvgroupplot_required.add_argument('--file', 
+						action=AddString, 
+						required=True, 
+						help='filename of existing results')
+	snvgroupplot_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
+	snvgroupplot_parser.add_argument('--ext', 
+						action=AddString, 
+						choices=['tiff','eps','pdf'], 
+						help='file type extension for plot files (default: tiff)')
+	snvgroupplot_parser.add_argument('--pcol', 
+						action=AddString, 
+						help='plot a specific p value column (default: plot all p value columns)')
+	snvgroupplot_parser.add_argument('--crop', 
+						action=AddString, 
+						type=float, 
+						help='crop extreme values at this -log10(p) (default: 10)')
+	snvgroupplot_parser.add_argument('--cmaf', 
+						action=AddString, 
+						type=float, 
+						help='filter groups for cmaf (ie: --cmaf 0.001 filters groups with cmaf < 0.001)')
+	snvgroupplot_parser.add_argument('--qq', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable qq plot')
+	snvgroupplot_parser.add_argument('--mht', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable manhattan plot')
+	snvgroupplot_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	snvgroupplot_parser.add_argument('--nogc', 
+						nargs=0, 
+						action=AddTrue, 
+						help='disable genomic control adjustment for manhattan plots')
+	snvgroupplot_parser.add_argument('--color', 
+						nargs=0, 
+						action=AddTrue, 
+						help='plot unique color for each chromosome in manhattan plot (default: two-tone blue color manhattan plot)')
+	snvgroupplot_parser.add_argument('--debug', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable debug mode (prints debug info to log file)')
+	return snvgroupplot_parser

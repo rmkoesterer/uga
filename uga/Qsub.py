@@ -67,6 +67,8 @@ def main(argv):
 		from uga.RunSnvgroup import RunSnvgroup
 	if argv[1].split('(')[0] == "RunSnvplot":
 		from uga.RunSnvplot import RunSnvplot
+	if argv[1].split('(')[0] == "RunSnvgroupplot":
+		from uga.RunSnvgroupplot import RunSnvgroupplot
 
 	exec('r=' + argv[1])
 	if r == 0:
