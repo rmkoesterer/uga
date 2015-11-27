@@ -20,6 +20,7 @@ import Parse
 import pysam
 import math
 import Process
+import readline
 import rpy2.robjects as ro
 import pandas.rpy.common as py2r
 import logging
@@ -78,7 +79,7 @@ def RunSnvgroupplot(args):
 			print "   generating standard qq plot"
 			a = -1 * np.log10(ro.r('ppoints(' + str(len(results.index)) + ')'))
 			a.sort()
-			results.sort(columns=['logp'], inplace=True)
+			results.sort_values(by=['logp'], inplace=True)
 
 			ci_upper = -1 * np.log10(scipy.beta.ppf(0.95, range(1,len(results[pcol]) + 1), range(len(results[pcol]),0,-1)))
 			ci_upper.sort()
@@ -149,7 +150,7 @@ def RunSnvgroupplot(args):
 				print "   skipping genomic inflation correction for p-value column " + pcol
 
 			print "   calculating genomic positions"
-			results.sort(columns=['#chr','pos'], inplace=True)
+			results.sort_values(by=['#chr','pos'], inplace=True)
 			ticks = []
 			lastbase = 0
 			results['gpos'] = 0

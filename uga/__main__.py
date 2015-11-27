@@ -88,7 +88,7 @@ def main(args=None):
 						data_files.append(cfg['models'][m]['file'])
 				snv_map = list(set(snv_map))
 				regions_df = pd.DataFrame({'region': snv_map, 'chr': [x.split(':')[0] for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
-				regions_df.sort(columns=['chr','start'],inplace=True)
+				regions_df.sort_values(by=['chr','start'],inplace=True)
 				regions_df.reset_index(drop=True,inplace=True)
 				regions_df['job'] = 1
 				regions_df['cpu'] = 1
@@ -121,7 +121,7 @@ def main(args=None):
 						data_files.append(cfg['models'][m]['file'])
 				snv_map = list(set(snv_map))
 				regions_df = pd.DataFrame({'region': snv_map, 'chr': [x.split(':')[0] for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
-				regions_df.sort(columns=['chr','start'],inplace=True)
+				regions_df.sort_values(by=['chr','start'],inplace=True)
 				regions_df.reset_index(drop=True,inplace=True)
 				regions_df['id'] = cfg['region']
 				regions_df['job'] = 1
@@ -144,7 +144,7 @@ def main(args=None):
 					regions_df['cpu'] = 1
 					regions_df = regions_df[['chr','start','end','region','id','job','cpu']].reset_index(drop=True)
 					regions_df.drop_duplicates(inplace=True)
-					regions_df.sort(columns=['chr','start'],inplace=True)
+					regions_df.sort_values(by=['chr','start'],inplace=True)
 					regions_df.reset_index(drop=True,inplace=True)
 
 		if run_type == 1:

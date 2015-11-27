@@ -146,7 +146,7 @@ def process_regions(regions_df, cfg, cpu, log):
 
 	for n in cfg['model_order']:
 		store = pd.HDFStore('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.' + n + '.h5')
-		store.put('df',results_final_models[n].sort(columns=['chr','start']))
+		store.put('df',results_final_models[n].sort_values(by=['chr','start']))
 		store.get_storer('df').attrs.metadata = models_obj[n].metadata
 		store.get_storer('df').attrs.results_header = results_final_models_headers[n]
 		store.get_storer('df').attrs.tbx_start = models_obj[n].tbx_start
@@ -154,7 +154,7 @@ def process_regions(regions_df, cfg, cpu, log):
 		store.close()
 
 	if len(cfg['meta_order']) > 0:
-		results_final_meta = results_final_meta.sort(columns=['chr','start'])
+		results_final_meta = results_final_meta.sort_values(by=['chr','start'])
 		results_final_meta['chr'] = results_final_meta['chr'].astype(np.int64)
 		results_final_meta['start'] = results_final_meta['start'].astype(np.int64)
 		results_final_meta['end'] = results_final_meta['end'].astype(np.int64)

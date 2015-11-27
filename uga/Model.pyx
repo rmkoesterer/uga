@@ -15,6 +15,7 @@
 
 import pandas as pd
 import numpy as np
+import readline
 from re import split as re_split
 import Process
 cimport numpy as np
