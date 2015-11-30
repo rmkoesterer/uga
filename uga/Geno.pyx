@@ -31,9 +31,9 @@ import logging
 module_logger = logging.getLogger("Geno")
 ILLEGAL_CHARS = '!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~'
 
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
-#@cython.nonecheck(False)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
 cdef double[:] vcf2dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 	cdef double[:] dose = np.ndarray(len(genos))
 	for i in xrange(len(genos)):
@@ -172,7 +172,7 @@ cdef class Vcf(Variants):
 					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
 					self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 					i += 1
-			self.snv_chunk = self.snv_chunk[(self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end)]
+			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
 
 	cpdef get_snvs(self, int buffer):
 		logger = logging.getLogger("Geno.Vcf.get_snvs")

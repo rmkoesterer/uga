@@ -26,6 +26,7 @@ import sys
 import os
 import resource
 import logging
+import pickle
 
 logging.basicConfig(format='%(asctime)s - %(processName)s - %(name)s - %(message)s',level=logging.DEBUG)
 logger = logging.getLogger("RunSnv")
@@ -107,14 +108,9 @@ def process_regions(regions_df, cfg, cpu, log):
 					status = '   processed ' + cur_variants + ' variants, ' + str(analyzed) + ' passed filters (model: ' + n + ')' if n != '___no_tag___' else '   processed ' + cur_variants + ' variants, ' + str(analyzed) + ' passed filters'
 					print status
 					sys.stdout.flush()
-
-			store = pd.HDFStore('/'.join(cfg['out'].split('/')[0:-1]) + '/chr' + str(regions_df['chr'][k]) + '/' + (cfg['out'] + '.cpu' + str(cpu) + '.' + n).split('/')[-1] + '.chr' + str(regions_df['chr'][k]) + 'bp' + str(regions_df['start'][k]) + '-' + str(regions_df['end'][k]) + '.h5')
-			store.put('df',results_final)
-			store.get_storer('df').attrs.metadata = models_obj[n].metadata
-			store.get_storer('df').attrs.results_header = models_obj[n].results_header
-			store.get_storer('df').attrs.tbx_start = models_obj[n].tbx_start
-			store.get_storer('df').attrs.tbx_end = models_obj[n].tbx_end
-			store.close()
+			pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/chr' + str(regions_df['chr'][k]) + '/' + (cfg['out'] + '.cpu' + str(cpu) + '.' + n).split('/')[-1] + '.chr' + str(regions_df['chr'][k]) + 'bp' + str(regions_df['start'][k]) + '-' + str(regions_df['end'][k]) + '.pkl', "wb")
+			pickle.dump([results_final,models_obj[n].metadata,models_obj[n].results_header,models_obj[n].tbx_start,models_obj[n].tbx_end],pkl,protocol=2)
+			pkl.close()
 	if log:
 		sys.stdout = stdout_orig
 		sys.stderr = stderr_orig
@@ -146,20 +142,22 @@ def RunSnv(args):
 			return 1
 
 	if cfg['cpus'] > 1:
-		pool = mp.Pool(cfg['cpus'])
-		for i in xrange(1,cfg['cpus']+1):
+		pool = mp.Pool(cfg['cpus']-1)
+		for i in xrange(1,cfg['cpus']):
 			return_values[i] = pool.apply_async(process_regions, args=(regions_df,cfg,i,True,))
 			print "submitting job on cpu " + str(i) + " of " + str(cfg['cpus'])
 		pool.close()
+		print "executing job for cpu " + str(cfg['cpus']) + " of " + str(cfg['cpus']) + " via main process"
+		main_return = process_regions(regions_df,cfg,cfg['cpus'],True)
 		pool.join()
 
-		if 1 in [return_values[i].get() for i in return_values]:
+		if 1 in [return_values[i].get() for i in return_values] or main_return == 1:
 			print Process.Error("error detected, see log files").out
 			return 1
 
 	else:
-		return_values[1] = process_regions(regions_df,cfg,1,True)
-		if return_values[1] == -1:
+		main_return = process_regions(regions_df,cfg,1,True)
+		if main_return == 1:
 			print Process.Error("error detected, see log files").out
 			return 1
 
@@ -178,17 +176,16 @@ def RunSnv(args):
 		for i in xrange(1,cfg['cpus']+1):
 			regions_cpu_df = regions_df[regions_df['cpu'] == i].reset_index(drop=True)
 			for j in xrange(len(regions_cpu_df.index)):
-				out_model_range = '/'.join(cfg['out'].split('/')[0:-1]) + '/chr' + str(regions_cpu_df['chr'][j]) + '/' + (cfg['out'] + '.cpu' + str(i) + '.' + m).split('/')[-1] + '.chr' + str(regions_cpu_df['chr'][j]) + 'bp' + str(regions_cpu_df['start'][j]) + '-' + str(regions_cpu_df['end'][j]) + '.h5'
-				store = pd.HDFStore(out_model_range)
+				out_model_range = '/'.join(cfg['out'].split('/')[0:-1]) + '/chr' + str(regions_cpu_df['chr'][j]) + '/' + (cfg['out'] + '.cpu' + str(i) + '.' + m).split('/')[-1] + '.chr' + str(regions_cpu_df['chr'][j]) + 'bp' + str(regions_cpu_df['start'][j]) + '-' + str(regions_cpu_df['end'][j]) + '.pkl'
+				pkl = open(out_model_range,"rb")
+				results_final,metadata,results_header,tbx_start,tbx_end = pickle.load(pkl)
 				if not written:
-					bgzfiles[m].write(store.get_storer('df').attrs.metadata)
-					bgzfiles[m].write('\t'.join(store.get_storer('df').attrs.results_header) + '\n')
-					tbx_start = store.get_storer('df').attrs.tbx_start
-					tbx_end = store.get_storer('df').attrs.tbx_end
+					bgzfiles[m].write(metadata)
+					bgzfiles[m].write("\t".join(results_header) + '\n')
 					written = True
-				if store['df'].shape[0] > 0:
-					store['df'].replace({'None': 'NA'}).to_csv(bgzfiles[m], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = store.get_storer('df').attrs.results_header, append=True)
-				store.close()
+				if results_final.shape[0] > 0:
+					results_final.replace({'None': 'NA'}).to_csv(bgzfiles[m], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
+				pkl.close()
 				os.remove(out_model_range)
 
 		bgzfiles[m].close()

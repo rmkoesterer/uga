@@ -478,7 +478,7 @@ cdef class Score(SnvModel):
 				self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
 				self.results['effect'][i] = -1 * self.results['effect'][i]
 				self.results['or'][i] = 1 / self.results['or'][i]
-		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
+		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Gee(SnvModel):
 	cdef public str corstr
@@ -561,7 +561,7 @@ cdef class Gee(SnvModel):
 				self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
 				self.results['effect'][i] = -1 * self.results['effect'][i]
 				self.results['or'][i] = 1 / self.results['or'][i]
-		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
+		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Glm(SnvModel):
 	def __cinit__(self, **kwargs):
@@ -636,7 +636,7 @@ cdef class Glm(SnvModel):
 				self.results['effect'][i] = -1 * self.results['effect'][i]
 				self.results['or'][i] = 1 / self.results['or'][i]
 				self.results['z'][i] = -1 * self.results['z'][i]
-		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
+		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Lm(SnvModel):
 	def __cinit__(self, **kwargs):
@@ -705,7 +705,7 @@ cdef class Lm(SnvModel):
 				self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
 				self.results['effect'][i] = -1 * self.results['effect'][i]
 				self.results['t'][i] = -1 * self.results['t'][i]
-		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object').convert_objects(convert_numeric=True)
+		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Skat(SnvgroupModel):
 	cdef public str skat_wts, skat_method, mafrange
@@ -796,12 +796,12 @@ cdef class Skat(SnvgroupModel):
 				self.results['err'][0] = 6
 		else:
 			self.results['err'][0] = 5
-		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 
 	cpdef tag_results(self, tag):
 		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['mac','err','nmiss','nsnps','cmaf','p','q']]))
 		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
-		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
@@ -902,12 +902,12 @@ cdef class Skato(SnvgroupModel):
 				self.results['err'][0] = 6
 		else:
 			self.results['err'][0] = 5
-		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 
 	cpdef tag_results(self, tag):
 		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']]))
 		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
-		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
@@ -1011,12 +1011,12 @@ cdef class Burden(SnvgroupModel):
 				self.results['err'][0] = 6
 		else:
 			self.results['err'][0] = 5
-		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 
 	cpdef tag_results(self, tag):
 		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['mac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']]))
 		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
-		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
@@ -1057,7 +1057,7 @@ def SkatMeta(Skat obj, tag, meta, meta_incl):
 		results[tag + '.cmaf'][0] = np.nan
 		results[tag + '.p'][0] = np.nan
 		results[tag + '.q'][0] = np.nan
-	return pd.DataFrame(results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+	return pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')
 
 def SkatoMeta(Skato obj, tag, meta, meta_incl):
 	for m in meta_incl:
@@ -1099,7 +1099,7 @@ def SkatoMeta(Skato obj, tag, meta, meta_incl):
 		results[tag + '.pmin'][0] = np.nan
 		results[tag + '.p'][0] = np.nan
 		results[tag + '.rho'][0] = np.nan
-	return pd.DataFrame(results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+	return pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')
 
 def BurdenMeta(Burden obj, tag, meta, meta_incl):
 	for m in meta_incl:
@@ -1146,4 +1146,4 @@ def BurdenMeta(Burden obj, tag, meta, meta_incl):
 		results[tag + '.beta'][0] = np.nan
 		results[tag + '.se'][0] = np.nan
 		results[tag + '.p'][0] = np.nan
-	return pd.DataFrame(results.flatten(), dtype='object',index=[0]).convert_objects(convert_numeric=True)
+	return pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')

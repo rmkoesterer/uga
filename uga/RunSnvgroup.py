@@ -27,6 +27,7 @@ import sys
 import os
 import resource
 import logging
+import pickle
 
 logging.basicConfig(format='%(asctime)s - %(processName)s - %(name)s - %(message)s',level=logging.DEBUG)
 logger = logging.getLogger("RunSnvgroup")
@@ -145,25 +146,18 @@ def process_regions(regions_df, cfg, cpu, log):
 				results_final_meta = results_final_meta.merge(results_region[h], how='outer')
 
 	for n in cfg['model_order']:
-		store = pd.HDFStore('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.' + n + '.h5')
-		store.put('df',results_final_models[n].sort_values(by=['chr','start']))
-		store.get_storer('df').attrs.metadata = models_obj[n].metadata
-		store.get_storer('df').attrs.results_header = results_final_models_headers[n]
-		store.get_storer('df').attrs.tbx_start = models_obj[n].tbx_start
-		store.get_storer('df').attrs.tbx_end = models_obj[n].tbx_end
-		store.close()
+		pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.' + n + '.pkl', "wb")
+		pickle.dump([results_final_models[n].sort_values(by=['chr','start']),models_obj[n].metadata,results_final_models_headers[n],models_obj[n].tbx_start,models_obj[n].tbx_end],pkl,protocol=2)
+		pkl.close()
 
 	if len(cfg['meta_order']) > 0:
 		results_final_meta = results_final_meta.sort_values(by=['chr','start'])
 		results_final_meta['chr'] = results_final_meta['chr'].astype(np.int64)
 		results_final_meta['start'] = results_final_meta['start'].astype(np.int64)
 		results_final_meta['end'] = results_final_meta['end'].astype(np.int64)
-		store = pd.HDFStore('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.meta.h5')
-		store.put('df',results_final_meta)
-		store.get_storer('df').attrs.results_header = np.array(results_final_meta.columns.values)
-		store.get_storer('df').attrs.tbx_start = models_obj[cfg['model_order'][0]].tbx_start
-		store.get_storer('df').attrs.tbx_end = models_obj[cfg['model_order'][0]].tbx_end
-		store.close()
+		pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.meta.pkl', "wb")
+		pickle.dump([results_final_meta,np.array(results_final_meta.columns.values),models_obj[cfg['model_order'][0]].tbx_start,models_obj[cfg['model_order'][0]].tbx_end],pkl,protocol=2)
+		pkl.close()
 
 	if log:
 		sys.stdout = stdout_orig
@@ -203,20 +197,22 @@ def RunSnvgroup(args):
 			return 1
 
 	if cfg['cpus'] > 1:
-		pool = mp.Pool(cfg['cpus'])
-		for i in xrange(1,cfg['cpus']+1):
+		pool = mp.Pool(cfg['cpus']-1)
+		for i in xrange(1,cfg['cpus']):
 			return_values[i] = pool.apply_async(process_regions, args=(regions_df,cfg,i,True,))
 			print "submitting job on cpu " + str(i) + " of " + str(cfg['cpus'])
 		pool.close()
+		print "executing job for cpu " + str(cfg['cpus']) + " of " + str(cfg['cpus']) + " via main process"
+		main_return = process_regions(regions_df,cfg,cfg['cpus'],True)
 		pool.join()
 
-		if 1 in [return_values[i].get() for i in return_values]:
+		if 1 in [return_values[i].get() for i in return_values] or main_return == 1:
 			print Process.Error("error detected, see log files").out
 			return 1
 
 	else:
-		return_values[1] = process_regions(regions_df,cfg,1,True)
-		if return_values[1] == -1:
+		main_return = process_regions(regions_df,cfg,1,True)
+		if main_return == 1:
 			print Process.Error("error detected, see log files").out
 			return 1
 
@@ -233,17 +229,16 @@ def RunSnvgroup(args):
 	for m in cfg['model_order']:
 		written = False
 		for i in xrange(1,cfg['cpus']+1):
-			out_model_cpu = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.' + m + '.h5'
-			store = pd.HDFStore(out_model_cpu)
+			out_model_cpu = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.' + m + '.pkl'
+			pkl = open(out_model_cpu,"rb")
+			results_final,metadata,results_header,tbx_start,tbx_end = pickle.load(pkl)
 			if not written:
-				bgzfiles[m].write(store.get_storer('df').attrs.metadata)
-				bgzfiles[m].write('\t'.join(store.get_storer('df').attrs.results_header) + '\n')
-				tbx_start = store.get_storer('df').attrs.tbx_start
-				tbx_end = store.get_storer('df').attrs.tbx_end
+				bgzfiles[m].write(metadata)
+				bgzfiles[m].write("\t".join(results_header) + '\n')
 				written = True
-			if store['df'].shape[0] > 0:
-				store['df'].replace({'None': 'NA'}).to_csv(bgzfiles[m], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = store.get_storer('df').attrs.results_header, append=True)
-			store.close()
+			if results_final.shape[0] > 0:
+				results_final.replace({'None': 'NA'}).to_csv(bgzfiles[m], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
+			pkl.close()
 			os.remove(out_model_cpu)
 
 		bgzfiles[m].close()
@@ -258,16 +253,15 @@ def RunSnvgroup(args):
 	if len(cfg['meta_order']) > 0:
 		written = False
 		for i in xrange(1,cfg['cpus']+1):
-			out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.meta.h5'
-			store = pd.HDFStore(out_model_meta)
+			out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.meta.pkl'
+			pkl = open(out_model_meta,"rb")
+			results_final_meta,results_header,tbx_start,tbx_end = pickle.load(pkl)
 			if not written:
-				bgzfiles['___meta___'].write('#' + '\t'.join(store.get_storer('df').attrs.results_header) + '\n')
-				tbx_start = store.get_storer('df').attrs.tbx_start
-				tbx_end = store.get_storer('df').attrs.tbx_end
+				bgzfiles['___meta___'].write('#' + '\t'.join(results_header) + '\n')
 				written = True
-			if store['df'].shape[0] > 0:
-				store['df'].replace({'None': 'NA'}).to_csv(bgzfiles['___meta___'], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = store.get_storer('df').attrs.results_header, append=True)
-			store.close()
+			if results_final_meta.shape[0] > 0:
+				results_final_meta.replace({'None': 'NA'}).to_csv(bgzfiles['___meta___'], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
+			pkl.close()
 			os.remove(out_model_meta)
 
 		bgzfiles['___meta___'].close()

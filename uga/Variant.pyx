@@ -48,9 +48,9 @@ cdef class Ref(object):
 				self.db[row['uid']]['a1'] = row['a1']
 				self.db[row['uid']]['a2'] = row['a2']
 
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
-#@cython.nonecheck(False)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
 cpdef complement(allele):
 	cdef str x = allele
 	if x != "NA":
@@ -86,9 +86,9 @@ cpdef complement(allele):
 		comp = ['NA']
 	return ''.join(comp)
 
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
-#@cython.nonecheck(False)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
 cpdef get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py):
 	cdef str chr = chr_py
 	cdef str pos = pos_py
@@ -106,10 +106,10 @@ cpdef get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py):
 							chr + delim + pos + delim + a2 + delim + 'NA']
 	return "_".join(sorted(list(set(analogs))))
 
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
-#@cython.nonecheck(False)
-#@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
 cdef double calc_callrate(np.ndarray[np.float64_t, ndim=1] x):
 	cdef double xlen = len(x)
 	cdef unsigned int ylen = len(x[~np.isnan(x)])
@@ -118,20 +118,20 @@ cdef double calc_callrate(np.ndarray[np.float64_t, ndim=1] x):
 	else:
 		return 0.0
 
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
-#@cython.nonecheck(False)
-#@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
 cdef double calc_freq(np.ndarray[np.float64_t, ndim=1] x):
 	x = x[~np.isnan(x)]
 	cdef unsigned int n = 2 * len(x)
 	cdef double count = x.sum()
 	return count / n if n > 0 else float('nan')
 
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
-#@cython.nonecheck(False)
-#@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
 cdef double calc_mac(np.ndarray[np.float64_t, ndim=1] x):
 	cdef double n
 	x = x[~np.isnan(x)]
@@ -141,10 +141,10 @@ cdef double calc_mac(np.ndarray[np.float64_t, ndim=1] x):
 		n = float('nan')
 	return n
 
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
-#@cython.nonecheck(False)
-#@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
 cdef double calc_freqx(np.ndarray[np.float64_t, ndim=1] male, np.ndarray[np.float64_t, ndim=1] female):
 	male = male[~np.isnan(male)]
 	female = female[~np.isnan(female)]
@@ -152,10 +152,10 @@ cdef double calc_freqx(np.ndarray[np.float64_t, ndim=1] male, np.ndarray[np.floa
 	cdef double count = (male.sum()/2) + female.sum()
 	return count / n if len(male) > 0 and len(female) > 0 else float('nan')
 
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
-#@cython.nonecheck(False)
-#@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
 cdef double calc_rsq(np.ndarray[np.float64_t, ndim=1] x):
 	x = x[~np.isnan(x)]
 	cdef double rsq = float('nan')

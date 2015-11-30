@@ -2207,7 +2207,7 @@ static PyObject *__pyx_f_3uga_7Variant_3Ref_update(struct __pyx_obj_3uga_7Varian
  * 				self.db[row['uid']]['a1'] = row['a1']
  * 				self.db[row['uid']]['a2'] = row['a2']             # <<<<<<<<<<<<<<
  * 
- * #@cython.boundscheck(False)
+ * @cython.boundscheck(False)
  */
       __pyx_t_1 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_a2); if (unlikely(__pyx_t_1 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 49; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
       __Pyx_GOTREF(__pyx_t_1);
@@ -2409,8 +2409,8 @@ static int __pyx_pf_3uga_7Variant_3Ref_2db_4__del__(struct __pyx_obj_3uga_7Varia
 }
 
 /* "uga/Variant.pyx":54
- * #@cython.wraparound(False)
- * #@cython.nonecheck(False)
+ * @cython.wraparound(False)
+ * @cython.nonecheck(False)
  * cpdef complement(allele):             # <<<<<<<<<<<<<<
  * 	cdef str x = allele
  * 	if x != "NA":
@@ -2437,7 +2437,7 @@ static PyObject *__pyx_f_3uga_7Variant_complement(PyObject *__pyx_v_allele, CYTH
   __Pyx_RefNannySetupContext("complement", 0);
 
   /* "uga/Variant.pyx":55
- * #@cython.nonecheck(False)
+ * @cython.nonecheck(False)
  * cpdef complement(allele):
  * 	cdef str x = allele             # <<<<<<<<<<<<<<
  * 	if x != "NA":
@@ -2958,7 +2958,7 @@ static PyObject *__pyx_f_3uga_7Variant_complement(PyObject *__pyx_v_allele, CYTH
  * 		comp = ['NA']
  * 	return ''.join(comp)             # <<<<<<<<<<<<<<
  * 
- * #@cython.boundscheck(False)
+ * @cython.boundscheck(False)
  */
   __Pyx_XDECREF(__pyx_r);
   __pyx_t_1 = __Pyx_PyString_Join(__pyx_kp_s__7, __pyx_v_comp); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 87; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -2968,8 +2968,8 @@ static PyObject *__pyx_f_3uga_7Variant_complement(PyObject *__pyx_v_allele, CYTH
   goto __pyx_L0;
 
   /* "uga/Variant.pyx":54
- * #@cython.wraparound(False)
- * #@cython.nonecheck(False)
+ * @cython.wraparound(False)
+ * @cython.nonecheck(False)
  * cpdef complement(allele):             # <<<<<<<<<<<<<<
  * 	cdef str x = allele
  * 	if x != "NA":
@@ -3032,8 +3032,8 @@ static PyObject *__pyx_pf_3uga_7Variant_complement(CYTHON_UNUSED PyObject *__pyx
 }
 
 /* "uga/Variant.pyx":92
- * #@cython.wraparound(False)
- * #@cython.nonecheck(False)
+ * @cython.wraparound(False)
+ * @cython.nonecheck(False)
  * cpdef get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py):             # <<<<<<<<<<<<<<
  * 	cdef str chr = chr_py
  * 	cdef str pos = pos_py
@@ -3065,7 +3065,7 @@ static PyObject *__pyx_f_3uga_7Variant_get_universal_variant_id(PyObject *__pyx_
   __Pyx_RefNannySetupContext("get_universal_variant_id", 0);
 
   /* "uga/Variant.pyx":93
- * #@cython.nonecheck(False)
+ * @cython.nonecheck(False)
  * cpdef get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py):
  * 	cdef str chr = chr_py             # <<<<<<<<<<<<<<
  * 	cdef str pos = pos_py
@@ -3097,7 +3097,7 @@ static PyObject *__pyx_f_3uga_7Variant_get_universal_variant_id(PyObject *__pyx_
  * 	cdef str a2 = a2_py[0:20]
  * 	cdef str delim = delim_py
  */
-  __pyx_t_1 = __Pyx_PyObject_GetSlice(__pyx_v_a1_py, 0, 20, NULL, NULL, &__pyx_slice__8, 1, 1, 1); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 95; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_1 = __Pyx_PyObject_GetSlice(__pyx_v_a1_py, 0, 20, NULL, NULL, &__pyx_slice__8, 1, 1, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 95; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   if (!(likely(PyString_CheckExact(__pyx_t_1))||((__pyx_t_1) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_t_1)->tp_name), 0))) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 95; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_v_a1 = ((PyObject*)__pyx_t_1);
@@ -3110,7 +3110,7 @@ static PyObject *__pyx_f_3uga_7Variant_get_universal_variant_id(PyObject *__pyx_
  * 	cdef str delim = delim_py
  * 	analogs = [chr + delim + pos + delim + a1 + delim + a2,
  */
-  __pyx_t_1 = __Pyx_PyObject_GetSlice(__pyx_v_a2_py, 0, 20, NULL, NULL, &__pyx_slice__9, 1, 1, 1); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 96; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_t_1 = __Pyx_PyObject_GetSlice(__pyx_v_a2_py, 0, 20, NULL, NULL, &__pyx_slice__9, 1, 1, 0); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 96; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_1);
   if (!(likely(PyString_CheckExact(__pyx_t_1))||((__pyx_t_1) == Py_None)||(PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(__pyx_t_1)->tp_name), 0))) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 96; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_v_a2 = ((PyObject*)__pyx_t_1);
@@ -3423,7 +3423,7 @@ static PyObject *__pyx_f_3uga_7Variant_get_universal_variant_id(PyObject *__pyx_
  * 							chr + delim + pos + delim + a2 + delim + 'NA']
  * 	return "_".join(sorted(list(set(analogs))))             # <<<<<<<<<<<<<<
  * 
- * #@cython.boundscheck(False)
+ * @cython.boundscheck(False)
  */
   __Pyx_XDECREF(__pyx_r);
   __pyx_t_2 = PySet_New(__pyx_v_analogs); if (unlikely(!__pyx_t_2)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 107; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -3445,8 +3445,8 @@ static PyObject *__pyx_f_3uga_7Variant_get_universal_variant_id(PyObject *__pyx_
   goto __pyx_L0;
 
   /* "uga/Variant.pyx":92
- * #@cython.wraparound(False)
- * #@cython.nonecheck(False)
+ * @cython.wraparound(False)
+ * @cython.nonecheck(False)
  * cpdef get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py):             # <<<<<<<<<<<<<<
  * 	cdef str chr = chr_py
  * 	cdef str pos = pos_py
@@ -3590,8 +3590,8 @@ static PyObject *__pyx_pf_3uga_7Variant_2get_universal_variant_id(CYTHON_UNUSED 
 }
 
 /* "uga/Variant.pyx":113
- * #@cython.nonecheck(False)
- * #@cython.cdivision(True)
+ * @cython.nonecheck(False)
+ * @cython.cdivision(True)
  * cdef double calc_callrate(np.ndarray[np.float64_t, ndim=1] x):             # <<<<<<<<<<<<<<
  * 	cdef double xlen = len(x)
  * 	cdef unsigned int ylen = len(x[~np.isnan(x)])
@@ -3627,7 +3627,7 @@ static double __pyx_f_3uga_7Variant_calc_callrate(PyArrayObject *__pyx_v_x) {
   __pyx_pybuffernd_x.diminfo[0].strides = __pyx_pybuffernd_x.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_x.diminfo[0].shape = __pyx_pybuffernd_x.rcbuffer->pybuffer.shape[0];
 
   /* "uga/Variant.pyx":114
- * #@cython.cdivision(True)
+ * @cython.cdivision(True)
  * cdef double calc_callrate(np.ndarray[np.float64_t, ndim=1] x):
  * 	cdef double xlen = len(x)             # <<<<<<<<<<<<<<
  * 	cdef unsigned int ylen = len(x[~np.isnan(x)])
@@ -3701,10 +3701,6 @@ static double __pyx_f_3uga_7Variant_calc_callrate(PyArrayObject *__pyx_v_x) {
  * 		return 0.0
  */
     if (((__pyx_v_xlen > 0.0) != 0)) {
-      if (unlikely(__pyx_v_xlen == 0)) {
-        PyErr_SetString(PyExc_ZeroDivisionError, "float division");
-        {__pyx_filename = __pyx_f[0]; __pyx_lineno = 117; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-      }
       __pyx_t_7 = (__pyx_v_ylen / __pyx_v_xlen);
     } else {
       __pyx_t_8 = __Pyx_PyObject_AsDouble(__pyx_n_s_nan); if (unlikely(__pyx_t_8 == ((double)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 117; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -3727,7 +3723,7 @@ static double __pyx_f_3uga_7Variant_calc_callrate(PyArrayObject *__pyx_v_x) {
  * 	else:
  * 		return 0.0             # <<<<<<<<<<<<<<
  * 
- * #@cython.boundscheck(False)
+ * @cython.boundscheck(False)
  */
   /*else*/ {
     __pyx_r = 0.0;
@@ -3735,8 +3731,8 @@ static double __pyx_f_3uga_7Variant_calc_callrate(PyArrayObject *__pyx_v_x) {
   }
 
   /* "uga/Variant.pyx":113
- * #@cython.nonecheck(False)
- * #@cython.cdivision(True)
+ * @cython.nonecheck(False)
+ * @cython.cdivision(True)
  * cdef double calc_callrate(np.ndarray[np.float64_t, ndim=1] x):             # <<<<<<<<<<<<<<
  * 	cdef double xlen = len(x)
  * 	cdef unsigned int ylen = len(x[~np.isnan(x)])
@@ -3763,8 +3759,8 @@ static double __pyx_f_3uga_7Variant_calc_callrate(PyArrayObject *__pyx_v_x) {
 }
 
 /* "uga/Variant.pyx":125
- * #@cython.nonecheck(False)
- * #@cython.cdivision(True)
+ * @cython.nonecheck(False)
+ * @cython.cdivision(True)
  * cdef double calc_freq(np.ndarray[np.float64_t, ndim=1] x):             # <<<<<<<<<<<<<<
  * 	x = x[~np.isnan(x)]
  * 	cdef unsigned int n = 2 * len(x)
@@ -3805,7 +3801,7 @@ static double __pyx_f_3uga_7Variant_calc_freq(PyArrayObject *__pyx_v_x) {
   __pyx_pybuffernd_x.diminfo[0].strides = __pyx_pybuffernd_x.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_x.diminfo[0].shape = __pyx_pybuffernd_x.rcbuffer->pybuffer.shape[0];
 
   /* "uga/Variant.pyx":126
- * #@cython.cdivision(True)
+ * @cython.cdivision(True)
  * cdef double calc_freq(np.ndarray[np.float64_t, ndim=1] x):
  * 	x = x[~np.isnan(x)]             # <<<<<<<<<<<<<<
  * 	cdef unsigned int n = 2 * len(x)
@@ -3915,13 +3911,9 @@ static double __pyx_f_3uga_7Variant_calc_freq(PyArrayObject *__pyx_v_x) {
  * 	cdef double count = x.sum()
  * 	return count / n if n > 0 else float('nan')             # <<<<<<<<<<<<<<
  * 
- * #@cython.boundscheck(False)
+ * @cython.boundscheck(False)
  */
   if (((__pyx_v_n > 0) != 0)) {
-    if (unlikely(__pyx_v_n == 0)) {
-      PyErr_SetString(PyExc_ZeroDivisionError, "float division");
-      {__pyx_filename = __pyx_f[0]; __pyx_lineno = 129; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-    }
     __pyx_t_11 = (__pyx_v_count / __pyx_v_n);
   } else {
     __pyx_t_12 = __Pyx_PyObject_AsDouble(__pyx_n_s_nan); if (unlikely(__pyx_t_12 == ((double)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 129; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -3931,8 +3923,8 @@ static double __pyx_f_3uga_7Variant_calc_freq(PyArrayObject *__pyx_v_x) {
   goto __pyx_L0;
 
   /* "uga/Variant.pyx":125
- * #@cython.nonecheck(False)
- * #@cython.cdivision(True)
+ * @cython.nonecheck(False)
+ * @cython.cdivision(True)
  * cdef double calc_freq(np.ndarray[np.float64_t, ndim=1] x):             # <<<<<<<<<<<<<<
  * 	x = x[~np.isnan(x)]
  * 	cdef unsigned int n = 2 * len(x)
@@ -3960,8 +3952,8 @@ static double __pyx_f_3uga_7Variant_calc_freq(PyArrayObject *__pyx_v_x) {
 }
 
 /* "uga/Variant.pyx":135
- * #@cython.nonecheck(False)
- * #@cython.cdivision(True)
+ * @cython.nonecheck(False)
+ * @cython.cdivision(True)
  * cdef double calc_mac(np.ndarray[np.float64_t, ndim=1] x):             # <<<<<<<<<<<<<<
  * 	cdef double n
  * 	x = x[~np.isnan(x)]
@@ -4196,14 +4188,14 @@ static double __pyx_f_3uga_7Variant_calc_mac(PyArrayObject *__pyx_v_x) {
  * 		n = float('nan')
  * 	return n             # <<<<<<<<<<<<<<
  * 
- * #@cython.boundscheck(False)
+ * @cython.boundscheck(False)
  */
   __pyx_r = __pyx_v_n;
   goto __pyx_L0;
 
   /* "uga/Variant.pyx":135
- * #@cython.nonecheck(False)
- * #@cython.cdivision(True)
+ * @cython.nonecheck(False)
+ * @cython.cdivision(True)
  * cdef double calc_mac(np.ndarray[np.float64_t, ndim=1] x):             # <<<<<<<<<<<<<<
  * 	cdef double n
  * 	x = x[~np.isnan(x)]
@@ -4233,8 +4225,8 @@ static double __pyx_f_3uga_7Variant_calc_mac(PyArrayObject *__pyx_v_x) {
 }
 
 /* "uga/Variant.pyx":148
- * #@cython.nonecheck(False)
- * #@cython.cdivision(True)
+ * @cython.nonecheck(False)
+ * @cython.cdivision(True)
  * cdef double calc_freqx(np.ndarray[np.float64_t, ndim=1] male, np.ndarray[np.float64_t, ndim=1] female):             # <<<<<<<<<<<<<<
  * 	male = male[~np.isnan(male)]
  * 	female = female[~np.isnan(female)]
@@ -4291,7 +4283,7 @@ static double __pyx_f_3uga_7Variant_calc_freqx(PyArrayObject *__pyx_v_male, PyAr
   __pyx_pybuffernd_female.diminfo[0].strides = __pyx_pybuffernd_female.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_female.diminfo[0].shape = __pyx_pybuffernd_female.rcbuffer->pybuffer.shape[0];
 
   /* "uga/Variant.pyx":149
- * #@cython.cdivision(True)
+ * @cython.cdivision(True)
  * cdef double calc_freqx(np.ndarray[np.float64_t, ndim=1] male, np.ndarray[np.float64_t, ndim=1] female):
  * 	male = male[~np.isnan(male)]             # <<<<<<<<<<<<<<
  * 	female = female[~np.isnan(female)]
@@ -4494,7 +4486,7 @@ static double __pyx_f_3uga_7Variant_calc_freqx(PyArrayObject *__pyx_v_male, PyAr
  * 	cdef double count = (male.sum()/2) + female.sum()
  * 	return count / n if len(male) > 0 and len(female) > 0 else float('nan')             # <<<<<<<<<<<<<<
  * 
- * #@cython.boundscheck(False)
+ * @cython.boundscheck(False)
  */
   __pyx_t_12 = PyObject_Length(((PyObject *)__pyx_v_male)); if (unlikely(__pyx_t_12 == -1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 153; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_t_15 = ((__pyx_t_12 > 0) != 0);
@@ -4508,10 +4500,6 @@ static double __pyx_f_3uga_7Variant_calc_freqx(PyArrayObject *__pyx_v_male, PyAr
   __pyx_t_14 = __pyx_t_15;
   __pyx_L3_bool_binop_done:;
   if (__pyx_t_14) {
-    if (unlikely(__pyx_v_n == 0)) {
-      PyErr_SetString(PyExc_ZeroDivisionError, "float division");
-      {__pyx_filename = __pyx_f[0]; __pyx_lineno = 153; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-    }
     __pyx_t_13 = (__pyx_v_count / __pyx_v_n);
   } else {
     __pyx_t_16 = __Pyx_PyObject_AsDouble(__pyx_n_s_nan); if (unlikely(__pyx_t_16 == ((double)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 153; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -4521,8 +4509,8 @@ static double __pyx_f_3uga_7Variant_calc_freqx(PyArrayObject *__pyx_v_male, PyAr
   goto __pyx_L0;
 
   /* "uga/Variant.pyx":148
- * #@cython.nonecheck(False)
- * #@cython.cdivision(True)
+ * @cython.nonecheck(False)
+ * @cython.cdivision(True)
  * cdef double calc_freqx(np.ndarray[np.float64_t, ndim=1] male, np.ndarray[np.float64_t, ndim=1] female):             # <<<<<<<<<<<<<<
  * 	male = male[~np.isnan(male)]
  * 	female = female[~np.isnan(female)]
@@ -4553,8 +4541,8 @@ static double __pyx_f_3uga_7Variant_calc_freqx(PyArrayObject *__pyx_v_male, PyAr
 }
 
 /* "uga/Variant.pyx":159
- * #@cython.nonecheck(False)
- * #@cython.cdivision(True)
+ * @cython.nonecheck(False)
+ * @cython.cdivision(True)
  * cdef double calc_rsq(np.ndarray[np.float64_t, ndim=1] x):             # <<<<<<<<<<<<<<
  * 	x = x[~np.isnan(x)]
  * 	cdef double rsq = float('nan')
@@ -4598,7 +4586,7 @@ static double __pyx_f_3uga_7Variant_calc_rsq(PyArrayObject *__pyx_v_x) {
   __pyx_pybuffernd_x.diminfo[0].strides = __pyx_pybuffernd_x.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_x.diminfo[0].shape = __pyx_pybuffernd_x.rcbuffer->pybuffer.shape[0];
 
   /* "uga/Variant.pyx":160
- * #@cython.cdivision(True)
+ * @cython.cdivision(True)
  * cdef double calc_rsq(np.ndarray[np.float64_t, ndim=1] x):
  * 	x = x[~np.isnan(x)]             # <<<<<<<<<<<<<<
  * 	cdef double rsq = float('nan')
@@ -4888,10 +4876,6 @@ static double __pyx_f_3uga_7Variant_calc_rsq(PyArrayObject *__pyx_v_x) {
     if (__pyx_t_11) {
       __pyx_t_10 = __pyx_v_rsq;
     } else {
-      if (unlikely(__pyx_v_rsq == 0)) {
-        PyErr_SetString(PyExc_ZeroDivisionError, "float division");
-        {__pyx_filename = __pyx_f[0]; __pyx_lineno = 164; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
-      }
       __pyx_t_10 = (1.0 / __pyx_v_rsq);
     }
     __pyx_r = __pyx_t_10;
@@ -4919,8 +4903,8 @@ static double __pyx_f_3uga_7Variant_calc_rsq(PyArrayObject *__pyx_v_x) {
   }
 
   /* "uga/Variant.pyx":159
- * #@cython.nonecheck(False)
- * #@cython.cdivision(True)
+ * @cython.nonecheck(False)
+ * @cython.cdivision(True)
  * cdef double calc_rsq(np.ndarray[np.float64_t, ndim=1] x):             # <<<<<<<<<<<<<<
  * 	x = x[~np.isnan(x)]
  * 	cdef double rsq = float('nan')

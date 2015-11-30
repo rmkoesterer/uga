@@ -27,7 +27,6 @@ setup(
 						'biopython', 
 						'pysam', 
 						'Cython', 
-						'tables',
 						'scipy'], 
     entry_points={
        'console_scripts': [

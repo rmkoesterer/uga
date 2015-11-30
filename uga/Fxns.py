@@ -105,7 +105,7 @@ def compile_results(directory, files):
 		p7 = subprocess.Popen(['grep','max memory used by any subprocess:',lf[0]], stdout=subprocess.PIPE)
 		maxmemsub = p7.communicate()[0].strip()
 		p7.wait()
-		logfile.write('job ' + str(j+1) + ' - time elapsed ' + elap + ' max mem main ' + maxmem + ' max mem sub ' + maxmemsub + '\n')
+		logfile.write('job ' + str(j+1) + ' - ' + elap + ' - ' + maxmem + ' - ' + maxmemsub + '\n')
 		pbar.update(j)
 	pbar.finish()
 	logfile.close()
