@@ -361,6 +361,10 @@ def snvgroup_args(snvgroup_parser):
 	snvgroup_parser.add_argument('--skato-rho', 
 						action=AddString, 
 						help='skato rho parameter (default: seq(0,1,0.1)))')
+	snvgroup_parser.add_argument('--timeout', 
+						action=AddString, 
+						type=int, 
+						help='timeout in seconds for model test function (default: 3600)')
 	snvgroup_parser.add_argument('--burden', 
 						action=AddString, 
 						help='model string for burden (burdenMeta)')

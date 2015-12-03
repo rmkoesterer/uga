@@ -67,14 +67,19 @@ cdef class Variants(object):
 				self.info['a2'][i-1] = ref.db[row['uid']]['a2']
 				self.info['variant'][i-1] = ref.db[row['uid']]['variant']
 				self.info['variant_unique'][i-1] = ref.db[row['uid']]['variant_unique']
-			if ((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
+			elif (((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] or 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + 'NA') and 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "AT" and 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "TA" and 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "GC" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "CG"):
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "CG") or 
+					((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "AT" or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "TA" or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "GC" or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "CG") and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'])):
 				self.info['a1'][i-1] = ref.db[row['uid']]['a1']
 				self.info['a2'][i-1] = ref.db[row['uid']]['a2']
 				self.info['variant'][i-1] = ref.db[row['uid']]['variant']
@@ -198,9 +203,9 @@ cdef class Vcf(Variants):
 			except:
 				break
 			i = i + 1
-			self.snv_chunk = self.snv_chunk[np.where(np.in1d(self.snv_chunk[:,2],snvgroup_snvs))]
 			if self.snvgroup_map is not None:
-				self.snvgroup_chunk = np.vstack((self.snvgroup_chunk,self.snv_chunk))
+				self.snv_chunk = self.snv_chunk[np.where(np.in1d(self.snv_chunk[:,2],snvgroup_snvs))]
+			self.snvgroup_chunk = np.vstack((self.snvgroup_chunk,self.snv_chunk))
 		if i == 0:
 			raise
 		else:
@@ -263,7 +268,7 @@ cdef class Dos(Variants):
 				self.snv_chunk[i,6] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
 				self.snv_chunk[i,7] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 				i += 1
-			self.snv_chunk = self.snv_chunk[(self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end)]
+			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
 
 	cpdef get_snvs(self, int buffer):
 		logger = logging.getLogger("Geno.Dos.get_snvs")
@@ -289,9 +294,9 @@ cdef class Dos(Variants):
 			except:
 				break
 			i = i + 1
-			self.snv_chunk = self.snv_chunk[np.where(np.in1d(self.snv_chunk[:,2],snvgroup_snvs))]
 			if self.snvgroup_map is not None:
-				self.snvgroup_chunk = np.vstack((self.snvgroup_chunk,self.snv_chunk))
+				self.snv_chunk = self.snv_chunk[np.where(np.in1d(self.snv_chunk[:,2],snvgroup_snvs))]
+			self.snvgroup_chunk = np.vstack((self.snvgroup_chunk,self.snv_chunk))
 		if i == 0:
 			raise
 		else:

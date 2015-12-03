@@ -310,7 +310,7 @@ def main(args=None):
 		files = pd.read_table(args.dir + '/' + os.path.basename(args.dir) + '.files', names=['job','out','file'])
 		complete, rerun = Fxns.verify_results(args.dir,files)
 		if len(rerun) > 0:
-			print Process.print_error('detected ' + str(len(rerun)) + ' failed jobs\n       writing failed job numbers to file ' + args.dir + '/' + os.path.basename(args.dir) + '.rerun\n       execute  script with the --resubmit option to resubmit only the failed jobs')
+			print Process.print_error('detected ' + str(len(rerun)) + ' failed jobs\n       use resubmit module to rerun failed jobs')
 			with open(args.dir + '/' + os.path.basename(args.dir) + '.rerun.pkl', 'wb') as p:
 				pickle.dump(rerun, p)
 		else:

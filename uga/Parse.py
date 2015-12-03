@@ -63,7 +63,7 @@ def get_args(parser):
 	return args
 
 def generate_snv_cfg(args):
-	config = {'out': None, 'buffer': 1000, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
+	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
 					'debug': False, 'models': {}, 'model_order': []}
 	for arg in args:
 		if arg[0] == 'out':
@@ -168,8 +168,8 @@ def print_snv_options(cfg):
 					print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m][n])
 
 def generate_snvgroup_cfg(args):
-	config = {'out': None, 'buffer': 1000, 'region': None, 'region_file': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'snvgroup_map': None, 
-					'debug': False, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
+	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'snvgroup_map': None, 
+					'debug': False, 'timeout': 3600, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
 	for arg in args:
 		if arg[0] == 'out':
 			config['out'] = arg[1]
@@ -196,6 +196,8 @@ def generate_snvgroup_cfg(args):
 			config['replace'] = arg[1]
 		if arg[0] == 'debug':
 			config['debug'] = arg[1]
+		if arg[0] == 'timeout':
+			config['timeout'] = arg[1]
 
 	args = [x for x in args if x[0] not in config]
 

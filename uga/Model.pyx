@@ -34,6 +34,7 @@ import logging
 ro.r('options(warn=1)')
 ro.r('options(na.action=na.omit)')
 pd.options.mode.chained_assignment = None
+ro.r('suppressMessages(library(R.utils))')
 
 module_logger = logging.getLogger("Model")
 
@@ -407,9 +408,8 @@ cdef class Score(SnvModel):
 			self.results_header = np.append(self.results_header,np.array(['err','nmiss','ntotal','effect','stderr','or','p']))
 		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'variant'])))
 
-		from rpy2.robjects.packages import importr
 		print "loading R package seqMeta"
-		importr('seqMeta')
+		ro.r('suppressMessages(library(seqMeta))')
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata_snv = self.metadata_snv + '\n' + self.metadata_snv_cc if self.family == 'binomial' else self.metadata_snv
@@ -500,9 +500,8 @@ cdef class Gee(SnvModel):
 			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','or','wald','p']))
 		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'variant'])))
 
-		from rpy2.robjects.packages import importr
 		print "loading R package geepack"
-		importr('geepack')
+		ro.r('suppressMessages(library(geepack))')
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata_snv = self.metadata_snv + '\n' + self.metadata_snv_cc if self.family == 'binomial' else self.metadata_snv
@@ -709,29 +708,31 @@ cdef class Lm(SnvModel):
 
 cdef class Skat(SnvgroupModel):
 	cdef public str skat_wts, skat_method, mafrange
-	def __cinit__(self, skat_wts = None, skat_method = None, mafrange = None, **kwargs):
+	cdef unsigned int timeout
+	def __cinit__(self, skat_wts = None, skat_method = None, mafrange = None, timeout = None, **kwargs):
 		logger = logging.getLogger("Model.Skat.__cinit__")
 		logger.debug("initialize Skat model")
 		self.skat_wts = skat_wts if skat_wts is not None else 'function(maf){dbeta(maf,1,25)}'
 		self.skat_method = skat_method if skat_method is not None else 'saddlepoint'
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
+		self.timeout = timeout if timeout is not None else 3600
 		super(Skat, self).__init__(**kwargs)
 		print "setting skat test family option to " + self.family
 
 		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
 
-		from rpy2.robjects.packages import importr
 		print "loading R package seqMeta"
-		importr('seqMeta')
+		ro.r('suppressMessages(library(seqMeta))')
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + \
 						'## skat wts: ' + self.skat_wts + '\n' + \
 						'## skat method: ' + self.skat_method + '\n' + \
 						'## maf range: ' + self.mafrange + '\n' + \
+						'## timeout: ' + str(self.timeout) + '\n' + \
 						self.metadata_gene + '\n' + \
 						'## *.mac: minor allele count for the group' + '\n' + \
-						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatMeta, 5: analysis skipped, 6: failed group minor allele count threshold)' + '\n' + \
+						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatMeta, 5: analysis skipped, 6: failed group minor allele count threshold), 7: prepScores2 timed out, 8: skatMeta timed out' + '\n' + \
 						'## *.nmiss: number of missing genotypes in group' + '\n' + \
 						'## *.nsnps: number of snps in the group' + '\n' + \
 						'## *.cmaf: cumulative minor allele frequency' + '\n' + \
@@ -766,32 +767,39 @@ cdef class Skat(SnvgroupModel):
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
-				cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
+				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
 				try:
 					ro.globalenv['ps'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 2
 					raise Process.Error(rerr.message)
-				cmd = "skatMeta(ps,SNPInfo=snp_info,wts=" + self.skat_wts + ",method='" + self.skat_method + "',mafRange=" + self.mafrange + ")"
-				try:
-					ro.globalenv['result'] = ro.r(cmd)
-				except RRuntimeError as rerr:
-					self.results['err'][0] = 3
-					raise Process.Error(rerr.message)
+				if ro.r('class(ps) == "seqMeta"')[0]:
+					cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(ps,SNPInfo=snp_info,wts=" + self.skat_wts + ",method='" + self.skat_method + "',mafRange=" + self.mafrange + "), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
+					try:
+						ro.globalenv['result'] = ro.r(cmd)
+					except RRuntimeError as rerr:
+						self.results['err'][0] = 3
+						raise Process.Error(rerr.message)
+					
+					else:
+						if ro.r('class(result) == "data.frame"')[0]:
+							ro.r('result$err<-0')
+							ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+							ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$q[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
+							self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
+							self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+							self.results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+							self.results['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+							self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
+							self.results['q'][0] = np.array(ro.r('result$Q'))[:,None]
+						else:
+							self.results['err'][0] = 8
 				else:
-					ro.r('result$err<-0')
-					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-					ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$q[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
-					self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
-					self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-					self.results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
-					self.results['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
-					self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
-					self.results['q'][0] = np.array(ro.r('result$Q'))[:,None]
+					self.results['err'][0] = 7
 			else:
 				self.results['err'][0] = 6
 		else:
@@ -808,7 +816,8 @@ cdef class Skat(SnvgroupModel):
 
 cdef class Skato(SnvgroupModel):
 	cdef public str skat_wts, burden_wts, skat_method, mafrange, skato_rho
-	def __cinit__(self, skat_wts = None, burden_wts = None, skat_method = None, skato_rho = None, mafrange = None, **kwargs):
+	cdef unsigned int timeout
+	def __cinit__(self, skat_wts = None, burden_wts = None, skat_method = None, skato_rho = None, mafrange = None, timeout = None, **kwargs):
 		logger = logging.getLogger("Model.Skato.__cinit__")
 		logger.debug("initialize Skato model")
 		self.skat_wts = skat_wts if skat_wts is not None else 'function(maf){dbeta(maf,1,25)}'
@@ -816,13 +825,13 @@ cdef class Skato(SnvgroupModel):
 		self.skat_method = skat_method if skat_method is not None else 'saddlepoint'
 		self.skato_rho = skato_rho if skato_rho is not None else 'seq(0,1,0.1)'
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
+		self.timeout = timeout if timeout is not None else 3600
 		super(Skato, self).__init__(**kwargs)
 		print "setting skat-o test family option to " + self.family
 		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
 
-		from rpy2.robjects.packages import importr
 		print "loading R package seqMeta"
-		importr('seqMeta')
+		ro.r('suppressMessages(library(seqMeta))')
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + \
@@ -830,9 +839,10 @@ cdef class Skato(SnvgroupModel):
 						'## burden wts: ' + self.burden_wts + '\n' + \
 						'## skat method: ' + self.skat_method + '\n' + \
 						'## maf range: ' + self.mafrange + '\n' + \
+						'## timeout: ' + str(self.timeout) + '\n' + \
 						self.metadata_gene + '\n' + \
 						'## *.mac: minor allele count for the group' + '\n' + \
-						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatOMeta, 4: skatOMeta errflag > 0, 5: analysis skipped, 6: failed group minor allele count threshold)' + '\n' + \
+						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatOMeta, 4: skatOMeta errflag > 0, 5: analysis skipped, 6: failed group minor allele count threshold), 7: prepScores2 timed out, 8: skatOMeta timed out' + '\n' + \
 						'## *.nmiss: number of missing genotypes in group' + '\n' + \
 						'## *.nsnps: number of snps in the group' + '\n' + \
 						'## *.cmaf: cumulative minor allele frequency' + '\n' + \
@@ -869,35 +879,41 @@ cdef class Skato(SnvgroupModel):
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
-				cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
+				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
 				try:
 					ro.globalenv['ps'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 2
 					raise Process.Error(rerr.message)
-				cmd = "skatOMeta(ps,SNPInfo=snp_info,rho=" + self.skato_rho + ",skat.wts=" + self.skat_wts + ",burden.wts=" + self.burden_wts + ",method='" + self.skat_method + "',mafRange=" + self.mafrange + ")"
-				try:
-					ro.globalenv['result'] = ro.r(cmd)
-				except RRuntimeError as rerr:
-					self.results['err'][0] = 3
-					raise Process.Error(rerr.message)
+				if ro.r('class(ps) == "seqMeta"')[0]:
+					cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(ps,SNPInfo=snp_info,rho=" + self.skato_rho + ",skat.wts=" + self.skat_wts + ",burden.wts=" + self.burden_wts + ",method='" + self.skat_method + "',mafRange=" + self.mafrange + "), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
+					try:
+						ro.globalenv['result'] = ro.r(cmd)
+					except RRuntimeError as rerr:
+						self.results['err'][0] = 3
+						raise Process.Error(rerr.message)
+					else:
+						if ro.r('class(result) == "data.frame"')[0]:
+							ro.r('result$err<-0')
+							ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+							ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
+							ro.r('result$nmiss[! is.na(result$err) & result$err > 0]<-NA')
+							ro.r('result$nsnps[! is.na(result$err) & result$err > 0]<-NA')
+							ro.r('result$p[! is.na(result$err) & result$err > 0]<-NA')
+							ro.r('result$pmin[! is.na(result$err) & result$err > 0]<-NA')
+							ro.r('result$rho[! is.na(result$err) & result$err > 0]<-NA')
+							ro.r('result$cmaf[! is.na(result$err) & result$err > 0]<-NA')
+							self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
+							self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+							self.results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+							self.results['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+							self.results['pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
+							self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
+							self.results['rho'][0] = np.array(ro.r('result$rho'))[:,None]
+						else:
+							self.results['err'][0] = 8
 				else:
-					ro.r('result$err<-0')
-					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-					ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
-					ro.r('result$nmiss[! is.na(result$err) & result$err > 0]<-NA')
-					ro.r('result$nsnps[! is.na(result$err) & result$err > 0]<-NA')
-					ro.r('result$p[! is.na(result$err) & result$err > 0]<-NA')
-					ro.r('result$pmin[! is.na(result$err) & result$err > 0]<-NA')
-					ro.r('result$rho[! is.na(result$err) & result$err > 0]<-NA')
-					ro.r('result$cmaf[! is.na(result$err) & result$err > 0]<-NA')
-					self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
-					self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-					self.results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
-					self.results['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
-					self.results['pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
-					self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
-					self.results['rho'][0] = np.array(ro.r('result$rho'))[:,None]
+					self.results['err'][0] = 7
 			else:
 				self.results['err'][0] = 6
 		else:
@@ -914,27 +930,29 @@ cdef class Skato(SnvgroupModel):
 
 cdef class Burden(SnvgroupModel):
 	cdef public str mafrange, burden_wts
-	def __cinit__(self, mafrange = None, burden_wts = None, **kwargs):
+	cdef unsigned int timeout
+	def __cinit__(self, mafrange = None, burden_wts = None, timeout = None, **kwargs):
 		logger = logging.getLogger("Model.Burden.__cinit__")
 		logger.debug("initialize Burden model")
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
 		self.burden_wts = burden_wts if burden_wts is not None else '1'
+		self.timeout = timeout if timeout is not None else 3600
 		super(Burden, self).__init__(**kwargs)
 		print "setting burden test family option to " + self.family
 
 		self.results_header = np.append(self.results_header,np.array(['mac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']))
 
-		from rpy2.robjects.packages import importr
 		print "loading R package seqMeta"
-		importr('seqMeta')
+		ro.r('suppressMessages(library(seqMeta))')
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + \
 						'## burden wts: ' + self.burden_wts + '\n' + \
 						'## maf range: ' + self.mafrange + '\n' + \
+						'## timeout: ' + str(self.timeout) + '\n' + \
 						self.metadata_gene + '\n' + \
 						'## *.mac: minor allele count for the group' + '\n' + \
-						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed burdenMeta, 5: analysis skipped, 6: failed group minor allele count threshold)' + '\n' + \
+						'## *.err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed burdenMeta, 5: analysis skipped, 6: failed group minor allele count threshold), 7: prepScores2 timed out, 8: burdenMeta timed out' + '\n' + \
 						'## *.nmiss: number of missing snps' + '\n' + \
 						'## *.nsnpsTotal: number of snps in group' + '\n' + \
 						'## *.nsnpsUsed: number of snps used in analysis' + '\n' + \
@@ -975,38 +993,44 @@ cdef class Burden(SnvgroupModel):
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
-				cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
+				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
 				try:
 					ro.globalenv['ps'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][0] = 2
 					raise Process.Error(rerr.message)
-				cmd = 'burdenMeta(ps,SNPInfo=snp_info,mafRange=' + self.mafrange + ',wts=' + self.burden_wts + ')'
-				try:
-					ro.globalenv['result'] = ro.r(cmd)
-				except RRuntimeError as rerr:
-					self.results['err'][0] = 3
-					raise Process.Error(rerr.message)
+				if ro.r('class(ps) == "seqMeta"')[0]:
+					cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(ps,SNPInfo=snp_info,mafRange=' + self.mafrange + ',wts=' + self.burden_wts + '), timeout=' + str(self.timeout) + ') }, error = function(e) return(1))'
+					try:
+						ro.globalenv['result'] = ro.r(cmd)
+					except RRuntimeError as rerr:
+						self.results['err'][0] = 3
+						raise Process.Error(rerr.message)
+					else:
+						if ro.r('class(result) == "data.frame"')[0]:
+							ro.r('result$err<-0')
+							ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+							ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$nsnpsTotal[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$nsnpsUsed[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$cmafTotal[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$cmafUsed[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$beta[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$se[! is.na(result$err) & result$err == 1]<-NA')
+							ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+							self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
+							self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+							self.results['nsnpsTotal'][0] = np.array(ro.r('result$nsnpsTotal'))[:,None]
+							self.results['nsnpsUsed'][0] = np.array(ro.r('result$nsnpsUsed'))[:,None]
+							self.results['cmafTotal'][0] = np.array(ro.r('result$cmafTotal'))[:,None]
+							self.results['cmafUsed'][0] = np.array(ro.r('result$cmafUsed'))[:,None]
+							self.results['beta'][0] = np.array(ro.r('result$beta'))[:,None]
+							self.results['se'][0] = np.array(ro.r('result$se'))[:,None]
+							self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
+						else:
+							self.results['err'][0] = 8
 				else:
-					ro.r('result$err<-0')
-					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-					ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$nsnpsTotal[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$nsnpsUsed[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$cmafTotal[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$cmafUsed[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$beta[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$se[! is.na(result$err) & result$err == 1]<-NA')
-					ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-					self.results['err'][0] = np.array(ro.r('result$err'))[:,None]
-					self.results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-					self.results['nsnpsTotal'][0] = np.array(ro.r('result$nsnpsTotal'))[:,None]
-					self.results['nsnpsUsed'][0] = np.array(ro.r('result$nsnpsUsed'))[:,None]
-					self.results['cmafTotal'][0] = np.array(ro.r('result$cmafTotal'))[:,None]
-					self.results['cmafUsed'][0] = np.array(ro.r('result$cmafUsed'))[:,None]
-					self.results['beta'][0] = np.array(ro.r('result$beta'))[:,None]
-					self.results['se'][0] = np.array(ro.r('result$se'))[:,None]
-					self.results['p'][0] = np.array(ro.r('result$p'))[:,None]
+					self.results['err'][0] = 7
 			else:
 				self.results['err'][0] = 6
 		else:
@@ -1030,26 +1054,29 @@ def SkatMeta(Skat obj, tag, meta, meta_incl):
 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
 	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = "skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + ")"
+		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
 		try:
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
 			results[tag + '.err'][0] = 3
 			raise Process.Error(rerr.message)
 		else:
-			ro.r('result$err<-0')
-			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-			ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$q[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
-			results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
-			results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-			results[tag + '.nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
-			results[tag + '.cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
-			results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
-			results[tag + '.q'][0] = np.array(ro.r('result$Q'))[:,None]
+			if ro.r('class(result) == "data.frame"')[0]:
+				ro.r('result$err<-0')
+				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+				ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$q[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
+				results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
+				results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+				results[tag + '.nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+				results[tag + '.cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+				results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
+				results[tag + '.q'][0] = np.array(ro.r('result$Q'))[:,None]
+			else:
+				results[tag + '.err'][0] = 8
 	else:
 		results[tag + '.err'][0] = 5
 		results[tag + '.nmiss'][0] = np.nan
@@ -1068,29 +1095,32 @@ def SkatoMeta(Skato obj, tag, meta, meta_incl):
 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
 	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = "skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + ")"
+		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
 		try:
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
 			results[tag + '.err'][0] = 3
 			raise Process.Error(rerr.message)
 		else:
-			ro.r('result$err<-0')
-			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-			ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
-			ro.r('result$nmiss[! is.na(result$err) & result$err > 0]<-NA')
-			ro.r('result$nsnps[! is.na(result$err) & result$err > 0]<-NA')
-			ro.r('result$p[! is.na(result$err) & result$err > 0]<-NA')
-			ro.r('result$pmin[! is.na(result$err) & result$err > 0]<-NA')
-			ro.r('result$rho[! is.na(result$err) & result$err > 0]<-NA')
-			ro.r('result$cmaf[! is.na(result$err) & result$err > 0]<-NA')
-			results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
-			results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-			results[tag + '.nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
-			results[tag + '.cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
-			results[tag + '.pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
-			results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
-			results[tag + '.rho'][0] = np.array(ro.r('result$rho'))[:,None]
+			if ro.r('class(result) == "data.frame"')[0]:
+				ro.r('result$err<-0')
+				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+				ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
+				ro.r('result$nmiss[! is.na(result$err) & result$err > 0]<-NA')
+				ro.r('result$nsnps[! is.na(result$err) & result$err > 0]<-NA')
+				ro.r('result$p[! is.na(result$err) & result$err > 0]<-NA')
+				ro.r('result$pmin[! is.na(result$err) & result$err > 0]<-NA')
+				ro.r('result$rho[! is.na(result$err) & result$err > 0]<-NA')
+				ro.r('result$cmaf[! is.na(result$err) & result$err > 0]<-NA')
+				results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
+				results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+				results[tag + '.nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+				results[tag + '.cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+				results[tag + '.pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
+				results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
+				results[tag + '.rho'][0] = np.array(ro.r('result$rho'))[:,None]
+			else:
+				results[tag + '.err'][0] = 8
 	else:
 		results[tag + '.err'][0] = 5
 		results[tag + '.nmiss'][0] = np.nan
@@ -1110,32 +1140,35 @@ def BurdenMeta(Burden obj, tag, meta, meta_incl):
 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
 	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = 'burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + ')'
+		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
 		try:
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
 			results[tag + '.err'][0] = 3
 			raise Process.Error(rerr.message)
 		else:
-			ro.r('result$err<-0')
-			ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-			ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$nsnpsTotal[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$nsnpsUsed[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$cmafTotal[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$cmafUsed[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$beta[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$se[! is.na(result$err) & result$err == 1]<-NA')
-			ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-			results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
-			results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-			results[tag + '.nsnpsTotal'][0] = np.array(ro.r('result$nsnpsTotal'))[:,None]
-			results[tag + '.nsnpsUsed'][0] = np.array(ro.r('result$nsnpsUsed'))[:,None]
-			results[tag + '.cmafTotal'][0] = np.array(ro.r('result$cmafTotal'))[:,None]
-			results[tag + '.cmafUsed'][0] = np.array(ro.r('result$cmafUsed'))[:,None]
-			results[tag + '.beta'][0] = np.array(ro.r('result$beta'))[:,None]
-			results[tag + '.se'][0] = np.array(ro.r('result$se'))[:,None]
-			results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
+			if ro.r('class(result) == "data.frame"')[0]:
+				ro.r('result$err<-0')
+				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+				ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$nsnpsTotal[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$nsnpsUsed[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$cmafTotal[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$cmafUsed[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$beta[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$se[! is.na(result$err) & result$err == 1]<-NA')
+				ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+				results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
+				results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+				results[tag + '.nsnpsTotal'][0] = np.array(ro.r('result$nsnpsTotal'))[:,None]
+				results[tag + '.nsnpsUsed'][0] = np.array(ro.r('result$nsnpsUsed'))[:,None]
+				results[tag + '.cmafTotal'][0] = np.array(ro.r('result$cmafTotal'))[:,None]
+				results[tag + '.cmafUsed'][0] = np.array(ro.r('result$cmafUsed'))[:,None]
+				results[tag + '.beta'][0] = np.array(ro.r('result$beta'))[:,None]
+				results[tag + '.se'][0] = np.array(ro.r('result$se'))[:,None]
+				results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
+			else:
+				results[tag + '.err'][0] = 8
 	else:
 		results[tag + '.err'][0] = 5
 		results[tag + '.nmiss'][0] = np.nan
