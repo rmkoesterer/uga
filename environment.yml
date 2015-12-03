@@ -57,6 +57,9 @@ dependencies:
 - r-nlme=3.1_122=r3.2.1_0
 - r-nnet=7.3_11=r3.2.1_0
 - r-quadprog=1.5_5=0
+- r-r.methodss3=1.7.0=0
+- r-r.oo=1.19.0=0
+- r-r.utils=2.1.0=0
 - r-recommended=3.2.1=r3.2.1_0
 - r-rpart=4.1_10=r3.2.1_0
 - r-seqmeta=1.6.0=0
@@ -65,7 +68,7 @@ dependencies:
 - readline=6.2=2
 - requests=2.8.1=py27_0
 - rpy2=2.7.4=py27_0
-- scipy=0.16.1=0
+- scipy=0.16.0=np110py27_1
 - setuptools=18.5=py27_0
 - singledispatch=3.4.0.3=py27_0
 - six=1.10.0=py27_0

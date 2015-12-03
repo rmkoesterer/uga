@@ -97,9 +97,11 @@ def RunSnvplot(args):
 
 		if cfg['qq']:
 			print "   generating standard qq plot"
+			print "   minimum p-value: " + str(np.min(results[pcol]))
 			a = -1 * np.log10(ro.r('ppoints(' + str(len(results.index)) + ')'))
 			a.sort()
 			results.sort_values(by=['logp'], inplace=True)
+			print "   maximum -1*log10(p-value): " + str(np.max(results['logp']))
 
 			ci_upper = -1 * np.log10(scipy.beta.ppf(0.95, range(1,len(results[pcol]) + 1), range(len(results[pcol]),0,-1)))
 			ci_upper.sort()
@@ -176,6 +178,8 @@ def RunSnvplot(args):
 				a = np.append(a,aa)
 				b = np.append(b,bb)
 				c = np.append(c,cc)
+				print "   minimum p-value (MAF < 1%): " + str(np.min(results[pcol][results['MAF'] == 'E']))
+				print "   maximum -1*log10(p-value) (MAF < 1%): " + str(np.max(results['logp'][results['MAF'] == 'E']))
 			if len(results[results['MAF'] == 'D'].index) > 0:
 				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'D'].index)) + ')'))
 				aa.sort()
@@ -185,6 +189,8 @@ def RunSnvplot(args):
 				a = np.append(a,aa)
 				b = np.append(b,bb)
 				c = np.append(c,cc)
+				print "   minimum p-value (1% <= MAF < 3%): " + str(np.min(results[pcol][results['MAF'] == 'D']))
+				print "   maximum -1*log10(p-value) (1% <= MAF < 3%): " + str(np.max(results['logp'][results['MAF'] == 'D']))
 			if len(results[results['MAF'] == 'C'].index) > 0:
 				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'C'].index)) + ')'))
 				aa.sort()
@@ -194,6 +200,8 @@ def RunSnvplot(args):
 				a = np.append(a,aa)
 				b = np.append(b,bb)
 				c = np.append(c,cc)
+				print "   minimum p-value (3% <= MAF < 5%): " + str(np.min(results[pcol][results['MAF'] == 'C']))
+				print "   maximum -1*log10(p-value) (3% <= MAF < 5%): " + str(np.max(results['logp'][results['MAF'] == 'C']))
 			if len(results[results['MAF'] == 'B'].index) > 0:
 				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'B'].index)) + ')'))
 				aa.sort()
@@ -203,6 +211,8 @@ def RunSnvplot(args):
 				a = np.append(a,aa)
 				b = np.append(b,bb)
 				c = np.append(c,cc)
+				print "   minimum p-value (5% <= MAF < 10%): " + str(np.min(results[pcol][results['MAF'] == 'B']))
+				print "   maximum -1*log10(p-value) (5% <= MAF < 10%): " + str(np.max(results['logp'][results['MAF'] == 'B']))
 			if len(results[results['MAF'] == 'A'].index) > 0:
 				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'A'].index)) + ')'))
 				aa.sort()
@@ -212,6 +222,8 @@ def RunSnvplot(args):
 				a = np.append(a,aa)
 				b = np.append(b,bb)
 				c = np.append(c,cc)
+				print "   minimum p-value (MAF >= 10%): " + str(np.min(results[pcol][results['MAF'] == 'A']))
+				print "   maximum -1*log10(p-value) (MAF >= 10%): " + str(np.max(results['logp'][results['MAF'] == 'A']))
 
 			ro.globalenv['df'] = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(b), 'MAF': ro.StrVector(c)})
 
@@ -265,11 +277,15 @@ def RunSnvplot(args):
 
 		if cfg['mht']:
 			print "   generating standard manhattan plot"
+			print "   minimum p-value: " + str(np.min(results[pcol]))
+			print "   maximum -1*log10(p-value): " + str(np.max(results['logp']))
 			if not cfg['nogc']:
 				print "   adjusting p-values for genomic inflation for p-value column " + pcol
 				results[pcol]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*results[pcol]) / math.sqrt(l)))
+				print "   minimum post-gc adjustment p-value: " + str(np.min(results[pcol]))
+				print "   maximum post-gc adjustment -1*log10(p-value): " + str(np.max(results['logp']))
 			else:
-				print "   skipping genomic inflation correction for p-value column " + pcol
+				print "   skipping genomic inflation correction"
 
 			print "   calculating genomic positions"
 			results.sort_values(by=['#chr','pos'], inplace=True)

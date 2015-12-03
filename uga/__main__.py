@@ -74,9 +74,9 @@ def main(args=None):
 
 			if cfg['region_file']:
 				regions_df = pd.read_table(cfg['region_file'],header=None,names=['region'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
-				regions_df['chr'] = [x.split(':')[0] for x in regions_df['region']]
-				regions_df['start'] = [x.split(':')[1].split('-')[0] for x in regions_df['region']]
-				regions_df['end'] = [x.split(':')[1].split('-')[1] for x in regions_df['region']]
+				regions_df['chr'] = [int(x.split(':')[0]) for x in regions_df['region']]
+				regions_df['start'] = [int(x.split(':')[1].split('-')[0]) for x in regions_df['region']]
+				regions_df['end'] = [int(x.split(':')[1].split('-')[1]) for x in regions_df['region']]
 				regions_df['job'] = 1
 				regions_df['cpu'] = 1
 			else:
@@ -87,14 +87,14 @@ def main(args=None):
 						snv_map.extend(Map.map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region'], format=cfg['models'][m]['format']))
 						data_files.append(cfg['models'][m]['file'])
 				snv_map = list(set(snv_map))
-				regions_df = pd.DataFrame({'region': snv_map, 'chr': [x.split(':')[0] for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
-				regions_df.sort_values(by=['chr','start'],inplace=True)
-				regions_df.reset_index(drop=True,inplace=True)
+				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
 				regions_df['job'] = 1
 				regions_df['cpu'] = 1
 				del data_files
 				del snv_map
 			regions_df = regions_df[['chr','start','end','region','job','cpu']]
+			regions_df.sort_values(by=['chr','start'],inplace=True)
+			regions_df.reset_index(drop=True,inplace=True)
 
 		if args.which == 'snvgroup':
 			#	generate regions dataframe with M rows from --snvgroup-map
@@ -106,12 +106,14 @@ def main(args=None):
 
 			if cfg['region_file']:
 				regions_df = pd.read_table(cfg['region_file'],header=None,names=['region','id'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
-				regions_df['chr'] = [x.split(':')[0] for x in regions_df['region']]
-				regions_df['start'] = [x.split(':')[1].split('-')[0] for x in regions_df['region']]
-				regions_df['end'] = [x.split(':')[1].split('-')[1] for x in regions_df['region']]
+				regions_df['chr'] = [int(x.split(':')[0]) for x in regions_df['region']]
+				regions_df['start'] = [int(x.split(':')[1].split('-')[0]) for x in regions_df['region']]
+				regions_df['end'] = [int(x.split(':')[1].split('-')[1]) for x in regions_df['region']]
 				regions_df['job'] = 1
 				regions_df['cpu'] = 1
-				regions_df = regions_df[['chr','start','end','region','id','job','cpu']].reset_index(drop=True)
+				regions_df = regions_df[['chr','start','end','region','id','job','cpu']]
+				regions_df.sort_values(by=['chr','start'],inplace=True)
+				regions_df.reset_index(drop=True,inplace=True)
 			elif cfg['region']:
 				snv_map = []
 				data_files = []
@@ -120,15 +122,15 @@ def main(args=None):
 						snv_map.extend(Map.map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = 1000, region = cfg['region'], format=cfg['models'][m]['format']))
 						data_files.append(cfg['models'][m]['file'])
 				snv_map = list(set(snv_map))
-				regions_df = pd.DataFrame({'region': snv_map, 'chr': [x.split(':')[0] for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
-				regions_df.sort_values(by=['chr','start'],inplace=True)
-				regions_df.reset_index(drop=True,inplace=True)
+				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
 				regions_df['id'] = cfg['region']
 				regions_df['job'] = 1
 				regions_df['cpu'] = 1
 				del data_files
 				del snv_map
-				regions_df = regions_df[['chr','start','end','region','id','job','cpu']].reset_index(drop=True)
+				regions_df = regions_df[['chr','start','end','region','id','job','cpu']]
+				regions_df.sort_values(by=['chr','start'],inplace=True)
+				regions_df.reset_index(drop=True,inplace=True)
 			else:
 				if cfg['snvgroup_map']:
 					snvgroup_map = pd.read_table(cfg['snvgroup_map'],header=None,names=['chr','pos','marker','id'], compression='gzip' if cfg['snvgroup_map'].split('.')[-1] == 'gz' else None)
@@ -138,11 +140,10 @@ def main(args=None):
 					regions_df.columns = ['start','end']
 					regions_df['chr'] = regions_df.index.get_level_values('chr')
 					regions_df['id'] = regions_df.index.get_level_values('id')
-					regions_df.reset_index(drop=True,inplace=True)
 					regions_df['region'] = regions_df.chr.map(str) + ':' + regions_df.start.map(str) + '-' + regions_df.end.map(str)
 					regions_df['job'] = 1
 					regions_df['cpu'] = 1
-					regions_df = regions_df[['chr','start','end','region','id','job','cpu']].reset_index(drop=True)
+					regions_df = regions_df[['chr','start','end','region','id','job','cpu']]
 					regions_df.drop_duplicates(inplace=True)
 					regions_df.sort_values(by=['chr','start'],inplace=True)
 					regions_df.reset_index(drop=True,inplace=True)

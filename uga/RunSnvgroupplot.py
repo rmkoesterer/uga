@@ -49,7 +49,6 @@ def RunSnvgroupplot(args):
 	print "importing data"
 	r = pd.read_table(cfg['file'],sep='\t',skiprows=skip_rows,usecols=cols_extract,compression='gzip')
 	print str(r.shape[0]) + " total groups found"
-
 	for pcol in pcols:
 		if len(re.findall('.p$',pcol)) > 0:
 			if pcol.replace('.p','.cmaf') in cmafcols:
@@ -74,17 +73,18 @@ def RunSnvgroupplot(args):
 		l = np.median(scipy.chi2.ppf([1-x for x in results[pcol].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 		# in R: median(qchisq(results$p, df=1, lower.tail=FALSE))/qchisq(0.5,1)
 		print "   genomic inflation (all variants) = " + str(l)
-
 		if cfg['qq']:
 			print "   generating standard qq plot"
+			print "   minimum p-value: " + str(np.min(results[pcol]))
 			a = -1 * np.log10(ro.r('ppoints(' + str(len(results.index)) + ')'))
-			a.sort_values(inplace=True)
+			a.sort()
 			results.sort_values(by=['logp'], inplace=True)
+			print "   maximum -1*log10(p-value): " + str(np.max(results['logp']))
 
 			ci_upper = -1 * np.log10(scipy.beta.ppf(0.95, range(1,len(results[pcol]) + 1), range(len(results[pcol]),0,-1)))
-			ci_upper.sort_values(inplace=True)
+			ci_upper.sort()
 			ci_lower = -1 * np.log10(scipy.beta.ppf(0.05, range(1,len(results[pcol]) + 1), range(len(results[pcol]),0,-1)))
-			ci_lower.sort_values(inplace=True)
+			ci_lower.sort()
 			
 			ro.globalenv['df'] = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(results['logp']), 'ci_lower': ro.FloatVector(ci_lower), 'ci_upper': ro.FloatVector(ci_upper)})
 			dftext_label = 'lambda %~~% ' + str(l)
@@ -143,11 +143,15 @@ def RunSnvgroupplot(args):
 
 		if cfg['mht']:
 			print "   generating standard manhattan plot"
+			print "   minimum p-value: " + str(np.min(results[pcol]))
+			print "   maximum -1*log10(p-value): " + str(np.max(results['logp']))
 			if not cfg['nogc']:
 				print "   adjusting p-values for genomic inflation for p-value column " + pcol
 				results[pcol]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*results[pcol]) / math.sqrt(l)))
+				print "   minimum post-gc adjustment p-value: " + str(np.min(results[pcol]))
+				print "   maximum post-gc adjustment -1*log10(p-value): " + str(np.max(results['logp']))
 			else:
-				print "   skipping genomic inflation correction for p-value column " + pcol
+				print "   skipping genomic inflation correction"
 
 			print "   calculating genomic positions"
 			results.sort_values(by=['#chr','pos'], inplace=True)
@@ -200,7 +204,7 @@ def RunSnvgroupplot(args):
 					if i == 0:
 						results.loc[results['#chr'] == chrs[i],'gpos'] = results.loc[results['#chr'] == chrs[i],'pos']
 					else:
-						lastbase = lastbase + results.loc[results['#chr'] == chrs[i-1],'pos'].iget(-1)
+						lastbase = lastbase + results.loc[results['#chr'] == chrs[i-1],'pos'].iloc[-1]
 						results.loc[results['#chr'] == chrs[i],'gpos'] = (results.loc[results['#chr'] == chrs[i],'pos']) + lastbase
 					ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[(int(math.floor(len(results.loc[results['#chr'] == chrs[i],'gpos']))/2)) + 1])
 					results.loc[results['#chr'] == chrs[i],'colours'] = colours[int(chrs[i])]
