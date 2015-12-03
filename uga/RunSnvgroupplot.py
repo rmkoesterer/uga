@@ -78,13 +78,13 @@ def RunSnvgroupplot(args):
 		if cfg['qq']:
 			print "   generating standard qq plot"
 			a = -1 * np.log10(ro.r('ppoints(' + str(len(results.index)) + ')'))
-			a.sort()
+			a.sort_values(inplace=True)
 			results.sort_values(by=['logp'], inplace=True)
 
 			ci_upper = -1 * np.log10(scipy.beta.ppf(0.95, range(1,len(results[pcol]) + 1), range(len(results[pcol]),0,-1)))
-			ci_upper.sort()
+			ci_upper.sort_values(inplace=True)
 			ci_lower = -1 * np.log10(scipy.beta.ppf(0.05, range(1,len(results[pcol]) + 1), range(len(results[pcol]),0,-1)))
-			ci_lower.sort()
+			ci_lower.sort_values(inplace=True)
 			
 			ro.globalenv['df'] = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(results['logp']), 'ci_lower': ro.FloatVector(ci_lower), 'ci_upper': ro.FloatVector(ci_upper)})
 			dftext_label = 'lambda %~~% ' + str(l)

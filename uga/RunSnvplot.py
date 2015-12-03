@@ -24,6 +24,7 @@ import readline
 import rpy2.robjects as ro
 import pandas.rpy.common as py2r
 import logging
+import re
 
 logging.basicConfig(format='%(asctime)s - %(processName)s - %(name)s - %(message)s',level=logging.DEBUG)
 logger = logging.getLogger("RunSnvplot")
@@ -43,7 +44,7 @@ def RunSnvplot(args):
 	header = [x for x in handle.header]
 	skip_rows = len(header)-1
 	cols = header[-1].split()
-	pcols = [x for x in cols if x == 'p' or '.p' in x] if cfg['pcol'] is not None else cfg['pcol']
+	pcols = [x for x in cols if x == 'p' or len(re.findall('.p$',x)) > 0] if cfg['pcol'] is None else [cfg['pcol']]
 	cols_extract = ['#chr','pos','freq'] + pcols
 	print "importing data"
 	r = pd.read_table(cfg['file'],sep='\t',skiprows=skip_rows,usecols=cols_extract,compression='gzip')
@@ -165,11 +166,12 @@ def RunSnvplot(args):
 			a = np.array([])
 			b = np.array([])
 			c = np.array([])
+			results.sort_values(by=['logp'], inplace=True)
 			if len(results[results['MAF'] == 'E'].index) > 0:
 				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'E'].index)) + ')'))
 				aa.sort()
 				bb = results['logp'][results['MAF'] == 'E']
-				bb.sort()
+				#bb.sort()
 				cc = results['MAF'][results['MAF'] == 'E']
 				a = np.append(a,aa)
 				b = np.append(b,bb)
@@ -178,7 +180,7 @@ def RunSnvplot(args):
 				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'D'].index)) + ')'))
 				aa.sort()
 				bb = results['logp'][results['MAF'] == 'D']
-				bb.sort()
+				#bb.sort()
 				cc = results['MAF'][results['MAF'] == 'D']
 				a = np.append(a,aa)
 				b = np.append(b,bb)
@@ -187,7 +189,7 @@ def RunSnvplot(args):
 				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'C'].index)) + ')'))
 				aa.sort()
 				bb = results['logp'][results['MAF'] == 'C']
-				bb.sort()
+				#bb.sort()
 				cc = results['MAF'][results['MAF'] == 'C']
 				a = np.append(a,aa)
 				b = np.append(b,bb)
@@ -196,7 +198,7 @@ def RunSnvplot(args):
 				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'B'].index)) + ')'))
 				aa.sort()
 				bb = results['logp'][results['MAF'] == 'B']
-				bb.sort()
+				#bb.sort()
 				cc = results['MAF'][results['MAF'] == 'B']
 				a = np.append(a,aa)
 				b = np.append(b,bb)
@@ -205,7 +207,7 @@ def RunSnvplot(args):
 				aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['MAF'] == 'A'].index)) + ')'))
 				aa.sort()
 				bb = results['logp'][results['MAF'] == 'A']
-				bb.sort()
+				#bb.sort()
 				cc = results['MAF'][results['MAF'] == 'A']
 				a = np.append(a,aa)
 				b = np.append(b,bb)
@@ -320,7 +322,7 @@ def RunSnvplot(args):
 					if i == 0:
 						results.loc[results['#chr'] == chrs[i],'gpos'] = results.loc[results['#chr'] == chrs[i],'pos']
 					else:
-						lastbase = lastbase + results.loc[results['#chr'] == chrs[i-1],'pos'].iget(-1)
+						lastbase = lastbase + results.loc[results['#chr'] == chrs[i-1],'pos'].iloc[-1]
 						results.loc[results['#chr'] == chrs[i],'gpos'] = (results.loc[results['#chr'] == chrs[i],'pos']) + lastbase
 					ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[(int(math.floor(len(results.loc[results['#chr'] == chrs[i],'gpos']))/2)) + 1])
 					results.loc[results['#chr'] == chrs[i],'colours'] = colours[int(chrs[i])]

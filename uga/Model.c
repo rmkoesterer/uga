@@ -46016,7 +46016,7 @@ static PyObject *__pyx_pf_3uga_5Model_SkatMeta(CYTHON_UNUSED PyObject *__pyx_sel
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])             # <<<<<<<<<<<<<<
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  */
   __pyx_t_8 = PyList_New(0); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1055; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_8);
@@ -46095,7 +46095,7 @@ static PyObject *__pyx_pf_3uga_5Model_SkatMeta(CYTHON_UNUSED PyObject *__pyx_sel
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:             # <<<<<<<<<<<<<<
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:
  */
   __pyx_t_1 = PyNumber_Add(__pyx_v_tag, __pyx_kp_s_incl); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1056; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -46129,7 +46129,7 @@ static PyObject *__pyx_pf_3uga_5Model_SkatMeta(CYTHON_UNUSED PyObject *__pyx_sel
     /* "uga/Model.pyx":1057
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"             # <<<<<<<<<<<<<<
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"             # <<<<<<<<<<<<<<
  * 		try:
  * 			ro.globalenv['result'] = ro.r(cmd)
  */
@@ -46211,6 +46211,14 @@ static PyObject *__pyx_pf_3uga_5Model_SkatMeta(CYTHON_UNUSED PyObject *__pyx_sel
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     __pyx_t_5 = __Pyx_PyInt_From_unsigned_int(__pyx_v_obj->timeout); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1057; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_5);
+    __pyx_t_8 = PyTuple_New(1); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1057; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __Pyx_GOTREF(__pyx_t_8);
+    __Pyx_GIVEREF(__pyx_t_5);
+    PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_5);
+    __pyx_t_5 = 0;
+    __pyx_t_5 = __Pyx_PyObject_Call(((PyObject *)(&PyString_Type)), __pyx_t_8, NULL); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1057; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __Pyx_GOTREF(__pyx_t_5);
+    __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
     __pyx_t_8 = PyNumber_Add(__pyx_t_1, __pyx_t_5); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1057; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_8);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
@@ -46223,7 +46231,7 @@ static PyObject *__pyx_pf_3uga_5Model_SkatMeta(CYTHON_UNUSED PyObject *__pyx_sel
 
     /* "uga/Model.pyx":1058
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:             # <<<<<<<<<<<<<<
  * 			ro.globalenv['result'] = ro.r(cmd)
  * 		except RRuntimeError as rerr:
@@ -46236,7 +46244,7 @@ static PyObject *__pyx_pf_3uga_5Model_SkatMeta(CYTHON_UNUSED PyObject *__pyx_sel
       /*try:*/ {
 
         /* "uga/Model.pyx":1059
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:
  * 			ro.globalenv['result'] = ro.r(cmd)             # <<<<<<<<<<<<<<
  * 		except RRuntimeError as rerr:
@@ -46283,7 +46291,7 @@ static PyObject *__pyx_pf_3uga_5Model_SkatMeta(CYTHON_UNUSED PyObject *__pyx_sel
 
         /* "uga/Model.pyx":1058
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:             # <<<<<<<<<<<<<<
  * 			ro.globalenv['result'] = ro.r(cmd)
  * 		except RRuntimeError as rerr:
@@ -46908,7 +46916,7 @@ static PyObject *__pyx_pf_3uga_5Model_SkatMeta(CYTHON_UNUSED PyObject *__pyx_sel
 
       /* "uga/Model.pyx":1058
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:             # <<<<<<<<<<<<<<
  * 			ro.globalenv['result'] = ro.r(cmd)
  * 		except RRuntimeError as rerr:
@@ -46925,7 +46933,7 @@ static PyObject *__pyx_pf_3uga_5Model_SkatMeta(CYTHON_UNUSED PyObject *__pyx_sel
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:             # <<<<<<<<<<<<<<
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:
  */
     goto __pyx_L8;
@@ -47611,7 +47619,7 @@ static PyObject *__pyx_pf_3uga_5Model_2SkatoMeta(CYTHON_UNUSED PyObject *__pyx_s
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])             # <<<<<<<<<<<<<<
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  */
   __pyx_t_8 = PyList_New(0); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1096; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_8);
@@ -47690,7 +47698,7 @@ static PyObject *__pyx_pf_3uga_5Model_2SkatoMeta(CYTHON_UNUSED PyObject *__pyx_s
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:             # <<<<<<<<<<<<<<
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:
  */
   __pyx_t_1 = PyNumber_Add(__pyx_v_tag, __pyx_kp_s_incl); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1097; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -47724,7 +47732,7 @@ static PyObject *__pyx_pf_3uga_5Model_2SkatoMeta(CYTHON_UNUSED PyObject *__pyx_s
     /* "uga/Model.pyx":1098
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"             # <<<<<<<<<<<<<<
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"             # <<<<<<<<<<<<<<
  * 		try:
  * 			ro.globalenv['result'] = ro.r(cmd)
  */
@@ -47828,6 +47836,14 @@ static PyObject *__pyx_pf_3uga_5Model_2SkatoMeta(CYTHON_UNUSED PyObject *__pyx_s
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     __pyx_t_5 = __Pyx_PyInt_From_unsigned_int(__pyx_v_obj->timeout); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1098; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_5);
+    __pyx_t_8 = PyTuple_New(1); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1098; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __Pyx_GOTREF(__pyx_t_8);
+    __Pyx_GIVEREF(__pyx_t_5);
+    PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_5);
+    __pyx_t_5 = 0;
+    __pyx_t_5 = __Pyx_PyObject_Call(((PyObject *)(&PyString_Type)), __pyx_t_8, NULL); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1098; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __Pyx_GOTREF(__pyx_t_5);
+    __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
     __pyx_t_8 = PyNumber_Add(__pyx_t_1, __pyx_t_5); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1098; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_8);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
@@ -47840,7 +47856,7 @@ static PyObject *__pyx_pf_3uga_5Model_2SkatoMeta(CYTHON_UNUSED PyObject *__pyx_s
 
     /* "uga/Model.pyx":1099
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:             # <<<<<<<<<<<<<<
  * 			ro.globalenv['result'] = ro.r(cmd)
  * 		except RRuntimeError as rerr:
@@ -47853,7 +47869,7 @@ static PyObject *__pyx_pf_3uga_5Model_2SkatoMeta(CYTHON_UNUSED PyObject *__pyx_s
       /*try:*/ {
 
         /* "uga/Model.pyx":1100
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:
  * 			ro.globalenv['result'] = ro.r(cmd)             # <<<<<<<<<<<<<<
  * 		except RRuntimeError as rerr:
@@ -47900,7 +47916,7 @@ static PyObject *__pyx_pf_3uga_5Model_2SkatoMeta(CYTHON_UNUSED PyObject *__pyx_s
 
         /* "uga/Model.pyx":1099
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:             # <<<<<<<<<<<<<<
  * 			ro.globalenv['result'] = ro.r(cmd)
  * 		except RRuntimeError as rerr:
@@ -48618,7 +48634,7 @@ static PyObject *__pyx_pf_3uga_5Model_2SkatoMeta(CYTHON_UNUSED PyObject *__pyx_s
 
       /* "uga/Model.pyx":1099
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:             # <<<<<<<<<<<<<<
  * 			ro.globalenv['result'] = ro.r(cmd)
  * 		except RRuntimeError as rerr:
@@ -48635,7 +48651,7 @@ static PyObject *__pyx_pf_3uga_5Model_2SkatoMeta(CYTHON_UNUSED PyObject *__pyx_s
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:             # <<<<<<<<<<<<<<
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:
  */
     goto __pyx_L8;
@@ -49370,7 +49386,7 @@ static PyObject *__pyx_pf_3uga_5Model_4BurdenMeta(CYTHON_UNUSED PyObject *__pyx_
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])             # <<<<<<<<<<<<<<
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
+ * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
  */
   __pyx_t_8 = PyList_New(0); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1141; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_t_8);
@@ -49449,7 +49465,7 @@ static PyObject *__pyx_pf_3uga_5Model_4BurdenMeta(CYTHON_UNUSED PyObject *__pyx_
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:             # <<<<<<<<<<<<<<
- * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
+ * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
  * 		try:
  */
   __pyx_t_1 = PyNumber_Add(__pyx_v_tag, __pyx_kp_s_incl); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1142; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -49483,7 +49499,7 @@ static PyObject *__pyx_pf_3uga_5Model_4BurdenMeta(CYTHON_UNUSED PyObject *__pyx_
     /* "uga/Model.pyx":1143
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'             # <<<<<<<<<<<<<<
+ * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'             # <<<<<<<<<<<<<<
  * 		try:
  * 			ro.globalenv['result'] = ro.r(cmd)
  */
@@ -49559,6 +49575,14 @@ static PyObject *__pyx_pf_3uga_5Model_4BurdenMeta(CYTHON_UNUSED PyObject *__pyx_
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     __pyx_t_5 = __Pyx_PyInt_From_unsigned_int(__pyx_v_obj->timeout); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1143; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_5);
+    __pyx_t_8 = PyTuple_New(1); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1143; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __Pyx_GOTREF(__pyx_t_8);
+    __Pyx_GIVEREF(__pyx_t_5);
+    PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_5);
+    __pyx_t_5 = 0;
+    __pyx_t_5 = __Pyx_PyObject_Call(((PyObject *)(&PyString_Type)), __pyx_t_8, NULL); if (unlikely(!__pyx_t_5)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1143; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __Pyx_GOTREF(__pyx_t_5);
+    __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
     __pyx_t_8 = PyNumber_Add(__pyx_t_1, __pyx_t_5); if (unlikely(!__pyx_t_8)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1143; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_8);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
@@ -49571,7 +49595,7 @@ static PyObject *__pyx_pf_3uga_5Model_4BurdenMeta(CYTHON_UNUSED PyObject *__pyx_
 
     /* "uga/Model.pyx":1144
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
+ * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
  * 		try:             # <<<<<<<<<<<<<<
  * 			ro.globalenv['result'] = ro.r(cmd)
  * 		except RRuntimeError as rerr:
@@ -49584,7 +49608,7 @@ static PyObject *__pyx_pf_3uga_5Model_4BurdenMeta(CYTHON_UNUSED PyObject *__pyx_
       /*try:*/ {
 
         /* "uga/Model.pyx":1145
- * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
+ * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
  * 		try:
  * 			ro.globalenv['result'] = ro.r(cmd)             # <<<<<<<<<<<<<<
  * 		except RRuntimeError as rerr:
@@ -49631,7 +49655,7 @@ static PyObject *__pyx_pf_3uga_5Model_4BurdenMeta(CYTHON_UNUSED PyObject *__pyx_
 
         /* "uga/Model.pyx":1144
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
+ * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
  * 		try:             # <<<<<<<<<<<<<<
  * 			ro.globalenv['result'] = ro.r(cmd)
  * 		except RRuntimeError as rerr:
@@ -50484,7 +50508,7 @@ static PyObject *__pyx_pf_3uga_5Model_4BurdenMeta(CYTHON_UNUSED PyObject *__pyx_
 
       /* "uga/Model.pyx":1144
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
+ * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
  * 		try:             # <<<<<<<<<<<<<<
  * 			ro.globalenv['result'] = ro.r(cmd)
  * 		except RRuntimeError as rerr:
@@ -50501,7 +50525,7 @@ static PyObject *__pyx_pf_3uga_5Model_4BurdenMeta(CYTHON_UNUSED PyObject *__pyx_
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:             # <<<<<<<<<<<<<<
- * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
+ * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
  * 		try:
  */
     goto __pyx_L8;
@@ -58681,7 +58705,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])             # <<<<<<<<<<<<<<
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  */
   __pyx_tuple__353 = PyTuple_Pack(1, __pyx_kp_s__116); if (unlikely(!__pyx_tuple__353)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1055; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_tuple__353);
@@ -58691,7 +58715,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:             # <<<<<<<<<<<<<<
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:
  */
   __pyx_tuple__354 = PyTuple_Pack(1, __pyx_kp_s__116); if (unlikely(!__pyx_tuple__354)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1056; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -58907,7 +58931,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])             # <<<<<<<<<<<<<<
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  */
   __pyx_tuple__384 = PyTuple_Pack(1, __pyx_kp_s__116); if (unlikely(!__pyx_tuple__384)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1096; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_tuple__384);
@@ -58917,7 +58941,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:             # <<<<<<<<<<<<<<
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
  * 		try:
  */
   __pyx_tuple__385 = PyTuple_Pack(1, __pyx_kp_s__116); if (unlikely(!__pyx_tuple__385)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1097; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
@@ -58927,7 +58951,7 @@ static int __Pyx_InitCachedConstants(void) {
   /* "uga/Model.pyx":1098
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"             # <<<<<<<<<<<<<<
+ * 		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"             # <<<<<<<<<<<<<<
  * 		try:
  * 			ro.globalenv['result'] = ro.r(cmd)
  */
@@ -59183,7 +59207,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])             # <<<<<<<<<<<<<<
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:
- * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
+ * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
  */
   __pyx_tuple__420 = PyTuple_Pack(1, __pyx_kp_s__116); if (unlikely(!__pyx_tuple__420)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1141; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_tuple__420);
@@ -59193,7 +59217,7 @@ static int __Pyx_InitCachedConstants(void) {
  * 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
  * 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
  * 	if str(results[tag + '.incl'][0]).count('+') > 1:             # <<<<<<<<<<<<<<
- * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
+ * 		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
  * 		try:
  */
   __pyx_tuple__421 = PyTuple_Pack(1, __pyx_kp_s__116); if (unlikely(!__pyx_tuple__421)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 1142; __pyx_clineno = __LINE__; goto __pyx_L1_error;}

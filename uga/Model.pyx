@@ -1054,7 +1054,7 @@ def SkatMeta(Skat obj, tag, meta, meta_incl):
 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
 	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
 		try:
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
@@ -1095,7 +1095,7 @@ def SkatoMeta(Skato obj, tag, meta, meta_incl):
 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
 	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + obj.timeout + ") }, error = function(e) return(1))"
+		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
 		try:
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
@@ -1140,7 +1140,7 @@ def BurdenMeta(Burden obj, tag, meta, meta_incl):
 	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
 	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
 	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + obj.timeout + ') }, error = function(e) return(1))'
+		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
 		try:
 			ro.globalenv['result'] = ro.r(cmd)
 		except RRuntimeError as rerr:
