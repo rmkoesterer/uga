@@ -87,6 +87,7 @@ cdef class Model(object):
 		# :					x:y					estimates: the global effect of the interaction between x and y
 		# *					x*y					estimates: the global effect of x, y, and the interaction between x and y
 		# factor			factor(x)			specify x as a categorical variable (factor)
+		# snv				snv					placeholder for snv (will be replaced with each snv during iteration and can be used in an interaction)
 		for x in [a for a in list(set([b for b in re_split('~|\+|-|\*|:|factor|\(|\)',self.formula) if b not in ['1','0']])) if a != '']:
 			mtype = "dependent" if x in re_split('factor|\(|\)',re_split('~',self.formula)[0]) else "independent"
 			if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
@@ -94,7 +95,7 @@ cdef class Model(object):
 			else:
 				self.fields[x] = {'class': 'numeric', 'type': mtype, 'dtype': '>f8'}
 
-		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'variant'])))
+		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'snv'])))
 
 		self.male_idx = np.array([])
 		self.female_idx = np.array([])
@@ -130,7 +131,7 @@ cdef class Model(object):
 			for x in self.fields:
 				if x in self.pheno.dtype.names:
 					print "   %s variable %s found" % (self.fields[x]['type'], x)
-				elif x in ['variant','variant1','variant2','variant.interact']:
+				elif x == 'snv':
 					print "   %s variable %s skipped" % (self.fields[x]['type'], x)
 				else:
 					raise Process.Error("column " + x + " not found in phenotype file " + self.pheno_file)
@@ -318,11 +319,11 @@ cdef class SnvModel(Model):
 		super(SnvModel, self).__init__(**kwargs)
 		self.tbx_start = 1
 		self.tbx_end = 1
-		self.results_header = np.array(['chr','pos','variant','a1','a2','filter','callrate','rsq','hwe','mac','freq','freq.case','freq.ctrl'])
+		self.results_header = np.array(['chr','pos','snv','a1','a2','filter','callrate','rsq','hwe','mac','freq','freq.case','freq.ctrl'])
 
 		self.metadata_snv = '## chr: chromosome' + '\n' + \
 							'## pos: chromosomal position' + '\n' + \
-							'## variant: variant name' + '\n' + \
+							'## snv: snv name' + '\n' + \
 							'## a1: reference (coded) allele used for stat calculations' + '\n' + \
 							'## a2: alternate (non-coded) allele' + '\n' + \
 							'## filter: filter code (+1 = failed hwe, +10 = failed rsq, +100 = failed mac, +1000 = failed maf, +10000 = failed miss' + '\n' + \
@@ -396,17 +397,14 @@ cdef class Score(SnvModel):
 		super(Score, self).__init__(**kwargs)
 		print "setting score test family option to " + self.family
 
-		# set variant as the focus variable (which is only statistic provided by singlesnpMeta())
-		# to get list of model variables from R, use
-		# self.focus = np.array([x for x in list(ro.r('labels')(ro.r('terms')(ro.r('formula')(self.formula)))) if 'variant' in x])
-		self.focus = np.array(['variant'])
+		self.focus = np.array(['snv'])
 
 		if len(self.focus) > 1:
 			for x in self.focus:
 				self.results_header = np.append(self.results_header,np.array([x + '.err',x + '.nmiss',x + '.ntotal',x + '.effect',x + '.stderr',x + '.or',x + '.p']))
 		else:
 			self.results_header = np.append(self.results_header,np.array(['err','nmiss','ntotal','effect','stderr','or','p']))
-		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'variant'])))
+		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'snv'])))
 
 		print "loading R package seqMeta"
 		ro.r('suppressMessages(library(seqMeta))')
@@ -490,15 +488,15 @@ cdef class Gee(SnvModel):
 		print "setting gee test family option to " + self.family
 
 		# to get list of model variables from R, use
-		# self.focus = np.array([x for x in list(ro.r('labels')(ro.r('terms')(ro.r('formula')(self.formula)))) if 'variant' in x])
-		self.focus = np.array(['variant'])
+		# self.focus = np.array([x for x in list(ro.r('labels')(ro.r('terms')(ro.r('formula')(self.formula)))) if 'snv' in x])
+		self.focus = np.array(['snv'])
 
 		if len(self.focus) > 1:
 			for x in self.focus:
 				self.results_header = np.append(self.results_header,np.array([x + '.err',x + '.effect',x + '.stderr',x + '.or',x + '.wald',x + '.p']))
 		else:
 			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','or','wald','p']))
-		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'variant'])))
+		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'snv'])))
 
 		print "loading R package geepack"
 		ro.r('suppressMessages(library(geepack))')
@@ -570,15 +568,15 @@ cdef class Glm(SnvModel):
 		print "setting glm test family option to " + self.family
 
 		# to get list of model variables from R, use
-		# self.focus = np.array([x for x in list(ro.r('labels')(ro.r('terms')(ro.r('formula')(self.formula)))) if 'variant' in x])
-		self.focus = np.array(['variant'])
+		# self.focus = np.array([x for x in list(ro.r('labels')(ro.r('terms')(ro.r('formula')(self.formula)))) if 'snv' in x])
+		self.focus = np.array(['snv'])
 
 		if len(self.focus) > 1:
 			for x in self.focus:
 				self.results_header = np.append(self.results_header,np.array([x + '.err',x + '.effect',x + '.stderr',x + '.or',x + '.z',x + '.p']))
 		else:
 			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','or','z','p']))
-		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'variant'])))
+		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'snv'])))
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata_snv = self.metadata_snv + '\n' + self.metadata_snv_cc if self.family == 'binomial' else self.metadata_snv
@@ -644,15 +642,15 @@ cdef class Lm(SnvModel):
 		super(Lm, self).__init__(**kwargs)
 
 		# to get list of model variables from R, use
-		# self.focus = np.array([x for x in list(ro.r('labels')(ro.r('terms')(ro.r('formula')(self.formula)))) if 'variant' in x])
-		self.focus = np.array(['variant'])
+		# self.focus = np.array([x for x in list(ro.r('labels')(ro.r('terms')(ro.r('formula')(self.formula)))) if 'snv' in x])
+		self.focus = np.array(['snv'])
 
 		if len(self.focus) > 1:
 			for x in self.focus:
 				self.results_header = np.append(self.results_header,np.array([x + '.err',x + '.effect',x + '.stderr',x + '.t',x + '.p']))
 		else:
 			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','t','p']))
-		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'variant'])))
+		self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'snv'])))
 
 		self.metadata = self.metadata + '\n' + \
 						self.metadata_snv + '\n' + \

@@ -136,6 +136,9 @@ def process_regions(regions_df, cfg, cpu, log):
 			h2 = [x for x in results_region if x not in ['chr','start','end','id']]
 			for meta in cfg['meta_order']:
 				meta_result = getattr(Model,cfg['models'][cfg['meta'][meta].split('+')[0]]['fxn'].capitalize() + 'Meta')(models_obj[cfg['meta'][meta].split('+')[0]], meta, cfg['meta'][meta], meta_incl)
+				print meta
+				print cfg['meta'][meta]
+				print meta_result
 				h1 = h1 + [x for x in meta_result.columns.values]
 				results_region = pd.concat([results_region,meta_result], axis=1)
 			h = h1 + h2

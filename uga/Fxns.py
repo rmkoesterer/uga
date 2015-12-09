@@ -112,10 +112,8 @@ def compile_results(directory, files):
 	for o in out:
 		print "mapping compiled file " + o
 		files_o = files[files['out'] == o].reset_index(drop=True)
-		p7 = subprocess.Popen(['tabix','-H',directory + '/' + files.iloc[0]['file']], stdout=subprocess.PIPE)
-		header_full = p7.communicate()[0].splitlines()
-		p7.wait()
-		header = header_full[-1].split()
+		h=pysam.TabixFile(filename=directory + '/' + files.iloc[0]['file'],parser=pysam.asTuple())
+		header = [x for x in h.header][-1].split()
 		if header[1] == 'pos':
 			b = 1
 			e = 1
