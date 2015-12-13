@@ -58,7 +58,7 @@ def snv_args(snv_parser):
 	snv_parser.add_argument('--out', 
 						action=AddString, 
 						help='output file basename (do not include path or extension)')
-	snv_parser.add_argument('--pheno', 
+	snv_parser.add_argument('--ped', 
 						action=AddString, 
 						help='phenotype file')
 	snv_parser.add_argument('--cpus', 
@@ -85,6 +85,18 @@ def snv_args(snv_parser):
 						action=AddString, 
 						choices=['tab','space','comma'], 
 						help='phenotype file delimiter (default: tab)')
+	snv_parser.add_argument('--pheno', 
+						action=AddString, 
+						help='phenotype')
+	snv_parser.add_argument('--covars', 
+						action=AddString, 
+						help='comma separated list of numeric covariates')
+	snv_parser.add_argument('--covars-categorical', 
+						action=AddString, 
+						help='comma separated list of categorical covariates')
+	snv_parser.add_argument('--interact', 
+						action=AddString, 
+						help='a variable to include in a snv interaction term (if used, the p value for the interaction will be reported: --interact AGE -> SNV*AGE)')
 	snv_parser.add_argument('--sample', 
 						action=AddString, 
 						help='sample file (not required for vcf format files)')
@@ -187,20 +199,24 @@ def snv_args(snv_parser):
 						type=int, 
 						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
 	snv_parser.add_argument('--score', 
-						action=AddString, 
-						help='model string for score test (singlesnpMeta)')
+						nargs=0, 
+						action=AddTrue,
+						help='score test (singlesnpMeta)')
 	snv_parser.add_argument('--gee', 
-						action=AddString, 
-						help='model string for gee test (R geepack geeglm function)')
+						nargs=0, 
+						action=AddTrue,
+						help='gee test (R geepack geeglm function)')
 	snv_parser.add_argument('--corstr', 
 						action=AddString, 
 						help='correlation structure for gee test (default: exchangeable)')
 	snv_parser.add_argument('--glm', 
-						action=AddString, 
-						help='model string for glm test')
+						nargs=0, 
+						action=AddTrue,
+						help='glm test')
 	snv_parser.add_argument('--lm', 
-						action=AddString, 
-						help='model string for lm test')
+						nargs=0, 
+						action=AddTrue,
+						help='lm test')
 	snv_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 
@@ -211,7 +227,7 @@ def snvgroup_args(snvgroup_parser):
 	snvgroup_parser.add_argument('--out', 
 						action=AddString, 
 						help='output file basename (do not include path or extension)')
-	snvgroup_parser.add_argument('--pheno', 
+	snvgroup_parser.add_argument('--ped', 
 						action=AddString, 
 						help='phenotype file')
 	snvgroup_parser.add_argument('--cpus', 
@@ -241,6 +257,15 @@ def snvgroup_args(snvgroup_parser):
 	snvgroup_parser.add_argument('--sample', 
 						action=AddString, 
 						help='sample file (not required for vcf format files)')
+	snvgroup_parser.add_argument('--pheno', 
+						action=AddString, 
+						help='phenotype')
+	snvgroup_parser.add_argument('--covars', 
+						action=AddString, 
+						help='comma separated list of numeric covariates')
+	snvgroup_parser.add_argument('--covars-categorical', 
+						action=AddString, 
+						help='comma separated list of categorical covariates')
 	snvgroup_parser.add_argument('--sex', 
 						action=AddString, 
 						help='name of the column containing male/female status (requires --male and --female)')
@@ -344,11 +369,13 @@ def snvgroup_args(snvgroup_parser):
 						type=int, 
 						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
 	snvgroup_parser.add_argument('--skat', 
-						action=AddString, 
-						help='model string for skat (skatMeta)')
+						nargs=0, 
+						action=AddTrue,
+						help='skat test (skatMeta)')
 	snvgroup_parser.add_argument('--skato', 
-						action=AddString, 
-						help='model string for skato (skatOMeta)')
+						nargs=0, 
+						action=AddTrue,
+						help='skato test (skatOMeta)')
 	snvgroup_parser.add_argument('--skat-wts', 
 						action=AddString, 
 						help='skat weights (default: beta weights: function(maf){dbeta(maf,1,25)})')
@@ -366,8 +393,9 @@ def snvgroup_args(snvgroup_parser):
 						type=int, 
 						help='timeout in seconds for model test function (default: 3600)')
 	snvgroup_parser.add_argument('--burden', 
-						action=AddString, 
-						help='model string for burden (burdenMeta)')
+						nargs=0, 
+						action=AddTrue,
+						help='burden test (burdenMeta)')
 	snvgroup_parser.add_argument('--mafrange', 
 						action=AddString, 
 						help='maf range for snv group tests which is different from --maxmaf and --maf since it is to be calculated before and during meta analysis (default: all snvs c(0,0.5))')

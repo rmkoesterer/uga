@@ -48,13 +48,31 @@ def process_regions(regions_df, cfg, cpu, log):
 	for n in cfg['model_order']:
 		print "\nloading model " + n if n != '___no_tag___' else "\nloading model"
 		try:
-			models_obj[n] = getattr(Model,cfg['models'][n]['fxn'].capitalize())(fxn=cfg['models'][n]['fxn'],snvgroup_map=cfg['snvgroup_map'],formula=cfg['models'][n]['formula'],format=cfg['models'][n]['format'],
-									skat_wts=cfg['models'][n]['skat_wts'],burden_wts=cfg['models'][n]['burden_wts'],skat_method=cfg['models'][n]['skat_method'],
-									mafrange=cfg['models'][n]['mafrange'],timeout=cfg['timeout'],
-									all_founders=cfg['models'][n]['all_founders'],case_code=cfg['models'][n]['case_code'],ctrl_code=cfg['models'][n]['ctrl_code'],
-									pheno_file=cfg['models'][n]['pheno'],variants_file=cfg['models'][n]['file'],type=cfg['models'][n]['fxn'],fid=cfg['models'][n]['fid'],
-									iid=cfg['models'][n]['iid'],matid=cfg['models'][n]['matid'],patid=cfg['models'][n]['patid'],sex=cfg['models'][n]['sex'],
-									male=cfg['models'][n]['male'],female=cfg['models'][n]['female'],pheno_sep=cfg['models'][n]['sep'])
+			models_obj[n] = getattr(Model,cfg['models'][n]['fxn'].capitalize())(fxn=cfg['models'][n]['fxn'], 
+																				snvgroup_map=cfg['snvgroup_map'], 
+																				pheno=cfg['models'][n]['pheno'], 
+																				covars=cfg['models'][n]['covars'], 
+																				covars_categorical=cfg['models'][n]['covars_categorical'],
+																				format=cfg['models'][n]['format'], 
+																				skat_wts=cfg['models'][n]['skat_wts'], 
+																				burden_wts=cfg['models'][n]['burden_wts'], 
+																				skat_method=cfg['models'][n]['skat_method'], 
+																				mafrange=cfg['models'][n]['mafrange'], 
+																				timeout=cfg['timeout'], 
+																				all_founders=cfg['models'][n]['all_founders'], 
+																				case_code=cfg['models'][n]['case_code'], 
+																				ctrl_code=cfg['models'][n]['ctrl_code'], 
+																				ped=cfg['models'][n]['ped'], 
+																				variants_file=cfg['models'][n]['file'], 
+																				type=cfg['models'][n]['fxn'], 
+																				fid=cfg['models'][n]['fid'], 
+																				iid=cfg['models'][n]['iid'], 
+																				matid=cfg['models'][n]['matid'], 
+																				patid=cfg['models'][n]['patid'], 
+																				sex=cfg['models'][n]['sex'], 
+																				male=cfg['models'][n]['male'], 
+																				female=cfg['models'][n]['female'], 
+																				sep=cfg['models'][n]['sep'])
 		except Process.Error as err:
 			print err.out
 			return 1

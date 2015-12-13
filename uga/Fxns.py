@@ -22,6 +22,7 @@ import glob
 import os
 from Bio import bgzf
 import pysam
+import gzip
 
 def get_delimiter(d):
 	if d == 'tab':
@@ -81,7 +82,8 @@ def compile_results(directory, files):
 		bgzfile[o].close()
 
 	print "compiling log files"
-	logfile = file(directory + '/' + directory + '.log', 'w')
+	summary = file(directory + '/' + directory + '.summary', 'w')
+	logs = file(directory + '/' + directory + '.logs', 'w')
 	files_o = files[files['out'] == out[0]].reset_index(drop=True)
 	pbar = ProgressBar(maxval=files_o.shape[0], widgets = ['   processed ', Counter(), ' of ' + str(files_o.shape[0]) + ' results (', Timer(), ')'])
 	pbar.start()
@@ -89,26 +91,30 @@ def compile_results(directory, files):
 		f = directory + '/' + row['file']
 		lf = glob.glob('/'.join(f.split('/')[0:len(f.split('/'))-1]) + "/*.log")
 		if j+1 == 1:
-			p3 = subprocess.Popen(['cat',lf[0]], stdout=subprocess.PIPE)
-			p4 = subprocess.Popen(['awk','{print \"      \"$0}'], stdin=p3.stdout, stdout=subprocess.PIPE)
-			logfile.write('Sample log file from ' + lf[0] + '\n\n')
-			logfile.write(p4.communicate()[0])
-			p3.wait()
-			p4.wait()
-			logfile.write('\nElapsed time and max memory used for each job in list\n\n')
-		p5 = subprocess.Popen(['grep','time elapsed:',lf[0]], stdout=subprocess.PIPE)
-		elap = p5.communicate()[0].strip()
-		p5.wait()
-		p6 = subprocess.Popen(['grep','max memory used by main process:',lf[0]], stdout=subprocess.PIPE)
-		maxmem = p6.communicate()[0].strip()
-		p6.wait()
-		p7 = subprocess.Popen(['grep','max memory used by any subprocess:',lf[0]], stdout=subprocess.PIPE)
-		maxmemsub = p7.communicate()[0].strip()
-		p7.wait()
-		logfile.write('job ' + str(j+1) + ' - ' + elap + ' - ' + maxmem + ' - ' + maxmemsub + '\n')
+			p1 = subprocess.Popen(['cat',lf[0]], stdout=subprocess.PIPE)
+			p2 = subprocess.Popen(['awk','{print \"      \"$0}'], stdin=p1.stdout, stdout=subprocess.PIPE)
+			summary.write('Sample log file from ' + lf[0] + '\n\n')
+			summary.write(p2.communicate()[0])
+			p1.wait()
+			p2.wait()
+			summary.write('\nElapsed time and max memory used for each job in list\n\n')
+		p = subprocess.Popen(['grep','time elapsed:',lf[0]], stdout=subprocess.PIPE)
+		elap = p.communicate()[0].strip()
+		p.wait()
+		p = subprocess.Popen(['grep','max memory used by main process:',lf[0]], stdout=subprocess.PIPE)
+		maxmem = p.communicate()[0].strip()
+		p.wait()
+		p = subprocess.Popen(['grep','max memory used by any subprocess:',lf[0]], stdout=subprocess.PIPE)
+		maxmemsub = p.communicate()[0].strip()
+		p.wait()
+		summary.write('job ' + str(j+1) + ' - ' + elap + ' - ' + maxmem + ' - ' + maxmemsub + '\n')
+		p = subprocess.Popen(['cat',lf[0]], stdout=subprocess.PIPE)
+		logs.write(p.communicate()[0] + '\n\n')
+		p.wait()
 		pbar.update(j)
 	pbar.finish()
-	logfile.close()
+	summary.close()
+	logs.close()
 	for o in out:
 		print "mapping compiled file " + o
 		files_o = files[files['out'] == o].reset_index(drop=True)

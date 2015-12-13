@@ -22,9 +22,10 @@ import math
 import Process
 import readline
 import rpy2.robjects as ro
-import pandas.rpy.common as py2r
+from rpy2.robjects import pandas2ri
 import logging
 import re
+pandas2ri.activate()
 
 logging.basicConfig(format='%(asctime)s - %(processName)s - %(name)s - %(message)s',level=logging.DEBUG)
 logger = logging.getLogger("RunSnvplot")
@@ -65,7 +66,7 @@ def RunSnvplot(args):
 		results.loc[(results['freq'] >= 0.05) & (results['freq'] <= 0.95),'MAF'] = 'B'
 		results.loc[(results['freq'] >= 0.1) & (results['freq'] <= 0.9),'MAF'] = 'A'
 
-		ro.globalenv['results'] = py2r.convert_to_r_dataframe(results, strings_as_factors=False)
+		ro.globalenv['results'] = results
 		l = np.median(scipy.chi2.ppf([1-x for x in results[pcol].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 		# in R: median(qchisq(results$p, df=1, lower.tail=FALSE))/qchisq(0.5,1)
 		print "   genomic inflation (all variants) = " + str(l)
