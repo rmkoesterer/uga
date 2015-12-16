@@ -1,7 +1,10 @@
 name: uga_python2.7
+channels:
+- https://conda.anaconda.org/rmkoesterer
+- defaults
+- asmeurer
 dependencies:
 - anaconda-client=1.1.2=py27_0
-- binstar=0.12=2
 - biopython=1.66=np110py27_0
 - cairo=1.12.18=5
 - clyent=1.1.0=py27_0
