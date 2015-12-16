@@ -74,8 +74,7 @@ Installation
 ************
 
 This software uses an array of Python modules and R packages. Thus, the easiest method for installation is using a `conda`_ environment.
-The following lists display versions used during development. These modules can be installed easily using the environment.yml file included with
-this distribution as described in the Pre-installation section below.
+The required modules can be installed easily using the environment.yml file included with this distribution as described in the Pre-installation section below.
 
 .. _`conda`: http://conda.pydata.org/docs/
 
@@ -91,11 +90,12 @@ Generating regional plots requires the installation of `locuszoom`_.
 **Pre-Installation**
 
 See the documentation for tips on how to `clone an environment`_ in conda. You will need the included environment.yml file and you will also need to add my 
-`custom anaconda build channel`_ to access some of the required custom built packages. The best way to do this is to add `my channel`_ to your .condarc file.
+`custom anaconda build channel`_ to access some of the required custom built packages. The best way to do this is to add `my channel`_ to your `.condarc`_ file.
 
 .. _`clone an environment`: http://conda.pydata.org/docs/using/envs.html#clone-an-environment
 .. _`custom anaconda build channel`: http://conda.pydata.org/docs/using/pkgs.html#install-a-package-from-anaconda-org
-.. _`my channel`: http://conda.pydata.org/docs/config.html
+.. _`my channel`: https://conda.anaconda.org/rmkoesterer
+.. _`.condarc`: http://conda.pydata.org/docs/config.html
 
 **Installing uga from source**
 
@@ -142,6 +142,10 @@ Contact
 - **Author**: `Ryan Koesterer`_
 
 .. _`Ryan Koesterer`: https://github.com/rmkoesterer/uga
+
+Please report any bugs or issues using the Github `Issues`_ tab on this page. I will respond to all concerns as soon as possible.
+
+.. _`Issues`: https://github.com/rmkoesterer/uga/issues
 
 License
 =======
