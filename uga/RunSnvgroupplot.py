@@ -46,7 +46,7 @@ def RunSnvgroupplot(args):
 	cols = header[-1].split()
 	pcols = [x for x in cols if x == 'p' or len(re.findall('.p$',x)) > 0] if cfg['pcol'] is None else [cfg['pcol']]
 	cmafcols = [x for x in cols if x == 'cmaf' or '.cmaf' in x] if cfg['pcol'] is None else [cfg['pcol'].replace('.p','.cmaf') if len(re.findall('.p$',cfg['pcol'])) > 0 else 'cmaf']
-	cols_extract = ['#chr','start','end','id'] + pcols + cmafcols
+	cols_extract = ['#chr','start','end','group_id'] + pcols + cmafcols
 	print "importing data"
 	r = pd.read_table(cfg['file'],sep='\t',skiprows=skip_rows,usecols=cols_extract,compression='gzip')
 	print str(r.shape[0]) + " total groups found"
@@ -59,7 +59,7 @@ def RunSnvgroupplot(args):
 		else:
 			cmafcol = 'cmaf'
 		print "plotting p-values for column " + pcol + " ..."
-		results = r[['#chr','start','end','id',pcol,cmafcol]].copy()
+		results = r[['#chr','start','end','group_id',pcol,cmafcol]].copy()
 		results.dropna(inplace=True)
 		results = results[(results[pcol] > 0) & (results[pcol] <= 1)]
 		if cfg['cmaf'] > 0:

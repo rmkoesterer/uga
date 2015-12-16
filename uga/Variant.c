@@ -774,7 +774,7 @@ typedef npy_cdouble __pyx_t_5numpy_complex_t;
  * import math
  * 
  * cdef class Variants:             # <<<<<<<<<<<<<<
- * 	cdef public bytes filename, sample_filename, region, id
+ * 	cdef public bytes filename, sample_filename, region, group_id
  * 	cdef public np.ndarray samples
  */
 struct __pyx_obj_3uga_4Geno_Variants {
@@ -783,7 +783,7 @@ struct __pyx_obj_3uga_4Geno_Variants {
   PyObject *filename;
   PyObject *sample_filename;
   PyObject *region;
-  PyObject *id;
+  PyObject *group_id;
   PyArrayObject *samples;
   PyObject *handle;
   PyObject *region_iter;
@@ -848,7 +848,7 @@ struct __pyx_obj_3uga_7Variant___pyx_scope_struct_1_genexpr {
  * import math
  * 
  * cdef class Variants:             # <<<<<<<<<<<<<<
- * 	cdef public bytes filename, sample_filename, region, id
+ * 	cdef public bytes filename, sample_filename, region, group_id
  * 	cdef public np.ndarray samples
  */
 
@@ -1465,6 +1465,7 @@ static char __pyx_k__6[] = "-";
 static char __pyx_k__7[] = "";
 static char __pyx_k_a1[] = "a1";
 static char __pyx_k_a2[] = "a2";
+static char __pyx_k_id[] = "id";
 static char __pyx_k_np[] = "np";
 static char __pyx_k_pd[] = "pd";
 static char __pyx_k__10[] = "_";
@@ -1511,20 +1512,19 @@ static char __pyx_k_xrange[] = "xrange";
 static char __pyx_k_Variant[] = "Variant";
 static char __pyx_k_genexpr[] = "genexpr";
 static char __pyx_k_logging[] = "logging";
-static char __pyx_k_variant[] = "variant";
 static char __pyx_k_calc_hwe[] = "calc_hwe";
 static char __pyx_k_delim_py[] = "delim_py";
 static char __pyx_k_issubset[] = "issubset";
 static char __pyx_k_enumerate[] = "enumerate";
 static char __pyx_k_genotypes[] = "genotypes";
 static char __pyx_k_getLogger[] = "getLogger";
+static char __pyx_k_id_unique[] = "id_unique";
 static char __pyx_k_ValueError[] = "ValueError";
 static char __pyx_k_pyx_vtable[] = "__pyx_vtable__";
 static char __pyx_k_rare_copies[] = "rare_copies";
 static char __pyx_k_uga_Variant[] = "uga.Variant";
 static char __pyx_k_RuntimeError[] = "RuntimeError";
 static char __pyx_k_module_logger[] = "module_logger";
-static char __pyx_k_variant_unique[] = "variant_unique";
 static char __pyx_k_Variant_Ref_update[] = "Variant.Ref.update";
 static char __pyx_k_Variant_Ref___cinit[] = "Variant.Ref.__cinit__";
 static char __pyx_k_calc_hwe_locals_genexpr[] = "calc_hwe.<locals>.genexpr";
@@ -1589,6 +1589,8 @@ static PyObject *__pyx_n_s_hets;
 static PyObject *__pyx_n_s_hom_c;
 static PyObject *__pyx_n_s_hom_r;
 static PyObject *__pyx_n_s_i;
+static PyObject *__pyx_n_s_id;
+static PyObject *__pyx_n_s_id_unique;
 static PyObject *__pyx_n_s_import;
 static PyObject *__pyx_kp_s_initialize_variant_reference;
 static PyObject *__pyx_n_s_isnan;
@@ -1625,8 +1627,6 @@ static PyObject *__pyx_n_s_update;
 static PyObject *__pyx_kp_s_usr3_bustaff_koesterr_uga_uga_V;
 static PyObject *__pyx_n_s_v;
 static PyObject *__pyx_n_s_var;
-static PyObject *__pyx_n_s_variant;
-static PyObject *__pyx_n_s_variant_unique;
 static PyObject *__pyx_n_s_x;
 static PyObject *__pyx_n_s_x_hets;
 static PyObject *__pyx_n_s_x_hom1;
@@ -1803,7 +1803,7 @@ static int __pyx_pf_3uga_7Variant_3Ref___cinit__(struct __pyx_obj_3uga_7Variant_
  * 		self.db = {}
  * 		for row in v.info:             # <<<<<<<<<<<<<<
  * 			self.db[row['uid']] = {}
- * 			self.db[row['uid']]['variant'] = row['variant']
+ * 			self.db[row['uid']]['id'] = row['id']
  */
   if (likely(PyList_CheckExact(((PyObject *)__pyx_v_v->info))) || PyTuple_CheckExact(((PyObject *)__pyx_v_v->info))) {
     __pyx_t_2 = ((PyObject *)__pyx_v_v->info); __Pyx_INCREF(__pyx_t_2); __pyx_t_3 = 0;
@@ -1851,8 +1851,8 @@ static int __pyx_pf_3uga_7Variant_3Ref___cinit__(struct __pyx_obj_3uga_7Variant_
  * 		self.db = {}
  * 		for row in v.info:
  * 			self.db[row['uid']] = {}             # <<<<<<<<<<<<<<
- * 			self.db[row['uid']]['variant'] = row['variant']
- * 			self.db[row['uid']]['variant_unique'] = row['variant_unique']
+ * 			self.db[row['uid']]['id'] = row['id']
+ * 			self.db[row['uid']]['id_unique'] = row['id_unique']
  */
     __pyx_t_1 = PyDict_New(); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 34; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_GOTREF(__pyx_t_1);
@@ -1865,42 +1865,42 @@ static int __pyx_pf_3uga_7Variant_3Ref___cinit__(struct __pyx_obj_3uga_7Variant_
     /* "uga/Variant.pyx":35
  * 		for row in v.info:
  * 			self.db[row['uid']] = {}
- * 			self.db[row['uid']]['variant'] = row['variant']             # <<<<<<<<<<<<<<
- * 			self.db[row['uid']]['variant_unique'] = row['variant_unique']
+ * 			self.db[row['uid']]['id'] = row['id']             # <<<<<<<<<<<<<<
+ * 			self.db[row['uid']]['id_unique'] = row['id_unique']
  * 			self.db[row['uid']]['a1'] = row['a1']
  */
-    __pyx_t_1 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_variant); if (unlikely(__pyx_t_1 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 35; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
+    __pyx_t_1 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_id); if (unlikely(__pyx_t_1 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 35; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
     __Pyx_GOTREF(__pyx_t_1);
     __pyx_t_5 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_uid); if (unlikely(__pyx_t_5 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 35; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
     __Pyx_GOTREF(__pyx_t_5);
     __pyx_t_6 = PyObject_GetItem(__pyx_v_self->db, __pyx_t_5); if (unlikely(__pyx_t_6 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 35; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
     __Pyx_GOTREF(__pyx_t_6);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    if (unlikely(PyObject_SetItem(__pyx_t_6, __pyx_n_s_variant, __pyx_t_1) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 35; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    if (unlikely(PyObject_SetItem(__pyx_t_6, __pyx_n_s_id, __pyx_t_1) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 35; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
     /* "uga/Variant.pyx":36
  * 			self.db[row['uid']] = {}
- * 			self.db[row['uid']]['variant'] = row['variant']
- * 			self.db[row['uid']]['variant_unique'] = row['variant_unique']             # <<<<<<<<<<<<<<
+ * 			self.db[row['uid']]['id'] = row['id']
+ * 			self.db[row['uid']]['id_unique'] = row['id_unique']             # <<<<<<<<<<<<<<
  * 			self.db[row['uid']]['a1'] = row['a1']
  * 			self.db[row['uid']]['a2'] = row['a2']
  */
-    __pyx_t_1 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_variant_unique); if (unlikely(__pyx_t_1 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 36; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
+    __pyx_t_1 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_id_unique); if (unlikely(__pyx_t_1 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 36; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
     __Pyx_GOTREF(__pyx_t_1);
     __pyx_t_6 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_uid); if (unlikely(__pyx_t_6 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 36; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
     __Pyx_GOTREF(__pyx_t_6);
     __pyx_t_5 = PyObject_GetItem(__pyx_v_self->db, __pyx_t_6); if (unlikely(__pyx_t_5 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 36; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-    if (unlikely(PyObject_SetItem(__pyx_t_5, __pyx_n_s_variant_unique, __pyx_t_1) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 36; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    if (unlikely(PyObject_SetItem(__pyx_t_5, __pyx_n_s_id_unique, __pyx_t_1) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 36; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
     /* "uga/Variant.pyx":37
- * 			self.db[row['uid']]['variant'] = row['variant']
- * 			self.db[row['uid']]['variant_unique'] = row['variant_unique']
+ * 			self.db[row['uid']]['id'] = row['id']
+ * 			self.db[row['uid']]['id_unique'] = row['id_unique']
  * 			self.db[row['uid']]['a1'] = row['a1']             # <<<<<<<<<<<<<<
  * 			self.db[row['uid']]['a2'] = row['a2']
  * 
@@ -1917,7 +1917,7 @@ static int __pyx_pf_3uga_7Variant_3Ref___cinit__(struct __pyx_obj_3uga_7Variant_
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
     /* "uga/Variant.pyx":38
- * 			self.db[row['uid']]['variant_unique'] = row['variant_unique']
+ * 			self.db[row['uid']]['id_unique'] = row['id_unique']
  * 			self.db[row['uid']]['a1'] = row['a1']
  * 			self.db[row['uid']]['a2'] = row['a2']             # <<<<<<<<<<<<<<
  * 
@@ -1939,7 +1939,7 @@ static int __pyx_pf_3uga_7Variant_3Ref___cinit__(struct __pyx_obj_3uga_7Variant_
  * 		self.db = {}
  * 		for row in v.info:             # <<<<<<<<<<<<<<
  * 			self.db[row['uid']] = {}
- * 			self.db[row['uid']]['variant'] = row['variant']
+ * 			self.db[row['uid']]['id'] = row['id']
  */
   }
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -2124,7 +2124,7 @@ static PyObject *__pyx_f_3uga_7Variant_3Ref_update(struct __pyx_obj_3uga_7Varian
  * 		for row in v.info:
  * 			if not row['uid'] in self.db:             # <<<<<<<<<<<<<<
  * 				self.db[row['uid']] = {}
- * 				self.db[row['uid']]['variant'] = row['variant']
+ * 				self.db[row['uid']]['id'] = row['id']
  */
     __pyx_t_1 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_uid); if (unlikely(__pyx_t_1 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 44; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
     __Pyx_GOTREF(__pyx_t_1);
@@ -2137,8 +2137,8 @@ static PyObject *__pyx_f_3uga_7Variant_3Ref_update(struct __pyx_obj_3uga_7Varian
  * 		for row in v.info:
  * 			if not row['uid'] in self.db:
  * 				self.db[row['uid']] = {}             # <<<<<<<<<<<<<<
- * 				self.db[row['uid']]['variant'] = row['variant']
- * 				self.db[row['uid']]['variant_unique'] = row['variant_unique']
+ * 				self.db[row['uid']]['id'] = row['id']
+ * 				self.db[row['uid']]['id_unique'] = row['id_unique']
  */
       __pyx_t_1 = PyDict_New(); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 45; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_GOTREF(__pyx_t_1);
@@ -2151,42 +2151,42 @@ static PyObject *__pyx_f_3uga_7Variant_3Ref_update(struct __pyx_obj_3uga_7Varian
       /* "uga/Variant.pyx":46
  * 			if not row['uid'] in self.db:
  * 				self.db[row['uid']] = {}
- * 				self.db[row['uid']]['variant'] = row['variant']             # <<<<<<<<<<<<<<
- * 				self.db[row['uid']]['variant_unique'] = row['variant_unique']
+ * 				self.db[row['uid']]['id'] = row['id']             # <<<<<<<<<<<<<<
+ * 				self.db[row['uid']]['id_unique'] = row['id_unique']
  * 				self.db[row['uid']]['a1'] = row['a1']
  */
-      __pyx_t_1 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_variant); if (unlikely(__pyx_t_1 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 46; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
+      __pyx_t_1 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_id); if (unlikely(__pyx_t_1 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 46; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
       __Pyx_GOTREF(__pyx_t_1);
       __pyx_t_3 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_uid); if (unlikely(__pyx_t_3 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 46; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
       __Pyx_GOTREF(__pyx_t_3);
       __pyx_t_5 = PyObject_GetItem(__pyx_v_self->db, __pyx_t_3); if (unlikely(__pyx_t_5 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 46; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      if (unlikely(PyObject_SetItem(__pyx_t_5, __pyx_n_s_variant, __pyx_t_1) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 46; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      if (unlikely(PyObject_SetItem(__pyx_t_5, __pyx_n_s_id, __pyx_t_1) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 46; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
       /* "uga/Variant.pyx":47
  * 				self.db[row['uid']] = {}
- * 				self.db[row['uid']]['variant'] = row['variant']
- * 				self.db[row['uid']]['variant_unique'] = row['variant_unique']             # <<<<<<<<<<<<<<
+ * 				self.db[row['uid']]['id'] = row['id']
+ * 				self.db[row['uid']]['id_unique'] = row['id_unique']             # <<<<<<<<<<<<<<
  * 				self.db[row['uid']]['a1'] = row['a1']
  * 				self.db[row['uid']]['a2'] = row['a2']
  */
-      __pyx_t_1 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_variant_unique); if (unlikely(__pyx_t_1 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
+      __pyx_t_1 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_id_unique); if (unlikely(__pyx_t_1 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
       __Pyx_GOTREF(__pyx_t_1);
       __pyx_t_5 = PyObject_GetItem(__pyx_v_row, __pyx_n_s_uid); if (unlikely(__pyx_t_5 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
       __Pyx_GOTREF(__pyx_t_5);
       __pyx_t_3 = PyObject_GetItem(__pyx_v_self->db, __pyx_t_5); if (unlikely(__pyx_t_3 == NULL)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;};
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      if (unlikely(PyObject_SetItem(__pyx_t_3, __pyx_n_s_variant_unique, __pyx_t_1) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      if (unlikely(PyObject_SetItem(__pyx_t_3, __pyx_n_s_id_unique, __pyx_t_1) < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 47; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
       /* "uga/Variant.pyx":48
- * 				self.db[row['uid']]['variant'] = row['variant']
- * 				self.db[row['uid']]['variant_unique'] = row['variant_unique']
+ * 				self.db[row['uid']]['id'] = row['id']
+ * 				self.db[row['uid']]['id_unique'] = row['id_unique']
  * 				self.db[row['uid']]['a1'] = row['a1']             # <<<<<<<<<<<<<<
  * 				self.db[row['uid']]['a2'] = row['a2']
  * 
@@ -2203,7 +2203,7 @@ static PyObject *__pyx_f_3uga_7Variant_3Ref_update(struct __pyx_obj_3uga_7Varian
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
       /* "uga/Variant.pyx":49
- * 				self.db[row['uid']]['variant_unique'] = row['variant_unique']
+ * 				self.db[row['uid']]['id_unique'] = row['id_unique']
  * 				self.db[row['uid']]['a1'] = row['a1']
  * 				self.db[row['uid']]['a2'] = row['a2']             # <<<<<<<<<<<<<<
  * 
@@ -2225,7 +2225,7 @@ static PyObject *__pyx_f_3uga_7Variant_3Ref_update(struct __pyx_obj_3uga_7Varian
  * 		for row in v.info:
  * 			if not row['uid'] in self.db:             # <<<<<<<<<<<<<<
  * 				self.db[row['uid']] = {}
- * 				self.db[row['uid']]['variant'] = row['variant']
+ * 				self.db[row['uid']]['id'] = row['id']
  */
     }
 
@@ -8464,6 +8464,8 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_hom_c, __pyx_k_hom_c, sizeof(__pyx_k_hom_c), 0, 0, 1, 1},
   {&__pyx_n_s_hom_r, __pyx_k_hom_r, sizeof(__pyx_k_hom_r), 0, 0, 1, 1},
   {&__pyx_n_s_i, __pyx_k_i, sizeof(__pyx_k_i), 0, 0, 1, 1},
+  {&__pyx_n_s_id, __pyx_k_id, sizeof(__pyx_k_id), 0, 0, 1, 1},
+  {&__pyx_n_s_id_unique, __pyx_k_id_unique, sizeof(__pyx_k_id_unique), 0, 0, 1, 1},
   {&__pyx_n_s_import, __pyx_k_import, sizeof(__pyx_k_import), 0, 0, 1, 1},
   {&__pyx_kp_s_initialize_variant_reference, __pyx_k_initialize_variant_reference, sizeof(__pyx_k_initialize_variant_reference), 0, 0, 1, 0},
   {&__pyx_n_s_isnan, __pyx_k_isnan, sizeof(__pyx_k_isnan), 0, 0, 1, 1},
@@ -8500,8 +8502,6 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_kp_s_usr3_bustaff_koesterr_uga_uga_V, __pyx_k_usr3_bustaff_koesterr_uga_uga_V, sizeof(__pyx_k_usr3_bustaff_koesterr_uga_uga_V), 0, 0, 1, 0},
   {&__pyx_n_s_v, __pyx_k_v, sizeof(__pyx_k_v), 0, 0, 1, 1},
   {&__pyx_n_s_var, __pyx_k_var, sizeof(__pyx_k_var), 0, 0, 1, 1},
-  {&__pyx_n_s_variant, __pyx_k_variant, sizeof(__pyx_k_variant), 0, 0, 1, 1},
-  {&__pyx_n_s_variant_unique, __pyx_k_variant_unique, sizeof(__pyx_k_variant_unique), 0, 0, 1, 1},
   {&__pyx_n_s_x, __pyx_k_x, sizeof(__pyx_k_x), 0, 0, 1, 1},
   {&__pyx_n_s_x_hets, __pyx_k_x_hets, sizeof(__pyx_k_x_hets), 0, 0, 1, 1},
   {&__pyx_n_s_x_hom1, __pyx_k_x_hom1, sizeof(__pyx_k_x_hom1), 0, 0, 1, 1},

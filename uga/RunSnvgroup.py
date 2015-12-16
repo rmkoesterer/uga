@@ -92,15 +92,15 @@ def process_regions(regions_df, cfg, cpu, log):
 		region_written = False
 		results_region = pd.DataFrame({})
 		print ''
-		print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['id'][k] + ": " + regions_df['region'][k] + ') ...'
+		print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['group_id'][k] + ": " + regions_df['region'][k] + ') ...'
 		for n in cfg['model_order']:
 			try:
-				models_obj[n].get_region(regions_df['region'][k], id=regions_df['id'][k])
+				models_obj[n].get_region(regions_df['region'][k], group_id=regions_df['group_id'][k])
 			except:
 				pass
 
 			try:
-				models_obj[n].get_snvgroup(cfg['buffer'], regions_df['id'][k])
+				models_obj[n].get_snvgroup(cfg['buffer'], regions_df['group_id'][k])
 			except:
 				pass
 			variants_found = True

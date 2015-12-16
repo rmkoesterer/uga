@@ -139,7 +139,7 @@ cdef class Model(object):
 				self.ped_df = self.ped_df[~(self.ped_df[x] == 'NA')]
 			for x in self.model_cols:
 				if x in self.ped_df.dtype.names:
-					print "   variable %s found" % (x)
+					print "   model column %s found" % (x)
 				else:
 					raise Process.Error("column " + x + " not found in ped file " + self.ped)
 			if self.fid in self.ped_df.dtype.names:
@@ -238,12 +238,13 @@ cdef class Model(object):
 		self.metadata_cc = '## cases: ' + str(self.ncases) + '\n' + \
 							'## controls: ' + str(self.nctrls)
 
-	def get_region(self, region, id = None):
+	def get_region(self, region, group_id = None):
 		logger = logging.getLogger("Model.Model.get_region")
 		logger.debug("get_region " + region)
 		try:
-			self.variants.get_region(region, id)
+			self.variants.get_region(region, group_id)
 		except:
+			print "region " + region + " returned empty"
 			raise
 
 	cpdef calc_variant_stats(self):
@@ -371,11 +372,11 @@ cdef class SnvgroupModel(Model):
 								'## end: end chromosomal position' + '\n' + \
 								'## id: snv group name (ie. gene name)'
 
-	cpdef get_snvgroup(self, int buffer, id):
+	cpdef get_snvgroup(self, int buffer, group_id):
 		logger = logging.getLogger("Model.SnvgroupModel.get_snvgroup")
 		logger.debug("get_snvgroup")
 		try:
-			self.variants.get_snvgroup(buffer, id)
+			self.variants.get_snvgroup(buffer, group_id)
 		except:
 			raise
 		else:
@@ -430,16 +431,16 @@ cdef class Score(SnvModel):
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
+			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['variant_unique'][passed]):
+			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
-			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['variant_unique'][passed]))
+			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
 			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
-			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': list(self.variants.info['variant_unique'][passed])})
+			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': list(self.variants.info['id_unique'][passed])})
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
 			if len(passed) == 1:
-				ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
+				ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
 			try:
 				ro.globalenv['ps'] = ro.r(cmd)
@@ -531,13 +532,14 @@ cdef class Gee(SnvModel):
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
+			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			ro.r('model_df$' + self.fid + '<-as.factor(model_df$' + self.fid + ')')
-			for col in list(self.model_cols) + list(self.variants.info['variant_unique'][passed]):
+			ro.r('model_df<-model_df[order(model_df$' + self.fid + '),]')
+			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
 			for v in passed:
-				vu = self.variants.info['variant_unique'][v]
+				vu = self.variants.info['id_unique'][v]
 				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [self.fid] + [vu]))
 				cmd = 'geeglm(' + self.formula.replace('___snv___',vu) + ',id=' + self.fid + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + self.family + ',corstr="' + self.corstr + '")'
 				try:
@@ -547,7 +549,6 @@ cdef class Gee(SnvModel):
 					print vu + ": " + rerr.message
 				else:
 					ro.r('result<-summary(result)')
-					ro.r('save.image("test.R")')
 					vu = self.formula.split('~')[1].split('+')[0].replace('___snv___',vu)
 					if ro.r('result$error')[0] == 0:
 						ro.r('err<-0')
@@ -619,12 +620,12 @@ cdef class Glm(SnvModel):
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
+			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['variant_unique'][passed]):
+			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
 			for v in passed:
-				vu = self.variants.info['variant_unique'][v]
+				vu = self.variants.info['id_unique'][v]
 				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [vu]))
 				cmd = 'glm(' + self.formula.replace('___snv___',vu) + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + self.family + ')'
 				try:
@@ -695,12 +696,12 @@ cdef class Lm(SnvModel):
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
+			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['variant_unique'][passed]):
+			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
 			for v in passed:
-				vu = self.variants.info['variant_unique'][v]
+				vu = self.variants.info['id_unique'][v]
 				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [vu]))
 				cmd = 'lm(' + self.formula.replace('___snv___',vu) + ',data=na.omit(model_df[,names(model_df) %in% cols]))'
 				try:
@@ -785,7 +786,7 @@ cdef class Skat(SnvgroupModel):
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
-		self.results['id'][0] = self.variants.id
+		self.results['id'][0] = self.variants.group_id
 		self.results['total'][0] = self.variants.info.shape[0]
 		self.results['passed'][0] = len(passed)
 		self.results['nmiss'][0] = np.nan
@@ -795,18 +796,18 @@ cdef class Skat(SnvgroupModel):
 		self.results['q'][0] = np.nan
 		if len(passed) > 1:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
+			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['variant_unique'][passed]):
+			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
-			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['variant_unique'][passed]))
+			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
 			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
-			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'})
+			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
-					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
+					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
 				try:
 					ro.globalenv['ps'] = ro.r(cmd)
@@ -909,7 +910,7 @@ cdef class Skato(SnvgroupModel):
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
-		self.results['id'][0] = self.variants.id
+		self.results['id'][0] = self.variants.group_id
 		self.results['total'][0] = self.variants.info.shape[0]
 		self.results['passed'][0] = len(passed)
 		self.results['nmiss'][0] = np.nan
@@ -920,18 +921,18 @@ cdef class Skato(SnvgroupModel):
 		self.results['rho'][0] = np.nan
 		if len(passed) > 1:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
+			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['variant_unique'][passed]):
+			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
-			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['variant_unique'][passed]))
+			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
 			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
-			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'})
+			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
-					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
+					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
 				try:
 					ro.globalenv['ps'] = ro.r(cmd)
@@ -1034,7 +1035,7 @@ cdef class Burden(SnvgroupModel):
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
-		self.results['id'][0] = self.variants.id
+		self.results['id'][0] = self.variants.group_id
 		self.results['total'][0] = self.variants.info.shape[0]
 		self.results['passed'][0] = len(passed)
 		self.results['nmiss'][0] = np.nan
@@ -1047,18 +1048,18 @@ cdef class Burden(SnvgroupModel):
 		self.results['p'][0] = np.nan
 		if len(passed) > 1:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['variant_unique'][passed])
+			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['variant_unique'][passed]):
+			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
-			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['variant_unique'][passed]))
+			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
 			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
-			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['variant_unique'][passed]), 'gene': 'NA'})
+			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
 			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
-					ro.r('colnames(z)<-"' + self.variants.info['variant_unique'][passed][0] + '"')
+					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
 				try:
 					ro.globalenv['ps'] = ro.r(cmd)

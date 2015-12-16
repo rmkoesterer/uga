@@ -89,7 +89,8 @@ def process_regions(regions_df, cfg, cpu, log):
 			results_final = pd.DataFrame({})
 			try:
 				models_obj[n].get_region(regions_df['region'][k])
-			except:
+			except Process.Error as err:
+				print err.out
 				pass
 			else:
 				while True:
@@ -99,27 +100,23 @@ def process_regions(regions_df, cfg, cpu, log):
 					except:
 						break
 					variants_found = True
-
 					try:
 						models_obj[n].filter(miss_thresh=cfg['models'][n]['miss'], maf_thresh=cfg['models'][n]['maf'], maxmaf_thresh=cfg['models'][n]['maxmaf'], 
 										mac_thresh=cfg['models'][n]['mac'], rsq_thresh=cfg['models'][n]['rsq'], hwe_thresh=cfg['models'][n]['hwe'], 
 										hwe_maf_thresh=cfg['models'][n]['hwe_maf'])
 					except:
 						break
-
 					try:
 						models_obj[n].calc_model()
 					except Process.Error as err:
 						print err.out
 						break
-
 					if not written:
 						results_final = models_obj[n].out
 						written = True
 					else:
 						results_final = results_final.append(models_obj[n].out, ignore_index=True)
 					analyzed = len(models_obj[n].variant_stats['filter'][models_obj[n].variant_stats['filter'] == 0])
-
 					cur_variants = str(min(i*cfg['buffer'],(i-1)*cfg['buffer'] + models_obj[n].variants.info.shape[0]))
 					status = '   processed ' + cur_variants + ' variants, ' + str(analyzed) + ' passed filters (model: ' + n + ')' if n != '___no_tag___' else '   processed ' + cur_variants + ' variants, ' + str(analyzed) + ' passed filters'
 					print status

@@ -39,7 +39,10 @@ def main(args=None):
 	if args.which in ['snv','snvgroup','meta','resubmit']:
 		if args.which == 'resubmit':
 			with open(args.dir + '/' + os.path.basename(args.dir) + '.args.pkl', 'rb') as p:
+				qsub = args.qsub if args.qsub else None
 				args,cfg = pickle.load(p)
+				if qsub:
+					cfg['qsub'] = qsub
 			with open(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun.pkl', 'rb') as p:
 				rerun = pickle.load(p)
 			os.remove(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun.pkl')
@@ -105,13 +108,13 @@ def main(args=None):
 			#	run_type = 101: --split-n N, --cpus C (distribute M snvgroups over N jobs and distribute each job over C cpus, N jobs C cpus)
 
 			if cfg['region_file']:
-				regions_df = pd.read_table(cfg['region_file'],header=None,names=['region','id'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
+				regions_df = pd.read_table(cfg['region_file'],header=None,names=['region','group_id'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
 				regions_df['chr'] = [int(x.split(':')[0]) for x in regions_df['region']]
 				regions_df['start'] = [int(x.split(':')[1].split('-')[0]) for x in regions_df['region']]
 				regions_df['end'] = [int(x.split(':')[1].split('-')[1]) for x in regions_df['region']]
 				regions_df['job'] = 1
 				regions_df['cpu'] = 1
-				regions_df = regions_df[['chr','start','end','region','id','job','cpu']]
+				regions_df = regions_df[['chr','start','end','region','group_id','job','cpu']]
 				regions_df.sort_values(by=['chr','start'],inplace=True)
 				regions_df.reset_index(drop=True,inplace=True)
 			elif cfg['region']:
@@ -123,27 +126,27 @@ def main(args=None):
 						data_files.append(cfg['models'][m]['file'])
 				snv_map = list(set(snv_map))
 				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
-				regions_df['id'] = cfg['region']
+				regions_df['group_id'] = cfg['region']
 				regions_df['job'] = 1
 				regions_df['cpu'] = 1
 				del data_files
 				del snv_map
-				regions_df = regions_df[['chr','start','end','region','id','job','cpu']]
+				regions_df = regions_df[['chr','start','end','region','group_id','job','cpu']]
 				regions_df.sort_values(by=['chr','start'],inplace=True)
 				regions_df.reset_index(drop=True,inplace=True)
 			else:
 				if cfg['snvgroup_map']:
-					snvgroup_map = pd.read_table(cfg['snvgroup_map'],header=None,names=['chr','pos','marker','id'], compression='gzip' if cfg['snvgroup_map'].split('.')[-1] == 'gz' else None)
-					regions_df = snvgroup_map[['chr','pos','id']]
-					regions_df=regions_df.groupby(['chr','id'])
+					snvgroup_map = pd.read_table(cfg['snvgroup_map'],header=None,names=['chr','pos','marker','group_id'], compression='gzip' if cfg['snvgroup_map'].split('.')[-1] == 'gz' else None)
+					regions_df = snvgroup_map[['chr','pos','group_id']]
+					regions_df=regions_df.groupby(['chr','group_id'])
 					regions_df = regions_df.agg({'pos': [np.min,np.max]})
 					regions_df.columns = ['start','end']
 					regions_df['chr'] = regions_df.index.get_level_values('chr')
-					regions_df['id'] = regions_df.index.get_level_values('id')
+					regions_df['group_id'] = regions_df.index.get_level_values('group_id')
 					regions_df['region'] = regions_df.chr.map(str) + ':' + regions_df.start.map(str) + '-' + regions_df.end.map(str)
 					regions_df['job'] = 1
 					regions_df['cpu'] = 1
-					regions_df = regions_df[['chr','start','end','region','id','job','cpu']]
+					regions_df = regions_df[['chr','start','end','region','group_id','job','cpu']]
 					regions_df.drop_duplicates(inplace=True)
 					regions_df.sort_values(by=['chr','start'],inplace=True)
 					regions_df.reset_index(drop=True,inplace=True)

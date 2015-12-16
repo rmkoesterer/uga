@@ -27,9 +27,11 @@ from cython.view cimport array
 from collections import OrderedDict
 import Process
 import logging
+import resource
 
 module_logger = logging.getLogger("Geno")
 ILLEGAL_CHARS = '!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~'
+MAX_CELL_LEN = 60
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -65,8 +67,8 @@ cdef class Variants(object):
 			if ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a1'] + row['a2']:
 				self.info['a1'][i-1] = ref.db[row['uid']]['a1']
 				self.info['a2'][i-1] = ref.db[row['uid']]['a2']
-				self.info['variant'][i-1] = ref.db[row['uid']]['variant']
-				self.info['variant_unique'][i-1] = ref.db[row['uid']]['variant_unique']
+				self.info['id'][i-1] = ref.db[row['uid']]['id']
+				self.info['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
 			elif (((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] or 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
@@ -82,8 +84,8 @@ cdef class Variants(object):
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'])):
 				self.info['a1'][i-1] = ref.db[row['uid']]['a1']
 				self.info['a2'][i-1] = ref.db[row['uid']]['a2']
-				self.info['variant'][i-1] = ref.db[row['uid']]['variant']
-				self.info['variant_unique'][i-1] = ref.db[row['uid']]['variant_unique']
+				self.info['id'][i-1] = ref.db[row['uid']]['id']
+				self.info['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
 				self.data[:,i] = 2.0 - self.data[:,i].astype(float)
 
 	def load_snvgroup_map(self, snvgroup_map):
@@ -91,7 +93,7 @@ cdef class Variants(object):
 		logger.debug("load_snvgroup_map")
 		print "loading snvgroup map"
 		try:
-			self.snvgroup_map=pd.read_table(snvgroup_map,names=['chr','pos','variant','id'], compression='gzip' if snvgroup_map.split('.')[-1] == 'gz' else None)
+			self.snvgroup_map=pd.read_table(snvgroup_map,names=['chr','pos','id','group_id'], compression='gzip' if snvgroup_map.split('.')[-1] == 'gz' else None)
 		except:
 			raise Process.Error("failed to load snvgroup map")
 
@@ -109,10 +111,10 @@ cdef class Vcf(Variants):
 		else:
 			self.samples = np.array([a for a in self.handle.header][-1].split('\t')[9:])
 
-	def get_region(self, region, id = None):
+	def get_region(self, region, group_id = None):
 		logger = logging.getLogger("Geno.Vcf.get_region")
 		logger.debug("get_region " + region)
-		self.id = id
+		self.group_id = group_id
 		if ':' in region:
 			self.chr = int(region.split(':')[0])
 			self.start = int(region.split(':')[1].split('-')[0])
@@ -139,7 +141,7 @@ cdef class Vcf(Variants):
 		else:
 			slice = chain([first], slice)
 			for r in slice:
-				record = np.array(r)
+				record = np.array(r, dtype='|S' + str(MAX_CELL_LEN))
 				gt = record[8].split(':').index('GT')
 				alts = record[4].split(',')
 				if len(alts) > 1:
@@ -153,7 +155,7 @@ cdef class Vcf(Variants):
 						self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
 						self.snv_chunk[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
 						self.snv_chunk[i,4] = alts[alt]
-						self.snv_chunk[i,5] = self.id
+						self.snv_chunk[i,5] = self.group_id
 						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
 						self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 						het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
@@ -163,7 +165,7 @@ cdef class Vcf(Variants):
 						self.snv_chunk[i+1,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
 						self.snv_chunk[i+1,3] = record[3]
 						self.snv_chunk[i+1,4] = alts[alt]
-						self.snv_chunk[i+1,5] = self.id
+						self.snv_chunk[i+1,5] = self.group_id
 						self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,4][0:20])
 						self.snv_chunk[i+1,10] = Variant.get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
 						i += 2
@@ -173,7 +175,7 @@ cdef class Vcf(Variants):
 					hom2 = ['1/1','1|1']
 					self.snv_chunk[i,:9] = record[:9]
 					self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
-					self.snv_chunk[i,5] = self.id
+					self.snv_chunk[i,5] = self.group_id
 					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
 					self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 					i += 1
@@ -186,17 +188,17 @@ cdef class Vcf(Variants):
 			self.get_chunk(buffer)
 		except:
 			raise
-		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,11:].transpose()))
 		np.place(self.data, self.data == 'NA',np.nan)
 
-	cpdef get_snvgroup(self, int buffer, id):
+	cpdef get_snvgroup(self, int buffer, group_id):
 		logger = logging.getLogger("Geno.Vcf.get_snvgroup")
-		logger.debug("get_snvgroup " + id)
+		logger.debug("get_snvgroup " + group_id)
 		cdef unsigned int i = 0
 		self.snvgroup_chunk = np.empty((0,11 + len(self.samples)), dtype='object')
 		if self.snvgroup_map is not None:
-			snvgroup_snvs = list(self.snvgroup_map['variant'][self.snvgroup_map['id'] == id])
+			snvgroup_snvs = list(self.snvgroup_map['id'][self.snvgroup_map['group_id'] == group_id])
 		while True:
 			try:
 				self.get_chunk(buffer)
@@ -209,7 +211,7 @@ cdef class Vcf(Variants):
 		if i == 0:
 			raise
 		else:
-			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
 			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,11:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)
 
@@ -231,10 +233,10 @@ cdef class Dos(Variants):
 			except:
 				raise Process.Error("failed to load dos sample file")
 
-	def get_region(self, region, id = None):
+	def get_region(self, region, group_id = None):
 		logger = logging.getLogger("Geno.Dos.get_region")
 		logger.debug("get_region " + region)
-		self.id = id
+		self.group_id = group_id
 		if ':' in region:
 			self.chr = int(region.split(':')[0])
 			self.start = int(region.split(':')[1].split('-')[0])
@@ -261,10 +263,10 @@ cdef class Dos(Variants):
 		else:
 			slice = chain([first], slice)
 			for r in slice:
-				record = np.array(r)
+				record = np.array(r, dtype='|S' + str(MAX_CELL_LEN))
 				self.snv_chunk[i,:5] = record[:5]
 				self.snv_chunk[i,8:] = record[5:]
-				self.snv_chunk[i,5] = self.id
+				self.snv_chunk[i,5] = self.group_id
 				self.snv_chunk[i,6] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
 				self.snv_chunk[i,7] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 				i += 1
@@ -277,17 +279,17 @@ cdef class Dos(Variants):
 			self.get_chunk(buffer)
 		except:
 			raise
-		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,8:].transpose()))
 		np.place(self.data, self.data == 'NA',np.nan)
 
-	cpdef get_snvgroup(self, int buffer, id):
+	cpdef get_snvgroup(self, int buffer, group_id):
 		logger = logging.getLogger("Geno.Dos.get_snvgroup")
-		logger.debug("get_snvgroup " + id)
+		logger.debug("get_snvgroup " + group_id)
 		cdef unsigned int i = 0
 		self.snvgroup_chunk = np.empty((0,8 + len(self.samples)), dtype='object')
 		if self.snvgroup_map is not None:
-			snvgroup_snvs = list(self.snvgroup_map['variant'][self.snvgroup_map['id'] == id])
+			snvgroup_snvs = list(self.snvgroup_map['id'][self.snvgroup_map['group_id'] == group_id])
 		while True:
 			try:
 				self.get_chunk(buffer)
@@ -300,6 +302,6 @@ cdef class Dos(Variants):
 		if i == 0:
 			raise
 		else:
-			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','variant','a1','a2','id','variant_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
 			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,8:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)

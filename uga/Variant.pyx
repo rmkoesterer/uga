@@ -32,8 +32,8 @@ cdef class Ref(object):
 		self.db = {}
 		for row in v.info:
 			self.db[row['uid']] = {}
-			self.db[row['uid']]['variant'] = row['variant']
-			self.db[row['uid']]['variant_unique'] = row['variant_unique']
+			self.db[row['uid']]['id'] = row['id']
+			self.db[row['uid']]['id_unique'] = row['id_unique']
 			self.db[row['uid']]['a1'] = row['a1']
 			self.db[row['uid']]['a2'] = row['a2']
 
@@ -43,8 +43,8 @@ cdef class Ref(object):
 		for row in v.info:
 			if not row['uid'] in self.db:
 				self.db[row['uid']] = {}
-				self.db[row['uid']]['variant'] = row['variant']
-				self.db[row['uid']]['variant_unique'] = row['variant_unique']
+				self.db[row['uid']]['id'] = row['id']
+				self.db[row['uid']]['id_unique'] = row['id_unique']
 				self.db[row['uid']]['a1'] = row['a1']
 				self.db[row['uid']]['a2'] = row['a2']
 

@@ -13,13 +13,14 @@ This software is currently under rapid development. Updates and bug fixes are be
 
 **Current Features**
    - Compatibility with standard `VCFv4.1`_ and `VCFv4.2`_
-   - Single SNV association modeling (R base: lm, glm; R `geepack`_: geeglm, R `seqMeta`_: burdenMeta, skatMeta, skatOMeta)
-   - Gene/Group based association modeling (with meta analysis)
+   - Single SNV association modeling (R base: lm, glm; R `geepack`_: geeglm)
+   - Gene/Group based association modeling (with meta analysis: R `seqMeta`_: burdenMeta, skatMeta, skatOMeta)
    - Family based association modeling for single SNV tests
    - Run multiple models as a single submission (alleles are aligned and SNV names need not match)
    - Alignment of compatible SNVs based on position and alleles (A/T and G/C SNVs are ambiguous and are assumed to be pre-aligned)
    - File mapping based on region size or number of SNVs for splitting analyses
    - Automatically split jobs on parallel computing systems using `qsub`_
+   - multiple processor parallelization in addition to cluster parallelization
    - User definable buffered reading for RAM usage control
    - Verification and compilation for parallel distributed jobs
    - `Gzip`_ and `Bgzip`_ / `Tabix`_ mapped output where possible to save disc space
@@ -36,39 +37,34 @@ This software is currently under rapid development. Updates and bug fixes are be
 
 **Features Coming Soon**
    - Full documentation
-   - Installation with `pip`_
-   - `Oxford`_ (3 probabilities for each genotype), `Plink binary`_, and various single allele dosage formatted filetypes
    - Additional association models (R `survival`_: coxph; `lme4`_: lmer, `nlme`_: lme)
    - Family data inclusion in gene/group based tests
-   - Interaction terms for relevant models
-   - Post modeling meta analysis with genomic control correction
+   - Genomic control correction
+   - Post modeling meta analysis
    - Calculation for grouped analysis multiple test correction
    - Publication quality Q-Q and manhattan plots
    - Region-based plots via `Locuszoom`_ software
    - Annotation of results using `SnpEff`_
 
-.. _`Plink binary`: https://www.cog-genomics.org/plink2/input#bed
-.. _`Oxford`: http://www.stats.ox.ac.uk/~marchini/software/gwas/file_format.html
-.. _`pip`: https://pypi.python.org/pypi/pip
 .. _`survival`: https://cran.r-project.org/web/packages/survival/index.html
 .. _`lme4`: https://cran.r-project.org/web/packages/lme4/index.html
 .. _`nlme`: https://cran.r-project.org/web/packages/nlme/index.html
 .. _`Locuszoom`: http://genome.sph.umich.edu/wiki/LocusZoom_Standalone
 .. _`SnpEff`: http://snpeff.sourceforge.net/
-.. _`SnpSift`: http://snpeff.sourceforge.net/SnpSift.html
 
 Since parallel computing is sometimes unreliable, analysts need to be able to verify and possibly rerun failed jobs at various stages of the analysis.
 In the interest of user efficiency and to avoid limitations induced by excessive automation, uga breaks the analytical process into the following modules.
 
    - **set** user definable settings
-   - **snv** map non-empty regions in genotype/imputed data files
-   - **snvgroup** variant and gene/region-based statistical modeling
+   - **snv** single variant statistical modeling
+   - **snvgroup** gene/region-based statistical modeling
    - **compile** verify and compile split analysis results
-   - **resubmit** resubmit failed jobs for a project
-   - **plot** Q-Q and manhattan plots (not yet available)
-   - **zoom** region plots (not yet available)
+   - **resubmit** automatically resubmit failed jobs for a project
+   - **snvplot** Q-Q and manhattan plots (not yet available)
+   - **snvgroupplot** Q-Q and manhattan plots (not yet available)
+   - **zoom** regional plots (not yet available)
    - **meta** meta-analysis (not yet available)
-   - **gc** apply genomic control to 1 or more p-value columns (not yet available)
+   - **gc** apply genomic control to results (not yet available)
    - **annot** annotate variant results using `SnpEff`_ and `SnpSift`_ (not yet available)
 
 .. _`SnpEff`: http://snpeff.sourceforge.net/
@@ -77,62 +73,11 @@ In the interest of user efficiency and to avoid limitations induced by excessive
 Installation
 ************
 
-This software uses an array of Python modules and R packages. Thus, it may be simpler for users to install it within a clean virtual environment to avoid disrupting system 
-Python functionality. The following lists display versions used during development. These modules can be installed easily with `pip`_.
+This software uses an array of Python modules and R packages. Thus, the easiest method for installation is using a `conda`_ environment.
+The following lists display versions used during development. These modules can be installed easily using the environment.yml file included with
+this distribution as described in the Pre-installation section below.
 
-.. _`pip`: https://pypi.python.org/pypi/pip
-
-`Python`_ (2.7.7)
-
-.. _`Python`: https://www.python.org/
-
-Python modules required (may not be part of the Python base install), followed by versions used during development:
-
-   * `singledispatch`_ (3.4.0.3)
-   * `rpy2`_ (2.5.2)
-   * `numpy`_ (1.9.1)
-   * `pandas`_ (0.15.1)
-   * `progressbar`_ (2.3)
-   * `psutil`_ (2.1.3)
-   * `biopython`_ (1.64)
-   * `pysam`_ (0.8.2.1)
-   * `Cython`_ (0.22)
-   * `tables`_ (3.2.2)
-
-.. _`singledispatch`: https://pypi.python.org/pypi/singledispatch
-.. _`rpy2`: https://pypi.python.org/pypi/rpy2
-.. _`numpy`: https://pypi.python.org/pypi/numpy
-.. _`pandas`: https://pypi.python.org/pypi/pandas
-.. _`progressbar`: https://pypi.python.org/pypi/progressbar
-.. _`psutil`: https://pypi.python.org/pypi/psutil
-.. _`biopython`: https://pypi.python.org/pypi/biopython
-.. _`pysam`: https://pypi.python.org/pypi/pysam
-.. _`Cython`: https://pypi.python.org/pypi/Cython
-.. _`tables`: https://pypi.python.org/pypi/tables
-
-`R`_ (3.1.1)
-
-.. _`R`: http://www.r-project.org/
-
-R libraries needed for certain analytical and plotting tasks, followed by versions used during development:
-
-   * `ggplot2`_ (1.0.0)
-   * `geepack`_ (1.1-6)
-   * `lme4`_ (1.1-7)
-   * `nlme`_ (1.1-7)
-   * `survival`_ (2.37-7)
-   * `seqMeta`_ (1.5)
-   * `kinship2`_ (1.6.0)
-
-.. _`ggplot2`: http://cran.r-project.org/web/packages/ggplot2/index.html
-.. _`geepack`: https://cran.r-project.org/web/packages/geepack/index.html
-.. _`seqMeta`: https://cran.r-project.org/web/packages/seqMeta/index.html
-.. _`lme4`: http://cran.r-project.org/web/packages/lme4/index.html
-.. _`nlme`: https://cran.r-project.org/web/packages/nlme/index.html
-.. _`survival`: http://cran.r-project.org/web/packages/survival/index.html
-.. _`kinship2`: http://cran.r-project.org/web/packages/kinship2/index.html
-
-Some of these R libraries may have dependencies that need to be installed as well.
+.. _`conda`: http://conda.pydata.org/docs/
 
 Clutter is reduced through consolidation and compression of data and results files via `tabix/bgzip`_ and `gzip`_.
 
@@ -145,48 +90,21 @@ Generating regional plots requires the installation of `locuszoom`_.
 
 **Pre-Installation**
 
-To avoid potential errors during installation, you may need to add the location of the R library libR.so file to your BASH_PROFILE 
-(ie. .bashrc, .bash_profile, etc). The following command will search your system for this file.
-   
-   >>> find /usr -name libR.so
-	  
-Add the resulting path, X, to the following line and add it to your BASH_PROFILE.
-   
-   export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:X
-	  
-Make sure you source your BASH_PROFILE again before continuing with the install.
-   
-   >>> source BASH_PROFILE
+See the documentation for tips on how to `clone an environment`_ in conda. You will need the included environment.yml file and you will also need to add my 
+`custom anaconda build channel`_ to access some of the required custom built packages. The best way to do this is to add `my channel`_ to your .condarc file.
 
-**Virtual Environment Preparation**
-
-Installing uga under a Python virtual environment (`virtualenv`_) will ensure that the modules required by uga won't interrupt your system Python install. 
-For example, you can install and activate a virtual environment called 'uga-env' as follows:
-
-   >>> mkdir uga-env
-   >>> virtualenv -p python uga-env
-   >>> source uga-env/bin/activate
-
-.. _`virtualenv`: https://virtualenv.pypa.io/en/latest/
-
-You are now operating a clean base Python installation under a virtual environment.
+.. _`clone an environment`: http://conda.pydata.org/docs/using/envs.html#clone-an-environment
+.. _`custom anaconda build channel`: http://conda.pydata.org/docs/using/pkgs.html#install-a-package-from-anaconda-org
+.. _`my channel`: http://conda.pydata.org/docs/config.html
 
 **Installing uga from source**
 
 Use the following commands to install uga from a source file, uga.tar.gz.
 
+   >>> source YOUR_CLONED_CONDA_ENVIRONMENT
    >>> tar -xvf uga.tar.gz
    >>> cd uga
-   >>> pip install -r requirements.txt
    >>> python setup.py install
-
-**Installing uga with pip (not yet available)**
-
-The simplest way to install uga is with `pip`_, as follows.
-
-   >>> pip install uga
-
-.. _`pip`: https://pypi.python.org/pypi/pip
 
 **Cutting Edge Install**
 
@@ -196,9 +114,9 @@ how to `fork this repository`_
 
 .. _`fork this repository`: https://help.github.com/articles/fork-a-repo/
 
-**Note**: If you install uga under a virtual environment, you need to source the environment as shown above before running any task in uga.
+**Note**: If you install uga under a conda environment, you need to source the environment as shown above before running any task in uga.
 
-   >>> source uga-env/bin/activate
+   >>> source YOUR_CLONED_CONDA_ENVIRONMENT
 
 Verify that uga is functional using the following command to display help.
 
