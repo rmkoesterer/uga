@@ -33,6 +33,7 @@ import numpy.lib.recfunctions as recfxns
 import logging
 pandas2ri.activate()
 ro.r('options(warn=-1)')
+ro.r('options(stringsAsFactors=FALSE)')
 ro.r('options(na.action=na.omit)')
 ro.r('suppressMessages(library(R.utils))')
 
@@ -394,11 +395,14 @@ cdef class Score(SnvModel):
 		super(Score, self).__init__(**kwargs)
 		print "setting score test family option to " + self.family
 
-		self.formula = self.pheno + '~'
+		left = self.pheno
+		right_array = []
 		if self.covars is not None:
-			self.formula = self.formula + '+' + '+'.join(self.covars.split(','))
+			right_array = right_array + self.covars.split(',')
 		if self.covars_categorical is not None:
-			self.formula = self.formula + '+' + '+'.join(['factor(' + x + ')' for x in self.covars_categorical.split(',')])
+			right_array = right_array + ['factor(' + x + ')' for x in self.covars_categorical.split(',')]
+		right = '+'.join(right_array) if len(right_array) > 0 else '1'
+		self.formula = left + '~' + right
 		print "formula: " + self.formula
 
 		self.results_dtypes=[('err','>f8'),('nmiss','>f8'),('ntotal','>f8'),('effect','>f8'),('stderr','>f8'),('or','>f8'),('p','>f8')]
@@ -436,9 +440,10 @@ cdef class Score(SnvModel):
 			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
 			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
-			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
-			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': list(self.variants.info['id_unique'][passed])})
-			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
+			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
+			ro.r('snp_info$Name<-as.character(snp_info$Name)')
+			ro.r('snp_info$gene<-as.character(snp_info$gene)')
+			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			if len(passed) == 1:
 				ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
@@ -746,12 +751,14 @@ cdef class Skat(SnvgroupModel):
 		super(Skat, self).__init__(**kwargs)
 		print "setting skat test family option to " + self.family
 
-		self.formula = self.pheno + '~'
+		left = self.pheno
+		right_array = []
 		if self.covars is not None:
-			self.formula = self.formula + '+' + '+'.join(self.covars.split(','))
+			right_array = right_array + self.covars.split(',')
 		if self.covars_categorical is not None:
-			self.formula = self.formula + '+' + '+'.join(['factor(' + x + ')' for x in self.covars_categorical.split(',')])
-		self.formula = self.formula + '1' if self.formula == self.pheno + '~' else self.formula
+			right_array = right_array + ['factor(' + x + ')' for x in self.covars_categorical.split(',')]
+		right = '+'.join(right_array) if len(right_array) > 0 else '1'
+		self.formula = left + '~' + right
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['total','passed','mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
@@ -801,9 +808,10 @@ cdef class Skat(SnvgroupModel):
 			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
 			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
-			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
 			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
-			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
+			ro.r('snp_info$Name<-as.character(snp_info$Name)')
+			ro.r('snp_info$gene<-as.character(snp_info$gene)')
+			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
@@ -869,12 +877,14 @@ cdef class Skato(SnvgroupModel):
 		super(Skato, self).__init__(**kwargs)
 		print "setting skat-o test family option to " + self.family
 
-		self.formula = self.pheno + '~'
+		left = self.pheno
+		right_array = []
 		if self.covars is not None:
-			self.formula = self.formula + '+' + '+'.join(self.covars.split(','))
+			right_array = right_array + self.covars.split(',')
 		if self.covars_categorical is not None:
-			self.formula = self.formula + '+' + '+'.join(['factor(' + x + ')' for x in self.covars_categorical.split(',')])
-		self.formula = self.formula + '1' if self.formula == self.pheno + '~' else self.formula
+			right_array = right_array + ['factor(' + x + ')' for x in self.covars_categorical.split(',')]
+		right = '+'.join(right_array) if len(right_array) > 0 else '1'
+		self.formula = left + '~' + right
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['total','passed','mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
@@ -926,12 +936,13 @@ cdef class Skato(SnvgroupModel):
 			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
 			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
-			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
 			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
-			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
+			ro.r('snp_info$Name<-as.character(snp_info$Name)')
+			ro.r('snp_info$gene<-as.character(snp_info$gene)')
+			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['mac'][0] >= self.snvgroup_mac:
-				if len(passed) == 1:
+				if passed == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
 				try:
@@ -994,12 +1005,14 @@ cdef class Burden(SnvgroupModel):
 		super(Burden, self).__init__(**kwargs)
 		print "setting burden test family option to " + self.family
 
-		self.formula = self.pheno + '~'
+		left = self.pheno
+		right_array = []
 		if self.covars is not None:
-			self.formula = self.formula + '+' + '+'.join(self.covars.split(','))
+			right_array = right_array + self.covars.split(',')
 		if self.covars_categorical is not None:
-			self.formula = self.formula + '+' + '+'.join(['factor(' + x + ')' for x in self.covars_categorical.split(',')])
-		self.formula = self.formula + '1' if self.formula == self.pheno + '~' else self.formula
+			right_array = right_array + ['factor(' + x + ')' for x in self.covars_categorical.split(',')]
+		right = '+'.join(right_array) if len(right_array) > 0 else '1'
+		self.formula = left + '~' + right
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['total','passed','mac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']))
@@ -1053,9 +1066,10 @@ cdef class Burden(SnvgroupModel):
 			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
 			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
-			ro.globalenv['model_cols'] = ro.StrVector(list(self.model_cols))
 			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
-			ro.globalenv['z'] = ro.r('data.matrix(model_df[,names(model_df) %in% variants])')
+			ro.r('snp_info$Name<-as.character(snp_info$Name)')
+			ro.r('snp_info$gene<-as.character(snp_info$gene)')
+			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['mac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:

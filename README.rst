@@ -97,13 +97,15 @@ See the documentation for tips on how to `clone an environment`_ in conda. You w
 .. _`my channel`: https://conda.anaconda.org/rmkoesterer
 .. _`.condarc`: http://conda.pydata.org/docs/config.html
 
-**Installing uga from source**
-
-Use the following commands to install uga from a source file, uga.tar.gz.
-
-   >>> source YOUR_CLONED_CONDA_ENVIRONMENT
    >>> tar -xvf uga.tar.gz
    >>> cd uga
+   >>> conda env create -f environment.yml
+   >>> source activate uga_python2.7
+
+**Installing uga from source**
+
+Use the following command to install uga from source
+
    >>> python setup.py install
 
 **Cutting Edge Install**
