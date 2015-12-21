@@ -12,19 +12,19 @@ This software is currently under rapid development. Updates and bug fixes are be
 .. _`uga github page`: https://github.com/rmkoesterer/uga
 
 **Current Features**
-   - Compatibility with standard `VCFv4.1`_ and `VCFv4.2`_
-   - Single SNV association modeling (R base: lm, glm; R `geepack`_: geeglm)
+   - Compatibility with standard `VCFv4.1`_ and `VCFv4.2`_ files
+   - Single variant association modeling (R base: lm, glm; R `geepack`_: geeglm, R `seqMeta`_: singlesnpMeta)
    - Gene/Group based association modeling (with meta analysis: R `seqMeta`_: burdenMeta, skatMeta, skatOMeta)
-   - Family based association modeling for single SNV tests
-   - Run multiple models as a single submission (alleles are aligned and SNV names need not match)
-   - Alignment of compatible SNVs based on position and alleles (A/T and G/C SNVs are ambiguous and are assumed to be pre-aligned)
-   - File mapping based on region size or number of SNVs for splitting analyses
-   - Automatically split jobs on parallel computing systems using `qsub`_
+   - Family based association modeling
+   - Run multiple models as a single submission (variant names need not match)
+   - Publication quality Q-Q and manhattan plots
+   - Alignment of compatible variants based on genomic position and both alleles (A/T and G/C SNVs are ambiguous and are assumed to be pre-aligned)
+   - An array of job splitting capabilities
+   - Automatically submit jobs on parallel computing systems using `qsub`_
    - multiple processor parallelization in addition to cluster parallelization
    - User definable buffered reading for RAM usage control
    - Verification and compilation for parallel distributed jobs
    - `Gzip`_ and `Bgzip`_ / `Tabix`_ mapped output where possible to save disc space
-   - A small practice dataset is included with the source code for testing
 
 .. _`VCFv4.1`: http://samtools.github.io/hts-specs/VCFv4.1.pdf
 .. _`VCFv4.2`: http://samtools.github.io/hts-specs/VCFv4.2.pdf
@@ -42,9 +42,8 @@ This software is currently under rapid development. Updates and bug fixes are be
    - Genomic control correction
    - Post modeling meta analysis
    - Calculation for grouped analysis multiple test correction
-   - Publication quality Q-Q and manhattan plots
    - Region-based plots via `Locuszoom`_ software
-   - Annotation of results using `SnpEff`_
+   - Results annotation using `SnpEff`_
 
 .. _`survival`: https://cran.r-project.org/web/packages/survival/index.html
 .. _`lme4`: https://cran.r-project.org/web/packages/lme4/index.html
@@ -60,25 +59,24 @@ In the interest of user efficiency and to avoid limitations induced by excessive
    - **snvgroup** gene/region-based statistical modeling
    - **compile** verify and compile split analysis results
    - **resubmit** automatically resubmit failed jobs for a project
-   - **snvplot** Q-Q and manhattan plots (not yet available)
-   - **snvgroupplot** Q-Q and manhattan plots (not yet available)
+   - **snvplot** Q-Q and manhattan plots for single snv tests
+   - **snvgroupplot** Q-Q and manhattan plots for snv group tests
    - **zoom** regional plots (not yet available)
    - **meta** meta-analysis (not yet available)
    - **gc** apply genomic control to results (not yet available)
-   - **annot** annotate variant results using `SnpEff`_ and `SnpSift`_ (not yet available)
+   - **annot** annotate variant results using `SnpEff`_ (not yet available)
 
 .. _`SnpEff`: http://snpeff.sourceforge.net/
-.. _`SnpSift`: http://snpeff.sourceforge.net/SnpSift.html
 
 Installation
 ************
 
-This software uses an array of Python modules and R packages. Thus, the easiest method for installation is using a `conda`_ environment.
+This software uses a variety of Python modules, R packages, and some stand-alone software. Thus, the easiest method for installation is using a `conda`_ environment.
 The required modules can be installed easily using the environment.yml file included with this distribution as described in the Pre-installation section below.
 
 .. _`conda`: http://conda.pydata.org/docs/
 
-Clutter is reduced through consolidation and compression of data and results files via `tabix/bgzip`_ and `gzip`_.
+Consolidation and compression of data and results files requires `tabix/bgzip`_ and `gzip`_.
 
 .. _`tabix/bgzip`: http://www.htslib.org/
 .. _`gzip`: http://www.gzip.org/
@@ -87,15 +85,19 @@ Generating regional plots requires the installation of `locuszoom`_.
 
 .. _`locuszoom`: http://genome.sph.umich.edu/wiki/LocusZoom_Standalone
 
-**Pre-Installation**
+Annotation of results requires `SnpEff`_.
 
-See the documentation for tips on how to `clone an environment`_ in conda. You will need the included environment.yml file and you will also need to add my 
-`custom anaconda build channel`_ to access some of the required custom built packages. The best way to do this is to add `my channel`_ to your `.condarc`_ file.
+.. _`SnpEff`: http://snpeff.sourceforge.net/
+
+**Pre-Installation (preparing the environment for uga)**
+
+To prepare your system for uga, you need to `clone an environment`_ using conda. You will need the included environment.yml file from the source code and a number of 
+conda packages from my anaconda cloud channel `my channel`_ and another custom channel (both are listed in the environment.yml file). After downloading the most recent 
+release (available `here`_), use the following commands to begin the installation.
 
 .. _`clone an environment`: http://conda.pydata.org/docs/using/envs.html#clone-an-environment
-.. _`custom anaconda build channel`: http://conda.pydata.org/docs/using/pkgs.html#install-a-package-from-anaconda-org
 .. _`my channel`: https://conda.anaconda.org/rmkoesterer
-.. _`.condarc`: http://conda.pydata.org/docs/config.html
+.. _`here`: https://github.com/rmkoesterer/uga/releases
 
    >>> tar -xvf uga.tar.gz
    >>> cd uga
@@ -104,7 +106,7 @@ See the documentation for tips on how to `clone an environment`_ in conda. You w
 
 **Installing uga from source**
 
-Use the following command to install uga from source
+Once you have successfully prepared the conda environment, use the following command to install uga from source.
 
    >>> python setup.py install
 
@@ -123,6 +125,10 @@ how to `fork this repository`_
 Verify that uga is functional using the following command to display help.
 
    >>> uga -h
+
+Note: further help is provided after selecting a specific module, ie.
+
+   >>> uga snv -h
 
 **Parallel computing**
 
@@ -145,7 +151,7 @@ Contact
 
 .. _`Ryan Koesterer`: https://github.com/rmkoesterer/uga
 
-Please report any bugs or issues using the Github `Issues`_ tab on this page. I will respond to all concerns as soon as possible.
+Please report any bugs or issues using the Github `Issues`_ tab on this page. I will respond to all concerns as quickly as possible.
 
 .. _`Issues`: https://github.com/rmkoesterer/uga/issues
 
