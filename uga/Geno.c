@@ -840,7 +840,7 @@ typedef npy_cdouble __pyx_t_5numpy_complex_t;
  * 
  * cdef class Ref:             # <<<<<<<<<<<<<<
  * 	cdef public object db
- * 	cpdef update(self, Geno.Variants v)
+ * 	cpdef load(self, np.ndarray v)
  */
 struct __pyx_obj_3uga_7Variant_Ref {
   PyObject_HEAD
@@ -984,11 +984,12 @@ struct __pyx_memoryviewslice_obj {
  * 
  * cdef class Ref:             # <<<<<<<<<<<<<<
  * 	cdef public object db
- * 	cpdef update(self, Geno.Variants v)
+ * 	cpdef load(self, np.ndarray v)
  */
 
 struct __pyx_vtabstruct_3uga_7Variant_Ref {
-  PyObject *(*update)(struct __pyx_obj_3uga_7Variant_Ref *, struct __pyx_obj_3uga_4Geno_Variants *, int __pyx_skip_dispatch);
+  PyObject *(*load)(struct __pyx_obj_3uga_7Variant_Ref *, PyArrayObject *, int __pyx_skip_dispatch);
+  PyObject *(*update)(struct __pyx_obj_3uga_7Variant_Ref *, PyArrayObject *, int __pyx_skip_dispatch);
 };
 static struct __pyx_vtabstruct_3uga_7Variant_Ref *__pyx_vtabptr_3uga_7Variant_Ref;
 

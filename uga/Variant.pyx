@@ -25,22 +25,25 @@ import logging
 module_logger = logging.getLogger("Variant")
 
 cdef class Ref(object):
-
-	def __cinit__(self, Geno.Variants v):
+	def __cinit__(self):
 		logger = logging.getLogger("Variant.Ref.__cinit__")
 		logger.debug("initialize variant reference")
 		self.db = {}
-		for row in v.info:
+
+	cpdef load(self, np.ndarray v):
+		logger = logging.getLogger("Variant.Ref.load")
+		logger.debug("load")
+		for row in v:
 			self.db[row['uid']] = {}
 			self.db[row['uid']]['id'] = row['id']
 			self.db[row['uid']]['id_unique'] = row['id_unique']
 			self.db[row['uid']]['a1'] = row['a1']
 			self.db[row['uid']]['a2'] = row['a2']
 
-	cpdef update(self, Geno.Variants v):
+	cpdef update(self, np.ndarray v):
 		logger = logging.getLogger("Variant.Ref.update")
 		logger.debug("update")
-		for row in v.info:
+		for row in v:
 			if not row['uid'] in self.db:
 				self.db[row['uid']] = {}
 				self.db[row['uid']]['id'] = row['id']

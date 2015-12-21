@@ -82,13 +82,13 @@ def process_regions(regions_df, cfg, cpu, log):
 	final_written = False
 	results_final_models = {}
 	results_final_models_headers = {}
+	variant_ref = Variant.Ref()
 	for n in cfg['model_order']:
 		model_written[n] = False
 		results_final_models[n] = pd.DataFrame({})
 	results_final_meta = pd.DataFrame({})
 	for k in xrange(len(regions_df.index)):
 		meta_incl = []
-		variants_db = {}
 		region_written = False
 		results_region = pd.DataFrame({})
 		print ''
@@ -102,14 +102,17 @@ def process_regions(regions_df, cfg, cpu, log):
 			try:
 				models_obj[n].get_snvgroup(cfg['buffer'], regions_df['group_id'][k])
 			except:
+				if not variants_found:
+					print '   (' + n + ') processed 0 variants'
 				pass
 			variants_found = True
 
-			if n == cfg['model_order'][0]:
-				ref = Variant.Ref(models_obj[n].variants)
-			else:
-				ref.update(models_obj[n].variants)
-				models_obj[n].variants.align(ref)
+			if len(cfg['meta_order']) > 0:
+				if n == cfg['model_order'][0]:
+					variant_ref.load(models_obj[n].variants.info)
+				else:
+					variant_ref.update(models_obj[n].variants.info)
+					models_obj[n].variants.align(variant_ref)
 
 			try:
 				models_obj[n].filter(miss_thresh=cfg['models'][n]['miss'], maf_thresh=cfg['models'][n]['maf'], maxmaf_thresh=cfg['models'][n]['maxmaf'], 
@@ -124,8 +127,9 @@ def process_regions(regions_df, cfg, cpu, log):
 				print err.out
 				pass
 
-			if models_obj[n].results['err'][0] == 0:
-				meta_incl.append(n)
+			if len(cfg['meta_order']) > 0:
+				if models_obj[n].results['err'][0] == 0:
+					meta_incl.append(n)
 
 			if not model_written[n]:
 				results_final_models[n] = models_obj[n].out
@@ -134,8 +138,8 @@ def process_regions(regions_df, cfg, cpu, log):
 			else:
 				results_final_models[n] = results_final_models[n].append(models_obj[n].out, ignore_index=True)
 
-			if len(cfg['model_order']) > 1:
-					models_obj[n].tag_results(n)
+			if len(cfg['meta_order']) > 0:
+				models_obj[n].tag_results(n)
 
 			if not region_written:
 				results_region = models_obj[n].out
@@ -156,6 +160,7 @@ def process_regions(regions_df, cfg, cpu, log):
 				meta_result = getattr(Model,cfg['models'][cfg['meta'][meta].split('+')[0]]['fxn'].capitalize() + 'Meta')(models_obj[cfg['meta'][meta].split('+')[0]], meta, cfg['meta'][meta], meta_incl)
 				h1 = h1 + [x for x in meta_result.columns.values]
 				results_region = pd.concat([results_region,meta_result], axis=1)
+				print '   processed meta analysis ' + meta + ' (' + "+".join([x for x in cfg['meta'][meta].split('+') if x in meta_incl]) + ')'
 			h = h1 + h2
 			if not final_written:
 				results_final_meta = results_region[h]

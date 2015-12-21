@@ -118,7 +118,7 @@ how to `fork this repository`_
 
 **Note**: If you install uga under a conda environment, you need to source the environment as shown above before running any task in uga.
 
-   >>> source YOUR_CLONED_CONDA_ENVIRONMENT
+   >>> source activate uga_python2.7
 
 Verify that uga is functional using the following command to display help.
 

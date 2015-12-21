@@ -187,9 +187,9 @@ def main(args=None):
 	directory = os.getcwd()
 
 	if args.which in ['snv','snvgroup','meta']:
+		print 'detected run type ' + str(run_type) + ' ...'
 		if len(rerun) == 0:
 			if int(max(regions_df['job'])) > 1 and cfg['qsub'] is not None:
-				print 'detected run type ' + str(run_type) + ' ...'
 				if 'mb' in cfg:
 					print '   ' + str(regions_df.shape[0]) + ' regions of size ' + str(cfg['mb']) + 'mb detected'
 				else:
@@ -236,12 +236,6 @@ def main(args=None):
 						os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j))
 					except OSError:
 						pass
-					if args.which in ['snv','meta']:
-						for chr in np.unique(regions_df['chr'][regions_df['job'] == j]):
-							try:
-								os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/chr' + str(chr))
-							except OSError:
-								continue
 				with open(directory + '/' + cfg['out'] + '.files', 'w') as jlist:
 					for j in range(1, int(max(regions_df['job'])) + 1):
 						if 'model_order' in cfg:
@@ -252,13 +246,6 @@ def main(args=None):
 						if 'meta_order' in cfg:
 							if len(cfg['meta_order']) > 0:
 								jlist.write(str(j) + '\t' + cfg['out'] + '.meta.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.meta.gz\n')
-			else:
-				if args.which in ['snv','meta']:
-					for chr in np.unique(regions_df['chr']):
-						try:
-							os.mkdir(directory + '/chr' + str(chr))
-						except OSError:
-							continue
 		else:
 			directory = directory + '/' + os.path.basename(cfg['out'])
 			if int(max(regions_df['job'])) > 1 and cfg['qsub'] is not None:

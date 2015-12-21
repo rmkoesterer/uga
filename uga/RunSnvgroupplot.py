@@ -46,7 +46,7 @@ def RunSnvgroupplot(args):
 	cols = header[-1].split()
 	pcols = [x for x in cols if x == 'p' or len(re.findall('.p$',x)) > 0] if cfg['pcol'] is None else [cfg['pcol']]
 	cmafcols = [x for x in cols if x == 'cmaf' or '.cmaf' in x] if cfg['pcol'] is None else [cfg['pcol'].replace('.p','.cmaf') if len(re.findall('.p$',cfg['pcol'])) > 0 else 'cmaf']
-	cols_extract = ['#chr','start','end','group_id'] + pcols + cmafcols
+	cols_extract = ['#chr','start','end','id'] + pcols + cmafcols
 	print "importing data"
 	r = pd.read_table(cfg['file'],sep='\t',skiprows=skip_rows,usecols=cols_extract,compression='gzip')
 	print str(r.shape[0]) + " total groups found"
@@ -59,7 +59,7 @@ def RunSnvgroupplot(args):
 		else:
 			cmafcol = 'cmaf'
 		print "plotting p-values for column " + pcol + " ..."
-		results = r[['#chr','start','end','group_id',pcol,cmafcol]].copy()
+		results = r[['#chr','start','end','id',pcol,cmafcol]].copy()
 		results.dropna(inplace=True)
 		results = results[(results[pcol] > 0) & (results[pcol] <= 1)]
 		if cfg['cmaf'] > 0:
@@ -74,7 +74,7 @@ def RunSnvgroupplot(args):
 			ro.globalenv['results'] = results
 			l = np.median(scipy.chi2.ppf([1-x for x in results[pcol].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 			# in R: median(qchisq(results$p, df=1, lower.tail=FALSE))/qchisq(0.5,1)
-			print "   genomic inflation (all variants) = " + str(l)
+			print "   genomic inflation (all groups) = " + str(l)
 			if cfg['qq']:
 				print "   generating standard qq plot"
 				print "   minimum p-value: " + str(np.min(results[pcol]))
@@ -203,7 +203,6 @@ def RunSnvgroupplot(args):
 					results['colours'] = "#000000"
 					for i in range(len(chrs)):
 						print "      processed chromosome " + str(int(chrs[i]))
-						print results.loc[results['#chr'] == chrs[i]]
 						if i == 0:
 							results.loc[results['#chr'] == chrs[i],'gpos'] = results.loc[results['#chr'] == chrs[i],'pos']
 						else:
@@ -213,8 +212,6 @@ def RunSnvgroupplot(args):
 								lastbase = lastbase + results.loc[results['#chr'] == chrs[i-1],'pos']
 							results.loc[results['#chr'] == chrs[i],'gpos'] = (results.loc[results['#chr'] == chrs[i],'pos']) + lastbase
 						if results.loc[results['#chr'] == chrs[i]].shape[0] > 1:
-							print results.loc[results['#chr'] == chrs[i],'gpos']
-							print (int(math.floor(len(results.loc[results['#chr'] == chrs[i],'gpos']))/2)) + 1
 							ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[(int(math.floor(len(results.loc[results['#chr'] == chrs[i],'gpos']))/2)) + 1])
 						else:
 							ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'])
@@ -224,7 +221,7 @@ def RunSnvgroupplot(args):
 					sig = 5.4e-8
 				else:
 					sig = 0.05 / results.shape[0]
-				print "   significance level set to " + str(sig)
+				print "   significance level set to p-value = " + str(sig) + " (-1*log10(p-value) = " + str(-1 * np.log10(sig)) + ")"
 				chr = results['#chr'][0]
 				maxy=int(max(np.ceil(-1 * np.log10(sig)),np.ceil(results['logp'].max())))
 				if maxy > 20:

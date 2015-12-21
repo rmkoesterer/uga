@@ -217,6 +217,13 @@ def snv_args(snv_parser):
 						nargs=0, 
 						action=AddTrue,
 						help='lm test')
+	snv_parser.add_argument('--meta', 
+						action=AddString, 
+						help='a meta analysis string')
+	snv_parser.add_argument('--meta-type', 
+						action=AddString, 
+						choices=['sample_size','stderr'], 
+						help='a meta analysis string (default: sample_size')
 	snv_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 

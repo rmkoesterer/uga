@@ -23,7 +23,8 @@ import math
 
 cdef class Ref:
 	cdef public object db
-	cpdef update(self, Geno.Variants v)
+	cpdef load(self, np.ndarray v)
+	cpdef update(self, np.ndarray v)
 cpdef complement(allele)
 cpdef get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py)
 cdef double calc_callrate(np.ndarray[np.float64_t, ndim=1])

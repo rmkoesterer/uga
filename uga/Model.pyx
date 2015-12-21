@@ -21,14 +21,16 @@ import Process
 cimport numpy as np
 cimport cython
 import Geno
-cimport Variant
 import Variant
+cimport Variant
 import Fxns
 import rpy2.robjects as ro
 from rpy2.robjects import pandas2ri
 from rpy2.rinterface import RRuntimeError
 from __version__ import version
 import time
+import math
+import scipy.stats as scipy
 import numpy.lib.recfunctions as recfxns
 import logging
 pandas2ri.activate()
@@ -222,6 +224,8 @@ cdef class Model(object):
 					self.ped_df[self.pheno][self.cases_idx] = 1
 					self.ped_df[self.pheno][self.ctrls_idx] = 0
 					print "   " + str(self.nctrls) + " controls"
+				if len(np.unique(self.ped_df[self.pheno])) == 1:
+					raise Process.Error("phenotype consists of only a single unique value")
 			else:
 				raise Process.Error("ped file and data file contain no common samples")
 
@@ -311,6 +315,7 @@ cdef class Model(object):
 
 cdef class SnvModel(Model):
 	cdef public str metadata_snv, metadata_snv_cc
+	cdef public object out_all
 	def __cinit__(self, **kwargs):
 		logger = logging.getLogger("Model.SnvModel.__cinit__")
 		logger.debug("initialize SnvModel")
@@ -318,6 +323,7 @@ cdef class SnvModel(Model):
 		self.tbx_start = 1
 		self.tbx_end = 1
 		self.results_header = np.array(['chr','pos','id','a1','a2','filter','callrate','rsq','hwe','mac','freq','freq.case','freq.ctrl'])
+		self.out_all = None
 
 		self.metadata_snv = '## chr: chromosome' + '\n' + \
 							'## pos: chromosomal position' + '\n' + \
@@ -410,7 +416,6 @@ cdef class Score(SnvModel):
 			self.results_header = np.append(self.results_header,np.array(['err','nmiss','ntotal','effect','stderr','or','p']))
 		else:
 			self.results_header = np.append(self.results_header,np.array(['err','nmiss','ntotal','effect','stderr','p']))
-			#self.results_dtypes=[('err','>f8'),('nmiss','>f8'),('ntotal','>f8'),('effect','>f8'),('stderr','>f8'),('p','>f8')]
 
 		print "loading R package seqMeta"
 		ro.r('suppressMessages(library(seqMeta))')
@@ -473,17 +478,17 @@ cdef class Score(SnvModel):
 				self.results['stderr'][passed] = np.array(ro.r('result$se'))[:,None]
 				self.results['or'][passed] = np.array(np.exp(ro.r('result$beta')))[:,None]
 				self.results['p'][passed] = np.array(ro.r('result$p'))[:,None]
-		for i in xrange(self.variants.info.shape[0]):
-			if self.variant_stats['freq'][i] > 0.5:
-				a1 = self.variants.info['a1'][i]
-				a2 = self.variants.info['a2'][i]
-				self.variants.info['a1'][i] = a2
-				self.variants.info['a2'][i] = a1
-				self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
-				self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
-				self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
-				self.results['effect'][i] = -1 * self.results['effect'][i]
-				self.results['or'][i] = 1 / self.results['or'][i]
+		#for i in xrange(self.variants.info.shape[0]):
+		#	if self.variant_stats['freq'][i] > 0.5:
+		#		a1 = self.variants.info['a1'][i]
+		#		a2 = self.variants.info['a2'][i]
+		#		self.variants.info['a1'][i] = a2
+		#		self.variants.info['a2'][i] = a1
+		#		self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
+		#		self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
+		#		self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
+		#		self.results['effect'][i] = -1 * self.results['effect'][i]
+		#		self.results['or'][i] = 1 / self.results['or'][i]
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Gee(SnvModel):
@@ -566,17 +571,17 @@ cdef class Gee(SnvModel):
 						self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
 					else:
 						self.results['err'][v] = 1
-		for i in xrange(self.variants.info.shape[0]):
-			if self.variant_stats['freq'][i] > 0.5:
-				a1 = self.variants.info['a1'][i]
-				a2 = self.variants.info['a2'][i]
-				self.variants.info['a1'][i] = a2
-				self.variants.info['a2'][i] = a1
-				self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
-				self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
-				self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
-				self.results['effect'][i] = -1 * self.results['effect'][i]
-				self.results['or'][i] = 1 / self.results['or'][i]
+		#for i in xrange(self.variants.info.shape[0]):
+		#	if self.variant_stats['freq'][i] > 0.5:
+		#		a1 = self.variants.info['a1'][i]
+		#		a2 = self.variants.info['a2'][i]
+		#		self.variants.info['a1'][i] = a2
+		#		self.variants.info['a2'][i] = a1
+		#		self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
+		#		self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
+		#		self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
+		#		self.results['effect'][i] = -1 * self.results['effect'][i]
+		#		self.results['or'][i] = 1 / self.results['or'][i]
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Glm(SnvModel):
@@ -650,18 +655,18 @@ cdef class Glm(SnvModel):
 					self.results['or'][v] = np.array(np.exp(ro.r('result$coefficients["' + vu + '",1]')))[:,None]
 					self.results['z'][v] = np.array(ro.r('result$coefficients["' + vu + '",3]'))[:,None]
 					self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
-		for i in xrange(self.variants.info.shape[0]):
-			if self.variant_stats['freq'][i] > 0.5:
-				a1 = self.variants.info['a1'][i]
-				a2 = self.variants.info['a2'][i]
-				self.variants.info['a1'][i] = a2
-				self.variants.info['a2'][i] = a1
-				self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
-				self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
-				self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
-				self.results['effect'][i] = -1 * self.results['effect'][i]
-				self.results['or'][i] = 1 / self.results['or'][i]
-				self.results['z'][i] = -1 * self.results['z'][i]
+		#for i in xrange(self.variants.info.shape[0]):
+		#	if self.variant_stats['freq'][i] > 0.5:
+		#		a1 = self.variants.info['a1'][i]
+		#		a2 = self.variants.info['a2'][i]
+		#		self.variants.info['a1'][i] = a2
+		#		self.variants.info['a2'][i] = a1
+		#		self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
+		#		self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
+		#		self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
+		#		self.results['effect'][i] = -1 * self.results['effect'][i]
+		#		self.results['or'][i] = 1 / self.results['or'][i]
+		#		self.results['z'][i] = -1 * self.results['z'][i]
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Lm(SnvModel):
@@ -725,17 +730,17 @@ cdef class Lm(SnvModel):
 					self.results['stderr'][v] = np.array(ro.r('result$coefficients["' + vu + '",2]'))[:,None]
 					self.results['t'][v] = np.array(ro.r('result$coefficients["' + vu + '",3]'))[:,None]
 					self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
-		for i in xrange(self.variants.info.shape[0]):
-			if self.variant_stats['freq'][i] > 0.5:
-				a1 = self.variants.info['a1'][i]
-				a2 = self.variants.info['a2'][i]
-				self.variants.info['a1'][i] = a2
-				self.variants.info['a2'][i] = a1
-				self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
-				self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
-				self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
-				self.results['effect'][i] = -1 * self.results['effect'][i]
-				self.results['t'][i] = -1 * self.results['t'][i]
+		#for i in xrange(self.variants.info.shape[0]):
+		#	if self.variant_stats['freq'][i] > 0.5:
+		#		a1 = self.variants.info['a1'][i]
+		#		a2 = self.variants.info['a2'][i]
+		#		self.variants.info['a1'][i] = a2
+		#		self.variants.info['a2'][i] = a1
+		#		self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
+		#		self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
+		#		self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
+		#		self.results['effect'][i] = -1 * self.results['effect'][i]
+		#		self.results['t'][i] = -1 * self.results['t'][i]
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Skat(SnvgroupModel):
@@ -1261,3 +1266,62 @@ def BurdenMeta(Burden obj, tag, meta, meta_incl):
 		results[tag + '.se'][0] = np.nan
 		results[tag + '.p'][0] = np.nan
 	return pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')
+
+def SnvMeta(df, meta, meta_incl, meta_type = 'sample_size'):
+	header = list(df.columns)
+	if meta_type == 'sample_size':
+		df[meta + '.dir'] = ''
+		for tag in meta_incl:
+			#df[tag + '.filter'] = df.apply(lambda x: 1 if math.isnan(x[tag + '.p']) or x[tag + '.p'] > 1 or x[tag + '.p'] <= 0 else x[tag + '.filter'],axis=1)
+			filter_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.filter')][0]
+			N_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
+			P_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
+			Eff_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
+			df[meta + '.' + tag + '.dir'] = df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
+			df[meta + '.' + tag + '.zi'] = df.apply(lambda x: (-1 * scipy.norm.ppf(1 - (x[P_idx]/2)) if x[Eff_idx] < 0 else scipy.norm.ppf(1 - (x[P_idx]/2))) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+			df[meta + '.' + tag + '.n'] = df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+			df[meta + '.' + tag + '.wi'] = df.apply(lambda x: math.sqrt(x[meta + '.' + tag + '.n']) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+			df[meta + '.' + tag + '.ziwi'] = df.apply(lambda x: x[meta + '.' + tag + '.zi'] * x[meta + '.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+			df[meta + '.dir'] = df[meta + '.dir'] + df[meta + '.' + tag + '.dir']
+		N_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
+		Wi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
+		ZiWi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.ziwi')]
+		df[meta + '.n'] = df.apply(lambda x: x[N_idx_all].sum() if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+		df[meta + '.z'] = df.apply(lambda x: x[ZiWi_idx_all].sum()/math.sqrt(x[N_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+		df[meta + '.stderr'] = df.apply(lambda x: float('nan'), axis=1)
+		df[meta + '.effect'] = df.apply(lambda x: float('nan'), axis=1)
+		df[meta + '.or'] = df.apply(lambda x: float('nan'), axis=1)
+		new_cols = [meta + '.z',meta + '.p',meta + '.dir',meta + '.n']
+	else:
+		df[meta + '.dir'] = ''
+		for tag in meta_incl:
+			#df[tag + '.filter'] = df.apply(lambda x: 1 if math.isnan(x[tag + '.p']) or x[tag + '.p'] > 1 or x[tag + '.p'] <= 0 else x[tag + '.filter'],axis=1)
+			filter_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.filter')][0]
+			N_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
+			P_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
+			Eff_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
+			StdErr_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.stderr')][0]
+			df[meta + '.' + tag + '.dir'] = df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
+			df[meta + '.' + tag + '.n'] = df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+			df[meta + '.' + tag + '.wi'] = df.apply(lambda x: 1/(x[StdErr_idx]**2) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+			df[meta + '.' + tag + '.biwi'] = df.apply(lambda x: x[Eff_idx] * x[meta + '.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+			df[meta + '.dir'] = df[meta + '.dir'] + df[meta + '.' + tag + '.dir']
+		N_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
+		Wi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
+		BiWi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.biwi')]
+		df[meta + '.n'] = df.apply(lambda x: x[N_idx_all].sum() if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+		df[meta + '.stderr'] = df.apply(lambda x: math.sqrt(1/(x[Wi_idx_all].sum())) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+		df[meta + '.effect'] = df.apply(lambda x: (x[BiWi_idx_all].sum())/(x[Wi_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+		df[meta + '.or'] = df.apply(lambda x: math.exp(x[meta + '.effect']) if len(x[meta + '.dir'].replace('x','')) > 1 and len([k + '.or' in df for k in meta_incl]) > 0 and not x[meta + '.effect'] > 709.782712893384 and not x[meta + '.effect'] < -709.782712893384 else float('nan'), axis=1)
+		df[meta + '.z'] = df.apply(lambda x: x[meta + '.effect']/x[meta + '.stderr'] if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+		for tag in meta_incl:
+			df[meta + '.' + tag + '.hetq_pre'] = df.apply(lambda x: x[meta + '.' + tag + '.wi'] * (x[tag + '.effect'] - x[meta + '.effect'])**2 if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+		Hetq_pre_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.hetq_pre')]
+		df[meta + '.hetq'] = df.apply(lambda x: x[Hetq_pre_idx_all].sum() if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+		df[meta + '.hetdf'] = df.apply(lambda x: len([a for a in x[meta + '.dir'] if a != 'x'])-1 if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+		df[meta + '.heti2'] = df.apply(lambda x: ((x[meta + '.hetq']-x[meta + '.hetdf'])/x[meta + '.hetq'])*100 if len(x[meta + '.dir'].replace('x','')) > 1 and x[meta + '.hetq'] != 0 else float('nan'),axis=1)
+		df[meta + '.hetp'] = df.apply(lambda x: 1-scipy.chi2.cdf(x[meta + '.hetq'], x[meta + '.hetdf']) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+		new_cols = [meta + '.effect',meta + '.stderr',meta + '.or',meta + '.z',meta + '.p',meta + '.dir',meta + '.n',meta + '.hetq',meta + '.hetdf',meta + '.heti2',meta + '.hetp']
+	df[meta + '.p'] = df.apply(lambda x: 2 * scipy.norm.cdf(-1 * abs(float(x[meta + '.z']))) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+	df[meta + '.dir'] = df.apply(lambda x: x[meta + '.dir'] if not math.isnan(x[meta + '.p']) else float('nan'), axis=1)
+	return new_cols, df

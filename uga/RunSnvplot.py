@@ -348,7 +348,7 @@ def RunSnvplot(args):
 				sig = 5.4e-8
 			else:
 				sig = 0.05 / results.shape[0]
-			print "   significance level set to " + str(sig)
+			print "   significance level set to p-value = " + str(sig) + " (-1*log10(p-value) = " + str(-1 * np.log10(sig)) + ")"
 			chr = results['#chr'][0]
 			maxy=int(max(np.ceil(-1 * np.log10(sig)),np.ceil(results['logp'].max())))
 			if maxy > 20:

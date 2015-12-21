@@ -45,8 +45,8 @@ def get_parser():
 	snvgroup_parser = Args.snvgroup_args(subparsers.add_parser('snvgroup', help='run variant group (ie. gene) based association models', parents=[global_parser]))
 	compile_parser = Args.compile_args(subparsers.add_parser('compile', help='verify and compile results files', parents=[global_parser]))
 	resubmit_parser = Args.resubmit_args(subparsers.add_parser('resubmit', help='resubmit failed results', parents=[global_parser]))
-	#snvplot_parser = Args.snvplot_args(subparsers.add_parser('snvplot', help='generate qq and manhattan plots for single variant results', parents=[global_parser]))
-	#snvgroupplot_parser = Args.snvgroupplot_args(subparsers.add_parser('snvgroupplot', help='generate qq and manhattan plots for grouped variant results', parents=[global_parser]))
+	snvplot_parser = Args.snvplot_args(subparsers.add_parser('snvplot', help='generate qq and manhattan plots for single variant results', parents=[global_parser]))
+	snvgroupplot_parser = Args.snvgroupplot_args(subparsers.add_parser('snvgroupplot', help='generate qq and manhattan plots for grouped variant results', parents=[global_parser]))
 
 	return main_parser
 
@@ -64,7 +64,7 @@ def get_args(parser):
 
 def generate_snv_cfg(args):
 	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'debug': False, 'models': {}, 'model_order': []}
+					'debug': False, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': [], 'meta_type': 'sample_size'}
 	for arg in args:
 		if arg[0] == 'out':
 			config['out'] = arg[1]
@@ -74,6 +74,11 @@ def generate_snv_cfg(args):
 			config['region'] = arg[1]
 		if arg[0] == 'region_file':
 			config['region_file'] = arg[1]
+		if arg[0] == 'meta':
+			config['meta'][arg[1].split(':')[0]] = arg[1].split(':')[1]
+			config['meta_order'].append(arg[1].split(':')[0])
+		if arg[0] == 'meta_type':
+			config['meta_type'] = arg[1]
 		if arg[0] == 'cpus' and arg[1] is not None:
 			config['cpus'] = arg[1]
 		if arg[0] == 'mb' and arg[1] is not None:
@@ -164,6 +169,10 @@ def print_snv_options(cfg):
 					print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len)))
 				else:
 					print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m][n])
+	if len(cfg['meta_order']) > 0:
+		print '   meta analysis ...'
+		for m in cfg['meta_order']:
+			print "      {0:>{1}}".format(str('--meta'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ':' + str(cfg['meta'][m])
 
 def generate_snvgroup_cfg(args):
 	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'snvgroup_map': None, 
@@ -275,7 +284,7 @@ def print_snvgroup_options(cfg):
 	if len(cfg['meta_order']) > 0:
 		print '   meta analysis ...'
 		for m in cfg['meta_order']:
-			print "      {0:>{1}}".format(str('--meta ' + m), len(max(['--' + k for k in cfg['meta_order']],key=len))) + ":" + str(cfg['meta'][m])
+			print "      {0:>{1}}".format(str('--meta'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ':' + str(cfg['meta'][m])
 
 def generate_compile_cfg(args):
 	config = {'dir': None, 'replace': False}
