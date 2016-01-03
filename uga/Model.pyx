@@ -766,7 +766,7 @@ cdef class Skat(SnvgroupModel):
 		self.formula = left + '~' + right
 		print "formula: " + self.formula
 
-		self.results_header = np.append(self.results_header,np.array(['total','passed','mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
+		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
 
 		print "loading R package seqMeta"
 		ro.r('suppressMessages(library(seqMeta))')
@@ -782,7 +782,7 @@ cdef class Skat(SnvgroupModel):
 						self.metadata_gene + '\n' + \
 						'## total: group total snv count' + '\n' + \
 						'## passed: group snv count that passed filters' + '\n' + \
-						'## mac: group minor allele count' + '\n' + \
+						'## cmac: group minor allele count' + '\n' + \
 						'## err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatMeta, 5: analysis skipped, 6: failed group minor allele count threshold), 7: prepScores2 timed out, 8: skatMeta timed out' + '\n' + \
 						'## nmiss: number of missing genotypes in group' + '\n' + \
 						'## nsnps: number of snps in the group' + '\n' + \
@@ -794,7 +794,7 @@ cdef class Skat(SnvgroupModel):
 		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('mac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('q','>f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('q','>f8')])
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -817,8 +817,8 @@ cdef class Skat(SnvgroupModel):
 			ro.r('snp_info$Name<-as.character(snp_info$Name)')
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
-			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
-			if self.results['mac'][0] >= self.snvgroup_mac:
+			self.results['cmac'][0] = np.sum(self.variant_stats['mac'][passed])
+			if self.results['cmac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
@@ -860,12 +860,13 @@ cdef class Skat(SnvgroupModel):
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 
 	cpdef tag_results(self, tag):
-		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','mac','err','nmiss','nsnps','cmaf','p','q']]))
-		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + 'total','uint32'),(tag + 'passed','uint32'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
+		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','cmac','err','nmiss','nsnps','cmaf','p','q']]))
+		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + 'total','uint32'),(tag + 'passed','uint32'),(tag + '.cmac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
+			ro.globalenv[tag + '_cmac'] = self.out[tag + '.cmac'][0]
 
 cdef class Skato(SnvgroupModel):
 	cdef public str skat_wts, burden_wts, skat_method, mafrange, skato_rho
@@ -892,7 +893,7 @@ cdef class Skato(SnvgroupModel):
 		self.formula = left + '~' + right
 		print "formula: " + self.formula
 
-		self.results_header = np.append(self.results_header,np.array(['total','passed','mac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
+		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
 
 		print "loading R package seqMeta"
 		ro.r('suppressMessages(library(seqMeta))')
@@ -908,7 +909,7 @@ cdef class Skato(SnvgroupModel):
 						self.metadata_gene + '\n' + \
 						'## total: group total snv count' + '\n' + \
 						'## passed: group snv count that passed filters' + '\n' + \
-						'## mac: group minor allele count' + '\n' + \
+						'## cmac: group minor allele count' + '\n' + \
 						'## err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatOMeta, 4: skatOMeta errflag > 0, 5: analysis skipped, 6: failed group minor allele count threshold), 7: prepScores2 timed out, 8: skatOMeta timed out' + '\n' + \
 						'## nmiss: number of missing genotypes in group' + '\n' + \
 						'## nsnps: number of snps in the group' + '\n' + \
@@ -921,7 +922,7 @@ cdef class Skato(SnvgroupModel):
 		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('mac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -945,8 +946,8 @@ cdef class Skato(SnvgroupModel):
 			ro.r('snp_info$Name<-as.character(snp_info$Name)')
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
-			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
-			if self.results['mac'][0] >= self.snvgroup_mac:
+			self.results['cmac'][0] = np.sum(self.variant_stats['mac'][passed])
+			if self.results['cmac'][0] >= self.snvgroup_mac:
 				if passed == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
@@ -991,12 +992,13 @@ cdef class Skato(SnvgroupModel):
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 
 	cpdef tag_results(self, tag):
-		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','mac','err','nmiss','nsnps','cmaf','p','pmin','rho']]))
-		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.total','uint32'),(tag + '.passed','uint32'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
+		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho']]))
+		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.total','uint32'),(tag + '.passed','uint32'),(tag + '.cmac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
+			ro.globalenv[tag + '_cmac'] = self.out[tag + '.cmac'][0]
 
 cdef class Burden(SnvgroupModel):
 	cdef public str mafrange, burden_wts
@@ -1020,7 +1022,7 @@ cdef class Burden(SnvgroupModel):
 		self.formula = left + '~' + right
 		print "formula: " + self.formula
 
-		self.results_header = np.append(self.results_header,np.array(['total','passed','mac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']))
+		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']))
 
 		print "loading R package seqMeta"
 		ro.r('suppressMessages(library(seqMeta))')
@@ -1034,7 +1036,7 @@ cdef class Burden(SnvgroupModel):
 						self.metadata_gene + '\n' + \
 						'## total: group total snv count' + '\n' + \
 						'## passed: group snv count that passed filters' + '\n' + \
-						'## mac: group minor allele count' + '\n' + \
+						'## cmac: group minor allele count' + '\n' + \
 						'## err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed burdenMeta, 5: analysis skipped, 6: failed group minor allele count threshold), 7: prepScores2 timed out, 8: burdenMeta timed out' + '\n' + \
 						'## nmiss: number of missing snps' + '\n' + \
 						'## nsnpsTotal: number of snps in group' + '\n' + \
@@ -1049,7 +1051,7 @@ cdef class Burden(SnvgroupModel):
 		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('mac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnpsTotal','>f8'),('nsnpsUsed','>f8'),('cmafTotal','>f8'),('cmafUsed','>f8'),('beta','>f8'),('se','>f8'),('p','>f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnpsTotal','>f8'),('nsnpsUsed','>f8'),('cmafTotal','>f8'),('cmafUsed','>f8'),('beta','>f8'),('se','>f8'),('p','>f8')])
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -1075,8 +1077,8 @@ cdef class Burden(SnvgroupModel):
 			ro.r('snp_info$Name<-as.character(snp_info$Name)')
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
-			self.results['mac'][0] = np.sum(self.variant_stats['mac'][passed])
-			if self.results['mac'][0] >= self.snvgroup_mac:
+			self.results['cmac'][0] = np.sum(self.variant_stats['mac'][passed])
+			if self.results['cmac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
@@ -1124,204 +1126,354 @@ cdef class Burden(SnvgroupModel):
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 
 	cpdef tag_results(self, tag):
-		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','mac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']]))
-		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.total','uint32'),(tag + '.passed','uint32'),(tag + '.mac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
+		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','cmac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']]))
+		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.total','uint32'),(tag + '.passed','uint32'),(tag + '.cmac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
+			ro.globalenv[tag + '_cmac'] = self.out[tag + '.cmac'][0]
 
-def SkatMeta(Skat obj, tag, meta, meta_incl):
-	for m in meta_incl:
-		if m == meta_incl[0]:
-			ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')
+cdef class Meta(object):
+	cdef public unsigned int tbx_start, tbx_end
+	cdef public str tag, meta, metadata
+	cdef public np.ndarray results_header
+	cdef public object out
+	def __cinit__(self, tag, meta, **kwargs):
+		super(Meta, self).__init__(**kwargs)
+		logger = logging.getLogger("Model.Meta.__cinit__")
+		logger.debug("initialize meta")
+		self.tag = tag
+		self.meta = meta
+		self.metadata = '## source: uga' + version + '\n' + \
+						'## date: ' + time.strftime("%Y%m%d") + '\n' + \
+						'## method: meta\n' + \
+						'## formula: ' + self.meta
+
+cdef class SnvMeta(Meta):
+	cdef public str type
+	cdef public object df
+	cdef public np.ndarray meta_incl
+	def __cinit__(self, type = "sample_size", **kwargs):
+		logger = logging.getLogger("Model.SnvMeta.__cinit__")
+		logger.debug("initialize SnvMeta")
+		self.type = type
+		super(SnvMeta, self).__init__(**kwargs)
+		self.tbx_start = 1
+		self.tbx_end = 1
+		self.meta_incl = np.array(self.meta.split('+'))
+
+		if self.type == 'stderr':
+			self.results_header = np.array(['chr','pos','id','a1','a2','effect','stderr','or','z','p','dir','n','hetq','hetdf','heti2','hetp'])
 		else:
-			ro.r('snp_info_meta<-merge(snp_info_meta,' + m + '_snp_info,all=TRUE)')
-	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
-	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
-	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
-		try:
-			ro.globalenv['result'] = ro.r(cmd)
-		except RRuntimeError as rerr:
-			results[tag + '.err'][0] = 3
-			print rerr.message
+			self.results_header = np.array(['chr','pos','id','a1','a2','z','p','dir','n'])
+
+		self.metadata = self.metadata + '\n' + \
+						'## chr: chromosome' + '\n' + \
+						'## pos: chromosomal position' + '\n' + \
+						'## id: snv name' + '\n' + \
+						'## a1: reference (coded) allele used for stat calculations' + '\n' + \
+						'## a2: alternate (non-coded) allele' + '\n'
+		self.metadata = self.metadata + '## effect: effect size' + '\n' + '## stderr: standard error' + '\n' + '## or: odds ratio' + '\n' if self.type == "stderr" else self.metadata
+		self.metadata = self.metadata + \
+						'## z: z score' + '\n' + \
+						'## p: p-value' + '\n' + \
+						"## dir: direction of effect of each cohort (same order as formula; 'x' indicates cohort excluded from meta)" + '\n' + \
+						'## n: sample size'
+		self.metadata = self.metadata + '\n' + '## hetq: heterogeneity chi-squared statistic' + '\n' + '## hetdf: heterogeneity degrees of freedom' + '\n' + '## heti2: heterogeneity inconsistency statistic (I-squared)' + '\n' + '## hetp: heterogeneity p-value\n' if self.type == "stderr" else self.metadata + '\n'
+
+	def calc_meta(self, df):
+		# df: a dataframe with tagged input data using meta_incl tags
+		header = list(df.columns)
+		if self.type == 'sample_size':
+			df['meta.dir'] = ''
+			for tag in self.meta_incl:
+				filter_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.filter')][0]
+				N_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
+				P_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
+				Eff_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
+				df['meta.' + tag + '.dir'] = df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
+				df['meta.' + tag + '.zi'] = df.apply(lambda x: (-1 * scipy.norm.ppf(1 - (x[P_idx]/2)) if x[Eff_idx] < 0 else scipy.norm.ppf(1 - (x[P_idx]/2))) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				df['meta.' + tag + '.n'] = df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				df['meta.' + tag + '.wi'] = df.apply(lambda x: math.sqrt(x[tag + '.n']) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				df['meta.' + tag + '.ziwi'] = df.apply(lambda x: x['meta.' + tag + '.zi'] * x['meta.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				df['meta.dir'] = df['meta.dir'] + df['meta.' + tag + '.dir']
+			N_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.n')]
+			Wi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.wi')]
+			ZiWi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.ziwi')]
+			df['meta.n'] = df.apply(lambda x: x[N_idx_all].sum() if len(x['meta.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+			df['meta.z'] = df.apply(lambda x: x[ZiWi_idx_all].sum()/math.sqrt(x[N_idx_all].sum()) if len(x['meta.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+			df['meta.stderr'] = df.apply(lambda x: float('nan'), axis=1)
+			df['meta.effect'] = df.apply(lambda x: float('nan'), axis=1)
+			df['meta.or'] = df.apply(lambda x: float('nan'), axis=1)
 		else:
-			if ro.r('class(result) == "data.frame"')[0]:
-				ro.r('result$err<-0')
-				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-				ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$q[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
-				results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
-				results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-				results[tag + '.nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
-				results[tag + '.cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
-				results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
-				results[tag + '.q'][0] = np.array(ro.r('result$Q'))[:,None]
+			df['meta.dir'] = ''
+			for tag in self.meta_incl:
+				filter_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.filter')][0]
+				N_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
+				P_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
+				Eff_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
+				StdErr_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.stderr')][0]
+				df['meta.' + tag + '.dir'] = df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
+				df['meta.' + tag + '.n'] = df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				df['meta.' + tag + '.wi'] = df.apply(lambda x: 1/(x[StdErr_idx]**2) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				df['meta.' + tag + '.biwi'] = df.apply(lambda x: x[Eff_idx] * x['meta.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+				df['meta.dir'] = df['meta.dir'] + df['meta.' + tag + '.dir']
+			N_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.n')]
+			Wi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.wi')]
+			BiWi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.biwi')]
+			df['meta.n'] = df.apply(lambda x: x[N_idx_all].sum() if len(x['meta.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+			df['meta.stderr'] = df.apply(lambda x: math.sqrt(1/(x[Wi_idx_all].sum())) if len(x['meta.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+			df['meta.effect'] = df.apply(lambda x: (x[BiWi_idx_all].sum())/(x[Wi_idx_all].sum()) if len(x['meta.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+			df['meta.or'] = df.apply(lambda x: math.exp(x['meta.effect']) if len(x['meta.dir'].replace('x','')) > 1 and len([k + '.or' in df for k in self.meta_incl]) > 0 and not x['meta.effect'] > 709.782712893384 and not x['meta.effect'] < -709.782712893384 else float('nan'), axis=1)
+			df['meta.z'] = df.apply(lambda x: x['meta.effect']/x['meta.stderr'] if len(x['meta.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+			for tag in self.meta_incl:
+				df['meta.' + tag + '.hetq_pre'] = df.apply(lambda x: x['meta.' + tag + '.wi'] * (x[tag + '.effect'] - x['meta.effect'])**2 if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
+			Hetq_pre_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.hetq_pre')]
+			df['meta.hetq'] = df.apply(lambda x: x[Hetq_pre_idx_all].sum() if len(x['meta.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+			df['meta.hetdf'] = df.apply(lambda x: len([a for a in x['meta.dir'] if a != 'x'])-1 if len(x['meta.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+			df['meta.heti2'] = df.apply(lambda x: ((x['meta.hetq']-x['meta.hetdf'])/x['meta.hetq'])*100 if len(x['meta.dir'].replace('x','')) > 1 and x['meta.hetq'] != 0 else float('nan'),axis=1)
+			df['meta.hetp'] = df.apply(lambda x: 1-scipy.chi2.cdf(x['meta.hetq'], x['meta.hetdf']) if len(x['meta.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+		df['meta.p'] = df.apply(lambda x: 2 * scipy.norm.cdf(-1 * abs(float(x['meta.z']))) if len(x['meta.dir'].replace('x','')) > 1 else float('nan'), axis=1)
+		df['meta.dir'] = df.apply(lambda x: x['meta.dir'] if not math.isnan(x['meta.p']) else float('nan'), axis=1)
+		df = df[['chr','pos','id','a1','a2'] + [x for x in df.columns if 'meta.' in x]]
+		df.columns = [x.replace('meta.','') for x in df.columns]
+		self.out = df[self.results_header]
+
+cdef class SkatMeta(Meta):
+	cdef public object df
+	cdef public np.ndarray meta_incl
+	def __cinit__(self, **kwargs):
+		logger = logging.getLogger("Model.SkatMeta.__cinit__")
+		logger.debug("initialize SkatMeta")
+		super(SkatMeta, self).__init__(**kwargs)
+		self.tbx_start = 1
+		self.tbx_end = 2
+		self.meta_incl = np.array(self.meta.split('+'))
+		self.results_header = np.array(['chr','start','end','id','incl','cmac','err','nmiss','nsnps','cmaf','p','q'])
+		self.metadata = self.metadata + '\n' + \
+						'## chr: chromosome' + '\n' + \
+						'## start: start chromosomal position' + '\n' + \
+						'## end: end chromosomal position' + '\n' + \
+						'## id: snv group name (ie. gene name)' + '\n' + \
+						"## incl: cohort inclusion ('+' = included, 'x' = excluded)" + '\n' + \
+						'## cmac: group minor allele count' + '\n' + \
+						'## err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatMeta, 5: analysis skipped, 6: failed group minor allele count threshold), 7: prepScores2 timed out, 8: skatMeta timed out' + '\n' + \
+						'## nmiss: number of missing genotypes in group' + '\n' + \
+						'## nsnps: number of snps in the group' + '\n' + \
+						'## cmaf: cumulative minor allele frequency' + '\n' + \
+						'## p: group p-value' + '\n' + \
+						'## q: skat q-statistic' + '\n#'
+
+	def calc_meta(self, chr, start, end, id, Skat obj, incl):
+		# obj: the first model object from individual analyses
+		# incl: a list of individual model tags to include in meta
+		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('q','>f8')])
+		results['chr'][0] = chr
+		results['start'][0] = start
+		results['end'][0] = end
+		results['id'][0] = id
+		for m in incl:
+			if m == incl[0]:
+				ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')
 			else:
-				results[tag + '.err'][0] = 8
-	else:
-		results[tag + '.err'][0] = 5
-		results[tag + '.nmiss'][0] = np.nan
-		results[tag + '.nsnps'][0] = np.nan
-		results[tag + '.cmaf'][0] = np.nan
-		results[tag + '.p'][0] = np.nan
-		results[tag + '.q'][0] = np.nan
-	return pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')
-
-def SkatoMeta(Skato obj, tag, meta, meta_incl):
-	for m in meta_incl:
-		if m == meta_incl[0]:
-			ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')
-		else:
-			ro.r('snp_info_meta<-merge(snp_info_meta,' + m + '_snp_info,all=TRUE)')
-	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
-	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
-	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
-		try:
-			ro.globalenv['result'] = ro.r(cmd)
-		except RRuntimeError as rerr:
-			results[tag + '.err'][0] = 3
-			print rerr.message
-		else:
-			if ro.r('class(result) == "data.frame"')[0]:
-				ro.r('result$err<-0')
-				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-				ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
-				ro.r('result$nmiss[! is.na(result$err) & result$err > 0]<-NA')
-				ro.r('result$nsnps[! is.na(result$err) & result$err > 0]<-NA')
-				ro.r('result$p[! is.na(result$err) & result$err > 0]<-NA')
-				ro.r('result$pmin[! is.na(result$err) & result$err > 0]<-NA')
-				ro.r('result$rho[! is.na(result$err) & result$err > 0]<-NA')
-				ro.r('result$cmaf[! is.na(result$err) & result$err > 0]<-NA')
-				results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
-				results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-				results[tag + '.nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
-				results[tag + '.cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
-				results[tag + '.pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
-				results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
-				results[tag + '.rho'][0] = np.array(ro.r('result$rho'))[:,None]
+				ro.r('snp_info_meta<-merge(snp_info_meta,' + m + '_snp_info,all=TRUE)')
+		results['incl'][0] = ''.join(['+' if a in incl else 'x' for a in self.meta_incl])
+		results['cmac'][0] = ro.r('sum(' + ",".join([x + "_cmac" for x in self.meta_incl if x in incl]) + ')')[0]
+		if str(results['incl'][0]).count('+') > 1:
+			cmd = "tryCatch(expr = { evalWithTimeout(skatMeta(" + ",".join([x + "_ps" for x in self.meta_incl if x in incl]) + ",SNPInfo=snp_info_meta,wts=" + obj.skat_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
+			try:
+				ro.globalenv['result'] = ro.r(cmd)
+			except RRuntimeError as rerr:
+				results['err'][0] = 3
+				print rerr.message
 			else:
-				results[tag + '.err'][0] = 8
-	else:
-		results[tag + '.err'][0] = 5
-		results[tag + '.nmiss'][0] = np.nan
-		results[tag + '.nsnps'][0] = np.nan
-		results[tag + '.cmaf'][0] = np.nan
-		results[tag + '.pmin'][0] = np.nan
-		results[tag + '.p'][0] = np.nan
-		results[tag + '.rho'][0] = np.nan
-	return pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')
+				if ro.r('class(result) == "data.frame"')[0]:
+					ro.r('result$err<-0')
+					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+					ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$nsnps[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$q[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$cmaf[! is.na(result$err) & result$err == 1]<-NA')
+					results['err'][0] = np.array(ro.r('result$err'))[:,None]
+					results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+					results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+					results['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+					results['p'][0] = np.array(ro.r('result$p'))[:,None]
+					results['q'][0] = np.array(ro.r('result$Q'))[:,None]
+				else:
+					results['err'][0] = 8
+		else:
+			results['err'][0] = 5
+			results['nmiss'][0] = np.nan
+			results['nsnps'][0] = np.nan
+			results['cmaf'][0] = np.nan
+			results['p'][0] = np.nan
+			results['q'][0] = np.nan
+		self.out = pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')[self.results_header]
 
-def BurdenMeta(Burden obj, tag, meta, meta_incl):
-	for m in meta_incl:
-		if m == meta_incl[0]:
-			ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')
-		else:
-			ro.r('snp_info_meta<-merge(snp_info_meta,' + m + '_snp_info,all=TRUE)')
-	results = np.full((1,1), fill_value=np.nan, dtype=[(tag + '.incl','|S100'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
-	results[tag + '.incl'][0] = ''.join(['+' if a in meta_incl else 'x' for a in meta.split('+')])
-	if str(results[tag + '.incl'][0]).count('+') > 1:
-		cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in meta.split('+') if x in meta_incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
-		try:
-			ro.globalenv['result'] = ro.r(cmd)
-		except RRuntimeError as rerr:
-			results[tag + '.err'][0] = 3
-			print rerr.message
-		else:
-			if ro.r('class(result) == "data.frame"')[0]:
-				ro.r('result$err<-0')
-				ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
-				ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$nsnpsTotal[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$nsnpsUsed[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$cmafTotal[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$cmafUsed[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$beta[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$se[! is.na(result$err) & result$err == 1]<-NA')
-				ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
-				results[tag + '.err'][0] = np.array(ro.r('result$err'))[:,None]
-				results[tag + '.nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
-				results[tag + '.nsnpsTotal'][0] = np.array(ro.r('result$nsnpsTotal'))[:,None]
-				results[tag + '.nsnpsUsed'][0] = np.array(ro.r('result$nsnpsUsed'))[:,None]
-				results[tag + '.cmafTotal'][0] = np.array(ro.r('result$cmafTotal'))[:,None]
-				results[tag + '.cmafUsed'][0] = np.array(ro.r('result$cmafUsed'))[:,None]
-				results[tag + '.beta'][0] = np.array(ro.r('result$beta'))[:,None]
-				results[tag + '.se'][0] = np.array(ro.r('result$se'))[:,None]
-				results[tag + '.p'][0] = np.array(ro.r('result$p'))[:,None]
+cdef class SkatoMeta(Meta):
+	cdef public object df
+	cdef public np.ndarray meta_incl
+	def __cinit__(self, **kwargs):
+		logger = logging.getLogger("Model.SkatoMeta.__cinit__")
+		logger.debug("initialize SkatoMeta")
+		super(SkatoMeta, self).__init__(**kwargs)
+		self.tbx_start = 1
+		self.tbx_end = 2
+		self.meta_incl = np.array(self.meta.split('+'))
+		self.results_header = np.array(['chr','start','end','id','incl','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho'])
+		self.metadata = self.metadata + '\n' + \
+						'## chr: chromosome' + '\n' + \
+						'## start: start chromosomal position' + '\n' + \
+						'## end: end chromosomal position' + '\n' + \
+						'## id: snv group name (ie. gene name)' + '\n' + \
+						"## incl: cohort inclusion ('+' = included, 'x' = excluded)" + '\n' + \
+						'## cmac: group minor allele count' + '\n' + \
+						'## err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed skatMeta, 5: analysis skipped, 6: failed group minor allele count threshold), 7: prepScores2 timed out, 8: skatMeta timed out' + '\n' + \
+						'## nmiss: number of missing genotypes in group' + '\n' + \
+						'## nsnps: number of snps in the group' + '\n' + \
+						'## cmaf: cumulative minor allele frequency' + '\n' + \
+						'## p: group p-value' + '\n' + \
+						'## pmin: minimum snp p-value' + '\n' + \
+						'## rho: skato rho parameter' + '\n#'
+
+	def calc_meta(self, chr, start, end, id, Skato obj, incl):
+		# obj: the first model object from individual analyses
+		# incl: a list of individual model tags to include in meta
+		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
+		results['chr'][0] = chr
+		results['start'][0] = start
+		results['end'][0] = end
+		results['id'][0] = id
+		for m in incl:
+			if m == incl[0]:
+				ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')
 			else:
-				results[tag + '.err'][0] = 8
-	else:
-		results[tag + '.err'][0] = 5
-		results[tag + '.nmiss'][0] = np.nan
-		results[tag + '.nsnpsTotal'][0] = np.nan
-		results[tag + '.nsnpsUsed'][0] = np.nan
-		results[tag + '.cmafTotal'][0] = np.nan
-		results[tag + '.cmafUsed'][0] = np.nan
-		results[tag + '.beta'][0] = np.nan
-		results[tag + '.se'][0] = np.nan
-		results[tag + '.p'][0] = np.nan
-	return pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')
+				ro.r('snp_info_meta<-merge(snp_info_meta,' + m + '_snp_info,all=TRUE)')
+		results['incl'][0] = ''.join(['+' if a in incl else 'x' for a in self.meta_incl])
+		results['cmac'][0] = ro.r('sum(' + ",".join([x + "_cmac" for x in self.meta_incl if x in incl]) + ')')[0]
+		if str(results['incl'][0]).count('+') > 1:
+			cmd = "tryCatch(expr = { evalWithTimeout(skatOMeta(" + ",".join([x + "_ps" for x in self.meta_incl if x in incl]) + ",SNPInfo=snp_info_meta,rho=" + obj.skato_rho + ",skat.wts=" + obj.skat_wts + ",burden.wts=" + obj.burden_wts + ",method='" + obj.skat_method + "',mafRange=" + obj.mafrange + "), timeout=" + str(obj.timeout) + ") }, error = function(e) return(1))"
+			try:
+				ro.globalenv['result'] = ro.r(cmd)
+			except RRuntimeError as rerr:
+				results['err'][0] = 3
+				print rerr.message
+			else:
+				if ro.r('class(result) == "data.frame"')[0]:
+					ro.r('result$err<-0')
+					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+					ro.r('result$err[! is.finite(result$errflag) | result$errflag > 0]<-4')
+					ro.r('result$nmiss[! is.na(result$err) & result$err > 0]<-NA')
+					ro.r('result$nsnps[! is.na(result$err) & result$err > 0]<-NA')
+					ro.r('result$p[! is.na(result$err) & result$err > 0]<-NA')
+					ro.r('result$pmin[! is.na(result$err) & result$err > 0]<-NA')
+					ro.r('result$rho[! is.na(result$err) & result$err > 0]<-NA')
+					ro.r('result$cmaf[! is.na(result$err) & result$err > 0]<-NA')
+					results['err'][0] = np.array(ro.r('result$err'))[:,None]
+					results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+					results['nsnps'][0] = np.array(ro.r('result$nsnps'))[:,None]
+					results['cmaf'][0] = np.array(ro.r('result$cmaf'))[:,None]
+					results['pmin'][0] = np.array(ro.r('result$pmin'))[:,None]
+					results['p'][0] = np.array(ro.r('result$p'))[:,None]
+					results['rho'][0] = np.array(ro.r('result$rho'))[:,None]
+				else:
+					results['err'][0] = 8
+		else:
+			results['err'][0] = 5
+			results['nmiss'][0] = np.nan
+			results['nsnps'][0] = np.nan
+			results['cmaf'][0] = np.nan
+			results['pmin'][0] = np.nan
+			results['p'][0] = np.nan
+			results['rho'][0] = np.nan
+		self.out = pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')[self.results_header]
 
-def SnvMeta(df, meta, meta_incl, meta_type = 'sample_size'):
-	header = list(df.columns)
-	if meta_type == 'sample_size':
-		df[meta + '.dir'] = ''
-		for tag in meta_incl:
-			#df[tag + '.filter'] = df.apply(lambda x: 1 if math.isnan(x[tag + '.p']) or x[tag + '.p'] > 1 or x[tag + '.p'] <= 0 else x[tag + '.filter'],axis=1)
-			filter_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.filter')][0]
-			N_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
-			P_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
-			Eff_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
-			df[meta + '.' + tag + '.dir'] = df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
-			df[meta + '.' + tag + '.zi'] = df.apply(lambda x: (-1 * scipy.norm.ppf(1 - (x[P_idx]/2)) if x[Eff_idx] < 0 else scipy.norm.ppf(1 - (x[P_idx]/2))) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-			df[meta + '.' + tag + '.n'] = df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-			df[meta + '.' + tag + '.wi'] = df.apply(lambda x: math.sqrt(x[meta + '.' + tag + '.n']) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-			df[meta + '.' + tag + '.ziwi'] = df.apply(lambda x: x[meta + '.' + tag + '.zi'] * x[meta + '.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-			df[meta + '.dir'] = df[meta + '.dir'] + df[meta + '.' + tag + '.dir']
-		N_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
-		Wi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
-		ZiWi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.ziwi')]
-		df[meta + '.n'] = df.apply(lambda x: x[N_idx_all].sum() if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
-		df[meta + '.z'] = df.apply(lambda x: x[ZiWi_idx_all].sum()/math.sqrt(x[N_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-		df[meta + '.stderr'] = df.apply(lambda x: float('nan'), axis=1)
-		df[meta + '.effect'] = df.apply(lambda x: float('nan'), axis=1)
-		df[meta + '.or'] = df.apply(lambda x: float('nan'), axis=1)
-		new_cols = [meta + '.z',meta + '.p',meta + '.dir',meta + '.n']
-	else:
-		df[meta + '.dir'] = ''
-		for tag in meta_incl:
-			#df[tag + '.filter'] = df.apply(lambda x: 1 if math.isnan(x[tag + '.p']) or x[tag + '.p'] > 1 or x[tag + '.p'] <= 0 else x[tag + '.filter'],axis=1)
-			filter_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.filter')][0]
-			N_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.n')][0]
-			P_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.p')][0]
-			Eff_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.effect')][0]
-			StdErr_idx=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tag) and s.endswith('.stderr')][0]
-			df[meta + '.' + tag + '.dir'] = df.apply(lambda x: ('-' if x[Eff_idx] < 0 else '+') if x[filter_idx] == 0 and x[P_idx] <= 1 else 'x',axis=1)
-			df[meta + '.' + tag + '.n'] = df.apply(lambda x: x[tag + '.n'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-			df[meta + '.' + tag + '.wi'] = df.apply(lambda x: 1/(x[StdErr_idx]**2) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-			df[meta + '.' + tag + '.biwi'] = df.apply(lambda x: x[Eff_idx] * x[meta + '.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-			df[meta + '.dir'] = df[meta + '.dir'] + df[meta + '.' + tag + '.dir']
-		N_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.n')]
-		Wi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.wi')]
-		BiWi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.biwi')]
-		df[meta + '.n'] = df.apply(lambda x: x[N_idx_all].sum() if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
-		df[meta + '.stderr'] = df.apply(lambda x: math.sqrt(1/(x[Wi_idx_all].sum())) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-		df[meta + '.effect'] = df.apply(lambda x: (x[BiWi_idx_all].sum())/(x[Wi_idx_all].sum()) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-		df[meta + '.or'] = df.apply(lambda x: math.exp(x[meta + '.effect']) if len(x[meta + '.dir'].replace('x','')) > 1 and len([k + '.or' in df for k in meta_incl]) > 0 and not x[meta + '.effect'] > 709.782712893384 and not x[meta + '.effect'] < -709.782712893384 else float('nan'), axis=1)
-		df[meta + '.z'] = df.apply(lambda x: x[meta + '.effect']/x[meta + '.stderr'] if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-		for tag in meta_incl:
-			df[meta + '.' + tag + '.hetq_pre'] = df.apply(lambda x: x[meta + '.' + tag + '.wi'] * (x[tag + '.effect'] - x[meta + '.effect'])**2 if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-		Hetq_pre_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(meta) and s.endswith('.hetq_pre')]
-		df[meta + '.hetq'] = df.apply(lambda x: x[Hetq_pre_idx_all].sum() if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
-		df[meta + '.hetdf'] = df.apply(lambda x: len([a for a in x[meta + '.dir'] if a != 'x'])-1 if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
-		df[meta + '.heti2'] = df.apply(lambda x: ((x[meta + '.hetq']-x[meta + '.hetdf'])/x[meta + '.hetq'])*100 if len(x[meta + '.dir'].replace('x','')) > 1 and x[meta + '.hetq'] != 0 else float('nan'),axis=1)
-		df[meta + '.hetp'] = df.apply(lambda x: 1-scipy.chi2.cdf(x[meta + '.hetq'], x[meta + '.hetdf']) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'),axis=1)
-		new_cols = [meta + '.effect',meta + '.stderr',meta + '.or',meta + '.z',meta + '.p',meta + '.dir',meta + '.n',meta + '.hetq',meta + '.hetdf',meta + '.heti2',meta + '.hetp']
-	df[meta + '.p'] = df.apply(lambda x: 2 * scipy.norm.cdf(-1 * abs(float(x[meta + '.z']))) if len(x[meta + '.dir'].replace('x','')) > 1 else float('nan'), axis=1)
-	df[meta + '.dir'] = df.apply(lambda x: x[meta + '.dir'] if not math.isnan(x[meta + '.p']) else float('nan'), axis=1)
-	return new_cols, df
+cdef class BurdenMeta(Meta):
+	cdef public object df
+	cdef public np.ndarray meta_incl
+	def __cinit__(self, **kwargs):
+		logger = logging.getLogger("Model.BurdenMeta.__cinit__")
+		logger.debug("initialize BurdenMeta")
+		super(BurdenMeta, self).__init__(**kwargs)
+		self.tbx_start = 1
+		self.tbx_end = 2
+		self.meta_incl = np.array(self.meta.split('+'))
+
+		self.results_header = np.array(['chr','start','end','id','incl','cmac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p'])
+
+		self.metadata = self.metadata + '\n' + \
+						'## chr: chromosome' + '\n' + \
+						'## start: start chromosomal position' + '\n' + \
+						'## end: end chromosomal position' + '\n' + \
+						'## id: snv group name (ie. gene name)' + '\n' + \
+						"## incl: cohort inclusion ('+' = included, 'x' = excluded)" + '\n' + \
+						'## cmac: group minor allele count' + '\n' + \
+						'## err: error code (0: no error, 1: infinite value or zero p-value detected, 2: failed prepScores2, 3: failed burdenMeta, 5: analysis skipped, 6: failed group minor allele count threshold), 7: prepScores2 timed out, 8: burdenMeta timed out' + '\n' + \
+						'## nmiss: number of missing snps' + '\n' + \
+						'## nsnpsTotal: number of snps in group' + '\n' + \
+						'## nsnpsUsed: number of snps used in analysis' + '\n' + \
+						'## cmafTotal: cumulative minor allele frequency in group' + '\n' + \
+						'## cmafUsed: cumulative minor allele frequency for snps used in analysis' + '\n' + \
+						'## beta: coefficient for effect of genotype' + '\n' + \
+						'## se: standard error for effect of genotype' + '\n' + \
+						'## p: p value for burden test' + '\n#'
+
+	def calc_meta(self, chr, start, end, id, Burden obj, incl):
+		# obj: the first model object from individual analyses
+		# incl: a list of individual model tags to include in meta
+		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnpsTotal','>f8'),('nsnpsUsed','>f8'),('cmafTotal','>f8'),('cmafUsed','>f8'),('beta','>f8'),('se','>f8'),('p','>f8')])
+		results['chr'][0] = chr
+		results['start'][0] = start
+		results['end'][0] = end
+		results['id'][0] = id
+		for m in incl:
+			if m == incl[0]:
+				ro.globalenv['snp_info_meta'] = ro.r(m + '_snp_info')
+			else:
+				ro.r('snp_info_meta<-merge(snp_info_meta,' + m + '_snp_info,all=TRUE)')
+		results['incl'][0] = ''.join(['+' if a in incl else 'x' for a in self.meta_incl])
+		results['cmac'][0] = ro.r('sum(' + ",".join([x + "_cmac" for x in self.meta_incl if x in incl]) + ')')[0]
+		if str(results['incl'][0]).count('+') > 1:
+			cmd = 'tryCatch(expr = { evalWithTimeout(burdenMeta(' + ",".join([x + "_ps" for x in self.meta_incl if x in incl]) + ',SNPInfo=snp_info_meta,mafRange=' + obj.mafrange + ',wts=' + obj.burden_wts + '), timeout=' + str(obj.timeout) + ') }, error = function(e) return(1))'
+			try:
+				ro.globalenv['result'] = ro.r(cmd)
+			except RRuntimeError as rerr:
+				results['err'][0] = 3
+				print rerr.message
+			else:
+				if ro.r('class(result) == "data.frame"')[0]:
+					ro.r('result$err<-0')
+					ro.r('result$err[! is.finite(result$p) | result$p == 0]<-1')
+					ro.r('result$nmiss[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$nsnpsTotal[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$nsnpsUsed[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$cmafTotal[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$cmafUsed[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$beta[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$se[! is.na(result$err) & result$err == 1]<-NA')
+					ro.r('result$p[! is.na(result$err) & result$err == 1]<-NA')
+					results['err'][0] = np.array(ro.r('result$err'))[:,None]
+					results['nmiss'][0] = np.array(ro.r('result$nmiss'))[:,None]
+					results['nsnpsTotal'][0] = np.array(ro.r('result$nsnpsTotal'))[:,None]
+					results['nsnpsUsed'][0] = np.array(ro.r('result$nsnpsUsed'))[:,None]
+					results['cmafTotal'][0] = np.array(ro.r('result$cmafTotal'))[:,None]
+					results['cmafUsed'][0] = np.array(ro.r('result$cmafUsed'))[:,None]
+					results['beta'][0] = np.array(ro.r('result$beta'))[:,None]
+					results['se'][0] = np.array(ro.r('result$se'))[:,None]
+					results['p'][0] = np.array(ro.r('result$p'))[:,None]
+				else:
+					results['err'][0] = 8
+		else:
+			results['err'][0] = 5
+			results['nmiss'][0] = np.nan
+			results['nsnpsTotal'][0] = np.nan
+			results['nsnpsUsed'][0] = np.nan
+			results['cmafTotal'][0] = np.nan
+			results['cmafUsed'][0] = np.nan
+			results['beta'][0] = np.nan
+			results['se'][0] = np.nan
+			results['p'][0] = np.nan
+		self.out = pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')[self.results_header]

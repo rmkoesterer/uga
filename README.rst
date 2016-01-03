@@ -2,13 +2,15 @@ Universal Genome Analyst
 ************************
 
 Universal Genome Analyst (**uga**) is an open, flexible, and efficient tool for the distribution, management, and visualization of whole genome data analyses. 
-It is designed to assist biomedical researchers in complex genomic data analysis through the use of a low level interface between the powerful R statistical environment and Python, allowing
-for rapid integration of emerging analytical strategies. This project uses `Cython`_ for a significant reduction in computation time and researchers with access to a high performance computing cluster or 
-with access to multiple cores will find time-saving features for parallel analysis using a flexible, yet controlled, commandline interface.
+It is designed to assist biomedical researchers in complex genomic data analysis through the use of a low level interface between the powerful R statistical 
+environment and Python, allowing for rapid integration of emerging analytical strategies. This project uses `Cython`_ for a significant reduction in computation 
+time and researchers with access to a high performance computing cluster or with access to multiple cores will find time-saving features for parallel analysis 
+using a flexible, yet controlled, commandline interface.
+
+.. _`Cython: https://pypi.python.org/pypi
 
 This software is currently under rapid development. Updates and bug fixes are being tracked on the `uga github page`_
 
-.. _`Cython: https://pypi.python.org/pypi
 .. _`uga github page`: https://github.com/rmkoesterer/uga
 
 **Current Features**
@@ -71,8 +73,8 @@ In the interest of user efficiency and to avoid limitations induced by excessive
 Installation
 ************
 
-This software uses a variety of Python modules, R packages, and some stand-alone software. Thus, the easiest method for installation is using a `conda`_ environment.
-The required modules can be installed easily using the environment.yml file included with this distribution as described in the Pre-installation section below.
+This software uses a variety of Python modules, R packages, and some stand-alone software. Thus, the easiest method for installation is using `conda`_.
+The required modules are installed easily using the environment.yml file included with this distribution, as described in the Pre-installation section below.
 
 .. _`conda`: http://conda.pydata.org/docs/
 
@@ -92,11 +94,11 @@ Annotation of results requires `SnpEff`_.
 **Pre-Installation (preparing the environment for uga)**
 
 To prepare your system for uga, you need to `clone an environment`_ using conda. You will need the included environment.yml file from the source code and a number of 
-conda packages from my anaconda cloud channel `my channel`_ and another custom channel (both are listed in the environment.yml file). After downloading the most recent 
+conda packages from `my anaconda cloud channel`_ and another custom channel (both are listed in the environment.yml file). After downloading the most recent 
 release (available `here`_), use the following commands to begin the installation.
 
 .. _`clone an environment`: http://conda.pydata.org/docs/using/envs.html#clone-an-environment
-.. _`my channel`: https://conda.anaconda.org/rmkoesterer
+.. _`my anaconda cloud channel`: https://conda.anaconda.org/rmkoesterer
 .. _`here`: https://github.com/rmkoesterer/uga/releases
 
    >>> tar -xvf uga.tar.gz
@@ -112,7 +114,7 @@ Once you have successfully prepared the conda environment, use the following com
 
 **Cutting Edge Install**
 
-Keeping up with the most current changes may be of interest to you as I will be rapidly adding features through the end of this year. Thus, under the realization 
+Keeping up with the most current changes may be of interest to you as I will be rapidly adding features well into 2016. Thus, under the realization 
 that you may encounter unexpected behavior and bugs, you may want to run a fork of this repository rather than installing from source. See this tutorial describing
 how to `fork this repository`_
 
@@ -151,7 +153,7 @@ Contact
 
 .. _`Ryan Koesterer`: https://github.com/rmkoesterer/uga
 
-Please report any bugs or issues using the Github `Issues`_ tab on this page. I will respond to all concerns as quickly as possible.
+Please report any bugs or issues using the `Issues`_ tab on this page. I will respond to all concerns as quickly as possible.
 
 .. _`Issues`: https://github.com/rmkoesterer/uga/issues
 

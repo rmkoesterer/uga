@@ -122,8 +122,9 @@ def process_regions(regions_df, cfg, cpu, log):
 					except Process.Error as err:
 						print err.out
 						break
+
 					if not written:
-						models_obj[n].out_all = models_obj[n].out
+						models_obj[n].out_all = models_obj[n].out.copy()
 						written = True
 					else:
 						models_obj[n].out_all = models_obj[n].out_all.append(models_obj[n].out, ignore_index=True)
@@ -137,32 +138,25 @@ def process_regions(regions_df, cfg, cpu, log):
 		pickle.dump([models_obj[n].out_all,models_obj[n].metadata,models_obj[n].results_header,models_obj[n].tbx_start,models_obj[n].tbx_end],pkl,protocol=2)
 		pkl.close()
 
-	results_all = None
-	results_all_written = False
-	results_all_header = {0: ['chr','pos','id','a1','a2']}
 	print ''
 	if len(cfg['meta_order']) > 0:
 		print "preparing data for meta analysis ..."
+		results_all = None
 		for n in cfg['model_order']:
 			models_obj[n].out_all = models_obj[n].out_all[[x for x in models_obj[n].out_all.columns if x not in ['group_id','id_unique','uid']]]
 			models_obj[n].out_all.columns = np.array([n + '.' + x if x not in ['chr','pos','id','a1','a2'] else x for x in models_obj[n].out_all.columns])
-			models_obj[n].out_all[n + '.n'] = (models_obj[n].out_all[n + '.callrate'].astype(float) * models_obj[n].nunique).round()
+			models_obj[n].out_all[n + '.n'] = models_obj[n].out_all.apply(lambda x: round(float(x[n + '.callrate']) * models_obj[n].nunique),axis=1)
 			if n == cfg['model_order'][0]:
 				results_all = models_obj[n].out_all
 			else:
 				results_all = results_all.merge(models_obj[n].out_all,how='outer',on=['chr','pos','id','a1','a2'])
-		results_all_header[2] = list(results_all.columns[5:])
-		results_all_header[1] = []
 		for meta in cfg['meta_order']:
-			new_cols, results_all = Model.SnvMeta(results_all, meta, cfg['meta'][meta].split('+'), meta_type = cfg['meta_type'])
-			results_all_header[1].extend(new_cols)
+			meta_obj = Model.SnvMeta(tag = meta, meta = cfg['meta'][meta], type = cfg['meta_type'])
+			meta_obj.calc_meta(results_all)
 			print "   processed meta analysis (" + meta + ")"
-		results_all = results_all.sort_values(by=['chr','pos'])
-		results_all['chr'] = results_all['chr'].astype(np.int64)
-		results_all['pos'] = results_all['pos'].astype(np.int64)
-		pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + (cfg['out'] + '.cpu' + str(cpu)).split('/')[-1] + '.meta.pkl', "wb")
-		pickle.dump([results_all,np.array(results_all_header[0] + results_all_header[1] + results_all_header[2]),models_obj[cfg['model_order'][0]].tbx_start,models_obj[cfg['model_order'][0]].tbx_end],pkl,protocol=2)
-		pkl.close()
+			pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + (cfg['out'] + '.cpu' + str(cpu)).split('/')[-1] + '.' + meta + '.' + 'pkl', "wb")
+			pickle.dump([meta_obj.out,meta_obj.metadata,np.array(meta_obj.out.columns),meta_obj.tbx_start,meta_obj.tbx_end],pkl,protocol=2)
+			pkl.close()
 
 	if log:
 		sys.stdout = stdout_orig
@@ -196,13 +190,14 @@ def RunSnv(args):
 			return 1
 
 	if len(cfg['meta_order']) > 0:
-		print "initializing out file for meta results"
-		models_out['___meta___'] = cfg['out'] + '.meta'
-		try:
-			bgzfiles['___meta___'] = bgzf.BgzfWriter(models_out['___meta___'] + '.gz', 'wb')
-		except:
-			print Process.Error("failed to initialize bgzip format out file " + models_out['___meta___'] + '.gz').out
-			return 1
+		for m in cfg['meta_order']:
+			print "initializing out file for meta " + m
+			models_out[m] = cfg['out'] + '.' + m
+			try:
+				bgzfiles[m] = bgzf.BgzfWriter(models_out[m] + '.gz', 'wb')
+			except:
+				print Process.Error("failed to initialize bgzip format out file " + models_out[m] + '.gz').out
+				return 1
 
 	if cfg['cpus'] > 1:
 		pool = mp.Pool(cfg['cpus']-1)
@@ -259,27 +254,28 @@ def RunSnv(args):
 			return 1
 
 	if len(cfg['meta_order']) > 0:
-		written = False
-		for i in xrange(1,cfg['cpus']+1):
-			out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.meta.pkl'
-			pkl = open(out_model_meta,"rb")
-			results_final_meta,results_header,tbx_start,tbx_end = pickle.load(pkl)
-			if not written:
-				bgzfiles['___meta___'].write('#' + '\t'.join(results_header) + '\n')
-				written = True
-			if results_final_meta.shape[0] > 0:
-				results_final_meta.replace({'None': 'NA'}).to_csv(bgzfiles['___meta___'], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
-			pkl.close()
-			os.remove(out_model_meta)
+		for m in cfg['meta_order']:
+			written = False
+			for i in xrange(1,cfg['cpus']+1):
+				out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.' + m + '.pkl'
+				pkl = open(out_model_meta,"rb")
+				results_final_meta,metadata,results_header,tbx_start,tbx_end = pickle.load(pkl)
+				if not written:
+					bgzfiles[m].write(metadata)
+					bgzfiles[m].write('#' + '\t'.join(results_header) + '\n')
+					written = True
+				if results_final_meta.shape[0] > 0:
+					results_final_meta.replace({'None': 'NA'}).to_csv(bgzfiles[m], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
+				pkl.close()
+				os.remove(out_model_meta)
 
-		bgzfiles['___meta___'].close()
-
-		print "indexing out file for meta results"
-		try:
-			pysam.tabix_index(models_out['___meta___'] + '.gz',seq_col=0,start_col=tbx_start,end_col=tbx_end,force=True)
-		except:
-			print Process.Error('failed to generate index for file ' + models_out['___meta___'] + '.gz').out
-			return 1
+			bgzfiles[m].close()
+			print "indexing out file for meta " + m
+			try:
+				pysam.tabix_index(models_out[m] + '.gz',seq_col=0,start_col=tbx_start,end_col=tbx_end,force=True)
+			except:
+				print Process.Error('failed to generate index for file ' + models_out[m] + '.gz').out
+				return 1
 
 	print "process complete"
 	return 0
