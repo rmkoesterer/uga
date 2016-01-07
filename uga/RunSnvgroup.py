@@ -127,6 +127,7 @@ def process_regions(regions_df, cfg, cpu, log):
 				pass
 
 			try:
+				logger.debug("calc_model")
 				models_obj[n].calc_model()
 			except Process.Error as err:
 				print err.out

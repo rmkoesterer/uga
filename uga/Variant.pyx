@@ -30,6 +30,8 @@ cdef class Ref(object):
 		logger.debug("initialize variant reference")
 		self.db = {}
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef load(self, np.ndarray v):
 		logger = logging.getLogger("Variant.Ref.load")
 		logger.debug("load")
@@ -40,6 +42,8 @@ cdef class Ref(object):
 			self.db[row['uid']]['a1'] = row['a1']
 			self.db[row['uid']]['a2'] = row['a2']
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef update(self, np.ndarray v):
 		logger = logging.getLogger("Variant.Ref.update")
 		logger.debug("update")
@@ -184,7 +188,7 @@ def calc_hwe(np.ndarray[np.float64_t, ndim=1] x):
 		x_hets = np.sum(x == 1)
 		x_hom1 = np.sum(x == 2)
 		x_hom2 = np.sum(x == 0)
-		if not (x_hets < 0 and x_hom1 < 0 and x_hom2 < 0):
+		if x_hets >= 0 and x_hom1 >= 0 and x_hom2 >= 0:
 			rare   = 2*min(x_hom1,x_hom2)+x_hets
 			common = 2*max(x_hom1,x_hom2)+x_hets
 			if not rare:

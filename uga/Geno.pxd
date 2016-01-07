@@ -22,9 +22,9 @@ cimport cython
 import math
 
 cdef class Variants:
-	cdef public bytes filename, sample_filename, region, group_id
+	cdef public bytes filename, sample_filename, region, group_id, method
 	cdef public np.ndarray samples
-	cdef public object handle, region_iter, snvgroup_map
+	cdef public object handle, region_iter, snvgroup_map, results, header, cols, dtypes, snv_results_tagged
 	cdef public unsigned int chr, start, end
-	cdef public np.ndarray genos, data, info, snv_chunk, snvgroup_chunk
+	cdef public np.ndarray genos, data, info, snv_chunk, snvgroup_chunk, snv_results
 	cpdef align(self, Variant.Ref ref)

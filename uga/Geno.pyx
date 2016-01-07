@@ -20,6 +20,7 @@ import pandas as pd
 import time
 import numpy as np
 cimport numpy as np
+import numpy.lib.recfunctions as recfxns
 cimport cython
 import Variant
 cimport Variant
@@ -58,6 +59,8 @@ cdef class Variants(object):
 		self.sample_filename = sample_filename
 		self.snvgroup_map = None
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef align(self, Variant.Ref ref):
 		logger = logging.getLogger("Geno.Variants.align")
 		logger.debug("align")
@@ -128,6 +131,8 @@ cdef class Vcf(Variants):
 		except:
 			raise
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef get_chunk(self, int buffer):
 		logger = logging.getLogger("Geno.Vcf.get_chunk")
 		logger.debug("get_chunk")
@@ -181,6 +186,8 @@ cdef class Vcf(Variants):
 					i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef get_snvs(self, int buffer):
 		logger = logging.getLogger("Geno.Vcf.get_snvs")
 		logger.debug("get_snvs")
@@ -192,6 +199,8 @@ cdef class Vcf(Variants):
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,11:].transpose()))
 		np.place(self.data, self.data == 'NA',np.nan)
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef get_snvgroup(self, int buffer, group_id):
 		logger = logging.getLogger("Geno.Vcf.get_snvgroup")
 		logger.debug("get_snvgroup " + group_id)
@@ -250,6 +259,8 @@ cdef class Dos(Variants):
 		except:
 			raise
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef get_chunk(self, int buffer):
 		logger = logging.getLogger("Geno.Dos.get_chunk")
 		logger.debug("get_chunk")
@@ -272,6 +283,8 @@ cdef class Dos(Variants):
 				i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef get_snvs(self, int buffer):
 		logger = logging.getLogger("Geno.Dos.get_snvs")
 		logger.debug("get_snvs")
@@ -283,6 +296,8 @@ cdef class Dos(Variants):
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,8:].transpose()))
 		np.place(self.data, self.data == 'NA',np.nan)
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef get_snvgroup(self, int buffer, group_id):
 		logger = logging.getLogger("Geno.Dos.get_snvgroup")
 		logger.debug("get_snvgroup " + group_id)
@@ -305,3 +320,128 @@ cdef class Dos(Variants):
 			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
 			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,8:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)
+
+cdef class Results(Variants):
+	def __cinit__(self, filename):
+		logger = logging.getLogger("Geno.Results.__cinit__")
+		logger.debug("initialize results")
+		super(Results, self).__init__(filename)
+
+		try:
+			self.handle=pysam.TabixFile(filename=filename,parser=pysam.asTuple())
+		except:
+			raise Process.Error("failed to load results file")
+		else:
+			self.header = [x for x in self.handle.header]
+			self.method = self.header[2].split()[2]
+			self.cols = [x.replace('#','') for x in self.header[-1].split()]
+			self.dtypes = zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['uint8','uint32','|S60','|S20','|S20']) + zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['f8' for x in self.cols if x not in ['chr','pos','id','a1','a2']]) + [('id_unique','|S100'),('uid','|S1000')]
+
+	def get_region(self, region):
+		logger = logging.getLogger("Geno.Results.get_region")
+		logger.debug("get_region " + region)
+		if ':' in region:
+			self.chr = int(region.split(':')[0])
+			self.start = int(region.split(':')[1].split('-')[0])
+			self.end = int(region.split(':')[1].split('-')[1])
+		else:
+			self.chr = int(region.split(':')[0])
+			self.start = 0
+			self.end = 1000000000
+		try:
+			self.region_iter = self.handle.fetch(region=region, parser=pysam.asTuple())
+		except:
+			raise
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cpdef get_chunk(self, int buffer):
+		logger = logging.getLogger("Geno.Results.get_chunk")
+		logger.debug("get_chunk")
+		self.snv_chunk = np.empty((buffer,len(self.dtypes)), dtype='object')
+		cdef unsigned int i = 0
+		slice = islice(self.region_iter, buffer)
+		try:
+			first = slice.next()
+		except StopIteration:
+			raise
+		else:
+			slice = chain([first], slice)
+			for r in slice:
+				record = np.array(r, dtype='object')
+				self.snv_chunk[i,:len(self.cols)] = record[:len(self.cols)]
+				self.snv_chunk[i,len(self.cols)] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
+				self.snv_chunk[i,len(self.cols)+1] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+				i += 1
+			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cpdef get_snvs(self, int buffer):
+		logger = logging.getLogger("Geno.Results.get_snvs")
+		logger.debug("get_snvs")
+		cdef unsigned int i = 0
+		self.snv_results = np.empty((0,len(self.dtypes)), dtype='object')
+		while True:
+			try:
+				self.get_chunk(buffer)
+			except:
+				break
+			i = i + 1
+			self.snv_results = np.vstack((self.snv_results,self.snv_chunk))
+		if i == 0:
+			raise
+		else:
+			#self.info = np.array([tuple(row) for row in self.snv_results[:,[0,1,2,3,4,len(self.dtypes)-2,len(self.dtypes)-1]]], dtype=zip(np.array(['chr','pos','id','a1','a2','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S1000'])))
+			self.snv_results[self.snv_results == 'NA'] = np.nan
+			self.snv_results = np.array([tuple(row) for row in self.snv_results], dtype=self.dtypes)
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cpdef align_results(self, Variant.Ref ref):
+		logger = logging.getLogger("Geno.Results.align_results")
+		logger.debug("align_results")
+		cdef unsigned int i = 0
+		for row in self.snv_results:
+			i += 1
+			if ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a1'] + row['a2']:
+				self.snv_results['a1'][i-1] = ref.db[row['uid']]['a1']
+				self.snv_results['a2'][i-1] = ref.db[row['uid']]['a2']
+				self.snv_results['id'][i-1] = ref.db[row['uid']]['id']
+				self.snv_results['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
+			elif (((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + 'NA') and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "AT" and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "TA" and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "GC" and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "CG") or 
+					((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "AT" or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "TA" or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "GC" or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "CG") and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'])):
+				self.snv_results['a1'][i-1] = ref.db[row['uid']]['a1']
+				self.snv_results['a2'][i-1] = ref.db[row['uid']]['a2']
+				self.snv_results['id'][i-1] = ref.db[row['uid']]['id']
+				self.snv_results['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
+				self.snv_results['freq'][i-1] = 1.0 - self.snv_results['freq'][i-1]
+				if 'freq.case' in self.snv_results:
+					self.snv_results['freq.case'][i-1] = 1.0 - self.snv_results['freq.case'][i-1]
+				if 'freq.ctrl' in self.snv_results:
+					self.snv_results['freq.ctrl'][i-1] = 1.0 - self.snv_results['freq.ctrl'][i-1]
+				if 'effect' in self.snv_results:
+					self.snv_results['effect'][i-1] = -1.0 * self.snv_results['effect'][i-1]
+				if 'or' in self.snv_results:
+					self.snv_results['or'][i-1] = 1.0 / self.snv_results['or'][i-1]
+				if 'z' in self.snv_results:
+					self.snv_results['z'][i-1] = -1.0 * self.snv_results['z'][i-1]
+				if 't' in self.snv_results:
+					self.snv_results['t'][i-1] = -1.0 * self.snv_results['t'][i-1]
+
+	def tag_results(self, tag):
+		logger = logging.getLogger("Geno.Results.get_tagged_results")
+		logger.debug("get_tagged_results")
+		self.snv_results_tagged = pd.to_numeric(pd.DataFrame(self.snv_results),errors='coerce')
+		self.snv_results_tagged.columns = [tag + '.' + x[0] if x[0] not in ['chr','pos','id','a1','a2','id_unique','uid'] else x[0] for x in self.dtypes]

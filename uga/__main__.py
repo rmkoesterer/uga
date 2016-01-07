@@ -87,8 +87,40 @@ def main(args=None):
 				data_files = []
 				for m in cfg['models']:
 					if cfg['models'][m]['file'] not in data_files:
-						snv_map.extend(Map.map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region'], format=cfg['models'][m]['format']))
+						snv_map.extend(Map.map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region']))
 						data_files.append(cfg['models'][m]['file'])
+				snv_map = list(set(snv_map))
+				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
+				regions_df['job'] = 1
+				regions_df['cpu'] = 1
+				del data_files
+				del snv_map
+			regions_df = regions_df[['chr','start','end','region','job','cpu']]
+			regions_df.sort_values(by=['chr','start'],inplace=True)
+			regions_df.reset_index(drop=True,inplace=True)
+
+		if args.which == 'meta':
+			#	generate regions dataframe with M rows, either from --snv-map or by splitting data file or --snv-region according to --mb
+			#	run_type = 0:   run as single job
+			#	run_type = 1:   --cpus C (distribute M regions over C cpus and run single job, 1 job C cpus)
+			#	run_type = 10:  --split (split M regions into single region jobs, M jobs 1 cpu)
+			#	run_type = 100: --split-n N (distribute M regions over N jobs, N jobs 1 cpu)
+			#	run_type = 11:  --split, --cpus C (split M regions into chunks of size M / C and run M jobs, M jobs C cpus)
+			#	run_type = 101: --split-n N, --cpus C (distribute M regions over N jobs and distribute each over C cpus, N jobs C cpus)
+			if cfg['region_file']:
+				regions_df = pd.read_table(cfg['region_file'],header=None,names=['region'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
+				regions_df['chr'] = [int(x.split(':')[0]) for x in regions_df['region']]
+				regions_df['start'] = [int(x.split(':')[1].split('-')[0]) for x in regions_df['region']]
+				regions_df['end'] = [int(x.split(':')[1].split('-')[1]) for x in regions_df['region']]
+				regions_df['job'] = 1
+				regions_df['cpu'] = 1
+			else:
+				snv_map = []
+				data_files = []
+				for f in cfg['files']:
+					if f not in data_files:
+						snv_map.extend(Map.map(out=cfg['out'] + '.' + f + '.regions', file=cfg['files'][f], mb = cfg['mb'], region = cfg['region']))
+						data_files.append(cfg['files'][f])
 				snv_map = list(set(snv_map))
 				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
 				regions_df['job'] = 1
@@ -122,7 +154,7 @@ def main(args=None):
 				data_files = []
 				for m in cfg['models']:
 					if cfg['models'][m]['file'] not in data_files:
-						snv_map.extend(Map.map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = 1000, region = cfg['region'], format=cfg['models'][m]['format']))
+						snv_map.extend(Map.map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = 1000, region = cfg['region']))
 						data_files.append(cfg['models'][m]['file'])
 				snv_map = list(set(snv_map))
 				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
@@ -277,7 +309,7 @@ def main(args=None):
 			for k in ini.options(s):
 				print '   ' + k + ' = ' + ini.get(s,k)
 
-	elif args.which in ['snv','snvgroup','resubmit']:
+	elif args.which in ['snv','snvgroup','meta','resubmit']:
 		if cfg['qsub']:
 			print "submitting jobs\n"
 		out = cfg['out']

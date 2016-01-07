@@ -97,9 +97,9 @@ cdef class Model(object):
 		#for x in [a for a in list(set([b for b in re_split('~|\+|-|\*|:|factor|\(|\)',self.formula) if b not in ['1','0']])) if a != '']:
 		#	mtype = "dependent" if x in re_split('factor|\(|\)',re_split('~',self.formula)[0]) else "independent"
 		#	if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-		#		self.fields[x] = {'class': 'factor', 'type': mtype, 'dtype': '>f8'}
+		#		self.fields[x] = {'class': 'factor', 'type': mtype, 'dtype': 'f8'}
 		#	else:
-		#		self.fields[x] = {'class': 'numeric', 'type': mtype, 'dtype': '>f8'}
+		#		self.fields[x] = {'class': 'numeric', 'type': mtype, 'dtype': 'f8'}
 
 		#self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'snv'])))
 		if self.pheno is None:
@@ -129,14 +129,14 @@ cdef class Model(object):
 			p_names = p_names + tuple(x for x in self.model_cols if x not in [self.fid,self.iid,self.matid,self.patid])
 			p_names = p_names + (self.sex,) if self.sex is not None and self.sex not in self.model_cols else p_names
 			p_dtypes = ('|S100', '|S100') + tuple('|S100' for x in [self.matid, self.patid] if x is not None)
-			p_dtypes = p_dtypes + tuple('>f8' for x in self.model_cols if x not in [self.fid,self.iid,self.matid,self.patid])
-			p_dtypes = p_dtypes + ('>f8',) if self.sex is not None and self.sex not in self.model_cols else p_dtypes
+			p_dtypes = p_dtypes + tuple('f8' for x in self.model_cols if x not in [self.fid,self.iid,self.matid,self.patid])
+			p_dtypes = p_dtypes + ('f8',) if self.sex is not None and self.sex not in self.model_cols else p_dtypes
 			dtypes = dict(zip(p_names, p_dtypes))
 			try:
 				self.ped_df = np.genfromtxt(fname=self.ped, delimiter=Fxns.get_delimiter(self.sep), dtype=p_dtypes, names=True, usecols=p_names)
 			except:
 				raise Process.Error("unable to load ped file " + self.ped + " with columns " + ', '.join(p_names))
-			for x in [y for y in dtypes if dtypes[y] == '>f8']:
+			for x in [y for y in dtypes if dtypes[y] == 'f8']:
 				self.ped_df = self.ped_df[~np.isnan(self.ped_df[x])]
 			for x in [y for y in dtypes if dtypes[y] == '|S100']:
 				self.ped_df = self.ped_df[~(self.ped_df[x] == 'NA')]
@@ -252,10 +252,12 @@ cdef class Model(object):
 			print "region " + region + " returned empty"
 			raise
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef calc_variant_stats(self):
 		logger = logging.getLogger("Model.Model.calc_variant_stats")
 		logger.debug("calc_variant_stats")
-		self.variant_stats = np.zeros((self.variants.info.shape[0],1), dtype=[('filter','uint32'),('mac','>f8'),('callrate','>f8'),('freq','>f8'),('freq.case','>f8'),('freq.ctrl','>f8'),('rsq','>f8'),('hwe','>f8')])
+		self.variant_stats = np.zeros((self.variants.info.shape[0],1), dtype=[('filter','uint32'),('mac','f8'),('callrate','f8'),('freq','f8'),('freq.case','f8'),('freq.ctrl','f8'),('rsq','f8'),('hwe','f8'),('n','f8')])
 		cdef unsigned int i
 		if self.variants.chr == 23:
 			for i in xrange(self.variants.info.shape[0]):
@@ -266,6 +268,7 @@ cdef class Model(object):
 				self.variant_stats['freq.ctrl'][i] = Variant.calc_freqX(male=self.variants.data[self.male_ctrls_idx,i+1].astype('float64'), female=self.variants.data[self.female_ctrls_idx,i+1].astype('float64')) if len(self.male_ctrls_idx) > 0 and len(self.female_ctrls_idx) > 0 else np.nan
 				self.variant_stats['rsq'][i] = Variant.calc_rsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
 				self.variant_stats['hwe'][i] = Variant.calc_hwe(self.variants.data[self.calc_hwe_idx,i+1].astype('float64')) if len(self.calc_hwe_idx) > 0 else np.nan
+				self.variant_stats['n'][i] = round(self.variant_stats['callrate'][i] * self.nunique)
 		else:
 			for i in xrange(self.variants.info.shape[0]):
 				self.variant_stats['mac'][i] = Variant.calc_mac(self.variants.data[self.unique_idx,i+1].astype('float64'))
@@ -275,7 +278,10 @@ cdef class Model(object):
 				self.variant_stats['freq.ctrl'][i] = Variant.calc_freq(self.variants.data[self.ctrls_idx,i+1].astype('float64')) if len(self.ctrls_idx) > 0 else np.nan
 				self.variant_stats['rsq'][i] = Variant.calc_rsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
 				self.variant_stats['hwe'][i] = Variant.calc_hwe(self.variants.data[self.calc_hwe_idx,i+1].astype('float64')) if len(self.calc_hwe_idx) > 0 else np.nan
+				self.variant_stats['n'][i] = round(self.variant_stats['callrate'][i] * self.nunique)
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef filter(self, np.float miss_thresh=None, np.float maf_thresh=None, np.float maxmaf_thresh=None, np.float mac_thresh=None, 
 								np.float rsq_thresh=None, np.float hwe_thresh=None, np.float hwe_maf_thresh=None, no_mono=True):
 		logger = logging.getLogger("Model.Model.filter")
@@ -322,7 +328,7 @@ cdef class SnvModel(Model):
 		super(SnvModel, self).__init__(**kwargs)
 		self.tbx_start = 1
 		self.tbx_end = 1
-		self.results_header = np.array(['chr','pos','id','a1','a2','filter','callrate','rsq','hwe','mac','freq','freq.case','freq.ctrl'])
+		self.results_header = np.array(['chr','pos','id','a1','a2','filter','callrate','rsq','hwe','n','mac','freq','freq.case','freq.ctrl'])
 		self.out_all = None
 
 		self.metadata_snv = '## chr: chromosome' + '\n' + \
@@ -335,11 +341,14 @@ cdef class SnvModel(Model):
 							'## rsq: imputation info metric (calculated only for variants exhibiting probabilistic genotypes, otherwise coded as NA)' + '\n' + \
 							'## hwe: Hardy Weinberg p-value (calculated only if dosages are in [0,1,2], otherwise coded as NA; calculated in founders only if pedigree information available, otherwise calculated in all samples)' + '\n' + \
 							'## mac: minor allele count' + '\n' + \
+							'## n: samples analyzed' + '\n' + \
 							'## freq: reference (coded) allele frequency'
 
 		self.metadata_snv_cc = '## freq.case: reference (coded) allele frequency in cases' + '\n' + \
 								'## freq.ctrl: reference (coded) allele frequency in controls'
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef get_snvs(self, int buffer):
 		logger = logging.getLogger("Model.SnvModel.get_snvs")
 		logger.debug("get_snvs")
@@ -379,6 +388,8 @@ cdef class SnvgroupModel(Model):
 								'## end: end chromosomal position' + '\n' + \
 								'## id: snv group name (ie. gene name)'
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef get_snvgroup(self, int buffer, group_id):
 		logger = logging.getLogger("Model.SnvgroupModel.get_snvgroup")
 		logger.debug("get_snvgroup")
@@ -411,7 +422,7 @@ cdef class Score(SnvModel):
 		self.formula = left + '~' + right
 		print "formula: " + self.formula
 
-		self.results_dtypes=[('err','>f8'),('nmiss','>f8'),('ntotal','>f8'),('effect','>f8'),('stderr','>f8'),('or','>f8'),('p','>f8')]
+		self.results_dtypes=[('err','f8'),('nmiss','f8'),('ntotal','f8'),('effect','f8'),('stderr','f8'),('or','f8'),('p','f8')]
 		if self.family == 'binomial':
 			self.results_header = np.append(self.results_header,np.array(['err','nmiss','ntotal','effect','stderr','or','p']))
 		else:
@@ -433,6 +444,8 @@ cdef class Score(SnvModel):
 		self.metadata = self.metadata + '\n' + '## *.or: odds ratio (exp(effect), not provided by seqMeta)' if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + '## *.p: p-value' + '\n#'
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef calc_model(self):
 		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
@@ -478,17 +491,6 @@ cdef class Score(SnvModel):
 				self.results['stderr'][passed] = np.array(ro.r('result$se'))[:,None]
 				self.results['or'][passed] = np.array(np.exp(ro.r('result$beta')))[:,None]
 				self.results['p'][passed] = np.array(ro.r('result$p'))[:,None]
-		#for i in xrange(self.variants.info.shape[0]):
-		#	if self.variant_stats['freq'][i] > 0.5:
-		#		a1 = self.variants.info['a1'][i]
-		#		a2 = self.variants.info['a2'][i]
-		#		self.variants.info['a1'][i] = a2
-		#		self.variants.info['a2'][i] = a1
-		#		self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
-		#		self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
-		#		self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
-		#		self.results['effect'][i] = -1 * self.results['effect'][i]
-		#		self.results['or'][i] = 1 / self.results['or'][i]
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Gee(SnvModel):
@@ -511,12 +513,11 @@ cdef class Gee(SnvModel):
 			self.formula = self.formula + '+' + '+'.join(['factor(' + x + ')' for x in self.covars_categorical.split(',')])
 		print "formula: " + self.formula
 
-		self.results_dtypes = [('err','>f8'),('effect','>f8'),('stderr','>f8'),('or','>f8'),('wald','>f8'),('p','>f8')]
+		self.results_dtypes = [('err','f8'),('effect','f8'),('stderr','f8'),('or','f8'),('wald','f8'),('p','f8')]
 		if self.family == 'binomial':
 			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','or','wald','p']))
 		else:
 			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','wald','p']))
-			#self.results_dtypes = [('err','>f8'),('effect','>f8'),('stderr','>f8'),('wald','>f8'),('p','>f8')]
 
 		print "loading R package geepack"
 		ro.r('suppressMessages(library(geepack))')
@@ -535,6 +536,8 @@ cdef class Gee(SnvModel):
 						'## wald: wald-statistic' + '\n' + \
 						'## p: p-value' + '\n#'
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef calc_model(self):
 		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
@@ -571,17 +574,6 @@ cdef class Gee(SnvModel):
 						self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
 					else:
 						self.results['err'][v] = 1
-		#for i in xrange(self.variants.info.shape[0]):
-		#	if self.variant_stats['freq'][i] > 0.5:
-		#		a1 = self.variants.info['a1'][i]
-		#		a2 = self.variants.info['a2'][i]
-		#		self.variants.info['a1'][i] = a2
-		#		self.variants.info['a2'][i] = a1
-		#		self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
-		#		self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
-		#		self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
-		#		self.results['effect'][i] = -1 * self.results['effect'][i]
-		#		self.results['or'][i] = 1 / self.results['or'][i]
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Glm(SnvModel):
@@ -602,12 +594,11 @@ cdef class Glm(SnvModel):
 			self.formula = self.formula + '+' + '+'.join(['factor(' + x + ')' for x in self.covars_categorical.split(',')])
 		print "formula: " + self.formula
 
-		self.results_dtypes = [('err','>f8'),('effect','>f8'),('stderr','>f8'),('or','>f8'),('z','>f8'),('p','>f8')]
+		self.results_dtypes = [('err','f8'),('effect','f8'),('stderr','f8'),('or','f8'),('z','f8'),('p','f8')]
 		if self.family == 'binomial':
 			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','or','z','p']))
 		else:
 			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','z','p']))
-			#self.results_dtypes = [('err','>f8'),('effect','>f8'),('stderr','>f8'),('z','>f8'),('p','>f8')]
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + '## formula: ' + self.formula
@@ -622,7 +613,8 @@ cdef class Glm(SnvModel):
 						'## z: z-statistic' + '\n' + \
 						'## p: p-value' + '\n#'
 
-
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef calc_model(self):
 		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
@@ -655,18 +647,6 @@ cdef class Glm(SnvModel):
 					self.results['or'][v] = np.array(np.exp(ro.r('result$coefficients["' + vu + '",1]')))[:,None]
 					self.results['z'][v] = np.array(ro.r('result$coefficients["' + vu + '",3]'))[:,None]
 					self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
-		#for i in xrange(self.variants.info.shape[0]):
-		#	if self.variant_stats['freq'][i] > 0.5:
-		#		a1 = self.variants.info['a1'][i]
-		#		a2 = self.variants.info['a2'][i]
-		#		self.variants.info['a1'][i] = a2
-		#		self.variants.info['a2'][i] = a1
-		#		self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
-		#		self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
-		#		self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
-		#		self.results['effect'][i] = -1 * self.results['effect'][i]
-		#		self.results['or'][i] = 1 / self.results['or'][i]
-		#		self.results['z'][i] = -1 * self.results['z'][i]
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Lm(SnvModel):
@@ -687,7 +667,7 @@ cdef class Lm(SnvModel):
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','t','p']))
-		self.results_dtypes = [('err','>f8'),('effect','>f8'),('stderr','>f8'),('t','>f8'),('p','>f8')]
+		self.results_dtypes = [('err','f8'),('effect','f8'),('stderr','f8'),('t','f8'),('p','f8')]
 
 		self.metadata = self.metadata + '\n' + \
 						'## formula: ' + self.formula + '\n' + \
@@ -698,7 +678,8 @@ cdef class Lm(SnvModel):
 						'## t: t-statistic' + '\n' + \
 						'## p: p-value' + '\n#'
 						
-
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef calc_model(self):
 		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
@@ -730,17 +711,6 @@ cdef class Lm(SnvModel):
 					self.results['stderr'][v] = np.array(ro.r('result$coefficients["' + vu + '",2]'))[:,None]
 					self.results['t'][v] = np.array(ro.r('result$coefficients["' + vu + '",3]'))[:,None]
 					self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
-		#for i in xrange(self.variants.info.shape[0]):
-		#	if self.variant_stats['freq'][i] > 0.5:
-		#		a1 = self.variants.info['a1'][i]
-		#		a2 = self.variants.info['a2'][i]
-		#		self.variants.info['a1'][i] = a2
-		#		self.variants.info['a2'][i] = a1
-		#		self.variant_stats['freq'][i] = 1 - self.variant_stats['freq'][i]
-		#		self.variant_stats['freq.case'][i] = 1 - self.variant_stats['freq.case'][i]
-		#		self.variant_stats['freq.ctrl'][i] = 1 - self.variant_stats['freq.ctrl'][i]
-		#		self.results['effect'][i] = -1 * self.results['effect'][i]
-		#		self.results['t'][i] = -1 * self.results['t'][i]
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Skat(SnvgroupModel):
@@ -766,7 +736,7 @@ cdef class Skat(SnvgroupModel):
 		self.formula = left + '~' + right
 		print "formula: " + self.formula
 
-		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
+		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnps','cmaf','p','q']))
 
 		print "loading R package seqMeta"
 		ro.r('suppressMessages(library(seqMeta))')
@@ -790,11 +760,13 @@ cdef class Skat(SnvgroupModel):
 						'## p: group p-value' + '\n' + \
 						'## q: skat q-statistic' + '\n#'
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef calc_model(self, meta = None):
 		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('q','>f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('q','f8')])
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -859,9 +831,11 @@ cdef class Skat(SnvgroupModel):
 			self.results['err'][0] = 5
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef tag_results(self, tag):
 		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','cmac','err','nmiss','nsnps','cmaf','p','q']]))
-		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + 'total','uint32'),(tag + 'passed','uint32'),(tag + '.cmac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.q','>f8')])
+		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + 'total','uint32'),(tag + 'passed','uint32'),(tag + '.cmac','f8'),(tag + '.err','f8'),(tag + '.nmiss','f8'),(tag + '.nsnps','f8'),(tag + '.cmaf','f8'),(tag + '.p','f8'),(tag + '.q','f8')])
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
@@ -918,11 +892,13 @@ cdef class Skato(SnvgroupModel):
 						'## pmin: minimum snp p-value' + '\n' + \
 						'## rho: skato rho parameter' + '\n#'
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef calc_model(self, meta = None):
 		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('pmin','f8'),('rho','f8')])
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -991,9 +967,11 @@ cdef class Skato(SnvgroupModel):
 			self.results['err'][0] = 5
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef tag_results(self, tag):
 		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho']]))
-		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.total','uint32'),(tag + '.passed','uint32'),(tag + '.cmac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnps','>f8'),(tag + '.cmaf','>f8'),(tag + '.p','>f8'),(tag + '.pmin','>f8'),(tag + '.rho','>f8')])
+		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.total','uint32'),(tag + '.passed','uint32'),(tag + '.cmac','f8'),(tag + '.err','f8'),(tag + '.nmiss','f8'),(tag + '.nsnps','f8'),(tag + '.cmaf','f8'),(tag + '.p','f8'),(tag + '.pmin','f8'),(tag + '.rho','f8')])
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
@@ -1047,11 +1025,13 @@ cdef class Burden(SnvgroupModel):
 						'## se: standard error for effect of genotype' + '\n' + \
 						'## p: p value for burden test' + '\n#'
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef calc_model(self, meta = None):
 		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnpsTotal','>f8'),('nsnpsUsed','>f8'),('cmafTotal','>f8'),('cmafUsed','>f8'),('beta','>f8'),('se','>f8'),('p','>f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnpsTotal','f8'),('nsnpsUsed','f8'),('cmafTotal','f8'),('cmafUsed','f8'),('beta','f8'),('se','f8'),('p','f8')])
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -1125,9 +1105,11 @@ cdef class Burden(SnvgroupModel):
 			self.results['err'][0] = 5
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
 	cpdef tag_results(self, tag):
 		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','cmac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']]))
-		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.total','uint32'),(tag + '.passed','uint32'),(tag + '.cmac','>f8'),(tag + '.err','>f8'),(tag + '.nmiss','>f8'),(tag + '.nsnpsTotal','>f8'),(tag + '.nsnpsUsed','>f8'),(tag + '.cmafTotal','>f8'),(tag + '.cmafUsed','>f8'),(tag + '.beta','>f8'),(tag + '.se','>f8'),(tag + '.p','>f8')])
+		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.total','uint32'),(tag + '.passed','uint32'),(tag + '.cmac','f8'),(tag + '.err','f8'),(tag + '.nmiss','f8'),(tag + '.nsnpsTotal','f8'),(tag + '.nsnpsUsed','f8'),(tag + '.cmafTotal','f8'),(tag + '.cmafUsed','f8'),(tag + '.beta','f8'),(tag + '.se','f8'),(tag + '.p','f8')])
 		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
@@ -1268,7 +1250,7 @@ cdef class SkatMeta(Meta):
 	def calc_meta(self, chr, start, end, id, Skat obj, incl):
 		# obj: the first model object from individual analyses
 		# incl: a list of individual model tags to include in meta
-		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('q','>f8')])
+		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('q','f8')])
 		results['chr'][0] = chr
 		results['start'][0] = start
 		results['end'][0] = end
@@ -1342,7 +1324,7 @@ cdef class SkatoMeta(Meta):
 	def calc_meta(self, chr, start, end, id, Skato obj, incl):
 		# obj: the first model object from individual analyses
 		# incl: a list of individual model tags to include in meta
-		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnps','>f8'),('cmaf','>f8'),('p','>f8'),('pmin','>f8'),('rho','>f8')])
+		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('pmin','f8'),('rho','f8')])
 		results['chr'][0] = chr
 		results['start'][0] = start
 		results['end'][0] = end
@@ -1424,7 +1406,7 @@ cdef class BurdenMeta(Meta):
 	def calc_meta(self, chr, start, end, id, Burden obj, incl):
 		# obj: the first model object from individual analyses
 		# incl: a list of individual model tags to include in meta
-		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','>f8'),('err','>f8'),('nmiss','>f8'),('nsnpsTotal','>f8'),('nsnpsUsed','>f8'),('cmafTotal','>f8'),('cmafUsed','>f8'),('beta','>f8'),('se','>f8'),('p','>f8')])
+		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnpsTotal','f8'),('nsnpsUsed','f8'),('cmafTotal','f8'),('cmafUsed','f8'),('beta','f8'),('se','f8'),('p','f8')])
 		results['chr'][0] = chr
 		results['start'][0] = start
 		results['end'][0] = end

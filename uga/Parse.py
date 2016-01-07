@@ -43,6 +43,7 @@ def get_parser():
 	set_parser = Args.set_args(subparsers.add_parser('set', help='user definable settings', parents=[global_parser]))
 	snv_parser = Args.snv_args(subparsers.add_parser('snv', help='run single nucleotide variant association models', parents=[global_parser]))
 	snvgroup_parser = Args.snvgroup_args(subparsers.add_parser('snvgroup', help='run variant group (ie. gene) based association models', parents=[global_parser]))
+	meta_parser = Args.meta_args(subparsers.add_parser('meta', help='run meta analysis', parents=[global_parser]))
 	compile_parser = Args.compile_args(subparsers.add_parser('compile', help='verify and compile results files', parents=[global_parser]))
 	resubmit_parser = Args.resubmit_args(subparsers.add_parser('resubmit', help='resubmit failed results', parents=[global_parser]))
 	snvplot_parser = Args.snvplot_args(subparsers.add_parser('snvplot', help='generate qq and manhattan plots for single variant results', parents=[global_parser]))
@@ -64,7 +65,7 @@ def get_args(parser):
 
 def generate_snv_cfg(args):
 	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'debug': False, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': [], 'meta_type': 'sample_size'}
+					'debug': False, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
 	for arg in args:
 		if arg[0] == 'out':
 			config['out'] = arg[1]
@@ -74,11 +75,14 @@ def generate_snv_cfg(args):
 			config['region'] = arg[1]
 		if arg[0] == 'region_file':
 			config['region_file'] = arg[1]
-		if arg[0] == 'meta':
-			config['meta'][arg[1].split(':')[0]] = arg[1].split(':')[1]
-			config['meta_order'].append(arg[1].split(':')[0])
-		if arg[0] == 'meta_type':
-			config['meta_type'] = arg[1]
+		if arg[0] == 'meta_stderr':
+			config['meta'][arg[1][0]] = arg[1][1]
+			config['meta_type'][arg[1][0]] = 'stderr'
+			config['meta_order'].append(arg[1][0])
+		if arg[0] == 'meta_sample_size':
+			config['meta'][arg[1][0]] = arg[1][1]
+			config['meta_type'][arg[1][0]] = 'sample_size'
+			config['meta_order'].append(arg[1][0])
 		if arg[0] == 'cpus' and arg[1] is not None:
 			config['cpus'] = arg[1]
 		if arg[0] == 'mb' and arg[1] is not None:
@@ -94,7 +98,7 @@ def generate_snv_cfg(args):
 		if arg[0] == 'debug':
 			config['debug'] = arg[1]
 
-	args = [x for x in args if x[0] not in config]
+	args = [x for x in args if x[0] not in config and not x[0] in ['meta_sample_size','meta_stderr']]
 
 	tags_idx = [args.index((x,y)) for x, y in args if x == 'tag'] + [len(args)]
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
@@ -145,17 +149,13 @@ def generate_snv_cfg(args):
 			else:
 				config['models']['___no_tag___'][arg[0]] = arg[1]
 		config['model_order'].append('___no_tag___')
-	for arg in args:
-		if arg[0] == 'meta':
-			config['meta_order'].append(arg[1].split(':')[0])
-			config['meta'][arg[1].split(':')[0]] = arg[1].split(':')[1]
 	return config
 
 def print_snv_options(cfg):
 	print ''
 	print "main options ..."
 	for k in cfg:
-		if not k in ['models','model_order','meta','meta_order']:
+		if not k in ['models','model_order','meta','meta_order','meta_type']:
 			if cfg[k] is not None and cfg[k] is not False:
 				if cfg[k] is True:
 					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
@@ -172,7 +172,10 @@ def print_snv_options(cfg):
 	if len(cfg['meta_order']) > 0:
 		print '   meta analysis ...'
 		for m in cfg['meta_order']:
-			print "      {0:>{1}}".format(str('--meta'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ':' + str(cfg['meta'][m])
+			if cfg['meta_type'][m] == 'stderr':
+				print "      {0:>{1}}".format(str('--meta-stderr'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
+			else:
+				print "      {0:>{1}}".format(str('--meta-sample-size'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
 
 def generate_snvgroup_cfg(args):
 	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'snvgroup_map': None, 
@@ -183,8 +186,8 @@ def generate_snvgroup_cfg(args):
 		if arg[0] == 'buffer' and arg[1] is not None:
 			config['buffer'] = arg[1]
 		if arg[0] == 'meta':
-			config['meta'][arg[1].split(':')[0]] = arg[1].split(':')[1]
-			config['meta_order'].append(arg[1].split(':')[0])
+			config['meta'][arg[1][0]] = arg[1][1]
+			config['meta_order'].append(arg[1][0])
 		if arg[0] == 'cpus' and arg[1] is not None:
 			config['cpus'] = arg[1]
 		if arg[0] == 'qsub':
@@ -257,10 +260,6 @@ def generate_snvgroup_cfg(args):
 			else:
 				config['models']['___no_tag___'][arg[0]] = arg[1]
 		config['model_order'].append('___no_tag___')
-	for arg in args:
-		if arg[0] == 'meta':
-			config['meta_order'].append(arg[1].split(':')[0])
-			config['meta'][arg[1].split(':')[0]] = arg[1].split(':')[1]
 	return config
 
 def print_snvgroup_options(cfg):
@@ -284,7 +283,68 @@ def print_snvgroup_options(cfg):
 	if len(cfg['meta_order']) > 0:
 		print '   meta analysis ...'
 		for m in cfg['meta_order']:
-			print "      {0:>{1}}".format(str('--meta'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ':' + str(cfg['meta'][m])
+			print "      {0:>{1}}".format(str('--meta'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
+
+def generate_meta_cfg(args):
+	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
+					'debug': False, 'files': {}, 'file_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
+
+	for arg in args:
+		if arg[0] == 'out':
+			config['out'] = arg[1]
+		if arg[0] == 'region':
+			config['region'] = arg[1]
+		if arg[0] == 'region_file':
+			config['region_file'] = arg[1]
+		if arg[0] == 'meta_stderr':
+			config['meta'][arg[1][0]] = arg[1][1]
+			config['meta_type'][arg[1][0]] = 'stderr'
+			config['meta_order'].append(arg[1][0])
+		if arg[0] == 'meta_sample_size':
+			config['meta'][arg[1][0]] = arg[1][1]
+			config['meta_type'][arg[1][0]] = 'sample_size'
+			config['meta_order'].append(arg[1][0])
+		if arg[0] == 'buffer':
+			config['buffer'] = arg[1]
+		if arg[0] == 'cpus' and arg[1] is not None:
+			config['cpus'] = arg[1]
+		if arg[0] == 'mb' and arg[1] is not None:
+			config['mb'] = arg[1]
+		if arg[0] == 'qsub':
+			config['qsub'] = arg[1]
+		if arg[0] == 'split' and arg[1] is True:
+			config['split'] = arg[1]
+		if arg[0] == 'split_n':
+			config['split_n'] = arg[1]
+		if arg[0] == 'replace':
+			config['replace'] = arg[1]
+		if arg[0] == 'debug':
+			config['debug'] = arg[1]
+		if arg[0] == 'file':
+			config['files'][arg[1][0]] = arg[1][1]
+			config['file_order'].append(arg[1][0])
+	return config
+
+def print_meta_options(cfg):
+	print ''
+	print "main options ..."
+	for k in cfg:
+		if not k in ['files','file_order','meta','meta_order','meta_type']:
+			if cfg[k] is not None and cfg[k] is not False:
+				if cfg[k] is True:
+					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+				else:
+					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+	for f in cfg['file_order']:
+		print '   file ' + str(f) + ' ...' if len(cfg['files']) > 1 else '   file ...'
+		print "      {0:>{1}}".format('--file ' + f, len('--file')) + " " + cfg['files'][f]
+	if len(cfg['meta_order']) > 0:
+		print '   meta analysis ...'
+		for m in cfg['meta_order']:
+			if cfg['meta_type'][m] == 'stderr':
+				print "      {0:>{1}}".format(str('--meta-stderr'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
+			else:
+				print "      {0:>{1}}".format(str('--meta-sample-size'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
 
 def generate_compile_cfg(args):
 	config = {'dir': None, 'replace': False}

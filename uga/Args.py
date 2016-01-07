@@ -217,13 +217,14 @@ def snv_args(snv_parser):
 						nargs=0, 
 						action=AddTrue,
 						help='lm test')
-	snv_parser.add_argument('--meta', 
+	snv_parser.add_argument('--meta-sample-size', 
+						nargs=2, 
 						action=AddString, 
-						help='a meta analysis string')
-	snv_parser.add_argument('--meta-type', 
+						help='a sample size weighted meta analysis (ie. --meta-sample-size meta m1+m2: meta-analysis with tag "meta", including tags "m1" and "m2"; requires sample size, p-value, and effect size (for direction of effect))')
+	snv_parser.add_argument('--meta-stderr', 
+						nargs=2, 
 						action=AddString, 
-						choices=['sample_size','stderr'], 
-						help='a meta analysis string (default: sample_size')
+						help='a standard error weighted meta analysis (ie. --meta-stderr meta m1+m2: meta-analysis with tag "meta", including tags "m1" and "m2"; requires p-value, effect size, standard error, and consistent units for effect size estimates and standard errors (ie. same trait and model))')
 	snv_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 
@@ -407,13 +408,81 @@ def snvgroup_args(snvgroup_parser):
 						action=AddString, 
 						help='maf range for snv group tests which is different from --maxmaf and --maf since it is to be calculated before and during meta analysis (default: all snvs c(0,0.5))')
 	snvgroup_parser.add_argument('--meta', 
+						nargs=2, 
 						action=AddString, 
-						help='a meta analysis string')
+						help='a meta analysis (ie. --meta meta m1+m2: meta-analysis with tag "meta", including tags "m1" and "m2")')
 	snvgroup_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 
 						help='enable debug mode (prints debug info to log file)')
 	return snvgroup_parser
+
+def meta_args(meta_parser):
+	meta_parser.add_argument('--out', 
+						action=AddString, 
+						help='output file basename (do not include path or extension)')
+	meta_parser.add_argument('--file', 
+						nargs=2,
+						action=AddString, 
+						help='results file tag and name (ie. --file X file.gz: add file "file.gz" with tag "X"')
+	meta_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
+	meta_parser.add_argument('--cpus', 
+						action=AddString, 
+						type=int, 
+						help='number of cpus')
+	meta_parser.add_argument('--mb', 
+						action=AddString, 
+						help='region size in megabases to use for split analyses (default: 1)')
+	meta_parser.add_argument('--buffer', 
+						action=AddString, 
+						type=int, 
+						help='value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
+	meta_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	meta_parser_split_group1 = meta_parser.add_mutually_exclusive_group()
+	meta_parser_split_group1.add_argument('--region', 
+						action=AddString, 
+						help='genomic region specified in Tabix format of any size up to an entire chromosome (ie. 1:1-1000000, 21).')
+	meta_parser_split_group1.add_argument('--region-file', 
+						action=AddString, 
+						help='filename for a list of tabix format regions of any size up to an entire chromosome (ie. 1:1-1000000, 21)')
+	meta_parser_split_group2 = meta_parser.add_mutually_exclusive_group()
+	meta_parser_split_group2.add_argument('--split', 
+						nargs=0, 
+						action=AddTrue, 
+						help='split --region-file into an individual job for each line in file (requires --region-file)')
+	meta_parser_split_group2.add_argument('--split-n', 
+						action=AddString, 
+						type=int, 
+						help='split --region-file into n individual jobs each with a subset of regions in the file (requires --region-file)')
+	meta_parser_split_group2.add_argument('--split-chr', 
+						nargs=0, 
+						action=AddTrue,  
+						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
+	meta_parser_split_group3 = meta_parser.add_mutually_exclusive_group()
+	meta_parser_split_group3.add_argument('--job', 
+						action=AddString, 
+						type=int, 
+						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	meta_parser_split_group3.add_argument('--jobs', 
+						action=AddString, 
+						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+	meta_parser.add_argument('--meta-sample-size', 
+						nargs=2, 
+						action=AddString, 
+						help='a sample size weighted meta analysis (ie. --meta-sample-size meta m1+m2: meta-analysis with tag "meta", including tags "m1" and "m2"; requires sample size, p-value, and effect size (for direction of effect))')
+	meta_parser.add_argument('--meta-stderr', 
+						nargs=2, 
+						action=AddString, 
+						help='a standard error weighted meta analysis (ie. --meta-stderr meta m1+m2: meta-analysis with tag "meta", including tags "m1" and "m2"; requires p-value, effect size, standard error, and consistent units for effect size estimates and standard errors (ie. same trait and model))')
+	meta_parser.add_argument('--debug', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable debug mode (prints debug info to log file)')
 
 def compile_args(compile_parser):
 	compile_required = compile_parser.add_argument_group('required arguments')
