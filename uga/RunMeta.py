@@ -113,7 +113,10 @@ def process_regions(regions_df, cfg, cpu, log):
 				results_final_meta[meta] = results_final_meta[meta].merge(meta_objs[meta].out, how='outer')
 
 	for meta in cfg['meta_order']:
-		pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.meta.' + meta + '.pkl', "wb")
+		results_final_meta[meta] = results_final_meta[meta].sort_values(by=['chr','pos'])
+		results_final_meta[meta]['chr'] = results_final_meta[meta]['chr'].astype(np.int64)
+		results_final_meta[meta]['pos'] = results_final_meta[meta]['pos'].astype(np.int64)
+		pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.' + meta + '.pkl', "wb")
 		pickle.dump([results_final_meta[meta],meta_objs[meta].metadata,np.array(results_final_meta[meta].columns.values),meta_objs[meta].tbx_start,meta_objs[meta].tbx_end],pkl,protocol=2)
 		pkl.close()
 
@@ -140,7 +143,7 @@ def RunMeta(args):
 	print ''
 	for m in cfg['meta_order']:
 		print "initializing out file for meta " + m
-		meta_out[m] = cfg['out'] + '.meta.' + m
+		meta_out[m] = cfg['out'] + '.' + m
 		try:
 			bgzfiles[m] = bgzf.BgzfWriter(meta_out[m] + '.gz', 'wb')
 		except:
@@ -180,7 +183,7 @@ def RunMeta(args):
 	for m in cfg['meta_order']:
 		written = False
 		for i in xrange(1,cfg['cpus']+1):
-			out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.meta.' + m + '.pkl'
+			out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.' + m + '.pkl'
 			pkl = open(out_model_meta,"rb")
 			results_final_meta,metadata,results_header,tbx_start,tbx_end = pickle.load(pkl)
 			if not written:

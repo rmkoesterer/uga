@@ -155,7 +155,7 @@ def process_regions(regions_df, cfg, cpu, log):
 			meta_obj = Model.SnvMeta(tag = meta, meta = cfg['meta'][meta], type = cfg['meta_type'][meta])
 			meta_obj.calc_meta(results_all)
 			print "   processed meta analysis (" + meta + ")"
-			pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + (cfg['out'] + '.cpu' + str(cpu)).split('/')[-1] + '.meta.' + meta + '.' + 'pkl', "wb")
+			pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + (cfg['out'] + '.cpu' + str(cpu)).split('/')[-1] + '.' + meta + '.' + 'pkl', "wb")
 			pickle.dump([meta_obj.out,meta_obj.metadata,np.array(meta_obj.out.columns),meta_obj.tbx_start,meta_obj.tbx_end],pkl,protocol=2)
 			pkl.close()
 
@@ -193,7 +193,7 @@ def RunSnv(args):
 	if len(cfg['meta_order']) > 0:
 		for m in cfg['meta_order']:
 			print "initializing out file for meta " + m
-			models_out[m] = cfg['out'] + '.meta.' + m
+			models_out[m] = cfg['out'] + '.' + m
 			try:
 				bgzfiles[m] = bgzf.BgzfWriter(models_out[m] + '.gz', 'wb')
 			except:
@@ -258,7 +258,7 @@ def RunSnv(args):
 		for m in cfg['meta_order']:
 			written = False
 			for i in xrange(1,cfg['cpus']+1):
-				out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.meta.' + m + '.pkl'
+				out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.' + m + '.pkl'
 				pkl = open(out_model_meta,"rb")
 				results_final_meta,metadata,results_header,tbx_start,tbx_end = pickle.load(pkl)
 				if not written:

@@ -513,6 +513,9 @@ def snvplot_args(snvplot_parser):
 						action=AddString, 
 						required=True, 
 						help='filename of existing results')
+	snvplot_required.add_argument('--pcol', 
+						action=AddString, 
+						help='a comma separated list of p value column names or a single p value column name (default: p)')
 	snvplot_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 
@@ -521,9 +524,9 @@ def snvplot_args(snvplot_parser):
 						action=AddString, 
 						choices=['tiff','eps','pdf'], 
 						help='file type extension for plot files (default: tiff)')
-	snvplot_parser.add_argument('--pcol', 
+	snvplot_parser.add_argument('--freqcol', 
 						action=AddString, 
-						help='plot a specific p value column (default: plot all p value columns)')
+						help='plot a specific p value column (default: freq)')
 	snvplot_parser.add_argument('--crop', 
 						action=AddString, 
 						type=float, 
@@ -563,6 +566,9 @@ def snvgroupplot_args(snvgroupplot_parser):
 						action=AddString, 
 						required=True, 
 						help='filename of existing results')
+	snvgroupplot_required.add_argument('--pcol', 
+						action=AddString, 
+						help='a comma separated list of p value column names or a single p value column name (default: p)')
 	snvgroupplot_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 
@@ -571,17 +577,10 @@ def snvgroupplot_args(snvgroupplot_parser):
 						action=AddString, 
 						choices=['tiff','eps','pdf'], 
 						help='file type extension for plot files (default: tiff)')
-	snvgroupplot_parser.add_argument('--pcol', 
-						action=AddString, 
-						help='plot a specific p value column (default: plot all p value columns)')
 	snvgroupplot_parser.add_argument('--crop', 
 						action=AddString, 
 						type=float, 
 						help='crop extreme values at this -log10(p) (default: 10)')
-	snvgroupplot_parser.add_argument('--cmaf', 
-						action=AddString, 
-						type=float, 
-						help='filter groups for cmaf (ie: --cmaf 0.001 filters groups with cmaf < 0.001)')
 	snvgroupplot_parser.add_argument('--qq', 
 						nargs=0, 
 						action=AddTrue, 

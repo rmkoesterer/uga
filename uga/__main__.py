@@ -270,14 +270,16 @@ def main(args=None):
 						pass
 				with open(directory + '/' + cfg['out'] + '.files', 'w') as jlist:
 					for j in range(1, int(max(regions_df['job'])) + 1):
-						if 'model_order' in cfg:
-							for m in cfg['model_order']:
-								jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
-						else:
-							jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
+						if args.which in ['snv','snvgroup']:
+							if 'model_order' in cfg:
+								for m in cfg['model_order']:
+									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
+							else:
+								jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
 						if 'meta_order' in cfg:
 							if len(cfg['meta_order']) > 0:
-								jlist.write(str(j) + '\t' + cfg['out'] + '.meta.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.meta.gz\n')
+								for m in cfg['meta_order']:
+									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
 		else:
 			directory = directory + '/' + os.path.basename(cfg['out'])
 			if int(max(regions_df['job'])) > 1 and cfg['qsub'] is not None:

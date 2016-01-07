@@ -367,7 +367,7 @@ def print_compile_options(cfg):
 
 def generate_snvplot_cfg(args):
 	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'nogc': False, 'color': False, 'qq': False, 'qq_strat': False, 
-				'mht': False, 'crop': 10, 'pcol': None}
+				'mht': False, 'crop': 10, 'pcol': 'p', 'freqcol': 'freq'}
 	for arg in args:
 		if arg[0] == 'file':
 			config['file'] = arg[1]
@@ -395,6 +395,8 @@ def generate_snvplot_cfg(args):
 			config['crop'] = arg[1]
 		if arg[0] == 'pcol':
 			config['pcol'] = arg[1]
+		if arg[0] == 'freqcol':
+			config['freqcol'] = arg[1]
 	return config
 
 def print_snvplot_options(cfg):
@@ -409,7 +411,7 @@ def print_snvplot_options(cfg):
 
 def generate_snvgroupplot_cfg(args):
 	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'nogc': False, 'color': False, 'qq': False, 
-				'mht': False, 'crop': 10, 'pcol': None, 'cmaf': 0.0}
+				'mht': False, 'crop': 10, 'pcol': 'p'}
 	for arg in args:
 		if arg[0] == 'file':
 			config['file'] = arg[1]
@@ -435,8 +437,6 @@ def generate_snvgroupplot_cfg(args):
 			config['crop'] = arg[1]
 		if arg[0] == 'pcol':
 			config['pcol'] = arg[1]
-		if arg[0] == 'cmaf':
-			config['cmaf'] = arg[1]
 	return config
 
 def print_snvgroupplot_options(cfg):

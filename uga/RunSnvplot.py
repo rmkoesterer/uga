@@ -39,62 +39,39 @@ def RunSnvplot(args):
 
 	ro.r('suppressMessages(library(ggplot2))')
 	ro.r('suppressMessages(library(grid))')
-	#ro.r('library(grDevices)')
 
 	handle=pysam.TabixFile(filename=cfg['file'],parser=pysam.asVCF())
 	header = [x for x in handle.header]
 	skip_rows = len(header)-1
 	cols = header[-1].split()
-	pcols = [x for x in cols if x == 'p' or len(re.findall('.p$',x)) > 0] if cfg['pcol'] is None else [cfg['pcol']]
-	cols_extract = ['#chr','pos','freq'] + pcols
+	pcols = cfg['pcol'].split(',')
+	if cfg['qq_strat']:
+		if cfg['freqcol'] not in cols:
+			cols_extract = ['#chr','pos'] + pcols
+			print Process.Error("frequency column " + cfg['freqcol'] + " not found, unable to proceed with frequency stratified plots").out
+			return 1
+		else:
+			cols_extract = ['#chr','pos',cfg['freqcol']] + pcols
+			print "frequency column " + cfg['freqcol'] + " found"
+	else:
+		cols_extract = ['#chr','pos'] + pcols
 	print "importing data"
 	r = pd.read_table(cfg['file'],sep='\t',skiprows=skip_rows,usecols=cols_extract,compression='gzip')
 	print str(r.shape[0]) + " total variants found"
 
 	for pcol in pcols:
 		print "plotting p-values for column " + pcol + " ..."
-		results = r[['#chr','pos','freq',pcol]]
+		results = r[['#chr','pos',cfg['freqcol'],pcol]] if cfg['freqcol'] in cols else r[['#chr','pos',pcol]]
 		results.dropna(inplace=True)
 		results = results[(results[pcol] > 0) & (results[pcol] <= 1)].reset_index(drop=True)
 		print "   " + str(results.shape[0]) + " variants with plottable p-values"
 
 		results['logp'] = -1 * np.log10(results[pcol]) + 0.0
 
-		results['MAF'] = 'E'
-		results.loc[(results['freq'] >= 0.01) & (results['freq'] <= 0.99),'MAF'] = 'D'
-		results.loc[(results['freq'] >= 0.03) & (results['freq'] <= 0.97),'MAF'] = 'C'
-		results.loc[(results['freq'] >= 0.05) & (results['freq'] <= 0.95),'MAF'] = 'B'
-		results.loc[(results['freq'] >= 0.1) & (results['freq'] <= 0.9),'MAF'] = 'A'
-
 		ro.globalenv['results'] = results
 		l = np.median(scipy.chi2.ppf([1-x for x in results[pcol].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 		# in R: median(qchisq(results$p, df=1, lower.tail=FALSE))/qchisq(0.5,1)
 		print "   genomic inflation (all variants) = " + str(l)
-		lA='NA'
-		lB='NA'
-		lC='NA'
-		lD='NA'
-		lE='NA'
-		lE_n=len(results[pcol][(results['freq'] < 0.01) | (results['freq'] > 0.99)])
-		lD_n=len(results[pcol][((results['freq'] >= 0.01) & (results['freq'] < 0.03)) | ((results['freq'] <= 0.99) & (results['freq'] > 0.97))])
-		lC_n=len(results[pcol][((results['freq'] >= 0.03) & (results['freq'] < 0.05)) | ((results['freq'] <= 0.97) & (results['freq'] > 0.95))])
-		lB_n=len(results[pcol][((results['freq'] >= 0.05) & (results['freq'] < 0.1)) | ((results['freq'] <= 0.95) & (results['freq'] > 0.9))])
-		lA_n=len(results[pcol][(results['freq'] >= 0.1) & (results['freq'] <= 0.9)])
-		if lE_n > 0:
-			lE=np.median(scipy.chi2.ppf([1-x for x in results[pcol][(results['freq'] < 0.01) | (results['freq'] > 0.99)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		if lD_n > 0:
-			lD=np.median(scipy.chi2.ppf([1-x for x in results[pcol][((results['freq'] >= 0.01) & (results['freq'] < 0.03)) | ((results['freq'] <= 0.99) & (results['freq'] > 0.97))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		if lC_n > 0:
-			lC=np.median(scipy.chi2.ppf([1-x for x in results[pcol][((results['freq'] >= 0.03) & (results['freq'] < 0.05)) | ((results['freq'] <= 0.97) & (results['freq'] > 0.95))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		if lB_n > 0:
-			lB=np.median(scipy.chi2.ppf([1-x for x in results[pcol][((results['freq'] >= 0.05) & (results['freq'] < 0.1)) | ((results['freq'] <= 0.95) & (results['freq'] > 0.9))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		if lA_n > 0:
-			lA=np.median(scipy.chi2.ppf([1-x for x in results[pcol][(results['freq'] >= 0.1) & (results['freq'] <= 0.9)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		print "   genomic inflation (MAF >= 10%, n=" + str(lA_n) + ") = " + str(lA)
-		print "   genomic inflation (5% <= MAF < 10%, n=" + str(lB_n) + ") = " + str(lB)
-		print "   genomic inflation (3% <= MAF < 5%, n=" + str(lC_n) + ") = " + str(lC)
-		print "   genomic inflation (1% <= MAF < 3%, n=" + str(lD_n) + ") = " + str(lD)
-		print "   genomic inflation (MAF < 1%, n=" + str(lE_n) + ") = " + str(lE)
 
 		if cfg['qq']:
 			print "   generating standard qq plot"
@@ -166,6 +143,38 @@ def RunSnvplot(args):
 
 		if cfg['qq_strat']:
 			print "   generating frequency stratified qq plot"
+
+			results['MAF'] = 'E'
+			results.loc[(results[cfg['freqcol']] >= 0.01) & (results[cfg['freqcol']] <= 0.99),'MAF'] = 'D'
+			results.loc[(results[cfg['freqcol']] >= 0.03) & (results[cfg['freqcol']] <= 0.97),'MAF'] = 'C'
+			results.loc[(results[cfg['freqcol']] >= 0.05) & (results[cfg['freqcol']] <= 0.95),'MAF'] = 'B'
+			results.loc[(results[cfg['freqcol']] >= 0.1) & (results[cfg['freqcol']] <= 0.9),'MAF'] = 'A'
+			lA='NA'
+			lB='NA'
+			lC='NA'
+			lD='NA'
+			lE='NA'
+			lE_n=len(results[pcol][(results[cfg['freqcol']] < 0.01) | (results[cfg['freqcol']] > 0.99)])
+			lD_n=len(results[pcol][((results[cfg['freqcol']] >= 0.01) & (results[cfg['freqcol']] < 0.03)) | ((results[cfg['freqcol']] <= 0.99) & (results[cfg['freqcol']] > 0.97))])
+			lC_n=len(results[pcol][((results[cfg['freqcol']] >= 0.03) & (results[cfg['freqcol']] < 0.05)) | ((results[cfg['freqcol']] <= 0.97) & (results[cfg['freqcol']] > 0.95))])
+			lB_n=len(results[pcol][((results[cfg['freqcol']] >= 0.05) & (results[cfg['freqcol']] < 0.1)) | ((results[cfg['freqcol']] <= 0.95) & (results[cfg['freqcol']] > 0.9))])
+			lA_n=len(results[pcol][(results[cfg['freqcol']] >= 0.1) & (results[cfg['freqcol']] <= 0.9)])
+			if lE_n > 0:
+				lE=np.median(scipy.chi2.ppf([1-x for x in results[pcol][(results[cfg['freqcol']] < 0.01) | (results[cfg['freqcol']] > 0.99)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+			if lD_n > 0:
+				lD=np.median(scipy.chi2.ppf([1-x for x in results[pcol][((results[cfg['freqcol']] >= 0.01) & (results[cfg['freqcol']] < 0.03)) | ((results[cfg['freqcol']] <= 0.99) & (results[cfg['freqcol']] > 0.97))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+			if lC_n > 0:
+				lC=np.median(scipy.chi2.ppf([1-x for x in results[pcol][((results[cfg['freqcol']] >= 0.03) & (results[cfg['freqcol']] < 0.05)) | ((results[cfg['freqcol']] <= 0.97) & (results[cfg['freqcol']] > 0.95))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+			if lB_n > 0:
+				lB=np.median(scipy.chi2.ppf([1-x for x in results[pcol][((results[cfg['freqcol']] >= 0.05) & (results[cfg['freqcol']] < 0.1)) | ((results[cfg['freqcol']] <= 0.95) & (results[cfg['freqcol']] > 0.9))].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+			if lA_n > 0:
+				lA=np.median(scipy.chi2.ppf([1-x for x in results[pcol][(results[cfg['freqcol']] >= 0.1) & (results[cfg['freqcol']] <= 0.9)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+			print "   genomic inflation (MAF >= 10%, n=" + str(lA_n) + ") = " + str(lA)
+			print "   genomic inflation (5% <= MAF < 10%, n=" + str(lB_n) + ") = " + str(lB)
+			print "   genomic inflation (3% <= MAF < 5%, n=" + str(lC_n) + ") = " + str(lC)
+			print "   genomic inflation (1% <= MAF < 3%, n=" + str(lD_n) + ") = " + str(lD)
+			print "   genomic inflation (MAF < 1%, n=" + str(lE_n) + ") = " + str(lE)
+
 			a = np.array([])
 			b = np.array([])
 			c = np.array([])
@@ -225,9 +234,9 @@ def RunSnvplot(args):
 				c = np.append(c,cc)
 				print "   minimum p-value (MAF >= 10%): " + str(np.min(results[pcol][results['MAF'] == 'A']))
 				print "   maximum -1*log10(p-value) (MAF >= 10%): " + str(np.max(results['logp'][results['MAF'] == 'A']))
-
+        
 			ro.globalenv['df'] = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(b), 'MAF': ro.StrVector(c)})
-
+        
 			if cfg['ext'] == 'tiff':
 				ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,units="in",bg="white",compression="lzw",dpi=300)' % (cfg['out'] + '.' + pcol + '.qq_strat.tiff')
 			elif cfg['ext'] == 'eps':
@@ -248,7 +257,7 @@ def RunSnvplot(args):
 						panel.grid.major = element_blank(), axis.line = element_line(colour="black"), axis.text = element_text(size=12))
 				%s
 				""" % (ggsave))
-
+        
 			if np.max(results['logp']) > cfg['crop']:
 				print "   generating cropped frequency stratified qq plot"
 				ro.r('df$b[df$b > ' + str(cfg['crop']) + ']<-' + str(cfg['crop']))

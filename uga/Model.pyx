@@ -1162,7 +1162,7 @@ cdef class SnvMeta(Meta):
 						'## p: p-value' + '\n' + \
 						"## dir: direction of effect of each cohort (same order as formula; 'x' indicates cohort excluded from meta)" + '\n' + \
 						'## n: sample size'
-		self.metadata = self.metadata + '\n' + '## hetq: heterogeneity chi-squared statistic' + '\n' + '## hetdf: heterogeneity degrees of freedom' + '\n' + '## heti2: heterogeneity inconsistency statistic (I-squared)' + '\n' + '## hetp: heterogeneity p-value\n' if self.type == "stderr" else self.metadata + '\n'
+		self.metadata = self.metadata + '\n' + '## hetq: heterogeneity chi-squared statistic' + '\n' + '## hetdf: heterogeneity degrees of freedom' + '\n' + '## heti2: heterogeneity inconsistency statistic (I-squared)' + '\n' + '## hetp: heterogeneity p-value\n#' if self.type == "stderr" else self.metadata + '\n#'
 
 	def calc_meta(self, df):
 		# df: a dataframe with tagged input data using meta_incl tags

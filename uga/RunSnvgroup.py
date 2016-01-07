@@ -180,7 +180,7 @@ def process_regions(regions_df, cfg, cpu, log):
 			results_final_meta[meta]['chr'] = results_final_meta[meta]['chr'].astype(np.int64)
 			results_final_meta[meta]['start'] = results_final_meta[meta]['start'].astype(np.int64)
 			results_final_meta[meta]['end'] = results_final_meta[meta]['end'].astype(np.int64)
-			pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.meta.' + meta + '.pkl', "wb")
+			pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.' + meta + '.pkl', "wb")
 			pickle.dump([results_final_meta[meta],meta_objs[meta].metadata,np.array(results_final_meta[meta].columns.values),meta_objs[meta].tbx_start,meta_objs[meta].tbx_end],pkl,protocol=2)
 			pkl.close()
 
@@ -215,7 +215,7 @@ def RunSnvgroup(args):
 	if len(cfg['meta_order']) > 0:
 		for m in cfg['meta_order']:
 			print "initializing out file for meta " + m
-			models_out[m] = cfg['out'] + '.meta.' + m
+			models_out[m] = cfg['out'] + '.' + m
 			try:
 				bgzfiles[m] = bgzf.BgzfWriter(models_out[m] + '.gz', 'wb')
 			except:
@@ -280,12 +280,12 @@ def RunSnvgroup(args):
 		for m in cfg['meta_order']:
 			written = False
 			for i in xrange(1,cfg['cpus']+1):
-				out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.meta.' + m + '.pkl'
+				out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.' + m + '.pkl'
 				pkl = open(out_model_meta,"rb")
 				results_final_meta,metadata,results_header,tbx_start,tbx_end = pickle.load(pkl)
 				if not written:
 					bgzfiles[m].write(metadata)
-					bgzfiles[m].write('#' + '\t'.join(results_header) + '\n')
+					bgzfiles[m].write('\t'.join(results_header) + '\n')
 					written = True
 				if results_final_meta.shape[0] > 0:
 					results_final_meta.replace({'None': 'NA'}).to_csv(bgzfiles[m], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
