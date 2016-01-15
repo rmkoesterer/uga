@@ -289,7 +289,7 @@ def RunSnvplot(args):
 			print "   generating standard manhattan plot"
 			print "   minimum p-value: " + str(np.min(results[pcol]))
 			print "   maximum -1*log10(p-value): " + str(np.max(results['logp']))
-			if not cfg['nogc']:
+			if cfg['gc'] and l > 1:
 				print "   adjusting p-values for genomic inflation for p-value column " + pcol
 				results[pcol]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*results[pcol]) / math.sqrt(l)))
 				print "   minimum post-gc adjustment p-value: " + str(np.min(results[pcol]))
@@ -350,7 +350,10 @@ def RunSnvplot(args):
 					else:
 						lastbase = lastbase + results.loc[results['#chr'] == chrs[i-1],'pos'].iloc[-1]
 						results.loc[results['#chr'] == chrs[i],'gpos'] = (results.loc[results['#chr'] == chrs[i],'pos']) + lastbase
-					ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[(int(math.floor(len(results.loc[results['#chr'] == chrs[i],'gpos']))/2)) + 1])
+					if results.loc[results['#chr'] == chrs[i]].shape[0] > 1:
+						ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[0] + (results.loc[results['#chr'] == chrs[i],'gpos'].iloc[-1] - results.loc[results['#chr'] == chrs[i],'gpos'].iloc[0])/2)
+					else:
+						ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[0])
 					results.loc[results['#chr'] == chrs[i],'colours'] = colours[int(chrs[i])]
 			results['logp'] = -1 * np.log10(results[pcol])
 			if results.shape[0] >= 1000000:

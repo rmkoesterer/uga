@@ -45,13 +45,22 @@ def RunSnvgroupplot(args):
 	skip_rows = len(header)-1
 	cols = header[-1].split()
 	pcols = cfg['pcol'].split(',')
-	cols_extract = ['#chr','start','end','id'] + pcols
+	if cfg['qq_strat']:
+		if cfg['cmaccol'] not in cols:
+			cols_extract = ['#chr','start','end','id'] + pcols
+			print Process.Error("minor allele count column " + cfg['cmaccol'] + " not found, unable to proceed with minor allele count stratified plots").out
+			return 1
+		else:
+			cols_extract = ['#chr','start','end','id',cfg['cmaccol']] + pcols
+			print "minor allele count column " + cfg['cmaccol'] + " found"
+	else:
+		cols_extract = ['#chr','start','end','id'] + pcols
 	print "importing data"
 	r = pd.read_table(cfg['file'],sep='\t',skiprows=skip_rows,usecols=cols_extract,compression='gzip')
 	print str(r.shape[0]) + " total groups found"
 	for pcol in pcols:
 		print "plotting p-values for column " + pcol + " ..."
-		results = r[['#chr','start','end','id',pcol]].copy()
+		results = r[['#chr','start','end','id',cfg['cmaccol'],pcol]] if cfg['cmaccol'] in cols else r[['#chr','start','end','id',pcol]]
 		results.dropna(inplace=True)
 		results = results[(results[pcol] > 0) & (results[pcol] <= 1)]
 		results.reset_index(drop=True, inplace=True)
@@ -65,6 +74,7 @@ def RunSnvgroupplot(args):
 			l = np.median(scipy.chi2.ppf([1-x for x in results[pcol].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 			# in R: median(qchisq(results$p, df=1, lower.tail=FALSE))/qchisq(0.5,1)
 			print "   genomic inflation (all groups) = " + str(l)
+
 			if cfg['qq']:
 				print "   generating standard qq plot"
 				print "   minimum p-value: " + str(np.min(results[pcol]))
@@ -133,11 +143,155 @@ def RunSnvgroupplot(args):
 						%s
 						""" % (ggsave))
 
+			if cfg['qq_strat']:
+				print "   generating frequency stratified qq plot"
+
+				results['CMAC'] = 'E'
+				results.loc[results[cfg['cmaccol']] >= 100,'CMAC'] = 'D'
+				results.loc[(results[cfg['cmaccol']] >= 50) & (results[cfg['cmaccol']] < 100),'CMAC'] = 'C'
+				results.loc[(results[cfg['cmaccol']] >= 20) & (results[cfg['cmaccol']] < 50),'CMAC'] = 'B'
+				results.loc[(results[cfg['cmaccol']] >= 10) & (results[cfg['cmaccol']] < 20),'CMAC'] = 'A'
+				lA='NA'
+				lB='NA'
+				lC='NA'
+				lD='NA'
+				lE='NA'
+				lE_n=len(results[pcol][results[cfg['cmaccol']] < 10])
+				lD_n=len(results[pcol][(results[cfg['cmaccol']] >= 10) & (results[cfg['cmaccol']] < 20)])
+				lC_n=len(results[pcol][(results[cfg['cmaccol']] >= 20) & (results[cfg['cmaccol']] < 50)])
+				lB_n=len(results[pcol][(results[cfg['cmaccol']] >= 50) & (results[cfg['cmaccol']] < 100)])
+				lA_n=len(results[pcol][results[cfg['cmaccol']] >= 100])
+				if lE_n > 0:
+					lE=np.median(scipy.chi2.ppf([1-x for x in results[pcol][results[cfg['cmaccol']] < 10].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+				if lD_n > 0:
+					lD=np.median(scipy.chi2.ppf([1-x for x in results[pcol][(results[cfg['cmaccol']] >= 10) & (results[cfg['cmaccol']] < 20)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+				if lC_n > 0:
+					lC=np.median(scipy.chi2.ppf([1-x for x in results[pcol][(results[cfg['cmaccol']] >= 20) & (results[cfg['cmaccol']] < 50)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+				if lB_n > 0:
+					lB=np.median(scipy.chi2.ppf([1-x for x in results[pcol][(results[cfg['cmaccol']] >= 50) & (results[cfg['cmaccol']] < 100)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+				if lA_n > 0:
+					lA=np.median(scipy.chi2.ppf([1-x for x in results[pcol][results[cfg['cmaccol']] >= 100].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
+				print "   genomic inflation (CMAC > 100, n=" + str(lA_n) + ") = " + str(lA)
+				print "   genomic inflation (50 <= CMAC < 100, n=" + str(lB_n) + ") = " + str(lB)
+				print "   genomic inflation (20 <= CMAC < 50, n=" + str(lC_n) + ") = " + str(lC)
+				print "   genomic inflation (10 <= CMAC < 20, n=" + str(lD_n) + ") = " + str(lD)
+				print "   genomic inflation (CMAC < 10, n=" + str(lE_n) + ") = " + str(lE)
+
+				a = np.array([])
+				b = np.array([])
+				c = np.array([])
+				results.sort_values(by=['logp'], inplace=True)
+				if len(results[results['CMAC'] == 'E'].index) > 0:
+					aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['CMAC'] == 'E'].index)) + ')'))
+					aa.sort()
+					bb = results['logp'][results['CMAC'] == 'E']
+					#bb.sort()
+					cc = results['CMAC'][results['CMAC'] == 'E']
+					a = np.append(a,aa)
+					b = np.append(b,bb)
+					c = np.append(c,cc)
+					print "   minimum p-value (CMAC < 10): " + str(np.min(results[pcol][results['CMAC'] == 'E']))
+					print "   maximum -1*log10(p-value) (CMAC < 10): " + str(np.max(results['logp'][results['CMAC'] == 'E']))
+				if len(results[results['CMAC'] == 'D'].index) > 0:
+					aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['CMAC'] == 'D'].index)) + ')'))
+					aa.sort()
+					bb = results['logp'][results['CMAC'] == 'D']
+					#bb.sort()
+					cc = results['CMAC'][results['CMAC'] == 'D']
+					a = np.append(a,aa)
+					b = np.append(b,bb)
+					c = np.append(c,cc)
+					print "   minimum p-value (10 <= CMAC < 20): " + str(np.min(results[pcol][results['CMAC'] == 'D']))
+					print "   maximum -1*log10(p-value) (10 <= CMAC < 20): " + str(np.max(results['logp'][results['CMAC'] == 'D']))
+				if len(results[results['CMAC'] == 'C'].index) > 0:
+					aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['CMAC'] == 'C'].index)) + ')'))
+					aa.sort()
+					bb = results['logp'][results['CMAC'] == 'C']
+					#bb.sort()
+					cc = results['CMAC'][results['CMAC'] == 'C']
+					a = np.append(a,aa)
+					b = np.append(b,bb)
+					c = np.append(c,cc)
+					print "   minimum p-value (20 <= CMAC < 50): " + str(np.min(results[pcol][results['CMAC'] == 'C']))
+					print "   maximum -1*log10(p-value) (20 <= CMAC < 50): " + str(np.max(results['logp'][results['CMAC'] == 'C']))
+				if len(results[results['CMAC'] == 'B'].index) > 0:
+					aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['CMAC'] == 'B'].index)) + ')'))
+					aa.sort()
+					bb = results['logp'][results['CMAC'] == 'B']
+					#bb.sort()
+					cc = results['CMAC'][results['CMAC'] == 'B']
+					a = np.append(a,aa)
+					b = np.append(b,bb)
+					c = np.append(c,cc)
+					print "   minimum p-value (50 <= CMAC < 100): " + str(np.min(results[pcol][results['CMAC'] == 'B']))
+					print "   maximum -1*log10(p-value) (50 <= CMAC < 100): " + str(np.max(results['logp'][results['CMAC'] == 'B']))
+				if len(results[results['CMAC'] == 'A'].index) > 0:
+					aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['CMAC'] == 'A'].index)) + ')'))
+					aa.sort()
+					bb = results['logp'][results['CMAC'] == 'A']
+					#bb.sort()
+					cc = results['CMAC'][results['CMAC'] == 'A']
+					a = np.append(a,aa)
+					b = np.append(b,bb)
+					c = np.append(c,cc)
+					print "   minimum p-value (CMAC >= 100): " + str(np.min(results[pcol][results['CMAC'] == 'A']))
+					print "   maximum -1*log10(p-value) (CMAC >= 100): " + str(np.max(results['logp'][results['CMAC'] == 'A']))
+			
+				ro.globalenv['df'] = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(b), 'CMAC': ro.StrVector(c)})
+			
+				if cfg['ext'] == 'tiff':
+					ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,units="in",bg="white",compression="lzw",dpi=300)' % (cfg['out'] + '.' + pcol + '.qq_strat.tiff')
+				elif cfg['ext'] == 'eps':
+					ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,bg="white",horizontal=True)' % (cfg['out'] + '.' + pcol + '.qq_strat.eps')
+				else:
+					ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,bg="white")' % (cfg['out'] + '.' + pcol + '.qq_strat.pdf')
+				ro.r("""
+					gp<-ggplot(df, aes_string(x='a',y='b')) +
+						geom_point(aes_string(color='CMAC'), size=2) +
+						scale_colour_manual(values=c("E"="#a8ddb5", "D"="#7bccc4", "C"="#4eb3d3", "B"="#2b8cbe", "A"="#08589e"), labels=c("E"="CMAC < 10","D"="10 <= CMAC < 20","C"="20 <= CMAC < 50","B"="50 <= CMAC < 100","A"="CMAC >= 100")) +
+						geom_abline(intercept=0, slope=1, alpha=0.5) + 
+						scale_x_continuous(expression(Expected~~-log[10](italic(p)))) +
+						scale_y_continuous(expression(Observed~~-log[10](italic(p)))) +
+						theme_bw(base_size = 12) + 
+						theme(axis.title.x = element_text(vjust=-0.5,size=14), axis.title.y = element_text(vjust=1,angle=90,size=14), legend.title = element_blank(), 
+							legend.key.height = unit(0.1,"in"), legend.text = element_text(size=5), legend.key = element_blank(), legend.justification = c(0,1), 
+							legend.position = c(0,1), panel.background = element_blank(), panel.border = element_blank(), panel.grid.minor = element_blank(), 
+							panel.grid.major = element_blank(), axis.line = element_line(colour="black"), axis.text = element_text(size=12))
+					%s
+					""" % (ggsave))
+			
+				if np.max(results['logp']) > cfg['crop']:
+					print "   generating cropped frequency stratified qq plot"
+					ro.r('df$b[df$b > ' + str(cfg['crop']) + ']<-' + str(cfg['crop']))
+					ro.r('df$shape<-0')
+					ro.r('df$shape[df$b == ' + str(cfg['crop']) + ']<-1')
+					if cfg['ext'] == 'tiff':
+						ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,units="in",bg="white",compression="lzw",dpi=300)' % (cfg['out'] + '.' + pcol + '.qq_strat.cropped.tiff')
+					elif cfg['ext'] == 'eps':
+						ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,bg="white",horizontal=True)' % (cfg['out'] + '.' + pcol + '.qq_strat.cropped.eps')
+					else:
+						ggsave = 'ggsave(filename="%s",plot=gp,width=4,height=4,bg="white")' % (cfg['out'] + '.' + pcol + '.qq_strat.cropped.pdf')
+					ro.r("""
+						gp<-ggplot(df, aes_string(x='a',y='b')) +
+							geom_point(aes(shape=factor(shape), color=CMAC), size=2) +
+							scale_colour_manual(values=c("E"="#a8ddb5", "D"="#7bccc4", "C"="#4eb3d3", "B"="#2b8cbe", "A"="#08589e"), labels=c("E"="CMAC < 10","D"="10 <= CMAC < 20","C"="20 <= CMAC < 50","B"="50 <= CMAC < 100","A"="CMAC >= 100")) +
+							geom_abline(intercept=0, slope=1, alpha=0.5) + 
+							scale_x_continuous(expression(Expected~~-log[10](italic(p)))) +
+							scale_y_continuous(expression(Observed~~-log[10](italic(p)))) +
+							theme_bw(base_size = 12) + 
+							guides(shape=FALSE) + 
+							theme(axis.title.x = element_text(vjust=-0.5,size=14), axis.title.y = element_text(vjust=1,angle=90,size=14), legend.title = element_blank(), 
+								legend.key.height = unit(0.1,"in"), legend.text = element_text(size=5), legend.key = element_blank(), legend.justification = c(0,1), 
+								legend.position = c(0,1), panel.background = element_blank(), panel.border = element_blank(), panel.grid.minor = element_blank(), 
+								panel.grid.major = element_blank(), axis.line = element_line(colour="black"), axis.text = element_text(size=12))
+						%s
+						""" % (ggsave))
+
 			if cfg['mht']:
 				print "   generating standard manhattan plot"
 				print "   minimum p-value: " + str(np.min(results[pcol]))
 				print "   maximum -1*log10(p-value): " + str(np.max(results['logp']))
-				if not cfg['nogc']:
+				if cfg['gc']:
 					print "   adjusting p-values for genomic inflation for p-value column " + pcol
 					results[pcol]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*results[pcol]) / math.sqrt(l)))
 					print "   minimum post-gc adjustment p-value: " + str(np.min(results[pcol]))
@@ -199,13 +353,14 @@ def RunSnvgroupplot(args):
 							if results.loc[results['#chr'] == chrs[i-1]].shape[0] > 1:
 								lastbase = lastbase + results.loc[results['#chr'] == chrs[i-1],'pos'].iloc[-1]
 							else:
-								lastbase = lastbase + results.loc[results['#chr'] == chrs[i-1],'pos']
+								lastbase = lastbase + results.loc[results['#chr'] == chrs[i-1],'pos'].iloc[0]
 							results.loc[results['#chr'] == chrs[i],'gpos'] = (results.loc[results['#chr'] == chrs[i],'pos']) + lastbase
 						if results.loc[results['#chr'] == chrs[i]].shape[0] > 1:
-							ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[(int(math.floor(len(results.loc[results['#chr'] == chrs[i],'gpos']))/2)) + 1])
+							ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[0] + (results.loc[results['#chr'] == chrs[i],'gpos'].iloc[-1] - results.loc[results['#chr'] == chrs[i],'gpos'].iloc[0])/2)
 						else:
-							ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'])
+							ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[0])
 						results.loc[results['#chr'] == chrs[i],'colours'] = colours[int(chrs[i])]
+
 				results['logp'] = -1 * np.log10(results[pcol])
 				if results.shape[0] >= 1000000:
 					sig = 5.4e-8

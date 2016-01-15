@@ -64,6 +64,7 @@ def process_regions(regions_df, cfg, cpu, log):
 																				ctrl_code=cfg['models'][n]['ctrl_code'], 
 																				ped=cfg['models'][n]['ped'], 
 																				variants_file=cfg['models'][n]['file'], 
+																				samples_file=cfg['models'][n]['sample'], 
 																				type=cfg['models'][n]['fxn'], 
 																				fid=cfg['models'][n]['fid'], 
 																				iid=cfg['models'][n]['iid'], 

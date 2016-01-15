@@ -366,7 +366,7 @@ def print_compile_options(cfg):
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
 def generate_snvplot_cfg(args):
-	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'nogc': False, 'color': False, 'qq': False, 'qq_strat': False, 
+	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 'qq_strat': False, 
 				'mht': False, 'crop': 10, 'pcol': 'p', 'freqcol': 'freq'}
 	for arg in args:
 		if arg[0] == 'file':
@@ -410,8 +410,8 @@ def print_snvplot_options(cfg):
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
 def generate_snvgroupplot_cfg(args):
-	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'nogc': False, 'color': False, 'qq': False, 
-				'mht': False, 'crop': 10, 'pcol': 'p'}
+	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 'qq_strat': False, 
+				'mht': False, 'crop': 10, 'pcol': 'p', 'cmaccol': 'cmac'}
 	for arg in args:
 		if arg[0] == 'file':
 			config['file'] = arg[1]
@@ -431,12 +431,16 @@ def generate_snvgroupplot_cfg(args):
 			config['color'] = arg[1]
 		if arg[0] == 'qq':
 			config['qq'] = arg[1]
+		if arg[0] == 'qq_strat':
+			config['qq_strat'] = arg[1]
 		if arg[0] == 'mht':
 			config['mht'] = arg[1]
 		if arg[0] == 'crop':
 			config['crop'] = arg[1]
 		if arg[0] == 'pcol':
 			config['pcol'] = arg[1]
+		if arg[0] == 'cmaccol':
+			config['cmaccol'] = arg[1]
 	return config
 
 def print_snvgroupplot_options(cfg):

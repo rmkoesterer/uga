@@ -97,6 +97,10 @@ def snv_args(snv_parser):
 	snv_parser.add_argument('--interact', 
 						action=AddString, 
 						help='a variable to include in a snv interaction term (if used, the p value for the interaction will be reported: --interact AGE -> SNV*AGE)')
+	snv_parser.add_argument('--reverse', 
+						nargs=0, 
+						action=AddTrue, 
+						help='reverse the model so that snv is used as the dependent variable and return a p-value for the phenotype')
 	snv_parser.add_argument('--sample', 
 						action=AddString, 
 						help='sample file (not required for vcf format files)')
@@ -526,7 +530,7 @@ def snvplot_args(snvplot_parser):
 						help='file type extension for plot files (default: tiff)')
 	snvplot_parser.add_argument('--freqcol', 
 						action=AddString, 
-						help='plot a specific p value column (default: freq)')
+						help='effect allele frequency column (default: freq)')
 	snvplot_parser.add_argument('--crop', 
 						action=AddString, 
 						type=float, 
@@ -546,10 +550,10 @@ def snvplot_args(snvplot_parser):
 	snvplot_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
-	snvplot_parser.add_argument('--nogc', 
+	snvplot_parser.add_argument('--gc', 
 						nargs=0, 
 						action=AddTrue, 
-						help='disable genomic control adjustment for manhattan plots')
+						help='apply genomic control adjustment for manhattan plots')
 	snvplot_parser.add_argument('--color', 
 						nargs=0, 
 						action=AddTrue, 
@@ -577,6 +581,9 @@ def snvgroupplot_args(snvgroupplot_parser):
 						action=AddString, 
 						choices=['tiff','eps','pdf'], 
 						help='file type extension for plot files (default: tiff)')
+	snvgroupplot_parser.add_argument('--cmaccol', 
+						action=AddString, 
+						help='group cumulative minor allele count column (default: cmac)')
 	snvgroupplot_parser.add_argument('--crop', 
 						action=AddString, 
 						type=float, 
@@ -585,6 +592,10 @@ def snvgroupplot_args(snvgroupplot_parser):
 						nargs=0, 
 						action=AddTrue, 
 						help='enable qq plot')
+	snvgroupplot_parser.add_argument('--qq-strat', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable cumulative minor allele count stratified qq plot')
 	snvgroupplot_parser.add_argument('--mht', 
 						nargs=0, 
 						action=AddTrue, 
@@ -592,10 +603,10 @@ def snvgroupplot_args(snvgroupplot_parser):
 	snvgroupplot_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
-	snvgroupplot_parser.add_argument('--nogc', 
+	snvgroupplot_parser.add_argument('--gc', 
 						nargs=0, 
 						action=AddTrue, 
-						help='disable genomic control adjustment for manhattan plots')
+						help='apply genomic control adjustment for manhattan plots')
 	snvgroupplot_parser.add_argument('--color', 
 						nargs=0, 
 						action=AddTrue, 

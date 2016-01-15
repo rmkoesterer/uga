@@ -46,11 +46,11 @@ cdef class Model(object):
 								male, female, nobs, nunique, nfounders, nlongitudinal, \
 								nfamilies, nunrelated, ncases, nctrls, nmales, nfemales
 	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx, \
-							focus, model_cols, results_header, calc_hwe_idx, \
+							model_cols, results_header, calc_hwe_idx, \
 							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, male_idx, female_idx
 	cdef public bytes fxn, format, ped, variants_file, type, samples_file, \
 						iid, fid, matid, patid, sex, sep, a1, a2
-	cdef public str metadata, metadata_cc, family, formula, pheno, interact, covars, covars_categorical
+	cdef public str metadata, metadata_cc, family, formula, focus, pheno, interact, covars, covars_categorical
 	cdef public object ped_df, variants, out, results_dtypes
 	cdef public bint all_founders, reverse
 	def __cinit__(self, fxn, format, variants_file, ped, type, iid, fid, 
@@ -94,20 +94,12 @@ cdef class Model(object):
 		# factor			factor(x)			specify x as a categorical variable (factor)
 		# snv				snv					placeholder for snv (will be replaced with each snv during iteration and can be used in an interaction)
 
-		#for x in [a for a in list(set([b for b in re_split('~|\+|-|\*|:|factor|\(|\)',self.formula) if b not in ['1','0']])) if a != '']:
-		#	mtype = "dependent" if x in re_split('factor|\(|\)',re_split('~',self.formula)[0]) else "independent"
-		#	if self.formula[self.formula.find(x)-7:self.formula.find(x)] == 'factor(':
-		#		self.fields[x] = {'class': 'factor', 'type': mtype, 'dtype': 'f8'}
-		#	else:
-		#		self.fields[x] = {'class': 'numeric', 'type': mtype, 'dtype': 'f8'}
-
-		#self.model_cols = np.array(list(set([a for a in self.fields.keys() if a != 'snv'])))
 		if self.pheno is None:
 			raise Process.Error("--pheno is required")
 		self.model_cols = np.array([self.pheno])
-		self.model_cols = np.append(self.model_cols,np.array(self.covars.split(','))) if self.covars else self.model_cols
-		self.model_cols = np.append(self.model_cols,np.array(self.covars_categorical.split(','))) if self.covars_categorical else self.model_cols
-		self.model_cols = np.append(self.model_cols,np.array(self.interact)) if self.interact else self.model_cols
+		self.model_cols = np.append(self.model_cols,np.array([x.replace('factor(','').replace(')','') for x in self.covars.split('+')])) if self.covars else self.model_cols
+		self.model_cols = np.append(self.model_cols,np.array(self.interact.replace('factor(','').replace(')',''))) if self.interact else self.model_cols
+		self.model_cols = np.unique(self.model_cols)
 
 		self.male_idx = np.array([])
 		self.female_idx = np.array([])
@@ -412,14 +404,7 @@ cdef class Score(SnvModel):
 		super(Score, self).__init__(**kwargs)
 		print "setting score test family option to " + self.family
 
-		left = self.pheno
-		right_array = []
-		if self.covars is not None:
-			right_array = right_array + self.covars.split(',')
-		if self.covars_categorical is not None:
-			right_array = right_array + ['factor(' + x + ')' for x in self.covars_categorical.split(',')]
-		right = '+'.join(right_array) if len(right_array) > 0 else '1'
-		self.formula = left + '~' + right
+		self.formula = self.pheno + '~' + self.covars if self.covars is not None else self.pheno + '~1'
 		print "formula: " + self.formula
 
 		self.results_dtypes=[('err','f8'),('nmiss','f8'),('ntotal','f8'),('effect','f8'),('stderr','f8'),('or','f8'),('p','f8')]
@@ -503,14 +488,21 @@ cdef class Gee(SnvModel):
 		print "setting gee test family option to " + self.family
 
 		if self.reverse:
-			self.formula = '___snv___~' + self.pheno + '*' + self.interact if self.interact is not None else '___snv___~' + self.pheno
+			if self.interact is not None:
+				self.formula = '___snv___~' + self.pheno + '*' + self.interact
+				self.focus = self.pheno + ':' + self.interact
+			else:
+				self.formula = '___snv___~' + self.pheno
+				self.focus = self.pheno
 			self.family = 'gaussian'
 		else:
-			self.formula = self.pheno + '~___snv___*' + self.interact if self.interact is not None else self.pheno + '~___snv___'
-		if self.covars is not None:
-			self.formula = self.formula + '+' + '+'.join(self.covars.split(','))
-		if self.covars_categorical is not None:
-			self.formula = self.formula + '+' + '+'.join(['factor(' + x + ')' for x in self.covars_categorical.split(',')])
+			if self.interact is not None:
+				self.formula = self.pheno + '~___snv___*' + self.interact
+				self.focus = '___snv___:' + self.interact
+			else:
+				self.formula = self.pheno + '~___snv___'
+				self.focus = '___snv___'
+		self.formula = self.formula + '+' + self.covars if self.covars is not None else self.formula
 		print "formula: " + self.formula
 
 		self.results_dtypes = [('err','f8'),('effect','f8'),('stderr','f8'),('or','f8'),('wald','f8'),('p','f8')]
@@ -562,7 +554,7 @@ cdef class Gee(SnvModel):
 					print vu + ": " + rerr.message
 				else:
 					ro.r('result<-summary(result)')
-					vu = self.formula.split('~')[1].split('+')[0].replace('___snv___',vu)
+					vu = self.focus.replace('___snv___',vu)
 					if ro.r('result$error')[0] == 0:
 						ro.r('err<-0')
 						ro.r('err[! is.finite(result$coefficients["' + vu + '",1]) | ! is.finite(result$coefficients["' + vu + '",2]) | ! is.finite(result$coefficients["' + vu + '",4]) | result$coefficients["' + vu + '",4] == 0]<-2')
@@ -584,14 +576,21 @@ cdef class Glm(SnvModel):
 		print "setting glm test family option to " + self.family
 
 		if self.reverse:
-			self.formula = '___snv___~' + self.pheno + '*' + self.interact if self.interact is not None else '___snv___~' + self.pheno
+			if self.interact is not None:
+				self.formula = '___snv___~' + self.pheno + '*' + self.interact
+				self.focus = self.pheno + ':' + self.interact
+			else:
+				self.formula = '___snv___~' + self.pheno
+				self.focus = self.pheno
 			self.family = 'gaussian'
 		else:
-			self.formula = self.pheno + '~___snv___*' + self.interact if self.interact is not None else self.pheno + '~___snv___'
-		if self.covars is not None:
-			self.formula = self.formula + '+' + '+'.join(self.covars.split(','))
-		if self.covars_categorical is not None:
-			self.formula = self.formula + '+' + '+'.join(['factor(' + x + ')' for x in self.covars_categorical.split(',')])
+			if self.interact is not None:
+				self.formula = self.pheno + '~___snv___*' + self.interact
+				self.focus = '___snv___:' + self.interact
+			else:
+				self.formula = self.pheno + '~___snv___'
+				self.focus = '___snv___'
+		self.formula = self.formula + '+' + self.covars if self.covars is not None else self.formula
 		print "formula: " + self.formula
 
 		self.results_dtypes = [('err','f8'),('effect','f8'),('stderr','f8'),('or','f8'),('z','f8'),('p','f8')]
@@ -636,7 +635,7 @@ cdef class Glm(SnvModel):
 					self.results['err'][v] = 3
 					print vu + ": " + rerr.message
 				else:
-					vu = self.formula.split('~')[1].split('+')[0].replace('___snv___',vu)
+					vu = self.focus.replace('___snv___',vu)
 					ro.r('result<-summary(result)')
 					ro.r('err<-0')
 					ro.r('err[result$coefficients["' + vu + '",1] == "NA"]<-1')
@@ -656,14 +655,21 @@ cdef class Lm(SnvModel):
 		super(Lm, self).__init__(**kwargs)
 
 		if self.reverse:
-			self.formula = '___snv___~' + self.pheno + '*' + self.interact if self.interact is not None else '___snv___~' + self.pheno
+			if self.interact is not None:
+				self.formula = '___snv___~' + self.pheno + '*' + self.interact
+				self.focus = self.pheno + ':' + self.interact
+			else:
+				self.formula = '___snv___~' + self.pheno
+				self.focus = self.pheno
 			self.family = 'gaussian'
 		else:
-			self.formula = self.pheno + '~___snv___*' + self.interact if self.interact is not None else self.pheno + '~___snv___'
-		if self.covars is not None:
-			self.formula = self.formula + '+' + '+'.join(self.covars.split(','))
-		if self.covars_categorical is not None:
-			self.formula = self.formula + '+' + '+'.join(['factor(' + x + ')' for x in self.covars_categorical.split(',')])
+			if self.interact is not None:
+				self.formula = self.pheno + '~___snv___*' + self.interact
+				self.focus = '___snv___:' + self.interact
+			else:
+				self.formula = self.pheno + '~___snv___'
+				self.focus = '___snv___'
+		self.formula = self.formula + '+' + self.covars if self.covars is not None else self.formula
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','t','p']))
@@ -701,7 +707,7 @@ cdef class Lm(SnvModel):
 					self.results['err'][v] = 3
 					print vu + ": " + rerr.message
 				else:
-					vu = self.formula.split('~')[1].split('+')[0].replace('___snv___',vu)
+					vu = self.focus.replace('___snv___',vu)
 					ro.r('result<-summary(result)')
 					ro.r('err<-0')
 					ro.r('err[result$coefficients["' + vu + '",1] == "NA"]<-1')
@@ -734,6 +740,12 @@ cdef class Skat(SnvgroupModel):
 			right_array = right_array + ['factor(' + x + ')' for x in self.covars_categorical.split(',')]
 		right = '+'.join(right_array) if len(right_array) > 0 else '1'
 		self.formula = left + '~' + right
+		print "formula: " + self.formula
+
+		if self.covars is not None:
+			self.formula = self.pheno + '~' + self.covars
+		else:
+			self.formula = self.pheno + '~1'
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnps','cmaf','p','q']))
@@ -857,14 +869,10 @@ cdef class Skato(SnvgroupModel):
 		super(Skato, self).__init__(**kwargs)
 		print "setting skat-o test family option to " + self.family
 
-		left = self.pheno
-		right_array = []
 		if self.covars is not None:
-			right_array = right_array + self.covars.split(',')
-		if self.covars_categorical is not None:
-			right_array = right_array + ['factor(' + x + ')' for x in self.covars_categorical.split(',')]
-		right = '+'.join(right_array) if len(right_array) > 0 else '1'
-		self.formula = left + '~' + right
+			self.formula = self.pheno + '~' + self.covars
+		else:
+			self.formula = self.pheno + '~1'
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
@@ -990,14 +998,10 @@ cdef class Burden(SnvgroupModel):
 		super(Burden, self).__init__(**kwargs)
 		print "setting burden test family option to " + self.family
 
-		left = self.pheno
-		right_array = []
 		if self.covars is not None:
-			right_array = right_array + self.covars.split(',')
-		if self.covars_categorical is not None:
-			right_array = right_array + ['factor(' + x + ')' for x in self.covars_categorical.split(',')]
-		right = '+'.join(right_array) if len(right_array) > 0 else '1'
-		self.formula = left + '~' + right
+			self.formula = self.pheno + '~' + self.covars
+		else:
+			self.formula = self.pheno + '~1'
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']))
