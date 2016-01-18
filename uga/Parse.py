@@ -48,6 +48,7 @@ def get_parser():
 	resubmit_parser = Args.resubmit_args(subparsers.add_parser('resubmit', help='resubmit failed results', parents=[global_parser]))
 	snvplot_parser = Args.snvplot_args(subparsers.add_parser('snvplot', help='generate qq and manhattan plots for single variant results', parents=[global_parser]))
 	snvgroupplot_parser = Args.snvgroupplot_args(subparsers.add_parser('snvgroupplot', help='generate qq and manhattan plots for grouped variant results', parents=[global_parser]))
+	gc_parser = Args.gc_args(subparsers.add_parser('gc', help='correct single variant results for genomic inflation', parents=[global_parser]))
 
 	return main_parser
 
@@ -444,6 +445,29 @@ def generate_snvgroupplot_cfg(args):
 	return config
 
 def print_snvgroupplot_options(cfg):
+	print ''
+	print "main options ..."
+	for k in cfg:
+		if cfg[k] is not None and cfg[k] is not False:
+			if cfg[k] is True:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+			else:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+
+def generate_gc_cfg(args):
+	config = {'file': None, 'replace': False, 'qsub': None, 'debug': False}
+	for arg in args:
+		if arg[0] == 'file':
+			config['file'] = arg[1]
+		if arg[0] == 'replace':
+			config['replace'] = arg[1]
+		if arg[0] == 'qsub':
+			config['qsub'] = arg[1]
+		if arg[0] == 'debug':
+			config['debug'] = arg[1]
+	return config
+
+def print_gc_options(cfg):
 	print ''
 	print "main options ..."
 	for k in cfg:

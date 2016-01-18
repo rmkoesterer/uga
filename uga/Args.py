@@ -616,3 +616,22 @@ def snvgroupplot_args(snvgroupplot_parser):
 						action=AddTrue, 
 						help='enable debug mode (prints debug info to log file)')
 	return snvgroupplot_parser
+
+def gc_args(gc_parser):
+	gc_required = gc_parser.add_argument_group('required arguments')
+	gc_required.add_argument('--file', 
+						action=AddString, 
+						required=True, 
+						help='filename containing results to be corrected')
+	gc_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
+	gc_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	gc_parser.add_argument('--debug', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable debug mode (prints debug info to log file)')
+	return gc_parser

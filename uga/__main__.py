@@ -364,6 +364,42 @@ def main(args=None):
 			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['out'] + '.log',qsub_wrapper],'\"' + cmd + '\"')
 		else:
 			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.log')
+
+	elif args.which == 'gc':
+		if os.path.exists(cfg['file'].replace('.gz','.gc.log')):
+			if args.replace:
+				try:
+					os.remove(cfg['file'].replace('.gz','.gc.log'))
+				except OSError:
+					print Process.print_error('unable to remove existing log file ' + cfg['file'].replace('.gz','.gc.log'))
+					return
+			else:
+				print Process.print_error('log file ' + cfg['file'].replace('.gz','.gc.log') + ' already exists, use --replace to overwrite existing results')
+				return
+		if os.path.exists(cfg['file'].replace('.gz','.gc.gz')):
+			if args.replace:
+				try:
+					os.remove(cfg['file'].replace('.gz','.gc.gz'))
+				except OSError:
+					print Process.print_error('unable to remove existing inflation corrected results file ' + cfg['file'].replace('.gz','.gc.gz'))
+			else:
+				print Process.print_error('results file ' + cfg['file'].replace('.gz','.gc.gz') + ' already exists, use --replace to overwrite existing results')
+				return
+		if os.path.exists(cfg['file'].replace('.gz','.gc.gz.tbi')):
+			if args.replace:
+				try:
+					os.remove(cfg['file'].replace('.gz','.gc.gz.tbi'))
+				except OSError:
+					print Process.print_error('unable to remove existing inflation corrected results index file ' + cfg['file'].replace('.gz','.gc.gz.tbi'))
+			else:
+				print Process.print_error('results index file ' + cfg['file'].replace('.gz','.gc.gz.tbi') + ' already exists, use --replace to overwrite existing results')
+				return
+		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
+		if cfg['qsub'] is not None:
+			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['file'].replace('.gz','.gc.log'),qsub_wrapper],'\"' + cmd + '\"')
+		else:
+			Process.interactive(qsub_wrapper, cmd, cfg['file'].replace('.gz','.gc.log'))
+
 	else:
 		print Process.print_error(args.which + " not a currently available module")
 
