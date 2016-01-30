@@ -29,6 +29,7 @@ from collections import OrderedDict
 import Process
 import logging
 import resource
+import os
 
 module_logger = logging.getLogger("Geno")
 ILLEGAL_CHARS = '!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~'
@@ -94,11 +95,11 @@ cdef class Variants(object):
 	def load_snvgroup_map(self, snvgroup_map):
 		logger = logging.getLogger("Geno.Variants.load_snvgroup_map")
 		logger.debug("load_snvgroup_map")
-		print "loading snvgroup map"
+		print "loading snvgroup map " + os.path.basename(snvgroup_map)
 		try:
 			self.snvgroup_map=pd.read_table(snvgroup_map,names=['chr','pos','id','group_id'], compression='gzip' if snvgroup_map.split('.')[-1] == 'gz' else None)
 		except:
-			raise Process.Error("failed to load snvgroup map")
+			raise Process.Error("failed to load snvgroup map " + os.path.basename(snvgroup_map))
 
 cdef class Vcf(Variants):
 	def __cinit__(self, filename, sample_filename = None):
@@ -106,11 +107,11 @@ cdef class Vcf(Variants):
 		logger.debug("initialize vcf")
 		super(Vcf, self).__init__(filename)
 
-		print "loading vcf file"
+		print "loading vcf file " + os.path.basename(filename)
 		try:
 			self.handle=pysam.TabixFile(filename=filename,parser=pysam.asVCF())
 		except:
-			raise Process.Error("failed to load vcf file")
+			raise Process.Error("failed to load vcf file " + os.path.basename(filename))
 		else:
 			self.samples = np.array([a for a in self.handle.header][-1].split('\t')[9:])
 
@@ -230,17 +231,17 @@ cdef class Dos(Variants):
 		logger.debug("initialize dos")
 		super(Dos, self).__init__(filename, sample_filename)
 
-		print "loading dos file"
+		print "loading dos file " + os.path.basename(filename)
 		try:
 			self.handle=pysam.TabixFile(filename=filename,parser=pysam.asTuple())
 		except:
-			raise Process.Error("failed to load dos file")
+			raise Process.Error("failed to load dos file " + os.path.basename(filename))
 		else:
-			print "loading dos sample file"
+			print "loading dos sample file " + os.path.basename(sample_filename)
 			try:
 				self.samples=np.genfromtxt(fname=self.sample_filename, dtype='object')
 			except:
-				raise Process.Error("failed to load dos sample file")
+				raise Process.Error("failed to load dos sample file " + os.path.basename(sample_filename))
 
 	def get_region(self, region, group_id = None):
 		logger = logging.getLogger("Geno.Dos.get_region")
@@ -392,7 +393,6 @@ cdef class Results(Variants):
 		if i == 0:
 			raise
 		else:
-			#self.info = np.array([tuple(row) for row in self.snv_results[:,[0,1,2,3,4,len(self.dtypes)-2,len(self.dtypes)-1]]], dtype=zip(np.array(['chr','pos','id','a1','a2','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S1000'])))
 			self.snv_results[self.snv_results == 'NA'] = np.nan
 			self.snv_results = np.array([tuple(row) for row in self.snv_results], dtype=self.dtypes)
 

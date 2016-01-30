@@ -198,8 +198,8 @@ cdef class Model(object):
 						print "   " + str(self.nfemales) + " female"
 				if len(np.unique(self.ped_df[self.pheno])) == 2:
 					self.family = 'binomial'
-					self.ctrl_code = min(self.ped_df[self.pheno]) if not self.ctrl_code else self.ctrl_code
-					self.case_code = max(self.ped_df[self.pheno]) if not self.case_code else self.case_code
+					#self.ctrl_code = min(self.ped_df[self.pheno]) if not self.ctrl_code else self.ctrl_code
+					#self.case_code = max(self.ped_df[self.pheno]) if not self.case_code else self.case_code
 					self.ncases = self.ped_df[self.unique_idx][self.ped_df[self.unique_idx][self.pheno] == self.case_code].shape[0]
 					self.cases_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.unique_idx][self.ped_df[self.unique_idx][self.pheno] == self.case_code][self.iid])
 					if self.sex is not None:
@@ -213,9 +213,10 @@ cdef class Model(object):
 					if self.sex is not None:
 						self.male_ctrls_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.male_idx][self.ped_df[self.male_idx][self.pheno] == self.ctrl_code][self.iid])
 						self.female_ctrls_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.female_idx][self.ped_df[self.female_idx][self.pheno] == self.ctrl_code][self.iid])
+					print "   " + str(self.nctrls) + " controls"
 					self.ped_df[self.pheno][self.cases_idx] = 1
 					self.ped_df[self.pheno][self.ctrls_idx] = 0
-					print "   " + str(self.nctrls) + " controls"
+
 				if len(np.unique(self.ped_df[self.pheno])) == 1:
 					raise Process.Error("phenotype consists of only a single unique value")
 			else:
@@ -313,7 +314,7 @@ cdef class Model(object):
 
 cdef class SnvModel(Model):
 	cdef public str metadata_snv, metadata_snv_cc
-	cdef public object out_all
+	#cdef public object out_all
 	def __cinit__(self, **kwargs):
 		logger = logging.getLogger("Model.SnvModel.__cinit__")
 		logger.debug("initialize SnvModel")
@@ -321,7 +322,7 @@ cdef class SnvModel(Model):
 		self.tbx_start = 1
 		self.tbx_end = 1
 		self.results_header = np.array(['chr','pos','id','a1','a2','filter','callrate','rsq','hwe','n','mac','freq','freq.case','freq.ctrl'])
-		self.out_all = None
+		#self.out_all = None
 
 		self.metadata_snv = '## chr: chromosome' + '\n' + \
 							'## pos: chromosomal position' + '\n' + \

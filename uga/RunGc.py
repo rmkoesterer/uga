@@ -50,6 +50,7 @@ def RunGc(args):
 	except:
 		print Process.Error("unable to read data from file " + cfg['file']).out
 		return 1
+	print str(r.shape[0]) + " variants found"
 
 	l = np.median(scipy.chi2.ppf([1-x for x in r.loc[~ np.isnan(r['p']),'p'].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 	print "   genomic inflation = " + str(l)
@@ -88,7 +89,7 @@ def RunGc(args):
 
 	print "indexing out file"
 	try:
-		pysam.tabix_index(cfg['file'].replace('.gz','.gc.gz'),seq_col=0,start_col=r.columns.index('pos'),end_col=r.columns.index('pos'),force=True)
+		pysam.tabix_index(cfg['file'].replace('.gz','.gc.gz'),seq_col=0,start_col=r.columns.get_loc('pos'),end_col=r.columns.get_loc('pos'),force=True)
 	except:
 		print Process.Error('failed to generate index for file ' + cfg['file'].replace('.gz','.gc.gz')).out
 		return 1

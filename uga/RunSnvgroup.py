@@ -28,6 +28,7 @@ import os
 import resource
 import logging
 import pickle
+import glob
 
 logging.basicConfig(format='%(asctime)s - %(processName)s - %(name)s - %(message)s',level=logging.DEBUG)
 logger = logging.getLogger("RunSnvgroup")
@@ -45,39 +46,6 @@ def process_regions(regions_df, cfg, cpu, log):
 		sys.stdout = log_file
 
 	models_obj = {}
-	for n in cfg['model_order']:
-		print "\nloading model " + n if n != '___no_tag___' else "\nloading model"
-		try:
-			models_obj[n] = getattr(Model,cfg['models'][n]['fxn'].capitalize())(fxn=cfg['models'][n]['fxn'], 
-																				snvgroup_map=cfg['snvgroup_map'], 
-																				pheno=cfg['models'][n]['pheno'], 
-																				covars=cfg['models'][n]['covars'], 
-																				covars_categorical=cfg['models'][n]['covars_categorical'],
-																				format=cfg['models'][n]['format'], 
-																				skat_wts=cfg['models'][n]['skat_wts'], 
-																				burden_wts=cfg['models'][n]['burden_wts'], 
-																				skat_method=cfg['models'][n]['skat_method'], 
-																				mafrange=cfg['models'][n]['mafrange'], 
-																				timeout=cfg['timeout'], 
-																				all_founders=cfg['models'][n]['all_founders'], 
-																				case_code=cfg['models'][n]['case_code'], 
-																				ctrl_code=cfg['models'][n]['ctrl_code'], 
-																				ped=cfg['models'][n]['ped'], 
-																				variants_file=cfg['models'][n]['file'], 
-																				samples_file=cfg['models'][n]['sample'], 
-																				type=cfg['models'][n]['fxn'], 
-																				fid=cfg['models'][n]['fid'], 
-																				iid=cfg['models'][n]['iid'], 
-																				matid=cfg['models'][n]['matid'], 
-																				patid=cfg['models'][n]['patid'], 
-																				sex=cfg['models'][n]['sex'], 
-																				male=cfg['models'][n]['male'], 
-																				female=cfg['models'][n]['female'], 
-																				sep=cfg['models'][n]['sep'])
-		except Process.Error as err:
-			print err.out
-			return 1
-
 	variants_found = False
 	model_written = {}
 	meta_written = {}
@@ -85,14 +53,19 @@ def process_regions(regions_df, cfg, cpu, log):
 	results_final_models_headers = {}
 	results_final_meta = {}
 	meta_objs = {}
+	variants_files = {}
 	variant_ref = Variant.Ref()
+	model_loaded = {}
 	for n in cfg['model_order']:
 		model_written[n] = False
 		results_final_models[n] = pd.DataFrame({})
+		variants_files[n] = glob.glob(cfg['models'][n]['file'].replace('[CHR]','*'))
+		model_loaded[n] = False
 	for meta in cfg['meta_order']:
 		meta_written[meta] = False
 		results_final_meta[meta] = pd.DataFrame({})
 		meta_objs[meta] = getattr(Model,cfg['models'][cfg['meta'][meta].split('+')[0]]['fxn'].capitalize() + 'Meta')(tag = meta, meta = cfg['meta'][meta])
+	last_chr = None
 	for k in xrange(len(regions_df.index)):
 		meta_incl = []
 		region_written = False
@@ -100,6 +73,43 @@ def process_regions(regions_df, cfg, cpu, log):
 		print ''
 		print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['group_id'][k] + ": " + regions_df['region'][k] + ') ...'
 		for n in cfg['model_order']:
+			if not model_loaded[n] or (last_chr != regions_df['chr'][k] and len(variants_files[n]) > 1):
+				if not model_loaded[n]:
+					print "\nloading model for " + n if n != '___no_tag___' else "\nloading model"
+				else:
+					print "\nupdating model for " + n if n != '___no_tag___' else "\nupdating model"
+				try:
+					models_obj[n] = getattr(Model,cfg['models'][n]['fxn'].capitalize())(fxn=cfg['models'][n]['fxn'], 
+																						snvgroup_map=cfg['snvgroup_map'], 
+																						pheno=cfg['models'][n]['pheno'], 
+																						covars=cfg['models'][n]['covars'], 
+																						covars_categorical=cfg['models'][n]['covars_categorical'],
+																						format=cfg['models'][n]['format'], 
+																						skat_wts=cfg['models'][n]['skat_wts'], 
+																						burden_wts=cfg['models'][n]['burden_wts'], 
+																						skat_method=cfg['models'][n]['skat_method'], 
+																						mafrange=cfg['models'][n]['mafrange'], 
+																						timeout=cfg['timeout'], 
+																						all_founders=cfg['models'][n]['all_founders'], 
+																						case_code=cfg['models'][n]['case_code'], 
+																						ctrl_code=cfg['models'][n]['ctrl_code'], 
+																						ped=cfg['models'][n]['ped'], 
+																						variants_file=cfg['models'][n]['file'].replace('[CHR]',str(regions_df['chr'][k])), # variants_file=cfg['models'][n]['file']
+																						samples_file=cfg['models'][n]['sample'], 
+																						type=cfg['models'][n]['fxn'], 
+																						fid=cfg['models'][n]['fid'], 
+																						iid=cfg['models'][n]['iid'], 
+																						matid=cfg['models'][n]['matid'], 
+																						patid=cfg['models'][n]['patid'], 
+																						sex=cfg['models'][n]['sex'], 
+																						male=cfg['models'][n]['male'], 
+																						female=cfg['models'][n]['female'], 
+																						sep=cfg['models'][n]['sep'])
+				except Process.Error as err:
+					print err.out
+					return 1
+				model_loaded[n] = True
+
 			try:
 				models_obj[n].get_region(regions_df['region'][k], group_id=regions_df['group_id'][k])
 			except:
@@ -169,6 +179,7 @@ def process_regions(regions_df, cfg, cpu, log):
 					meta_written[meta] = True
 				else:
 					results_final_meta[meta] = results_final_meta[meta].merge(meta_objs[meta].out, how='outer')
+		last_chr = regions_df['chr'][k]
 
 	for n in cfg['model_order']:
 		pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.' + n + '.pkl', "wb")
@@ -205,6 +216,7 @@ def RunSnvgroup(args):
 	return_values = {}
 	models_out = {}
 	bgzfiles = {}
+	print ''
 	for m in cfg['model_order']:
 		print "initializing out file for model " + m
 		models_out[m] = cfg['out'] if m == '___no_tag___' else cfg['out'] + '.' + m

@@ -106,18 +106,10 @@ def generate_snv_cfg(args):
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
 							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.0, 'maxmaf': 1.0, 'mac': 0.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'corstr': None, 
-							'pheno': None, 'covars': None, 'covars_categorical': None, 'interact': None, 'reverse': False}
+							'pheno': None, 'covars': None, 'covars_categorical': None, 'interact': None, 'reverse': False, 'case_code': 1, 'ctrl_code': 0}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
-			for arg in global_args:
-				if arg[0] in ['score','lm','glm','gee']:
-					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
-					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
-			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['score','lm','glm','gee']:
-					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
-					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
 			for arg in global_args:
 				if arg[0] in ['score','lm','glm','gee']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
@@ -137,10 +129,6 @@ def generate_snv_cfg(args):
 			config['model_order'].append(args[tags_idx[i]][1])
 	else:
 		config['models']['___no_tag___'] = config_default
-		for arg in global_args:
-			if arg[0] in ['score','lm','glm','gee']:
-				config['models']['___no_tag___']['case_code'] = 1
-				config['models']['___no_tag___']['ctrl_code'] = 0
 		for arg in global_args:
 			if arg[0] in ['score','lm','glm','gee']:
 				config['models']['___no_tag___']['fxn'] = arg[0]
@@ -217,18 +205,10 @@ def generate_snvgroup_cfg(args):
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
 							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.0, 'maxmaf': 1.0, 'mac': 0.0, 'snvgroup_mac': 0.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'skat_wts': None, 'burden_wts': None, 'skat_method': None,
-							'pheno': None, 'covars': None, 'covars_categorical': None, 'mafrange': None, 'skato_rho': None}
+							'pheno': None, 'covars': None, 'covars_categorical': None, 'mafrange': None, 'skato_rho': None, 'case_code': 1, 'ctrl_code': 0}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
-			for arg in global_args:
-				if arg[0] in ['skat','skato','burden']:
-					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
-					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
-			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['skat','skato','burden']:
-					config['models'][args[tags_idx[i]][1]]['case_code'] = 1
-					config['models'][args[tags_idx[i]][1]]['ctrl_code'] = 0
 			for arg in global_args:
 				if arg[0] in ['skat','skato','burden']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
@@ -248,10 +228,6 @@ def generate_snvgroup_cfg(args):
 			config['model_order'].append(args[tags_idx[i]][1])
 	else:
 		config['models']['___no_tag___'] = config_default
-		for arg in global_args:
-			if arg[0] in ['skat','skato','burden']:
-				config['models']['___no_tag___']['case_code'] = 1
-				config['models']['___no_tag___']['ctrl_code'] = 0
 		for arg in global_args:
 			if arg[0] in ['skat','skato','burden']:
 				config['models']['___no_tag___']['fxn'] = arg[0]

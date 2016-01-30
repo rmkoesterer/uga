@@ -14,14 +14,17 @@ This software is currently under rapid development. Updates and bug fixes are be
 .. _`uga github page`: https://github.com/rmkoesterer/uga
 
 **Current Features**
-   - Compatibility with standard `VCFv4.1`_ and `VCFv4.2`_ files
+   - Compatibility with most standards of `VCFv4.1`_ or `VCFv4.2`_ files
    - Single variant association modeling (R base: lm, glm; R `geepack`_: geeglm, R `seqMeta`_: singlesnpMeta)
    - Gene/Group based association modeling (with meta analysis: R `seqMeta`_: burdenMeta, skatMeta, skatOMeta)
    - Family based association modeling
-   - Run multiple models as a single submission (variant names need not match)
    - Publication quality Q-Q and manhattan plots
+   - Genomic control correction
+   - Post modeling meta analysis
+   - Run multiple models as a single submission (variant names need not match)
    - Alignment of compatible variants based on genomic position and both alleles (A/T and G/C SNVs are ambiguous and are assumed to be pre-aligned)
    - An array of job splitting capabilities
+   - Input data split over chromosome files can be linked via wildcard
    - Automatically submit jobs on parallel computing systems using `qsub`_
    - multiple processor parallelization in addition to cluster parallelization
    - User definable buffered reading for RAM usage control
@@ -41,8 +44,6 @@ This software is currently under rapid development. Updates and bug fixes are be
    - Full documentation
    - Additional association models (R `survival`_: coxph; `lme4`_: lmer, `nlme`_: lme)
    - Family data inclusion in gene/group based tests
-   - Genomic control correction
-   - Post modeling meta analysis
    - Calculation for grouped analysis multiple test correction
    - Region-based plots via `Locuszoom`_ software
    - Results annotation using `SnpEff`_
@@ -63,9 +64,9 @@ In the interest of user efficiency and to avoid limitations induced by excessive
    - **resubmit** automatically resubmit failed jobs for a project
    - **snvplot** Q-Q and manhattan plots for single snv tests
    - **snvgroupplot** Q-Q and manhattan plots for snv group tests
+   - **meta** meta-analysis
+   - **gc** apply genomic control to results
    - **zoom** regional plots (not yet available)
-   - **meta** meta-analysis (not yet available)
-   - **gc** apply genomic control to results (not yet available)
    - **annot** annotate variant results using `SnpEff`_ (not yet available)
 
 .. _`SnpEff`: http://snpeff.sourceforge.net/
