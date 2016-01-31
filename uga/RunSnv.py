@@ -88,6 +88,7 @@ def process_regions(regions_df, cfg, cpu, log):
 																						iid=cfg['models'][n]['iid'], 
 																						matid=cfg['models'][n]['matid'], 
 																						patid=cfg['models'][n]['patid'], 
+																						adjust_kinship=cfg['models'][n]['adjust_kinship'], 
 																						sex=cfg['models'][n]['sex'], 
 																						male=cfg['models'][n]['male'], 
 																						female=cfg['models'][n]['female'], 

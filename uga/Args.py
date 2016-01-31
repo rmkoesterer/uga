@@ -81,6 +81,10 @@ def snv_args(snv_parser):
 						nargs=0, 
 						action=AddTrue, 
 						help='use all samples to calculate variant statistics regardless of --matid and --patid column information')
+	snv_parser.add_argument('--adjust-kinship', 
+						nargs=0, 
+						action=AddTrue, 
+						help='use --matid and --patid columns to adjust for kinship in analyses (required to account for kinship in seqMeta analyses)')
 	snv_parser.add_argument('--sep', 
 						action=AddString, 
 						choices=['tab','space','comma'], 
@@ -262,6 +266,10 @@ def snvgroup_args(snvgroup_parser):
 						nargs=0, 
 						action=AddTrue, 
 						help='use all samples to calculate variant statistics regardless of --matid and --patid column information')
+	snvgroup_parser.add_argument('--adjust-kinship', 
+						nargs=0, 
+						action=AddTrue, 
+						help='use --matid and --patid columns to adjust for kinship in analyses (required to account for kinship in seqMeta analyses)')
 	snvgroup_parser.add_argument('--sep', 
 						action=AddString, 
 						choices=['tab','space','comma'], 

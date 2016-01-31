@@ -106,7 +106,8 @@ def generate_snv_cfg(args):
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
 							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.0, 'maxmaf': 1.0, 'mac': 0.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'corstr': None, 
-							'pheno': None, 'covars': None, 'covars_categorical': None, 'interact': None, 'reverse': False, 'case_code': 1, 'ctrl_code': 0}
+							'pheno': None, 'covars': None, 'covars_categorical': None, 'interact': None, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 
+							'adjust_kinship': False}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
@@ -205,7 +206,8 @@ def generate_snvgroup_cfg(args):
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
 							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.0, 'maxmaf': 1.0, 'mac': 0.0, 'snvgroup_mac': 0.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'skat_wts': None, 'burden_wts': None, 'skat_method': None,
-							'pheno': None, 'covars': None, 'covars_categorical': None, 'mafrange': None, 'skato_rho': None, 'case_code': 1, 'ctrl_code': 0}
+							'pheno': None, 'covars': None, 'covars_categorical': None, 'mafrange': None, 'skato_rho': None, 'case_code': 1, 'ctrl_code': 0, 
+							'adjust_kinship': False}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()

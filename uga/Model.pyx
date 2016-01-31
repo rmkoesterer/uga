@@ -51,7 +51,7 @@ cdef class Model(object):
 	cdef public bytes fxn, format, ped, variants_file, type, samples_file, \
 						iid, fid, matid, patid, sex, sep, a1, a2
 	cdef public str metadata, metadata_cc, family, formula, focus, pheno, interact, covars, covars_categorical
-	cdef public object ped_df, variants, out, results_dtypes
+	cdef public object ped_df, variants, out, results_dtypes, pedigree
 	cdef public bint all_founders, reverse
 	def __cinit__(self, fxn, format, variants_file, ped, type, iid, fid, 
 					case_code = None, ctrl_code = None, all_founders = False, pheno = None, covars = None, covars_categorical = None, interact = None, reverse = False, samples_file = None, 
@@ -128,10 +128,6 @@ cdef class Model(object):
 				self.ped_df = np.genfromtxt(fname=self.ped, delimiter=Fxns.get_delimiter(self.sep), dtype=p_dtypes, names=True, usecols=p_names)
 			except:
 				raise Process.Error("unable to load ped file " + self.ped + " with columns " + ', '.join(p_names))
-			for x in [y for y in dtypes if dtypes[y] == 'f8']:
-				self.ped_df = self.ped_df[~np.isnan(self.ped_df[x])]
-			for x in [y for y in dtypes if dtypes[y] == '|S100']:
-				self.ped_df = self.ped_df[~(self.ped_df[x] == 'NA')]
 			for x in self.model_cols:
 				if x in self.ped_df.dtype.names:
 					print "   model column %s found" % (x)
@@ -160,6 +156,17 @@ cdef class Model(object):
 					print "   sex column %s found" % self.sex
 				else:
 					raise Process.Error("column " + self.sex + " not found in ped file " + self.ped)
+			if self.matid is not None and self.patid is not None and self.sex is not None and set([self.iid,self.fid,self.matid,self.patid,self.sex]) <= set(self.ped_df.dtype.names):
+				print "   extracting pedigree"
+				self.pedigree = pd.DataFrame(self.ped_df[[self.iid,self.fid,self.matid,self.patid,self.sex]])
+				self.pedigree.loc[(self.pedigree[self.sex] != self.male) & (self.pedigree[self.sex] != self.female),self.sex]=-999
+				self.pedigree[self.sex].replace({self.male: 1, self.female: 2, -999: 3})
+				self.pedigree[self.matid].replace({'0': 'NA'})
+				self.pedigree[self.patid].replace({'0': 'NA'})
+			for x in [y for y in dtypes if dtypes[y] == 'f8']:
+				self.ped_df = self.ped_df[~np.isnan(self.ped_df[x])]
+			for x in [y for y in dtypes if dtypes[y] == '|S100']:
+				self.ped_df = self.ped_df[~(self.ped_df[x] == 'NA')]
 			self.ped_df = self.ped_df[np.in1d(self.ped_df[self.iid],np.intersect1d(self.ped_df[self.iid],self.variants.samples))]
 			if self.ped_df.shape[0] > 0:
 				iids_unique, iids_counts = np.unique(self.ped_df[self.iid], return_counts=True)
@@ -314,7 +321,6 @@ cdef class Model(object):
 
 cdef class SnvModel(Model):
 	cdef public str metadata_snv, metadata_snv_cc
-	#cdef public object out_all
 	def __cinit__(self, **kwargs):
 		logger = logging.getLogger("Model.SnvModel.__cinit__")
 		logger.debug("initialize SnvModel")
@@ -322,7 +328,6 @@ cdef class SnvModel(Model):
 		self.tbx_start = 1
 		self.tbx_end = 1
 		self.results_header = np.array(['chr','pos','id','a1','a2','filter','callrate','rsq','hwe','n','mac','freq','freq.case','freq.ctrl'])
-		#self.out_all = None
 
 		self.metadata_snv = '## chr: chromosome' + '\n' + \
 							'## pos: chromosomal position' + '\n' + \
@@ -399,9 +404,11 @@ cdef class SnvgroupModel(Model):
 				self.calc_variant_stats()
 
 cdef class Score(SnvModel):
-	def __cinit__(self, **kwargs):
+	cdef public bint adjust_kinship
+	def __cinit__(self, adjust_kinship = False, **kwargs):
 		logger = logging.getLogger("Model.Score.__cinit__")
 		logger.debug("initialize Score model")
+		self.adjust_kinship = adjust_kinship
 		super(Score, self).__init__(**kwargs)
 		print "setting score test family option to " + self.family
 
@@ -416,9 +423,13 @@ cdef class Score(SnvModel):
 
 		print "loading R package seqMeta"
 		ro.r('suppressMessages(library(seqMeta))')
+		if self.adjust_kinship:
+			print "loading R package kinship2"
+			ro.r('suppressMessages(library(kinship2))')
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + '## formula: ' + self.formula
+		self.metadata = self.metadata + '\n' + '## adjust kinship: True' if self.adjust_kinship else self.metadata + '\n' + '## adjust kinship: False'
 		self.metadata_snv = self.metadata_snv + '\n' + self.metadata_snv_cc if self.family == 'binomial' else self.metadata_snv
 		self.metadata = self.metadata + '\n' + \
 						self.metadata_snv + '\n' + \
@@ -450,7 +461,12 @@ cdef class Score(SnvModel):
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			if len(passed) == 1:
 				ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
-			cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
+			if self.adjust_kinship:
+				ro.globalenv['ped'] = self.pedigree
+				ro.globalenv['kins'] = ro.r("kinship(pedigree(famid=ped$" + self.fid + ",id=ped$" + self.iid + ",dadid=ped$" + self.patid + ",momid=ped$" + self.matid + ",sex=ped$" + self.sex + ",missid='NA'))")
+				cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "',kins=kins,sparse=FALSE)"
+			else:
+				cmd = "prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "')"
 			try:
 				ro.globalenv['ps'] = ro.r(cmd)
 			except RRuntimeError as rerr:
@@ -723,13 +739,15 @@ cdef class Lm(SnvModel):
 cdef class Skat(SnvgroupModel):
 	cdef public str skat_wts, skat_method, mafrange
 	cdef unsigned int timeout
-	def __cinit__(self, skat_wts = None, skat_method = None, mafrange = None, timeout = None, **kwargs):
+	cdef public bint adjust_kinship
+	def __cinit__(self, skat_wts = None, skat_method = None, mafrange = None, timeout = None, adjust_kinship = False, **kwargs):
 		logger = logging.getLogger("Model.Skat.__cinit__")
 		logger.debug("initialize Skat model")
 		self.skat_wts = skat_wts if skat_wts is not None else 'function(maf){dbeta(maf,1,25)}'
 		self.skat_method = skat_method if skat_method is not None else 'saddlepoint'
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
 		self.timeout = timeout if timeout is not None else 3600
+		self.adjust_kinship = adjust_kinship
 		super(Skat, self).__init__(**kwargs)
 		print "setting skat test family option to " + self.family
 
@@ -753,12 +771,16 @@ cdef class Skat(SnvgroupModel):
 
 		print "loading R package seqMeta"
 		ro.r('suppressMessages(library(seqMeta))')
+		if self.adjust_kinship:
+			print "loading R package kinship2"
+			ro.r('suppressMessages(library(kinship2))')
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		
 		self.metadata = self.metadata + '\n' + \
-						'## formula: ' + self.formula + '\n' + \
-						'## skat wts: ' + self.skat_wts + '\n' + \
+						'## formula: ' + self.formula
+		self.metadata = self.metadata + '\n' + '## adjust kinship: True' if self.adjust_kinship else self.metadata + '\n' + '## adjust kinship: False'
+		self.metadata = self.metadata + '\n' + '## skat wts: ' + self.skat_wts + '\n' + \
 						'## skat method: ' + self.skat_method + '\n' + \
 						'## maf range: ' + self.mafrange + '\n' + \
 						'## timeout: ' + str(self.timeout) + '\n' + \
@@ -806,7 +828,12 @@ cdef class Skat(SnvgroupModel):
 			if self.results['cmac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
-				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
+				if self.adjust_kinship:
+					ro.globalenv['ped'] = self.pedigree
+					ro.globalenv['kins'] = ro.r("kinship(pedigree(famid=ped$" + self.fid + ",id=ped$" + self.iid + ",dadid=ped$" + self.patid + ",momid=ped$" + self.matid + ",sex=ped$" + self.sex + ",missid='NA'))")
+					cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "',kins=kins,sparse=FALSE), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
+				else:
+					cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
 				try:
 					ro.globalenv['ps'] = ro.r(cmd)
 				except RRuntimeError as rerr:
@@ -858,7 +885,8 @@ cdef class Skat(SnvgroupModel):
 cdef class Skato(SnvgroupModel):
 	cdef public str skat_wts, burden_wts, skat_method, mafrange, skato_rho
 	cdef unsigned int timeout
-	def __cinit__(self, skat_wts = None, burden_wts = None, skat_method = None, skato_rho = None, mafrange = None, timeout = None, **kwargs):
+	cdef public bint adjust_kinship
+	def __cinit__(self, skat_wts = None, burden_wts = None, skat_method = None, skato_rho = None, mafrange = None, timeout = None, adjust_kinship = False, **kwargs):
 		logger = logging.getLogger("Model.Skato.__cinit__")
 		logger.debug("initialize Skato model")
 		self.skat_wts = skat_wts if skat_wts is not None else 'function(maf){dbeta(maf,1,25)}'
@@ -867,6 +895,7 @@ cdef class Skato(SnvgroupModel):
 		self.skato_rho = skato_rho if skato_rho is not None else 'seq(0,1,0.1)'
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
 		self.timeout = timeout if timeout is not None else 3600
+		self.adjust_kinship = adjust_kinship
 		super(Skato, self).__init__(**kwargs)
 		print "setting skat-o test family option to " + self.family
 
@@ -880,11 +909,15 @@ cdef class Skato(SnvgroupModel):
 
 		print "loading R package seqMeta"
 		ro.r('suppressMessages(library(seqMeta))')
+		if self.adjust_kinship:
+			print "loading R package kinship2"
+			ro.r('suppressMessages(library(kinship2))')
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + \
-						'## formula: ' + self.formula + '\n' + \
-						'## skat wts: ' + self.skat_wts + '\n' + \
+						'## formula: ' + self.formula
+		self.metadata = self.metadata + '\n' + '## adjust kinship: True' if self.adjust_kinship else self.metadata + '\n' + '## adjust kinship: False'
+		self.metadata = self.metadata + '\n' + '## skat wts: ' + self.skat_wts + '\n' + \
 						'## burden wts: ' + self.burden_wts + '\n' + \
 						'## skat method: ' + self.skat_method + '\n' + \
 						'## maf range: ' + self.mafrange + '\n' + \
@@ -935,7 +968,12 @@ cdef class Skato(SnvgroupModel):
 			if self.results['cmac'][0] >= self.snvgroup_mac:
 				if passed == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
-				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
+				if self.adjust_kinship:
+					ro.globalenv['ped'] = self.pedigree
+					ro.globalenv['kins'] = ro.r("kinship(pedigree(famid=ped$" + self.fid + ",id=ped$" + self.iid + ",dadid=ped$" + self.patid + ",momid=ped$" + self.matid + ",sex=ped$" + self.sex + ",missid='NA'))")
+					cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "',kins=kins,sparse=FALSE), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
+				else:
+					cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
 				try:
 					ro.globalenv['ps'] = ro.r(cmd)
 				except RRuntimeError as rerr:
@@ -990,12 +1028,14 @@ cdef class Skato(SnvgroupModel):
 cdef class Burden(SnvgroupModel):
 	cdef public str mafrange, burden_wts
 	cdef unsigned int timeout
-	def __cinit__(self, mafrange = None, burden_wts = None, timeout = None, **kwargs):
+	cdef public bint adjust_kinship
+	def __cinit__(self, mafrange = None, burden_wts = None, timeout = None, adjust_kinship = False, **kwargs):
 		logger = logging.getLogger("Model.Burden.__cinit__")
 		logger.debug("initialize Burden model")
 		self.mafrange = mafrange if mafrange is not None else 'c(0,0.5)'
 		self.burden_wts = burden_wts if burden_wts is not None else '1'
 		self.timeout = timeout if timeout is not None else 3600
+		self.adjust_kinship = adjust_kinship
 		super(Burden, self).__init__(**kwargs)
 		print "setting burden test family option to " + self.family
 
@@ -1009,11 +1049,15 @@ cdef class Burden(SnvgroupModel):
 
 		print "loading R package seqMeta"
 		ro.r('suppressMessages(library(seqMeta))')
+		if self.adjust_kinship:
+			print "loading R package kinship2"
+			ro.r('suppressMessages(library(kinship2))')
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + \
-						'## formula: ' + self.formula + '\n' + \
-						'## burden wts: ' + self.burden_wts + '\n' + \
+						'## formula: ' + self.formula
+		self.metadata = self.metadata + '\n' + '## adjust kinship: True' if self.adjust_kinship else self.metadata + '\n' + '## adjust kinship: False'
+		self.metadata = self.metadata + '\n' + '## burden wts: ' + self.burden_wts + '\n' + \
 						'## maf range: ' + self.mafrange + '\n' + \
 						'## timeout: ' + str(self.timeout) + '\n' + \
 						self.metadata_gene + '\n' + \
@@ -1066,7 +1110,12 @@ cdef class Burden(SnvgroupModel):
 			if self.results['cmac'][0] >= self.snvgroup_mac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
-				cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
+				if self.adjust_kinship:
+					ro.globalenv['ped'] = self.pedigree
+					ro.globalenv['kins'] = ro.r("kinship(pedigree(famid=ped$" + self.fid + ",id=ped$" + self.iid + ",dadid=ped$" + self.patid + ",momid=ped$" + self.matid + ",sex=ped$" + self.sex + ",missid='NA'))")
+					cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "',kins=kins,sparse=FALSE), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
+				else:
+					cmd = "tryCatch(expr = { evalWithTimeout(prepScores2(Z=z,formula=" + self.formula + ",SNPInfo=snp_info,data=model_df,family='" + self.family + "'), timeout=" + str(self.timeout) + ") }, error = function(e) return(1))"
 				try:
 					ro.globalenv['ps'] = ro.r(cmd)
 				except RRuntimeError as rerr:
