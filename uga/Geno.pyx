@@ -57,7 +57,10 @@ cdef double[:] vcf2dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 cdef double[:] extract_vcf_dose(np.ndarray genos, np.int field):
 	cdef double[:] dose = np.ndarray(len(genos))
 	for i in xrange(len(genos)):
-		dose[i] = 2.0 - float(genos[i].split(':')[field])
+		try:
+			dose[i] = 2.0 - float(genos[i].split(':')[field])
+		except:
+			dose[i] = float('nan')
 	return dose
 
 cdef class Variants(object):
