@@ -51,6 +51,15 @@ cdef double[:] vcf2dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 			dose[i] = 0.0
 	return dose
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+cdef double[:] extract_vcf_dose(np.ndarray genos, np.int field):
+	cdef double[:] dose = np.ndarray(len(genos))
+	for i in xrange(len(genos)):
+		dose[i] = 2.0 - float(genos[i].split(':')[field])
+	return dose
+
 cdef class Variants(object):
 
 	def __cinit__(self, filename, sample_filename = None):
@@ -148,43 +157,55 @@ cdef class Vcf(Variants):
 			slice = chain([first], slice)
 			for r in slice:
 				record = np.array(r, dtype='|S' + str(MAX_CELL_LEN))
-				gt = record[8].split(':').index('GT')
-				alts = record[4].split(',')
-				if len(alts) > 1:
-					self.snv_chunk = np.append(self.snv_chunk, np.empty((2*len(alts),11 + len(self.samples)), dtype='object'),axis=0)
-					for alt in xrange(len(alts)):
-						oth = [alts.index(a) for a in alts if a != alts[alt]]
-						het = het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']] + [str(alts.index(k)+1) + sep + str(alt+1) for k in alts if k != alts[alt] for sep in ['/','|']] + [str(alt+1) + sep + str(alts.index(k)+1) for k in alts if k != alts[alt] for sep in ['/','|']]))
-						hom1 = list(set(['0/0'] + [str(a+1) + '/' + str(a+1) for a in oth] + ['0|0'] + [str(a+1) + '|' + str(a+1) for a in oth]))
-						hom2 = list(set([str(alt+1) + '/' + str(alt+1)] + [str(alt+1) + '|' + str(alt+1)]))
-						self.snv_chunk[i,:9] = record[:9]
-						self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
-						self.snv_chunk[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
-						self.snv_chunk[i,4] = alts[alt]
-						self.snv_chunk[i,5] = self.group_id
-						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
-						self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
-						het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
-						hom1 = ['0/0','0|0']
-						hom2 = [str(alt+1) + '/' + str(alt+1), str(alt+1) + '|' + str(alt+1)]
-						self.snv_chunk[i+1,:9] = record[:9]
-						self.snv_chunk[i+1,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
-						self.snv_chunk[i+1,3] = record[3]
-						self.snv_chunk[i+1,4] = alts[alt]
-						self.snv_chunk[i+1,5] = self.group_id
-						self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,4][0:20])
-						self.snv_chunk[i+1,10] = Variant.get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
-						i += 2
-				else:
-					het = ['1/0','0/1','1|0','0|1']
-					hom1 = ['0/0','0|0']
-					hom2 = ['1/1','1|1']
+				fields = record[8].split(':')
+				if 'DS' in fields:
+					field = fields.index('DS')
 					self.snv_chunk[i,:9] = record[:9]
-					self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+					self.snv_chunk[i,11:] = extract_vcf_dose(record[9:], field)
 					self.snv_chunk[i,5] = self.group_id
 					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
 					self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 					i += 1
+				elif 'GT' in fields:
+					gt = fields.index('GT')
+					alts = record[4].split(',')
+					if len(alts) > 1:
+						self.snv_chunk = np.append(self.snv_chunk, np.empty((2*len(alts),11 + len(self.samples)), dtype='object'),axis=0)
+						for alt in xrange(len(alts)):
+							oth = [alts.index(a) for a in alts if a != alts[alt]]
+							het = het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']] + [str(alts.index(k)+1) + sep + str(alt+1) for k in alts if k != alts[alt] for sep in ['/','|']] + [str(alt+1) + sep + str(alts.index(k)+1) for k in alts if k != alts[alt] for sep in ['/','|']]))
+							hom1 = list(set(['0/0'] + [str(a+1) + '/' + str(a+1) for a in oth] + ['0|0'] + [str(a+1) + '|' + str(a+1) for a in oth]))
+							hom2 = list(set([str(alt+1) + '/' + str(alt+1)] + [str(alt+1) + '|' + str(alt+1)]))
+							self.snv_chunk[i,:9] = record[:9]
+							self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+							self.snv_chunk[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
+							self.snv_chunk[i,4] = alts[alt]
+							self.snv_chunk[i,5] = self.group_id
+							self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
+							self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+							het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
+							hom1 = ['0/0','0|0']
+							hom2 = [str(alt+1) + '/' + str(alt+1), str(alt+1) + '|' + str(alt+1)]
+							self.snv_chunk[i+1,:9] = record[:9]
+							self.snv_chunk[i+1,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+							self.snv_chunk[i+1,3] = record[3]
+							self.snv_chunk[i+1,4] = alts[alt]
+							self.snv_chunk[i+1,5] = self.group_id
+							self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,4][0:20])
+							self.snv_chunk[i+1,10] = Variant.get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
+							i += 2
+					else:
+						het = ['1/0','0/1','1|0','0|1']
+						hom1 = ['0/0','0|0']
+						hom2 = ['1/1','1|1']
+						self.snv_chunk[i,:9] = record[:9]
+						self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
+						self.snv_chunk[i,5] = self.group_id
+						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
+						self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+						i += 1
+				else:
+					raise Process.Error("failed to load vcf file, GT or DS field required")
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
 
 	@cython.boundscheck(False)

@@ -775,7 +775,7 @@ typedef npy_cdouble __pyx_t_5numpy_complex_t;
  * 
  * cdef class Variants:             # <<<<<<<<<<<<<<
  * 	cdef public bytes filename, sample_filename, region, group_id, method
- * 	cdef public np.ndarray samples
+ * 	cdef public object handle, region_iter, snvgroup_map, results, header, cols, dtypes, snv_results_tagged
  */
 struct __pyx_obj_3uga_4Geno_Variants {
   PyObject_HEAD
@@ -785,7 +785,6 @@ struct __pyx_obj_3uga_4Geno_Variants {
   PyObject *region;
   PyObject *group_id;
   PyObject *method;
-  PyArrayObject *samples;
   PyObject *handle;
   PyObject *region_iter;
   PyObject *snvgroup_map;
@@ -803,6 +802,7 @@ struct __pyx_obj_3uga_4Geno_Variants {
   PyArrayObject *snv_chunk;
   PyArrayObject *snvgroup_chunk;
   PyArrayObject *snv_results;
+  PyArrayObject *samples;
 };
 
 
@@ -856,7 +856,7 @@ struct __pyx_obj_3uga_7Variant___pyx_scope_struct_1_genexpr {
  * 
  * cdef class Variants:             # <<<<<<<<<<<<<<
  * 	cdef public bytes filename, sample_filename, region, group_id, method
- * 	cdef public np.ndarray samples
+ * 	cdef public object handle, region_iter, snvgroup_map, results, header, cols, dtypes, snv_results_tagged
  */
 
 struct __pyx_vtabstruct_3uga_4Geno_Variants {

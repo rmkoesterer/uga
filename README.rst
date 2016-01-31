@@ -7,7 +7,7 @@ environment and Python, allowing for rapid integration of emerging analytical st
 time and researchers with access to a high performance computing cluster or with access to multiple cores will find time-saving features for parallel analysis 
 using a flexible, yet controlled, commandline interface.
 
-.. _`Cython: https://pypi.python.org/pypi
+.. _`Cython`: https://pypi.python.org/pypi
 
 This software is currently under rapid development. Updates and bug fixes are being tracked on the `uga github page`_
 
