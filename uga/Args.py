@@ -94,10 +94,7 @@ def snv_args(snv_parser):
 						help='phenotype')
 	snv_parser.add_argument('--covars', 
 						action=AddString, 
-						help='comma separated list of numeric covariates')
-	snv_parser.add_argument('--covars-categorical', 
-						action=AddString, 
-						help='comma separated list of categorical covariates')
+						help='"+" separated list of covariates (categorical variables should be wrapped in factor())')
 	snv_parser.add_argument('--interact', 
 						action=AddString, 
 						help='a variable to include in a snv interaction term (if used, the p value for the interaction will be reported: --interact AGE -> SNV*AGE)')
@@ -282,10 +279,7 @@ def snvgroup_args(snvgroup_parser):
 						help='phenotype')
 	snvgroup_parser.add_argument('--covars', 
 						action=AddString, 
-						help='comma separated list of numeric covariates')
-	snvgroup_parser.add_argument('--covars-categorical', 
-						action=AddString, 
-						help='comma separated list of categorical covariates')
+						help='"+" separated list of numeric covariates (categorical covariates should be wrapped in factor())')
 	snvgroup_parser.add_argument('--sex', 
 						action=AddString, 
 						help='name of the column containing male/female status (requires --male and --female)')
@@ -317,10 +311,10 @@ def snvgroup_args(snvgroup_parser):
 						action=AddString, 
 						type=float, 
 						help='threshold value for minimum minor allele count (ie. 3 filters out markers with mac < 3)')
-	snvgroup_parser.add_argument('--snvgroup-mac', 
+	snvgroup_parser.add_argument('--cmac', 
 						action=AddString, 
 						type=float, 
-						help='threshold value for minimum minor allele count in snv group (ie. 3 filters out snv groups with mac < 3)')
+						help='threshold value for minimum cumulative minor allele count in snv group (ie. 3 filters out snv groups with cmac < 3)')
 	snvgroup_parser.add_argument('--rsq', 
 						action=AddString, 
 						type=float, 
@@ -525,7 +519,7 @@ def snvplot_args(snvplot_parser):
 						action=AddString, 
 						required=True, 
 						help='filename of existing results')
-	snvplot_required.add_argument('--pcol', 
+	snvplot_parser.add_argument('--pcol', 
 						action=AddString, 
 						help='a comma separated list of p value column names or a single p value column name (default: p)')
 	snvplot_parser.add_argument('--replace', 
@@ -578,7 +572,7 @@ def snvgroupplot_args(snvgroupplot_parser):
 						action=AddString, 
 						required=True, 
 						help='filename of existing results')
-	snvgroupplot_required.add_argument('--pcol', 
+	snvgroupplot_parser.add_argument('--pcol', 
 						action=AddString, 
 						help='a comma separated list of p value column names or a single p value column name (default: p)')
 	snvgroupplot_parser.add_argument('--replace', 
@@ -625,21 +619,53 @@ def snvgroupplot_args(snvgroupplot_parser):
 						help='enable debug mode (prints debug info to log file)')
 	return snvgroupplot_parser
 
-def gc_args(gc_parser):
-	gc_required = gc_parser.add_argument_group('required arguments')
-	gc_required.add_argument('--file', 
+def filter_args(filter_parser):
+	filter_required = filter_parser.add_argument_group('required arguments')
+	filter_required.add_argument('--file', 
 						action=AddString, 
 						required=True, 
 						help='filename containing results to be corrected')
-	gc_parser.add_argument('--replace', 
+	filter_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 
 						help='replace any existing output files')
-	gc_parser.add_argument('--qsub', 
+	filter_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
-	gc_parser.add_argument('--debug', 
+	filter_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 
 						help='enable debug mode (prints debug info to log file)')
-	return gc_parser
+	filter_parser.add_argument('--gc', 
+						nargs=0, 
+						action=AddTrue, 
+						help='apply genomic control adjustment (for single snv test results only)')
+	filter_parser.add_argument('--miss', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for missingness (ie. 0.95 allows for up to 5%% missingness)')
+	filter_parser.add_argument('--maf', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for minimum minor allele frequency (ie. 0.03 filters out markers with maf < 0.03)')
+	filter_parser.add_argument('--mac', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for minimum minor allele count (ie. 3 filters out markers with mac < 3)')
+	filter_parser.add_argument('--rsq', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for imputation quality (ie. 0.8 filters out markers with rsq < 0.8)')
+	filter_parser.add_argument('--hwe', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for Hardy Weinberg p-value (ie. 1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
+	filter_parser.add_argument('--hwe-maf', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for minimum minor allele frequency for which Hardy Weinberg p-value threshold is evaluated (ie. 0.01 only filters markers with maf >= 0.01 that do not pass hwe threshold)')
+	filter_parser.add_argument('--cmac', 
+						action=AddString, 
+						type=float, 
+						help='threshold value for minimum cumulative minor allele count in snv group (ie. 3 filters out snv groups with cmac < 3)')
+	return filter_parser

@@ -48,7 +48,7 @@ def get_parser():
 	resubmit_parser = Args.resubmit_args(subparsers.add_parser('resubmit', help='resubmit failed results', parents=[global_parser]))
 	snvplot_parser = Args.snvplot_args(subparsers.add_parser('snvplot', help='generate qq and manhattan plots for single variant results', parents=[global_parser]))
 	snvgroupplot_parser = Args.snvgroupplot_args(subparsers.add_parser('snvgroupplot', help='generate qq and manhattan plots for grouped variant results', parents=[global_parser]))
-	gc_parser = Args.gc_args(subparsers.add_parser('gc', help='correct single variant results for genomic inflation', parents=[global_parser]))
+	filter_parser = Args.filter_args(subparsers.add_parser('filter', help='filter results / correct single variant results for genomic inflation', parents=[global_parser]))
 
 	return main_parser
 
@@ -104,9 +104,9 @@ def generate_snv_cfg(args):
 	tags_idx = [args.index((x,y)) for x, y in args if x == 'tag'] + [len(args)]
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
-							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.0, 'maxmaf': 1.0, 'mac': 0.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
+							'male': 1, 'female': 2, 'miss': None, 'maf': None, 'maxmaf': None, 'mac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'corstr': None, 
-							'pheno': None, 'covars': None, 'covars_categorical': None, 'interact': None, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 
+							'pheno': None, 'covars': None, 'interact': None, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 
 							'adjust_kinship': False}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
@@ -204,9 +204,9 @@ def generate_snvgroup_cfg(args):
 	tags_idx = [args.index((x,y)) for x, y in args if x == 'tag'] + [len(args)]
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
-							'male': 1, 'female': 2, 'miss': 0.0, 'maf': 0.0, 'maxmaf': 1.0, 'mac': 0.0, 'snvgroup_mac': 0.0, 'rsq': 0.0, 'hwe': None, 'hwe_maf': None,
+							'male': 1, 'female': 2, 'miss': None, 'maf': None, 'maxmaf': None, 'mac': None, 'cmac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None, 
 							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'skat_wts': None, 'burden_wts': None, 'skat_method': None,
-							'pheno': None, 'covars': None, 'covars_categorical': None, 'mafrange': None, 'skato_rho': None, 'case_code': 1, 'ctrl_code': 0, 
+							'pheno': None, 'covars': None, 'mafrange': None, 'skato_rho': None, 'case_code': 1, 'ctrl_code': 0, 
 							'adjust_kinship': False}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
@@ -432,8 +432,9 @@ def print_snvgroupplot_options(cfg):
 			else:
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
-def generate_gc_cfg(args):
-	config = {'file': None, 'replace': False, 'qsub': None, 'debug': False}
+def generate_filter_cfg(args):
+	config = {'file': None, 'replace': False, 'qsub': None, 'debug': False, 'gc': False, 
+				'miss': None, 'maf': None, 'mac': None, 'snvgroup_mac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None}
 	for arg in args:
 		if arg[0] == 'file':
 			config['file'] = arg[1]
@@ -443,6 +444,22 @@ def generate_gc_cfg(args):
 			config['qsub'] = arg[1]
 		if arg[0] == 'debug':
 			config['debug'] = arg[1]
+		if arg[0] == 'gc':
+			config['gc'] = arg[1]
+		if arg[0] == 'miss':
+			config['miss'] = arg[1]
+		if arg[0] == 'maf':
+			config['maf'] = arg[1]
+		if arg[0] == 'mac':
+			config['mac'] = arg[1]
+		if arg[0] == 'snvgroup_mac':
+			config['snvgroup_mac'] = arg[1]
+		if arg[0] == 'rsq':
+			config['rsq'] = arg[1]
+		if arg[0] == 'hwe':
+			config['hwe'] = arg[1]
+		if arg[0] == 'hwe_maf':
+			config['hwe_maf'] = arg[1]
 	return config
 
 def print_gc_options(cfg):

@@ -61,7 +61,7 @@ def RunSnvplot(args):
 
 	for pcol in pcols:
 		print "plotting p-values for column " + pcol + " ..."
-		results = r[['#chr','pos',cfg['freqcol'],pcol]] if cfg['freqcol'] in cols else r[['#chr','pos',pcol]]
+		results = r[['#chr','pos',cfg['freqcol'],pcol]] if cfg['freqcol'] in r else r[['#chr','pos',pcol]]
 		results.dropna(inplace=True)
 		results = results[(results[pcol] > 0) & (results[pcol] <= 1)].reset_index(drop=True)
 		print "   " + str(results.shape[0]) + " variants with plottable p-values"

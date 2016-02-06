@@ -74,7 +74,6 @@ def process_regions(regions_df, cfg, cpu, log):
 																						corstr=cfg['models'][n]['corstr'], 
 																						pheno=cfg['models'][n]['pheno'], 
 																						covars=cfg['models'][n]['covars'], 
-																						covars_categorical=cfg['models'][n]['covars_categorical'], 
 																						interact=cfg['models'][n]['interact'], 
 																						reverse=cfg['models'][n]['reverse'], 
 																						all_founders=cfg['models'][n]['all_founders'], 

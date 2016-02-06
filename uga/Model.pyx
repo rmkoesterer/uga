@@ -50,11 +50,11 @@ cdef class Model(object):
 							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, male_idx, female_idx
 	cdef public bytes fxn, format, ped, variants_file, type, samples_file, \
 						iid, fid, matid, patid, sex, sep, a1, a2
-	cdef public str metadata, metadata_cc, family, formula, focus, pheno, interact, covars, covars_categorical
+	cdef public str metadata, metadata_cc, family, formula, focus, pheno, interact, covars
 	cdef public object ped_df, variants, out, results_dtypes, pedigree
 	cdef public bint all_founders, reverse
 	def __cinit__(self, fxn, format, variants_file, ped, type, iid, fid, 
-					case_code = None, ctrl_code = None, all_founders = False, pheno = None, covars = None, covars_categorical = None, interact = None, reverse = False, samples_file = None, 
+					case_code = None, ctrl_code = None, all_founders = False, pheno = None, covars = None, interact = None, reverse = False, samples_file = None, 
 					matid = None, patid = None, sex = None, male = 1, female = 2, sep = 'tab', **kwargs):
 		super(Model, self).__init__(**kwargs)
 		logger = logging.getLogger("Model.Model.__cinit__")
@@ -63,7 +63,6 @@ cdef class Model(object):
 		self.fxn = fxn
 		self.pheno = pheno
 		self.covars = covars
-		self.covars_categorical = covars_categorical
 		self.interact = interact
 		self.reverse = reverse
 		self.format = format
@@ -364,12 +363,12 @@ cdef class SnvModel(Model):
 
 cdef class SnvgroupModel(Model):
 	cdef public str snvgroup_map, metadata_gene
-	cdef public unsigned int snvgroup_mac
-	def __cinit__(self, snvgroup_map = None, snvgroup_mac = 1.0, **kwargs):
+	cdef public unsigned int cmac
+	def __cinit__(self, snvgroup_map = None, cmac = 1.0, **kwargs):
 		logger = logging.getLogger("Model.SnvgroupModel.__cinit__")
 		logger.debug("initialize SnvgroupModel")
 		self.snvgroup_map = snvgroup_map
-		self.snvgroup_mac = snvgroup_mac
+		self.cmac = cmac
 		super(SnvgroupModel, self).__init__(**kwargs)
 		self.tbx_start = 1
 		self.tbx_end = 2
@@ -751,16 +750,6 @@ cdef class Skat(SnvgroupModel):
 		super(Skat, self).__init__(**kwargs)
 		print "setting skat test family option to " + self.family
 
-		left = self.pheno
-		right_array = []
-		if self.covars is not None:
-			right_array = right_array + self.covars.split(',')
-		if self.covars_categorical is not None:
-			right_array = right_array + ['factor(' + x + ')' for x in self.covars_categorical.split(',')]
-		right = '+'.join(right_array) if len(right_array) > 0 else '1'
-		self.formula = left + '~' + right
-		print "formula: " + self.formula
-
 		if self.covars is not None:
 			self.formula = self.pheno + '~' + self.covars
 		else:
@@ -825,7 +814,7 @@ cdef class Skat(SnvgroupModel):
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['cmac'][0] = np.sum(self.variant_stats['mac'][passed])
-			if self.results['cmac'][0] >= self.snvgroup_mac:
+			if self.results['cmac'][0] >= self.cmac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 				if self.adjust_kinship:
@@ -965,7 +954,7 @@ cdef class Skato(SnvgroupModel):
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['cmac'][0] = np.sum(self.variant_stats['mac'][passed])
-			if self.results['cmac'][0] >= self.snvgroup_mac:
+			if self.results['cmac'][0] >= self.cmac:
 				if passed == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 				if self.adjust_kinship:
@@ -1107,7 +1096,7 @@ cdef class Burden(SnvgroupModel):
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['cmac'][0] = np.sum(self.variant_stats['mac'][passed])
-			if self.results['cmac'][0] >= self.snvgroup_mac:
+			if self.results['cmac'][0] >= self.cmac:
 				if len(passed) == 1:
 					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
 				if self.adjust_kinship:
