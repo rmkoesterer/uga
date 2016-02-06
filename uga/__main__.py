@@ -365,40 +365,40 @@ def main(args=None):
 		else:
 			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.log')
 
-	elif args.which == 'gc':
-		if os.path.exists(cfg['file'].replace('.gz','.gc.log')):
+	elif args.which == 'filter':
+		if os.path.exists(cfg['file'].replace('.gz','.' + cfg['tag'] + '.log')):
 			if args.replace:
 				try:
-					os.remove(cfg['file'].replace('.gz','.gc.log'))
+					os.remove(cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'))
 				except OSError:
-					print Process.print_error('unable to remove existing log file ' + cfg['file'].replace('.gz','.gc.log'))
+					print Process.print_error('unable to remove existing log file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'))
 					return
 			else:
-				print Process.print_error('log file ' + cfg['file'].replace('.gz','.gc.log') + ' already exists, use --replace to overwrite existing results')
+				print Process.print_error('log file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.log') + ' already exists, use --replace to overwrite existing results')
 				return
-		if os.path.exists(cfg['file'].replace('.gz','.gc.gz')):
+		if os.path.exists(cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz')):
 			if args.replace:
 				try:
-					os.remove(cfg['file'].replace('.gz','.gc.gz'))
+					os.remove(cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz'))
 				except OSError:
-					print Process.print_error('unable to remove existing inflation corrected results file ' + cfg['file'].replace('.gz','.gc.gz'))
+					print Process.print_error('unable to remove existing inflation corrected results file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz'))
 			else:
-				print Process.print_error('results file ' + cfg['file'].replace('.gz','.gc.gz') + ' already exists, use --replace to overwrite existing results')
+				print Process.print_error('results file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz') + ' already exists, use --replace to overwrite existing results')
 				return
-		if os.path.exists(cfg['file'].replace('.gz','.gc.gz.tbi')):
+		if os.path.exists(cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz.tbi')):
 			if args.replace:
 				try:
-					os.remove(cfg['file'].replace('.gz','.gc.gz.tbi'))
+					os.remove(cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz.tbi'))
 				except OSError:
-					print Process.print_error('unable to remove existing inflation corrected results index file ' + cfg['file'].replace('.gz','.gc.gz.tbi'))
+					print Process.print_error('unable to remove existing inflation corrected results index file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz.tbi'))
 			else:
-				print Process.print_error('results index file ' + cfg['file'].replace('.gz','.gc.gz.tbi') + ' already exists, use --replace to overwrite existing results')
+				print Process.print_error('results index file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz.tbi') + ' already exists, use --replace to overwrite existing results')
 				return
 		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
 		if cfg['qsub'] is not None:
-			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['file'].replace('.gz','.gc.log'),qsub_wrapper],'\"' + cmd + '\"')
+			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'),qsub_wrapper],'\"' + cmd + '\"')
 		else:
-			Process.interactive(qsub_wrapper, cmd, cfg['file'].replace('.gz','.gc.log'))
+			Process.interactive(qsub_wrapper, cmd, cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'))
 
 	else:
 		print Process.print_error(args.which + " not a currently available module")

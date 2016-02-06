@@ -433,11 +433,13 @@ def print_snvgroupplot_options(cfg):
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
 def generate_filter_cfg(args):
-	config = {'file': None, 'replace': False, 'qsub': None, 'debug': False, 'gc': False, 
-				'miss': None, 'maf': None, 'mac': None, 'snvgroup_mac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None}
+	config = {'file': None, 'tag': 'filtered', 'replace': False, 'qsub': None, 'debug': False, 'gc': False, 
+				'miss': None, 'maf': None, 'mac': None, 'cmac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None}
 	for arg in args:
 		if arg[0] == 'file':
 			config['file'] = arg[1]
+		if arg[0] == 'tag':
+			config['tag'] = arg[1]
 		if arg[0] == 'replace':
 			config['replace'] = arg[1]
 		if arg[0] == 'qsub':
@@ -452,8 +454,8 @@ def generate_filter_cfg(args):
 			config['maf'] = arg[1]
 		if arg[0] == 'mac':
 			config['mac'] = arg[1]
-		if arg[0] == 'snvgroup_mac':
-			config['snvgroup_mac'] = arg[1]
+		if arg[0] == 'cmac':
+			config['cmac'] = arg[1]
 		if arg[0] == 'rsq':
 			config['rsq'] = arg[1]
 		if arg[0] == 'hwe':
@@ -462,7 +464,7 @@ def generate_filter_cfg(args):
 			config['hwe_maf'] = arg[1]
 	return config
 
-def print_gc_options(cfg):
+def print_filter_options(cfg):
 	print ''
 	print "main options ..."
 	for k in cfg:

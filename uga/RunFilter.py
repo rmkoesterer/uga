@@ -82,32 +82,32 @@ def RunFilter(args):
 	nsnps = r.shape[0]
 	if cfg['miss'] is not None:
 		r = r.loc[r['callrate'] >= cfg['miss']]
-		print nsnps - str(r.shape[0]) + " removed due to low callrate"
+		print str(nsnps - r.shape[0]) + " removed due to low callrate"
 		nsnps = r.shape[0]
 	if cfg['maf'] is not None:
 		r = r.loc[(r['freq'] >= cfg['maf']) & (r['freq'] <= 1-cfg['maf'])]
-		print nsnps - str(r.shape[0]) + " removed due to low maf"
+		print str(nsnps - r.shape[0]) + " removed due to low maf"
 		nsnps = r.shape[0]
 	if cfg['mac'] is not None:
 		r = r.loc[r['mac'] >= cfg['mac']]
-		print nsnps - str(r.shape[0]) + " removed due to low mac"
+		print str(nsnps - r.shape[0]) + " removed due to low mac"
 		nsnps = r.shape[0]
 	if cfg['cmac'] is not None:
 		r = r.loc[r['cmac'] >= cfg['cmac']]
-		print nsnps - str(r.shape[0]) + " removed due to low cmac"
+		print str(nsnps - r.shape[0]) + " removed due to low cmac"
 		nsnps = r.shape[0]
 	if cfg['rsq'] is not None:
 		r = r.loc[(~ np.isnan(r['rsq'])) & (r['rsq'] >= cfg['rsq'])]
-		print nsnps - str(r.shape[0]) + " removed due to low rsq"
+		print str(nsnps - r.shape[0]) + " removed due to low rsq"
 		nsnps = r.shape[0]
 	if cfg['hwe'] is not None:
 		if cfg['hwe_maf'] is not None:
 			r = r.loc[(~ np.isnan(r['hwe'])) & (~ np.isnan(r['freq'])) & (~ (r['freq'] >= cfg['hwe_maf']) & (r['hwe'] < cfg['hwe']))]
 		else:
 			r = r.loc[(~ np.isnan(r['hwe'])) & (r['hwe'] >= cfg['hwe'])]
-		print nsnps - str(r.shape[0]) + " removed due to low hwe p-value"
+		print str(nsnps - r.shape[0]) + " removed due to low hwe p-value"
 		nsnps = r.shape[0]
-	print nsnps + " results remain after filtering"
+	print str(nsnps) + " results remain after filtering"
 
 	if cfg['gc']:
 		l = np.median(scipy.chi2.ppf([1-x for x in r.loc[~ np.isnan(r['p']),'p'].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
@@ -136,9 +136,9 @@ def RunFilter(args):
 
 	print "writing filtered results to file"
 	try:
-		bgzfile = bgzf.BgzfWriter(cfg['file'].replace('.gz','.gc.gz'), 'wb')
+		bgzfile = bgzf.BgzfWriter(cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz'), 'wb')
 	except:
-		print Process.Error("unable to initialize out file " + cfg['file'].replace('.gz','.gc.gz')).out
+		print Process.Error("unable to initialize out file " + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz')).out
 		return 1
 	bgzfile.write('\n'.join([x for x in handle.header]) + '\n')
 	r[cols].to_csv(bgzfile,header=False,index=False,sep="\t",na_rep='NA', float_format='%.5g')
@@ -147,9 +147,9 @@ def RunFilter(args):
 
 	print "indexing out file"
 	try:
-		pysam.tabix_index(cfg['file'].replace('.gz','.gc.gz'),seq_col=0,start_col=r.columns.get_loc('pos'),end_col=r.columns.get_loc('pos'),force=True)
+		pysam.tabix_index(cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz'),seq_col=0,start_col=r.columns.get_loc('pos'),end_col=r.columns.get_loc('pos'),force=True)
 	except:
-		print Process.Error('failed to generate index for file ' + cfg['file'].replace('.gz','.gc.gz')).out
+		print Process.Error('failed to generate index for file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz')).out
 		return 1
 
 	print "process complete"

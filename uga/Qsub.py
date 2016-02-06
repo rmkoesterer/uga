@@ -71,8 +71,8 @@ def main(argv):
 		from uga.RunSnvplot import RunSnvplot
 	if argv[1].split('(')[0] == "RunSnvgroupplot":
 		from uga.RunSnvgroupplot import RunSnvgroupplot
-	if argv[1].split('(')[0] == "RunGc":
-		from uga.RunGc import RunGc
+	if argv[1].split('(')[0] == "RunFilter":
+		from uga.RunFilter import RunFilter
 
 	exec('r=' + argv[1])
 	if r == 0:

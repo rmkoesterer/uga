@@ -625,6 +625,9 @@ def filter_args(filter_parser):
 						action=AddString, 
 						required=True, 
 						help='filename containing results to be corrected')
+	filter_parser.add_argument('--tag', 
+						action=AddString, 
+						help='tag for output filename (will be appended to --file; default: "filtered")')
 	filter_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 
