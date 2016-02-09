@@ -15,6 +15,7 @@
 ##    You should have received a copy of the GNU General Public License
 ##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import demandimport; demandimport.enable()
 import os
 import numpy as np
 import pandas as pd
@@ -300,7 +301,7 @@ def main(args=None):
 	##### locate qsub wrapper #####
 	qsub_wrapper = resource_filename('uga', 'Qsub.py')
 
-	if args.which == 'set':
+	if args.which == 'define':
 		if 'ordered_args' in args:
 			for k in args.ordered_args:
 				ini.set('main',k[0],k[1])

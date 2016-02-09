@@ -39,20 +39,20 @@ class AddFalse(argparse.Action):
 		previous.append((self.dest, False))
 		setattr(namespace, 'ordered_args', previous)
 
-def set_args(set_parser):
-	set_parser.add_argument('--snpeff', 
+def define_args(define_parser):
+	define_parser.add_argument('--snpeff', 
 						action=AddString, 
 						help='set full path to snpEff executable')
-	set_parser.add_argument('--snpsift', 
+	define_parser.add_argument('--snpsift', 
 						action=AddString, 
 						help='set full path to SnpSift executable')
-	set_parser.add_argument('--dbnsfp', 
+	define_parser.add_argument('--dbnsfp', 
 						action=AddString, 
 						help='set full path to dbNSFP database')
-	set_parser.add_argument('--locuszoom', 
+	define_parser.add_argument('--locuszoom', 
 						action=AddString, 
 						help='set full path to locuszoom executable')
-	return set_parser
+	return define_parser
 
 def snv_args(snv_parser):
 	snv_parser.add_argument('--out', 
@@ -672,3 +672,34 @@ def filter_args(filter_parser):
 						type=float, 
 						help='threshold value for minimum cumulative minor allele count in snv group (ie. 3 filters out snv groups with cmac < 3)')
 	return filter_parser
+
+def annot_args(annot_parser):
+	annot_required = annot_parser.add_argument_group('required arguments')
+	annot_required.add_argument('--file', 
+						action=AddString, 
+						required=True, 
+						help='filename of results to be annotated')
+	annot_parser.add_argument('--annot', 
+						nargs=2,
+						action=AddString, 
+						help='annotation file tag and name (ie. --file X file.gz: add file "file.gz" with tag "X"')
+	annot_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
+	annot_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	annot_parser.add_argument('--debug', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable debug mode (prints debug info to log file)')
+	annot_parser.add_argument('--snpeff', 
+						nargs=0, 
+						action=AddTrue, 
+						help='annotate results with snpEff')
+	annot_parser.add_argument('--xlsx', 
+						nargs=0, 
+						action=AddTrue, 
+						help='write annotated results to an xlsx file')
+	return annot_parser

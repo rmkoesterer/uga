@@ -82,56 +82,44 @@ def RunFilter(args):
 	nsnps = r.shape[0]
 	if cfg['miss'] is not None:
 		r = r.loc[r['callrate'] >= cfg['miss']]
-		print str(nsnps - r.shape[0]) + " removed due to low callrate"
-		nsnps = r.shape[0]
 	if cfg['maf'] is not None:
 		r = r.loc[(r['freq'] >= cfg['maf']) & (r['freq'] <= 1-cfg['maf'])]
-		print str(nsnps - r.shape[0]) + " removed due to low maf"
-		nsnps = r.shape[0]
 	if cfg['mac'] is not None:
 		r = r.loc[r['mac'] >= cfg['mac']]
-		print str(nsnps - r.shape[0]) + " removed due to low mac"
-		nsnps = r.shape[0]
 	if cfg['cmac'] is not None:
 		r = r.loc[r['cmac'] >= cfg['cmac']]
-		print str(nsnps - r.shape[0]) + " removed due to low cmac"
-		nsnps = r.shape[0]
 	if cfg['rsq'] is not None:
 		r = r.loc[(~ np.isnan(r['rsq'])) & (r['rsq'] >= cfg['rsq'])]
-		print str(nsnps - r.shape[0]) + " removed due to low rsq"
-		nsnps = r.shape[0]
 	if cfg['hwe'] is not None:
 		if cfg['hwe_maf'] is not None:
 			r = r.loc[(~ np.isnan(r['hwe'])) & (~ np.isnan(r['freq'])) & (~ (r['freq'] >= cfg['hwe_maf']) & (r['hwe'] < cfg['hwe']))]
 		else:
 			r = r.loc[(~ np.isnan(r['hwe'])) & (r['hwe'] >= cfg['hwe'])]
-		print str(nsnps - r.shape[0]) + " removed due to low hwe p-value"
-		nsnps = r.shape[0]
-	print str(nsnps) + " results remain after filtering"
+	print str(r.shape[0]) + " results remain after filtering, " + str(nsnps - r.shape[0]) + " removed"
 
 	if cfg['gc']:
 		l = np.median(scipy.chi2.ppf([1-x for x in r.loc[~ np.isnan(r['p']),'p'].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-		print "   genomic inflation = " + str(l)
+		print "genomic inflation = " + str(l)
 
-		print "   adjusting stderr"
+		print "adjusting stderr"
 		if 'stderr' in r.columns:
 			r['stderr'] = r['stderr'] * math.sqrt(l)
 
 		if 'wald' in r.columns:
-			print "   adjusting wald statistic"
+			print "adjusting wald statistic"
 			r['wald'] = r['wald'] / math.sqrt(l)
-			print "   calculating corrected p-value from wald statistic"
+			print "calculating corrected p-value from wald statistic"
 			r['p'] = scipy.chisqprob(r['wald'],1)
 		elif 'z' in r.columns:
-			print "   adjusting z statistic"
+			print "adjusting z statistic"
 			r['z'] = r['z'] / math.sqrt(l)
-			print "   calculating corrected p-value from z statistic"
+			print "calculating corrected p-value from z statistic"
 			r['p'] = 2 * scipy.norm.cdf(-1 * np.abs(r['z']))
 		elif 'effect' in r.columns and 'stderr' in r.columns:
-			print "   calculating corrected p-value from effect and stderr using a calculated z statistic"
+			print "calculating corrected p-value from effect and stderr using a calculated z statistic"
 			r['p'] = 2 * scipy.norm.cdf(-1 * np.abs(r['effect']) / r['stderr'])
 		else:
-			print "   calculating corrected p-value from existing p-value using an estimated z statistic"
+			print "calculating corrected p-value from existing p-value using an estimated z statistic"
 			r['p'] = 2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*r['p']) / math.sqrt(l)))
 
 	print "writing filtered results to file"

@@ -40,7 +40,7 @@ def get_parser():
 	subparsers = main_parser.add_subparsers(title='modules', dest='which')
 	global_parser = argparse.ArgumentParser(add_help=False)
 
-	set_parser = Args.set_args(subparsers.add_parser('set', help='user definable settings', parents=[global_parser]))
+	define_parser = Args.define_args(subparsers.add_parser('define', help='user definable settings', parents=[global_parser]))
 	snv_parser = Args.snv_args(subparsers.add_parser('snv', help='run single nucleotide variant association models', parents=[global_parser]))
 	snvgroup_parser = Args.snvgroup_args(subparsers.add_parser('snvgroup', help='run variant group (ie. gene) based association models', parents=[global_parser]))
 	meta_parser = Args.meta_args(subparsers.add_parser('meta', help='run meta analysis', parents=[global_parser]))
@@ -49,6 +49,7 @@ def get_parser():
 	snvplot_parser = Args.snvplot_args(subparsers.add_parser('snvplot', help='generate qq and manhattan plots for single variant results', parents=[global_parser]))
 	snvgroupplot_parser = Args.snvgroupplot_args(subparsers.add_parser('snvgroupplot', help='generate qq and manhattan plots for grouped variant results', parents=[global_parser]))
 	filter_parser = Args.filter_args(subparsers.add_parser('filter', help='filter results / correct single variant results for genomic inflation', parents=[global_parser]))
+	annot_parser = Args.annot_args(subparsers.add_parser('annot', help='annotate results with external files / snpEff', parents=[global_parser]))
 
 	return main_parser
 
@@ -465,6 +466,36 @@ def generate_filter_cfg(args):
 	return config
 
 def print_filter_options(cfg):
+	print ''
+	print "main options ..."
+	for k in cfg:
+		if cfg[k] is not None and cfg[k] is not False:
+			if cfg[k] is True:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+			else:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+
+def generate_annot_cfg(args):
+	config = {'file': None, 'replace': False, 'qsub': None, 'debug': False, 'annots': {}, 'annot_order': [], 'snpeff': False, 'xlsx': False}
+	for arg in args:
+		if arg[0] == 'file':
+			config['file'] = arg[1]
+		if arg[0] == 'replace':
+			config['replace'] = arg[1]
+		if arg[0] == 'qsub':
+			config['qsub'] = arg[1]
+		if arg[0] == 'debug':
+			config['debug'] = arg[1]
+		if arg[0] == 'annot':
+			config['annots'][arg[1][0]] = arg[1][1]
+			config['annot_order'].append(arg[1][0])
+		if arg[0] == 'snpeff':
+			config['snpeff'] = arg[1]
+		if arg[0] == 'xlsx':
+			config['xlsx'] = arg[1]
+	return config
+
+def print_annot_options(cfg):
 	print ''
 	print "main options ..."
 	for k in cfg:
