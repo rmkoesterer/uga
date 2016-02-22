@@ -39,20 +39,23 @@ class AddFalse(argparse.Action):
 		previous.append((self.dest, False))
 		setattr(namespace, 'ordered_args', previous)
 
-def define_args(define_parser):
-	define_parser.add_argument('--snpeff', 
+def settings_args(settings_parser):
+	settings_parser.add_argument('--snpeff', 
 						action=AddString, 
 						help='set full path to snpEff executable')
-	define_parser.add_argument('--snpsift', 
+	settings_parser.add_argument('--snpsift', 
 						action=AddString, 
 						help='set full path to SnpSift executable')
-	define_parser.add_argument('--dbnsfp', 
+	settings_parser.add_argument('--dbnsfp', 
 						action=AddString, 
 						help='set full path to dbNSFP database')
-	define_parser.add_argument('--locuszoom', 
+	settings_parser.add_argument('--locuszoom', 
 						action=AddString, 
 						help='set full path to locuszoom executable')
-	return define_parser
+	settings_parser.add_argument('--wrapper', 
+						action=AddString, 
+						help='set full path to qsub wrapper python script')
+	return settings_parser
 
 def snv_args(snv_parser):
 	snv_parser.add_argument('--out', 

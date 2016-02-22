@@ -15,7 +15,7 @@
 ##    You should have received a copy of the GNU General Public License
 ##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import demandimport; demandimport.enable()
+import demandimport; demandimport.enable(); demandimport.ignore('bottleneck'); demandimport.ignore('pathlib')
 import os
 import numpy as np
 import pandas as pd
@@ -50,12 +50,18 @@ def main(args=None):
 			cfg['replace'] = True
 		else:
 			cfg = getattr(Parse, 'generate_' + args.which + '_cfg')(args.ordered_args)
-	else:
+	elif args.which != 'settings':
 		cfg = getattr(Parse, 'generate_' + args.which + '_cfg')(args.ordered_args)
 
 	##### read settings file #####
 	ini = SafeConfigParser()
 	ini.read(resource_filename('uga', 'settings.ini'))
+
+	##### locate qsub wrapper #####
+	qsub_wrapper = ini.get('main','wrapper')
+	if 'qsub' in args and not os.access(ini.get('main','wrapper'),os.X_OK):
+		print Process.print_error('uga qsub wrapper ' + ini.get('main','wrapper') + ' is not executable')
+		return
 
 	##### distribute jobs #####
 	if args.which in ['snv','snvgroup','meta']:
@@ -88,7 +94,7 @@ def main(args=None):
 				data_files = []
 				for m in cfg['models']:
 					if cfg['models'][m]['file'] not in data_files:
-						snv_map.extend(Map.map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region']))
+						snv_map.extend(Map.map(file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region']))
 						data_files.append(cfg['models'][m]['file'])
 				snv_map = list(set(snv_map))
 				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
@@ -120,7 +126,7 @@ def main(args=None):
 				data_files = []
 				for f in cfg['files']:
 					if f not in data_files:
-						snv_map.extend(Map.map(out=cfg['out'] + '.' + f + '.regions', file=cfg['files'][f], mb = cfg['mb'], region = cfg['region']))
+						snv_map.extend(Map.map(file=cfg['files'][f], mb = cfg['mb'], region = cfg['region']))
 						data_files.append(cfg['files'][f])
 				snv_map = list(set(snv_map))
 				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
@@ -155,7 +161,7 @@ def main(args=None):
 				data_files = []
 				for m in cfg['models']:
 					if cfg['models'][m]['file'] not in data_files:
-						snv_map.extend(Map.map(out=cfg['out'] + '.' + m + '.regions', file=cfg['models'][m]['file'], mb = 1000, region = cfg['region']))
+						snv_map.extend(Map.map(file=cfg['models'][m]['file'], mb = 1000, region = cfg['region']))
 						data_files.append(cfg['models'][m]['file'])
 				snv_map = list(set(snv_map))
 				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
@@ -216,9 +222,6 @@ def main(args=None):
 			print Process.print_error('number of jobs exceeds 100,000, consider using --split-n to reduce the total number of jobs')
 			return
 
-	##### generate output directories #####
-	directory = os.getcwd()
-
 	if args.which in ['snv','snvgroup','meta']:
 		print 'detected run type ' + str(run_type) + ' ...'
 		if len(rerun) == 0:
@@ -231,7 +234,7 @@ def main(args=None):
 				print '   <= ' + str(max(np.bincount(regions_df['job']))) + ' regions per job'
 				print '   <= '  + str(int(max(regions_df['cpu']))) + ' cpus per job'
 				print '   qsub options: ' + cfg['qsub']
-				print '   output directory: ' + directory
+				print '   output directory: ' + cfg['out']
 				print '   replace: ' + str(cfg['replace'])
 				input_var = None
 				while input_var not in ['y','n','Y','N']:
@@ -240,36 +243,35 @@ def main(args=None):
 					print 'canceled by user'
 					return
 
-			directory = directory + '/' + os.path.basename(cfg['out'])
-			if os.path.exists(directory):
+			if os.path.exists(cfg['out']):
 				if args.replace:
 					print 'replacing existing results'
 					try:
-						shutil.rmtree(directory)
+						shutil.rmtree(cfg['out'])
 					except OSError:
-						print Process.print_error('unable to replace results directory' + directory)
+						print Process.print_error('unable to replace results directory' + cfg['out'])
 				else:
-					print Process.print_error('results directory ' + directory + ' already exists, use --replace to overwrite existing results')
+					print Process.print_error('results directory ' + cfg['out'] + ' already exists, use --replace to overwrite existing results')
 					return
 			try:
-				os.mkdir(directory)
+				os.mkdir(cfg['out'])
 			except OSError:
 				pass
 
-			with open(directory + '/' + os.path.basename(cfg['out']) + '.args.pkl', 'wb') as p:
+			with open(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.args.pkl', 'wb') as p:
 				pickle.dump([args, cfg], p)
 
 			if run_type in [10,11,100,101] and regions_df.shape[0] > 1:
 				for j in range(1, int(max(regions_df['job'])) + 1):
 					try:
-						os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))
+						os.mkdir(cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))
 					except OSError:
 						pass
 					try:
-						os.mkdir(directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j))
+						os.mkdir(cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j))
 					except OSError:
 						pass
-				with open(directory + '/' + cfg['out'] + '.files', 'w') as jlist:
+				with open(cfg['out'] + '/' + cfg['out'] + '.files', 'w') as jlist:
 					for j in range(1, int(max(regions_df['job'])) + 1):
 						if args.which in ['snv','snvgroup']:
 							if 'model_order' in cfg:
@@ -282,14 +284,13 @@ def main(args=None):
 								for m in cfg['meta_order']:
 									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
 		else:
-			directory = directory + '/' + os.path.basename(cfg['out'])
 			if int(max(regions_df['job'])) > 1 and cfg['qsub'] is not None:
 				print 'detected resubmit ...'
 				print '   ' + str(len(rerun)) + ' jobs will be submitted'
 				print '   <= ' + str(max(np.bincount(regions_df['job']))) + ' regions per job'
 				print '   <= '  + str(int(max(regions_df['cpu']))) + ' cpus per job'
 				print '   qsub options: ' + cfg['qsub']
-				print '   output directory: ' + directory
+				print '   output directory: ' + cfg['out']
 				print '   replace: ' + str(cfg['replace'])
 				input_var = None
 				while input_var not in ['y','n','Y','N']:
@@ -298,10 +299,7 @@ def main(args=None):
 					print 'canceled by user'
 					return
 
-	##### locate qsub wrapper #####
-	qsub_wrapper = resource_filename('uga', 'Qsub.py')
-
-	if args.which == 'define':
+	if args.which == 'settings':
 		if 'ordered_args' in args:
 			for k in args.ordered_args:
 				ini.set('main',k[0],k[1])
@@ -320,10 +318,10 @@ def main(args=None):
 		for j in joblist:
 			regions_job_df = regions_df[regions_df['job'] == j].reset_index(drop=True)
 			if int(max(regions_df['job'])) > 1:
-				cfg['out'] = directory + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + out + '.job' + str(j)
+				cfg['out'] = out + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + os.path.basename(out) + '.job' + str(j)
 				regions_job_df.to_csv(cfg['out'] + '.regions', index = False, header = True, sep='\t', na_rep='None')
 			else:
-				cfg['out'] = directory + '/' + out
+				cfg['out'] = out + '/' + os.path.basename(out)
 				regions_job_df.to_csv(cfg['out'] + '.regions', index = False, header = True, sep='\t', na_rep='None')
 			args.ordered_args = [('out',cfg['out']),('region_file',cfg['out'] + '.regions'),('cpus',int(max(regions_job_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
 			cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'

@@ -40,7 +40,7 @@ def get_parser():
 	subparsers = main_parser.add_subparsers(title='modules', dest='which')
 	global_parser = argparse.ArgumentParser(add_help=False)
 
-	define_parser = Args.define_args(subparsers.add_parser('define', help='user definable settings', parents=[global_parser]))
+	settings_parser = Args.settings_args(subparsers.add_parser('settings', help='user definable settings', parents=[global_parser]))
 	snv_parser = Args.snv_args(subparsers.add_parser('snv', help='run single nucleotide variant association models', parents=[global_parser]))
 	snvgroup_parser = Args.snvgroup_args(subparsers.add_parser('snvgroup', help='run variant group (ie. gene) based association models', parents=[global_parser]))
 	meta_parser = Args.meta_args(subparsers.add_parser('meta', help='run meta analysis', parents=[global_parser]))
@@ -59,7 +59,7 @@ def get_args(parser):
 		for k in args.ordered_args:
 			vars(args).update({k[0]: k[1]})
 	else:
-		if args.which in ['snv','snvgroup','meta','map','compile','eval','gc','annot']:
+		if args.which != 'settings':
 			parser.error("missing argument: no options selected")
 	print ''
 	print 'active module: ' + args.which

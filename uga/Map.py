@@ -22,8 +22,7 @@ import glob
 import os
 from progressbar import ProgressBar, Counter, Timer
 
-def map(out, 
-		file, 
+def map(file, 
 		region = None, 
 		mb = '1', 
 		shift_mb = None):

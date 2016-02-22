@@ -82,8 +82,8 @@ def compile_results(directory, files):
 		bgzfile[o].close()
 
 	print "compiling log files"
-	summary = file(directory + '/' + directory + '.summary', 'w')
-	logs = file(directory + '/' + directory + '.logs', 'w')
+	summary = file(directory + '/' + os.path.basename(directory) + '.summary', 'w')
+	logs = file(directory + '/' + os.path.basename(directory) + '.logs', 'w')
 	files_o = files[files['out'] == out[0]].reset_index(drop=True)
 	pbar = ProgressBar(maxval=files_o.shape[0], widgets = ['   processed ', Counter(), ' of ' + str(files_o.shape[0]) + ' results (', Timer(), ')'])
 	pbar.start()
