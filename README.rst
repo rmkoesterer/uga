@@ -54,6 +54,11 @@ This software is currently under rapid development. Updates and bug fixes are be
 .. _`Locuszoom`: http://genome.sph.umich.edu/wiki/LocusZoom_Standalone
 .. _`SnpEff`: http://snpeff.sourceforge.net/
 
+**Future Plans**
+   - Add `Hadoop`_ compatibility for parallelizable tasks (ie. snv, meta)
+
+.. _`Hadoop`: http://hadoop.apache.org/
+
 Since parallel computing is sometimes unreliable, analysts need to be able to verify and possibly rerun failed jobs at various stages of the analysis.
 In the interest of user efficiency and to avoid limitations induced by excessive automation, uga breaks the analytical process into the following modules.
 
