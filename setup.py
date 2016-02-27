@@ -3,6 +3,7 @@ from setuptools.command.test import test as TestCommand
 from codecs import open
 import os
 from Cython.Build import cythonize
+import numpy as np
 
 execfile("uga/__version__.py")
 
@@ -33,7 +34,8 @@ setup(
 			'uga = uga.__main__:main',
            ],
        },
-    packages=['uga'],
+    packages=['uga'], 
+	include_dirs = [np.get_include()], 
 	package_data={'uga': ['Data/*','settings.ini',]},
     classifiers = [
         'Programming Language :: Python :: 2.7',
