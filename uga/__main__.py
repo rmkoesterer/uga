@@ -37,7 +37,7 @@ def main(args=None):
 	rerun = []
 	args = Parse.get_args(Parse.get_parser())
 
-	if args.which in ['snv','snvgroup','meta','resubmit']:
+	if args.which in ['snv','snvgroup','meta','merge','resubmit']:
 		if args.which == 'resubmit':
 			with open(args.dir + '/' + os.path.basename(args.dir) + '.args.pkl', 'rb') as p:
 				qsub = args.qsub if args.qsub else None
@@ -64,7 +64,7 @@ def main(args=None):
 		return
 
 	##### distribute jobs #####
-	if args.which in ['snv','snvgroup','meta']:
+	if args.which in ['snv','snvgroup','meta','merge']:
 		run_type = 0
 		if cfg['cpus'] is not None and cfg['cpus'] > 1:
 			run_type = run_type + 1
@@ -106,7 +106,7 @@ def main(args=None):
 			regions_df.sort_values(by=['chr','start'],inplace=True)
 			regions_df.reset_index(drop=True,inplace=True)
 
-		if args.which == 'meta':
+		if args.which in ['meta','merge']:
 			#	generate regions dataframe with M rows, either from --snv-map or by splitting data file or --snv-region according to --mb
 			#	run_type = 0:   run as single job
 			#	run_type = 1:   --cpus C (distribute M regions over C cpus and run single job, 1 job C cpus)
@@ -222,7 +222,7 @@ def main(args=None):
 			print Process.print_error('number of jobs exceeds 100,000, consider using --split-n to reduce the total number of jobs')
 			return
 
-	if args.which in ['snv','snvgroup','meta']:
+	if args.which in ['snv','snvgroup','meta','merge']:
 		print 'detected run type ' + str(run_type) + ' ...'
 		if len(rerun) == 0:
 			if int(max(regions_df['job'])) > 1 and cfg['qsub'] is not None:
@@ -310,7 +310,7 @@ def main(args=None):
 			for k in ini.options(s):
 				print '   ' + k + ' = ' + ini.get(s,k)
 
-	elif args.which in ['snv','snvgroup','meta','resubmit']:
+	elif args.which in ['snv','snvgroup','meta','merge','resubmit']:
 		if cfg['qsub']:
 			print "submitting jobs\n"
 		out = cfg['out']

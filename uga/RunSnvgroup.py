@@ -81,7 +81,7 @@ def process_regions(regions_df, cfg, cpu, log):
 				try:
 					models_obj[n] = getattr(Model,cfg['models'][n]['fxn'].capitalize())(fxn=cfg['models'][n]['fxn'], 
 																						snvgroup_map=cfg['snvgroup_map'], 
-																						pheno=cfg['models'][n]['pheno'], 
+																						dep_var=cfg['models'][n]['dep_var'], 
 																						covars=cfg['models'][n]['covars'], 
 																						format=cfg['models'][n]['format'], 
 																						skat_wts=cfg['models'][n]['skat_wts'], 
@@ -93,9 +93,10 @@ def process_regions(regions_df, cfg, cpu, log):
 																						all_founders=cfg['models'][n]['all_founders'], 
 																						case_code=cfg['models'][n]['case_code'], 
 																						ctrl_code=cfg['models'][n]['ctrl_code'], 
-																						ped=cfg['models'][n]['ped'], 
+																						pheno=cfg['models'][n]['pheno'], 
 																						variants_file=cfg['models'][n]['file'].replace('[CHR]',str(regions_df['chr'][k])), # variants_file=cfg['models'][n]['file']
 																						samples_file=cfg['models'][n]['sample'], 
+																						drop_file=cfg['models'][n]['drop'], 
 																						type=cfg['models'][n]['fxn'], 
 																						fid=cfg['models'][n]['fid'], 
 																						iid=cfg['models'][n]['iid'], 

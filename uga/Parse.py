@@ -49,7 +49,7 @@ def get_parser():
 	snvplot_parser = Args.snvplot_args(subparsers.add_parser('snvplot', help='generate qq and manhattan plots for single variant results', parents=[global_parser]))
 	snvgroupplot_parser = Args.snvgroupplot_args(subparsers.add_parser('snvgroupplot', help='generate qq and manhattan plots for grouped variant results', parents=[global_parser]))
 	filter_parser = Args.filter_args(subparsers.add_parser('filter', help='filter results / correct single variant results for genomic inflation', parents=[global_parser]))
-	annot_parser = Args.annot_args(subparsers.add_parser('annot', help='annotate results with external files / snpEff', parents=[global_parser]))
+	merge_parser = Args.merge_args(subparsers.add_parser('merge', help='merge and annotate results with external files / snpEff', parents=[global_parser]))
 
 	return main_parser
 
@@ -106,7 +106,7 @@ def generate_snv_cfg(args):
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
 							'male': 1, 'female': 2, 'miss': None, 'maf': None, 'maxmaf': None, 'mac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None,
-							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'corstr': None, 
+							'fxn': None, 'dep_var': None, 'format': None, 'file': None, 'sample': None, 'drop': None, 'corstr': None, 
 							'pheno': None, 'covars': None, 'interact': None, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 
 							'adjust_kinship': False}
 	if len(tags_idx) > 1:
@@ -115,6 +115,7 @@ def generate_snv_cfg(args):
 			for arg in global_args:
 				if arg[0] in ['score','lm','glm','gee']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
+					config['models'][args[tags_idx[i]][1]]['dep_var'] = arg[1]
 				elif arg[0] in ['vcf','dos','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
@@ -123,6 +124,7 @@ def generate_snv_cfg(args):
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
 				if arg[0] in ['score','lm','glm','gee']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
+					config['models'][args[tags_idx[i]][1]]['dep_var'] = arg[1]
 				elif arg[0] in ['vcf','dos','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
@@ -134,6 +136,7 @@ def generate_snv_cfg(args):
 		for arg in global_args:
 			if arg[0] in ['score','lm','glm','gee']:
 				config['models']['___no_tag___']['fxn'] = arg[0]
+				config['models']['___no_tag___']['dep_var'] = arg[1]
 			elif arg[0] in ['vcf','dos','oxford']:
 				config['models']['___no_tag___']['format'] = arg[0]
 				config['models']['___no_tag___']['file'] = arg[1]
@@ -154,8 +157,10 @@ def print_snv_options(cfg):
 					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 	for m in cfg['model_order']:
 		print '   model ' + str(m) + ' ...' if len(cfg['models']) > 1 else '   model ...'
+		print "      {0:>{1}}".format(str('--' + cfg['models'][m]['fxn'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m]['dep_var'])
+		print "      {0:>{1}}".format(str('--' + cfg['models'][m]['format'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m]['file'])
 		for n in cfg['models'][m]:
-			if cfg['models'][m][n] is not None and cfg['models'][m][n] is not False:
+			if cfg['models'][m][n] is not None and cfg['models'][m][n] is not False and n not in ['fxn','dep_var','format','file']:
 				if cfg['models'][m][n] is True:
 					print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len)))
 				else:
@@ -206,23 +211,25 @@ def generate_snvgroup_cfg(args):
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
 							'male': 1, 'female': 2, 'miss': None, 'maf': None, 'maxmaf': None, 'mac': None, 'cmac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None, 
-							'fxn': None, 'format': None, 'file': None, 'sample': None, 'pheno': None, 'skat_wts': None, 'burden_wts': None, 'skat_method': None,
-							'pheno': None, 'covars': None, 'mafrange': None, 'skato_rho': None, 'case_code': 1, 'ctrl_code': 0, 
+							'fxn': None, 'format': None, 'file': None, 'sample': None, 'drop': None, 'skat_wts': None, 'burden_wts': None, 'skat_method': None,
+							'pheno': None, 'dep_var': None, 'covars': None, 'mafrange': None, 'skato_rho': None, 'case_code': 1, 'ctrl_code': 0, 
 							'adjust_kinship': False}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
 			for arg in global_args:
-				if arg[0] in ['skat','skato','burden']:
+				if arg[0] in ['skat','skato','burden','neff']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
+					config['models'][args[tags_idx[i]][1]]['dep_var'] = arg[1]
 				elif arg[0] in ['vcf','dos','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
 				else:
 					config['models'][args[tags_idx[i]][1]][arg[0]] = arg[1]
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['skat','skato','burden']:
+				if arg[0] in ['skat','skato','burden','neff']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
+					config['models'][args[tags_idx[i]][1]]['dep_var'] = arg[1]
 				elif arg[0] in ['vcf','dos','oxford']:
 					config['models'][args[tags_idx[i]][1]]['format'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['file'] = arg[1]
@@ -232,8 +239,9 @@ def generate_snvgroup_cfg(args):
 	else:
 		config['models']['___no_tag___'] = config_default
 		for arg in global_args:
-			if arg[0] in ['skat','skato','burden']:
+			if arg[0] in ['skat','skato','burden','neff']:
 				config['models']['___no_tag___']['fxn'] = arg[0]
+				config['models']['___no_tag___']['dep_var'] = arg[1]
 			elif arg[0] in ['vcf','dos','oxford']:
 				config['models']['___no_tag___']['format'] = arg[0]
 				config['models']['___no_tag___']['file'] = arg[1]
@@ -254,8 +262,10 @@ def print_snvgroup_options(cfg):
 					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 	for m in cfg['model_order']:
 		print '   model ' + str(m) + ' ...' if len(cfg['models']) > 1 else '   model ...'
+		print "      {0:>{1}}".format(str('--' + cfg['models'][m]['fxn'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m]['dep_var'])
+		print "      {0:>{1}}".format(str('--' + cfg['models'][m]['format'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m]['file'])
 		for n in cfg['models'][m]:
-			if cfg['models'][m][n] is not None and cfg['models'][m][n] is not False:
+			if cfg['models'][m][n] is not None and cfg['models'][m][n] is not False and n not in ['fxn','dep_var','format','file']:
 				if cfg['models'][m][n] is True:
 					print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len)))
 				else:
@@ -475,27 +485,40 @@ def print_filter_options(cfg):
 			else:
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
-def generate_annot_cfg(args):
-	config = {'file': None, 'replace': False, 'qsub': None, 'debug': False, 'annots': {}, 'annot_order': [], 'snpeff': False, 'xlsx': False}
+def generate_merge_cfg(args):
+	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
+					'debug': False, 'files': {}, 'file_order': [], 'snpeff': False}
 	for arg in args:
 		if arg[0] == 'file':
-			config['file'] = arg[1]
+			config['files'][arg[1][0]] = arg[1][1]
+			config['file_order'].append(arg[1][0])
+		if arg[0] == 'out':
+			config['out'] = arg[1]
 		if arg[0] == 'replace':
 			config['replace'] = arg[1]
 		if arg[0] == 'qsub':
 			config['qsub'] = arg[1]
 		if arg[0] == 'debug':
 			config['debug'] = arg[1]
-		if arg[0] == 'annot':
-			config['annots'][arg[1][0]] = arg[1][1]
-			config['annot_order'].append(arg[1][0])
+		if arg[0] == 'region':
+			config['region'] = arg[1]
+		if arg[0] == 'region_file':
+			config['region_file'] = arg[1]
+		if arg[0] == 'buffer':
+			config['buffer'] = arg[1]
+		if arg[0] == 'cpus' and arg[1] is not None:
+			config['cpus'] = arg[1]
+		if arg[0] == 'mb' and arg[1] is not None:
+			config['mb'] = arg[1]
+		if arg[0] == 'split' and arg[1] is True:
+			config['split'] = arg[1]
+		if arg[0] == 'split_n':
+			config['split_n'] = arg[1]
 		if arg[0] == 'snpeff':
 			config['snpeff'] = arg[1]
-		if arg[0] == 'xlsx':
-			config['xlsx'] = arg[1]
 	return config
 
-def print_annot_options(cfg):
+def print_merge_options(cfg):
 	print ''
 	print "main options ..."
 	for k in cfg:

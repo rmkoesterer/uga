@@ -99,8 +99,8 @@ cpdef complement(allele):
 cpdef get_universal_variant_id(chr_py,pos_py,a1_py,a2_py,delim_py):
 	cdef str chr = chr_py
 	cdef str pos = pos_py
-	cdef str a1 = a1_py[0:20]
-	cdef str a2 = a2_py[0:20]
+	cdef str a1 = a1_py[0:1000]
+	cdef str a2 = a2_py[0:1000]
 	cdef str delim = delim_py
 	analogs = [chr + delim + pos + delim + a1 + delim + a2, 
 					chr + delim + pos + delim + complement(a1) + delim + complement(a2)]

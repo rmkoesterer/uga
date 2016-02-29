@@ -92,6 +92,7 @@ def process_regions(regions_df, cfg, cpu, log):
 				results_obj[f].align_results(variant_ref)
 
 			results_obj[f].tag_results(f)
+			print variant_ref.db
 
 			if not region_written:
 				results_region = results_obj[f].snv_results_tagged.copy()

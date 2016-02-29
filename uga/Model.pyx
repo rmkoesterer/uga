@@ -48,27 +48,28 @@ cdef class Model(object):
 	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx, \
 							model_cols, results_header, calc_hwe_idx, \
 							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, male_idx, female_idx
-	cdef public bytes fxn, format, ped, variants_file, type, samples_file, \
+	cdef public bytes fxn, format, pheno, variants_file, type, samples_file, drop_file, \
 						iid, fid, matid, patid, sex, sep, a1, a2
-	cdef public str metadata, metadata_cc, family, formula, focus, pheno, interact, covars
-	cdef public object ped_df, variants, out, results_dtypes, pedigree
+	cdef public str metadata, metadata_cc, family, formula, focus, dep_var, interact, covars
+	cdef public object pheno_df, variants, out, results_dtypes, pedigree, drop
 	cdef public bint all_founders, reverse
-	def __cinit__(self, fxn, format, variants_file, ped, type, iid, fid, 
-					case_code = None, ctrl_code = None, all_founders = False, pheno = None, covars = None, interact = None, reverse = False, samples_file = None, 
-					matid = None, patid = None, sex = None, male = 1, female = 2, sep = 'tab', **kwargs):
+	def __cinit__(self, fxn, format, variants_file, pheno, type, iid, fid, 
+					case_code = None, ctrl_code = None, all_founders = False, dep_var = None, covars = None, interact = None, reverse = False, samples_file = None, 
+					drop_file = None, matid = None, patid = None, sex = None, male = 1, female = 2, sep = 'tab', **kwargs):
 		super(Model, self).__init__(**kwargs)
 		logger = logging.getLogger("Model.Model.__cinit__")
 		logger.debug("initialize model")
 		self.out = None
 		self.fxn = fxn
-		self.pheno = pheno
+		self.dep_var = dep_var
 		self.covars = covars
 		self.interact = interact
 		self.reverse = reverse
 		self.format = format
 		self.variants_file = variants_file
 		self.samples_file = samples_file
-		self.ped = ped
+		self.drop_file = drop_file
+		self.pheno = pheno
 		self.type = type
 		self.iid = iid
 		self.fid = fid
@@ -93,9 +94,7 @@ cdef class Model(object):
 		# factor			factor(x)			specify x as a categorical variable (factor)
 		# snv				snv					placeholder for snv (will be replaced with each snv during iteration and can be used in an interaction)
 
-		if self.pheno is None:
-			raise Process.Error("--pheno is required")
-		self.model_cols = np.array([self.pheno])
+		self.model_cols = np.array([self.dep_var])
 		self.model_cols = np.append(self.model_cols,np.array([x.replace('factor(','').replace(')','') for x in self.covars.split('+')])) if self.covars else self.model_cols
 		self.model_cols = np.append(self.model_cols,np.array(self.interact.replace('factor(','').replace(')',''))) if self.interact else self.model_cols
 		self.model_cols = np.unique(self.model_cols)
@@ -124,59 +123,67 @@ cdef class Model(object):
 			p_dtypes = p_dtypes + ('f8',) if self.sex is not None and self.sex not in self.model_cols else p_dtypes
 			dtypes = dict(zip(p_names, p_dtypes))
 			try:
-				self.ped_df = np.genfromtxt(fname=self.ped, delimiter=Fxns.get_delimiter(self.sep), dtype=p_dtypes, names=True, usecols=p_names)
+				self.pheno_df = np.genfromtxt(fname=self.pheno, delimiter=Fxns.get_delimiter(self.sep), dtype=p_dtypes, names=True, usecols=p_names)
 			except:
-				raise Process.Error("unable to load ped file " + self.ped + " with columns " + ', '.join(p_names))
+				raise Process.Error("unable to load phenotype file " + self.pheno + " with columns " + ', '.join(p_names))
 			for x in self.model_cols:
-				if x in self.ped_df.dtype.names:
+				if x in self.pheno_df.dtype.names:
 					print "   model column %s found" % (x)
 				else:
-					raise Process.Error("column " + x + " not found in ped file " + self.ped)
-			if self.fid in self.ped_df.dtype.names:
+					raise Process.Error("column " + x + " not found in phenotype file " + self.pheno)
+			if self.fid in self.pheno_df.dtype.names:
 				print "   fid column %s found" % self.fid
 			else:
-				raise Process.Error("column " + self.fid + " not found in ped file " + self.ped)
-			if self.iid in self.ped_df.dtype.names:
+				raise Process.Error("column " + self.fid + " not found in phenotype file " + self.pheno)
+			if self.iid in self.pheno_df.dtype.names:
 				print "   iid column %s found" % self.iid
 			else:
-				raise Process.Error("column " + self.iid + " not found in ped file " + self.ped)
+				raise Process.Error("column " + self.iid + " not found in phenotype file " + self.pheno)
 			if self.matid is not None:
-				if self.matid in self.ped_df.dtype.names:
+				if self.matid in self.pheno_df.dtype.names:
 					print "   matid column %s found" % self.matid
 				else:
-					raise Process.Error("column " + self.matid + " not found in ped file " + self.ped)
+					raise Process.Error("column " + self.matid + " not found in phenotype file " + self.pheno)
 			if self.patid is not None:
-				if self.patid in self.ped_df.dtype.names:
+				if self.patid in self.pheno_df.dtype.names:
 					print "   patid column %s found" % self.patid
 				else:
-					raise Process.Error("column " + self.patid + " not found in ped file " + self.ped)
+					raise Process.Error("column " + self.patid + " not found in phenotype file " + self.pheno)
 			if self.sex is not None:
-				if self.sex in self.ped_df.dtype.names:
+				if self.sex in self.pheno_df.dtype.names:
 					print "   sex column %s found" % self.sex
 				else:
-					raise Process.Error("column " + self.sex + " not found in ped file " + self.ped)
-			if self.matid is not None and self.patid is not None and self.sex is not None and set([self.iid,self.fid,self.matid,self.patid,self.sex]) <= set(self.ped_df.dtype.names):
+					raise Process.Error("column " + self.sex + " not found in phenotype file " + self.pheno)
+			if self.matid is not None and self.patid is not None and self.sex is not None and set([self.iid,self.fid,self.matid,self.patid,self.sex]) <= set(self.pheno_df.dtype.names):
 				print "   extracting pedigree"
-				self.pedigree = pd.DataFrame(self.ped_df[[self.iid,self.fid,self.matid,self.patid,self.sex]])
+				self.pedigree = pd.DataFrame(self.pheno_df[[self.iid,self.fid,self.matid,self.patid,self.sex]])
 				self.pedigree.loc[(self.pedigree[self.sex] != self.male) & (self.pedigree[self.sex] != self.female),self.sex]=-999
 				self.pedigree[self.sex].replace({self.male: 1, self.female: 2, -999: 3})
 				self.pedigree[self.matid].replace({'0': 'NA'})
 				self.pedigree[self.patid].replace({'0': 'NA'})
 			for x in [y for y in dtypes if dtypes[y] == 'f8']:
-				self.ped_df = self.ped_df[~np.isnan(self.ped_df[x])]
+				self.pheno_df = self.pheno_df[~np.isnan(self.pheno_df[x])]
 			for x in [y for y in dtypes if dtypes[y] == '|S100']:
-				self.ped_df = self.ped_df[~(self.ped_df[x] == 'NA')]
-			self.ped_df = self.ped_df[np.in1d(self.ped_df[self.iid],np.intersect1d(self.ped_df[self.iid],self.variants.samples))]
-			if self.ped_df.shape[0] > 0:
-				iids_unique, iids_counts = np.unique(self.ped_df[self.iid], return_counts=True)
-				fids_unique, fids_counts = np.unique(self.ped_df[self.fid], return_counts=True)
-				self.unique_idx = np.in1d(self.ped_df[self.iid],iids_unique)
+				self.pheno_df = self.pheno_df[~(self.pheno_df[x] == 'NA')]
+			self.pheno_df = self.pheno_df[np.in1d(self.pheno_df[self.iid],np.intersect1d(self.pheno_df[self.iid],self.variants.samples))]
+			print "phenotype file and data file contain " + str(self.pheno_df.shape[0]) + " common samples"
+			if self.drop_file is not None:
+				try:
+					self.drop=np.genfromtxt(fname=self.drop_file, dtype='object')
+				except:
+					raise Process.Error("unable to load sample drop file " + self.drop_file)
+				print "dropping " + str(len([a for a in np.in1d(self.pheno_df[self.iid],self.drop) if a])) + " samples from file " + self.drop_file
+				self.pheno_df = self.pheno_df[np.in1d(self.pheno_df[self.iid],self.drop,invert=True)]
+			if self.pheno_df.shape[0] > 0:
+				iids_unique, iids_counts = np.unique(self.pheno_df[self.iid], return_counts=True)
+				fids_unique, fids_counts = np.unique(self.pheno_df[self.fid], return_counts=True)
+				self.unique_idx = np.in1d(self.pheno_df[self.iid],iids_unique)
 				if self.all_founders or self.matid is None or self.patid is None:
 					self.founders_idx = self.unique_idx.copy()
 				else:
-					self.founders_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.unique_idx][(self.ped_df[self.unique_idx][self.matid] == '0') & (self.ped_df[self.unique_idx][self.patid] == '0')][self.iid])
+					self.founders_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][(self.pheno_df[self.unique_idx][self.matid] == '0') & (self.pheno_df[self.unique_idx][self.patid] == '0')][self.iid])
 				self.calc_hwe_idx = self.founders_idx.copy()
-				self.nobs = self.ped_df.shape[0]
+				self.nobs = self.pheno_df.shape[0]
 				self.nunique = len(iids_unique)
 				self.nlongitudinal = len(iids_counts[iids_counts != 1])
 				self.nfamilies = len(fids_counts[fids_counts > 1])
@@ -188,45 +195,45 @@ cdef class Model(object):
 				print "   " + str(self.nfamilies) + " families"
 				print "   " + str(self.nunrelated) + " unrelated samples"
 				if self.matid is not None and self.patid is not None:
-					self.nfounders = self.ped_df[self.unique_idx][(self.ped_df[self.unique_idx][self.matid] == '0') & (self.ped_df[self.unique_idx][self.patid] == '0')].shape[0]
+					self.nfounders = self.pheno_df[self.unique_idx][(self.pheno_df[self.unique_idx][self.matid] == '0') & (self.pheno_df[self.unique_idx][self.patid] == '0')].shape[0]
 					print "   " + str(self.nfounders) + " founders"
 				else:
 					self.nfounders = self.nunique
 					print "   " + str(self.nfounders) + " founders"
 				if self.sex is not None:
 					if self.male is not None:
-						self.nmales = self.ped_df[self.unique_idx][self.ped_df[self.unique_idx][self.sex] == self.male].shape[0]
-						self.male_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.unique_idx][self.ped_df[self.unique_idx][self.sex] == self.male][self.iid])
+						self.nmales = self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.male].shape[0]
+						self.male_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.male][self.iid])
 						print "   " + str(self.nmales) + " male"
 					if self.female is not None:
-						self.nfemales = self.ped_df[self.unique_idx][self.ped_df[self.unique_idx][self.sex] == self.female].shape[0]
-						self.female_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.unique_idx][self.ped_df[self.unique_idx][self.sex] == self.female][self.iid])
+						self.nfemales = self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.female].shape[0]
+						self.female_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.female][self.iid])
 						print "   " + str(self.nfemales) + " female"
-				if len(np.unique(self.ped_df[self.pheno])) == 2:
+				if len(np.unique(self.pheno_df[self.dep_var])) == 2:
 					self.family = 'binomial'
-					#self.ctrl_code = min(self.ped_df[self.pheno]) if not self.ctrl_code else self.ctrl_code
-					#self.case_code = max(self.ped_df[self.pheno]) if not self.case_code else self.case_code
-					self.ncases = self.ped_df[self.unique_idx][self.ped_df[self.unique_idx][self.pheno] == self.case_code].shape[0]
-					self.cases_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.unique_idx][self.ped_df[self.unique_idx][self.pheno] == self.case_code][self.iid])
+					#self.ctrl_code = min(self.pheno_df[self.dep_var]) if not self.ctrl_code else self.ctrl_code
+					#self.case_code = max(self.pheno_df[self.dep_var]) if not self.case_code else self.case_code
+					self.ncases = self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.dep_var] == self.case_code].shape[0]
+					self.cases_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.dep_var] == self.case_code][self.iid])
 					if self.sex is not None:
-						self.male_cases_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.male_idx][self.ped_df[self.male_idx][self.pheno] == self.case_code][self.iid])
-						self.female_cases_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.female_idx][self.ped_df[self.female_idx][self.pheno] == self.case_code][self.iid])
+						self.male_cases_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.male_idx][self.pheno_df[self.male_idx][self.dep_var] == self.case_code][self.iid])
+						self.female_cases_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.female_idx][self.pheno_df[self.female_idx][self.dep_var] == self.case_code][self.iid])
 					print "   " + str(self.ncases) + " cases"
-					self.nctrls = self.ped_df[self.unique_idx][self.ped_df[self.unique_idx][self.pheno] == self.ctrl_code].shape[0]
-					self.ctrls_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.unique_idx][self.ped_df[self.unique_idx][self.pheno] == self.ctrl_code][self.iid])
-					self.founders_ctrls_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.founders_idx][self.ped_df[self.founders_idx][self.pheno] == self.ctrl_code][self.iid])
+					self.nctrls = self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.dep_var] == self.ctrl_code].shape[0]
+					self.ctrls_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.dep_var] == self.ctrl_code][self.iid])
+					self.founders_ctrls_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.founders_idx][self.pheno_df[self.founders_idx][self.dep_var] == self.ctrl_code][self.iid])
 					self.calc_hwe_idx = self.founders_ctrls_idx.copy()
 					if self.sex is not None:
-						self.male_ctrls_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.male_idx][self.ped_df[self.male_idx][self.pheno] == self.ctrl_code][self.iid])
-						self.female_ctrls_idx = np.in1d(self.ped_df[self.iid],self.ped_df[self.female_idx][self.ped_df[self.female_idx][self.pheno] == self.ctrl_code][self.iid])
+						self.male_ctrls_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.male_idx][self.pheno_df[self.male_idx][self.dep_var] == self.ctrl_code][self.iid])
+						self.female_ctrls_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.female_idx][self.pheno_df[self.female_idx][self.dep_var] == self.ctrl_code][self.iid])
 					print "   " + str(self.nctrls) + " controls"
-					self.ped_df[self.pheno][self.cases_idx] = 1
-					self.ped_df[self.pheno][self.ctrls_idx] = 0
+					self.pheno_df[self.dep_var][self.cases_idx] = 1
+					self.pheno_df[self.dep_var][self.ctrls_idx] = 0
 
-				if len(np.unique(self.ped_df[self.pheno])) == 1:
+				if len(np.unique(self.pheno_df[self.dep_var])) == 1:
 					raise Process.Error("phenotype consists of only a single unique value")
 			else:
-				raise Process.Error("ped file and data file contain no common samples")
+				raise Process.Error("phenotype file and data file contain no common samples")
 
 		self.metadata = '## source: uga' + version + '\n' + \
 						'## date: ' + time.strftime("%Y%m%d") + '\n' + \
@@ -355,7 +362,7 @@ cdef class SnvModel(Model):
 			raise
 		else:
 			try:
-				self.variants.data = self.variants.data[np.in1d(self.variants.data[:,0],np.intersect1d(self.ped_df[self.iid],self.variants.data[:,0]))]
+				self.variants.data = self.variants.data[np.in1d(self.variants.data[:,0],np.intersect1d(self.pheno_df[self.iid],self.variants.data[:,0]))]
 			except:
 				raise Process.Error("ped file and data file contain no common samples")
 			else:
@@ -364,11 +371,11 @@ cdef class SnvModel(Model):
 cdef class SnvgroupModel(Model):
 	cdef public str snvgroup_map, metadata_gene
 	cdef public unsigned int cmac
-	def __cinit__(self, snvgroup_map = None, cmac = 1.0, **kwargs):
+	def __cinit__(self, snvgroup_map = None, cmac = None, **kwargs):
 		logger = logging.getLogger("Model.SnvgroupModel.__cinit__")
 		logger.debug("initialize SnvgroupModel")
 		self.snvgroup_map = snvgroup_map
-		self.cmac = cmac
+		self.cmac = cmac if cmac is not None else 1
 		super(SnvgroupModel, self).__init__(**kwargs)
 		self.tbx_start = 1
 		self.tbx_end = 2
@@ -396,7 +403,7 @@ cdef class SnvgroupModel(Model):
 			raise
 		else:
 			try:
-				self.variants.data = self.variants.data[np.in1d(self.variants.data[:,0],np.intersect1d(self.ped_df[self.iid],self.variants.data[:,0]))]
+				self.variants.data = self.variants.data[np.in1d(self.variants.data[:,0],np.intersect1d(self.pheno_df[self.iid],self.variants.data[:,0]))]
 			except:
 				raise Process.Error("ped file and data file contain no common samples")
 			else:
@@ -411,7 +418,7 @@ cdef class Score(SnvModel):
 		super(Score, self).__init__(**kwargs)
 		print "setting score test family option to " + self.family
 
-		self.formula = self.pheno + '~' + self.covars if self.covars is not None else self.pheno + '~1'
+		self.formula = self.dep_var + '~' + self.covars if self.covars is not None else self.dep_var + '~1'
 		print "formula: " + self.formula
 
 		self.results_dtypes=[('err','f8'),('nmiss','f8'),('ntotal','f8'),('effect','f8'),('stderr','f8'),('or','f8'),('p','f8')]
@@ -443,7 +450,7 @@ cdef class Score(SnvModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self):
-		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
@@ -505,18 +512,18 @@ cdef class Gee(SnvModel):
 
 		if self.reverse:
 			if self.interact is not None:
-				self.formula = '___snv___~' + self.pheno + '*' + self.interact
-				self.focus = self.pheno + ':' + self.interact
+				self.formula = '___snv___~' + self.dep_var + '*' + self.interact
+				self.focus = self.dep_var + ':' + self.interact
 			else:
-				self.formula = '___snv___~' + self.pheno
-				self.focus = self.pheno
+				self.formula = '___snv___~' + self.dep_var
+				self.focus = self.dep_var
 			self.family = 'gaussian'
 		else:
 			if self.interact is not None:
-				self.formula = self.pheno + '~___snv___*' + self.interact
+				self.formula = self.dep_var + '~___snv___*' + self.interact
 				self.focus = '___snv___:' + self.interact
 			else:
-				self.formula = self.pheno + '~___snv___'
+				self.formula = self.dep_var + '~___snv___'
 				self.focus = '___snv___'
 		self.formula = self.formula + '+' + self.covars if self.covars is not None else self.formula
 		print "formula: " + self.formula
@@ -547,7 +554,7 @@ cdef class Gee(SnvModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self):
-		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
@@ -593,18 +600,18 @@ cdef class Glm(SnvModel):
 
 		if self.reverse:
 			if self.interact is not None:
-				self.formula = '___snv___~' + self.pheno + '*' + self.interact
-				self.focus = self.pheno + ':' + self.interact
+				self.formula = '___snv___~' + self.dep_var + '*' + self.interact
+				self.focus = self.dep_var + ':' + self.interact
 			else:
-				self.formula = '___snv___~' + self.pheno
-				self.focus = self.pheno
+				self.formula = '___snv___~' + self.dep_var
+				self.focus = self.dep_var
 			self.family = 'gaussian'
 		else:
 			if self.interact is not None:
-				self.formula = self.pheno + '~___snv___*' + self.interact
+				self.formula = self.dep_var + '~___snv___*' + self.interact
 				self.focus = '___snv___:' + self.interact
 			else:
-				self.formula = self.pheno + '~___snv___'
+				self.formula = self.dep_var + '~___snv___'
 				self.focus = '___snv___'
 		self.formula = self.formula + '+' + self.covars if self.covars is not None else self.formula
 		print "formula: " + self.formula
@@ -631,7 +638,7 @@ cdef class Glm(SnvModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self):
-		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
@@ -672,18 +679,18 @@ cdef class Lm(SnvModel):
 
 		if self.reverse:
 			if self.interact is not None:
-				self.formula = '___snv___~' + self.pheno + '*' + self.interact
-				self.focus = self.pheno + ':' + self.interact
+				self.formula = '___snv___~' + self.dep_var + '*' + self.interact
+				self.focus = self.dep_var + ':' + self.interact
 			else:
-				self.formula = '___snv___~' + self.pheno
-				self.focus = self.pheno
+				self.formula = '___snv___~' + self.dep_var
+				self.focus = self.dep_var
 			self.family = 'gaussian'
 		else:
 			if self.interact is not None:
-				self.formula = self.pheno + '~___snv___*' + self.interact
+				self.formula = self.dep_var + '~___snv___*' + self.interact
 				self.focus = '___snv___:' + self.interact
 			else:
-				self.formula = self.pheno + '~___snv___'
+				self.formula = self.dep_var + '~___snv___'
 				self.focus = '___snv___'
 		self.formula = self.formula + '+' + self.covars if self.covars is not None else self.formula
 		print "formula: " + self.formula
@@ -703,7 +710,7 @@ cdef class Lm(SnvModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self):
-		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
@@ -751,9 +758,9 @@ cdef class Skat(SnvgroupModel):
 		print "setting skat test family option to " + self.family
 
 		if self.covars is not None:
-			self.formula = self.pheno + '~' + self.covars
+			self.formula = self.dep_var + '~' + self.covars
 		else:
-			self.formula = self.pheno + '~1'
+			self.formula = self.dep_var + '~1'
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnps','cmaf','p','q']))
@@ -787,7 +794,7 @@ cdef class Skat(SnvgroupModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self, meta = None):
-		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('q','f8')])
@@ -889,9 +896,9 @@ cdef class Skato(SnvgroupModel):
 		print "setting skat-o test family option to " + self.family
 
 		if self.covars is not None:
-			self.formula = self.pheno + '~' + self.covars
+			self.formula = self.dep_var + '~' + self.covars
 		else:
-			self.formula = self.pheno + '~1'
+			self.formula = self.dep_var + '~1'
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
@@ -926,7 +933,7 @@ cdef class Skato(SnvgroupModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self, meta = None):
-		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('pmin','f8'),('rho','f8')])
@@ -1029,9 +1036,9 @@ cdef class Burden(SnvgroupModel):
 		print "setting burden test family option to " + self.family
 
 		if self.covars is not None:
-			self.formula = self.pheno + '~' + self.covars
+			self.formula = self.dep_var + '~' + self.covars
 		else:
-			self.formula = self.pheno + '~1'
+			self.formula = self.dep_var + '~1'
 		print "formula: " + self.formula
 
 		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']))
@@ -1066,7 +1073,7 @@ cdef class Burden(SnvgroupModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self, meta = None):
-		pheno_df = pd.DataFrame(self.ped_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnpsTotal','f8'),('nsnpsUsed','f8'),('cmafTotal','f8'),('cmafUsed','f8'),('beta','f8'),('se','f8'),('p','f8')])
@@ -1158,6 +1165,58 @@ cdef class Burden(SnvgroupModel):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
 			ro.globalenv[tag + '_cmac'] = self.out[tag + '.cmac'][0]
+
+cdef class Neff(SnvgroupModel):
+	def __cinit__(self, **kwargs):
+		logger = logging.getLogger("Model.Neff.__cinit__")
+		logger.debug("initialize Neff model")
+		super(Neff, self).__init__(**kwargs)
+		print "setting neff test family option to " + self.family
+
+		if self.covars is not None:
+			self.formula = self.dep_var + '~' + self.covars
+		else:
+			self.formula = self.dep_var + '~1'
+		print "formula: " + self.formula
+
+		self.results_header = np.append(self.results_header,np.array(['total','passed','eff']))
+
+		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
+		self.metadata = self.metadata + '\n' + \
+						'## formula: ' + self.formula
+		self.metadata = self.metadata + '\n' + \
+						self.metadata_gene + '\n' + \
+						'## total: group total snv count' + '\n' + \
+						'## passed: group snv count that passed filters' + '\n' + \
+						'## eff: number of effective tests in group' + '\n#'
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cpdef calc_model(self, meta = None):
+		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
+		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
+		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
+		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('eff','f8')])
+		self.results['chr'][0] = self.variants.chr
+		self.results['start'][0] = self.variants.start
+		self.results['end'][0] = self.variants.end
+		self.results['id'][0] = self.variants.group_id
+		self.results['total'][0] = self.variants.info.shape[0]
+		self.results['passed'][0] = len(passed)
+		self.results['eff'][0] = np.nan
+		if len(passed) > 0:
+			if len(passed) > 1:
+				variants_df = pd.DataFrame(self.variants.data[:,passed_data],dtype='float64')
+				variants_df.dropna(inplace=True)
+				markers_cor = variants_df.corr()
+				markers_cor_eigvals = np.linalg.eigvalsh(markers_cor)
+				markers_cor_eigvalsnew = [x if x > 0 else 0 for x in markers_cor_eigvals]
+				self.results['eff'][0] = sum([1 if x else 0 for x in markers_cor_eigvals>1]+(markers_cor_eigvalsnew-np.floor(markers_cor_eigvalsnew)))
+			else:
+				self.results['eff'][0] = 1.0
+		else:
+			self.results['eff'][0] = 0.0
+		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
 
 cdef class Meta(object):
 	cdef public unsigned int tbx_start, tbx_end

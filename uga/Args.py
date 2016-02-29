@@ -61,7 +61,7 @@ def snv_args(snv_parser):
 	snv_parser.add_argument('--out', 
 						action=AddString, 
 						help='output file basename (do not include path or extension)')
-	snv_parser.add_argument('--ped', 
+	snv_parser.add_argument('--pheno', 
 						action=AddString, 
 						help='phenotype file')
 	snv_parser.add_argument('--cpus', 
@@ -92,9 +92,6 @@ def snv_args(snv_parser):
 						action=AddString, 
 						choices=['tab','space','comma'], 
 						help='phenotype file delimiter (default: tab)')
-	snv_parser.add_argument('--pheno', 
-						action=AddString, 
-						help='phenotype')
 	snv_parser.add_argument('--covars', 
 						action=AddString, 
 						help='"+" separated list of covariates (categorical variables should be wrapped in factor())')
@@ -108,6 +105,9 @@ def snv_args(snv_parser):
 	snv_parser.add_argument('--sample', 
 						action=AddString, 
 						help='sample file (not required for vcf format files)')
+	snv_parser.add_argument('--drop', 
+						action=AddString, 
+						help='sample drop list file')
 	snv_parser.add_argument('--sex', 
 						action=AddString, 
 						help='name of the column containing male/female status (requires --male and --female)')
@@ -207,24 +207,20 @@ def snv_args(snv_parser):
 						type=int, 
 						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
 	snv_parser.add_argument('--score', 
-						nargs=0, 
-						action=AddTrue,
-						help='score test (singlesnpMeta)')
+						action=AddString, 
+						help='score test dependent variable (singlesnpMeta)')
 	snv_parser.add_argument('--gee', 
-						nargs=0, 
-						action=AddTrue,
-						help='gee test (R geepack geeglm function)')
+						action=AddString, 
+						help='gee test dependent variable (R geepack geeglm function)')
 	snv_parser.add_argument('--corstr', 
 						action=AddString, 
 						help='correlation structure for gee test (default: exchangeable)')
 	snv_parser.add_argument('--glm', 
-						nargs=0, 
-						action=AddTrue,
-						help='glm test')
+						action=AddString, 
+						help='glm test dependent variable')
 	snv_parser.add_argument('--lm', 
-						nargs=0, 
-						action=AddTrue,
-						help='lm test')
+						action=AddString, 
+						help='lm test dependent variable')
 	snv_parser.add_argument('--meta-sample-size', 
 						nargs=2, 
 						action=AddString, 
@@ -243,7 +239,7 @@ def snvgroup_args(snvgroup_parser):
 	snvgroup_parser.add_argument('--out', 
 						action=AddString, 
 						help='output file basename (do not include path or extension)')
-	snvgroup_parser.add_argument('--ped', 
+	snvgroup_parser.add_argument('--pheno', 
 						action=AddString, 
 						help='phenotype file')
 	snvgroup_parser.add_argument('--cpus', 
@@ -277,9 +273,9 @@ def snvgroup_args(snvgroup_parser):
 	snvgroup_parser.add_argument('--sample', 
 						action=AddString, 
 						help='sample file (not required for vcf format files)')
-	snvgroup_parser.add_argument('--pheno', 
+	snvgroup_parser.add_argument('--drop', 
 						action=AddString, 
-						help='phenotype')
+						help='sample drop list file')
 	snvgroup_parser.add_argument('--covars', 
 						action=AddString, 
 						help='"+" separated list of numeric covariates (categorical covariates should be wrapped in factor())')
@@ -386,13 +382,11 @@ def snvgroup_args(snvgroup_parser):
 						type=int, 
 						help='code for control in the dependent variable column (requires --case-code; binomial fxn family only; default: 0)')
 	snvgroup_parser.add_argument('--skat', 
-						nargs=0, 
-						action=AddTrue,
-						help='skat test (skatMeta)')
+						action=AddString, 
+						help='skat test dependent variable (skatMeta)')
 	snvgroup_parser.add_argument('--skato', 
-						nargs=0, 
-						action=AddTrue,
-						help='skato test (skatOMeta)')
+						action=AddString, 
+						help='skato test dependent variable (skatOMeta)')
 	snvgroup_parser.add_argument('--skat-wts', 
 						action=AddString, 
 						help='skat weights (default: beta weights: function(maf){dbeta(maf,1,25)})')
@@ -410,12 +404,14 @@ def snvgroup_args(snvgroup_parser):
 						type=int, 
 						help='timeout in seconds for model test function (default: 3600)')
 	snvgroup_parser.add_argument('--burden', 
-						nargs=0, 
-						action=AddTrue,
-						help='burden test (burdenMeta)')
+						action=AddString, 
+						help='burden test dependent variable (burdenMeta)')
 	snvgroup_parser.add_argument('--mafrange', 
 						action=AddString, 
 						help='maf range for snv group tests which is different from --maxmaf and --maf since it is to be calculated before and during meta analysis (default: all snvs c(0,0.5))')
+	snvgroup_parser.add_argument('--neff', 
+						action=AddString, 
+						help='neff test dependent variable')
 	snvgroup_parser.add_argument('--meta', 
 						nargs=2, 
 						action=AddString, 
@@ -676,33 +672,69 @@ def filter_args(filter_parser):
 						help='threshold value for minimum cumulative minor allele count in snv group (ie. 3 filters out snv groups with cmac < 3)')
 	return filter_parser
 
-def annot_args(annot_parser):
-	annot_required = annot_parser.add_argument_group('required arguments')
-	annot_required.add_argument('--file', 
+def merge_args(merge_parser):
+	merge_required = merge_parser.add_argument_group('required arguments')
+	merge_required.add_argument('--file', 
+						nargs=2, 
 						action=AddString, 
 						required=True, 
-						help='filename of results to be annotated')
-	annot_parser.add_argument('--annot', 
-						nargs=2,
+						help='filename for results or annotations')
+	merge_required.add_argument('--out', 
 						action=AddString, 
-						help='annotation file tag and name (ie. --file X file.gz: add file "file.gz" with tag "X"')
-	annot_parser.add_argument('--replace', 
+						required=True, 
+						help='filename for output')
+	merge_parser.add_argument('--cpus', 
+						action=AddString, 
+						type=int, 
+						help='number of cpus')
+	merge_parser.add_argument('--mb', 
+						action=AddString, 
+						help='region size in megabases to use for split analyses (default: 1)')
+	merge_parser.add_argument('--buffer', 
+						action=AddString, 
+						type=int, 
+						help='value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
+	merge_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 
 						help='replace any existing output files')
-	annot_parser.add_argument('--qsub', 
+	merge_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
-	annot_parser.add_argument('--debug', 
+	merge_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 
 						help='enable debug mode (prints debug info to log file)')
-	annot_parser.add_argument('--snpeff', 
+	merge_parser_split_group1 = merge_parser.add_mutually_exclusive_group()
+	merge_parser_split_group1.add_argument('--region', 
+						action=AddString, 
+						help='genomic region specified in Tabix format of any size up to an entire chromosome (ie. 1:1-1000000, 21).')
+	merge_parser_split_group1.add_argument('--region-file', 
+						action=AddString, 
+						help='filename for a list of tabix format regions of any size up to an entire chromosome (ie. 1:1-1000000, 21)')
+	merge_parser_split_group2 = merge_parser.add_mutually_exclusive_group()
+	merge_parser_split_group2.add_argument('--split', 
+						nargs=0, 
+						action=AddTrue, 
+						help='split --region-file into an individual job for each line in file (requires --region-file)')
+	merge_parser_split_group2.add_argument('--split-n', 
+						action=AddString, 
+						type=int, 
+						help='split --region-file into n individual jobs each with a subset of regions in the file (requires --region-file)')
+	merge_parser_split_group2.add_argument('--split-chr', 
+						nargs=0, 
+						action=AddTrue,  
+						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
+	merge_parser_split_group3 = merge_parser.add_mutually_exclusive_group()
+	merge_parser_split_group3.add_argument('--job', 
+						action=AddString, 
+						type=int, 
+						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	merge_parser_split_group3.add_argument('--jobs', 
+						action=AddString, 
+						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+	merge_parser.add_argument('--snpeff', 
 						nargs=0, 
 						action=AddTrue, 
 						help='annotate results with snpEff')
-	annot_parser.add_argument('--xlsx', 
-						nargs=0, 
-						action=AddTrue, 
-						help='write annotated results to an xlsx file')
-	return annot_parser
+	return merge_parser

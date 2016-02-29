@@ -33,7 +33,7 @@ import os
 
 module_logger = logging.getLogger("Geno")
 ILLEGAL_CHARS = '!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~'
-MAX_CELL_LEN = 60
+MAX_CELL_LEN = 1000
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -166,7 +166,7 @@ cdef class Vcf(Variants):
 					self.snv_chunk[i,:9] = record[:9]
 					self.snv_chunk[i,11:] = extract_vcf_dose(record[9:], field)
 					self.snv_chunk[i,5] = self.group_id
-					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
+					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
 					self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 					i += 1
 				elif 'GT' in fields:
@@ -184,7 +184,7 @@ cdef class Vcf(Variants):
 							self.snv_chunk[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
 							self.snv_chunk[i,4] = alts[alt]
 							self.snv_chunk[i,5] = self.group_id
-							self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
+							self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
 							self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 							het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
 							hom1 = ['0/0','0|0']
@@ -194,7 +194,7 @@ cdef class Vcf(Variants):
 							self.snv_chunk[i+1,3] = record[3]
 							self.snv_chunk[i+1,4] = alts[alt]
 							self.snv_chunk[i+1,5] = self.group_id
-							self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,4][0:20])
+							self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,4][0:1000])
 							self.snv_chunk[i+1,10] = Variant.get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
 							i += 2
 					else:
@@ -204,7 +204,7 @@ cdef class Vcf(Variants):
 						self.snv_chunk[i,:9] = record[:9]
 						self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
 						self.snv_chunk[i,5] = self.group_id
-						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
+						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
 						self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 						i += 1
 				else:
@@ -220,7 +220,7 @@ cdef class Vcf(Variants):
 			self.get_chunk(buffer)
 		except:
 			raise
-		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,11:].transpose()))
 		np.place(self.data, self.data == 'NA',np.nan)
 
@@ -245,7 +245,7 @@ cdef class Vcf(Variants):
 		if i == 0:
 			raise
 		else:
-			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
 			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,11:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)
 
@@ -303,7 +303,7 @@ cdef class Dos(Variants):
 				self.snv_chunk[i,:5] = record[:5]
 				self.snv_chunk[i,8:] = record[5:]
 				self.snv_chunk[i,5] = self.group_id
-				self.snv_chunk[i,6] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
+				self.snv_chunk[i,6] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
 				self.snv_chunk[i,7] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 				i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
@@ -317,7 +317,7 @@ cdef class Dos(Variants):
 			self.get_chunk(buffer)
 		except:
 			raise
-		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,8:].transpose()))
 		np.place(self.data, self.data == 'NA',np.nan)
 
@@ -342,7 +342,7 @@ cdef class Dos(Variants):
 		if i == 0:
 			raise
 		else:
-			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S20','|S20','|S100','|S100','|S1000'])))
+			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
 			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,8:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)
 
@@ -360,7 +360,7 @@ cdef class Results(Variants):
 			self.header = [x for x in self.handle.header]
 			self.method = self.header[2].split()[2]
 			self.cols = [x.replace('#','') for x in self.header[-1].split()]
-			self.dtypes = zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['uint8','uint32','|S60','|S20','|S20']) + zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['f8' for x in self.cols if x not in ['chr','pos','id','a1','a2']]) + [('id_unique','|S100'),('uid','|S1000')]
+			self.dtypes = zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['uint8','uint32','|S60','|S1000','|S1000']) + zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['|S1000' if x == 'dir' else 'f8' for x in self.cols if x not in ['chr','pos','id','a1','a2']]) + [('id_unique','|S1000'),('uid','|S1000')]
 
 	def get_region(self, region):
 		logger = logging.getLogger("Geno.Results.get_region")
@@ -395,7 +395,7 @@ cdef class Results(Variants):
 			for r in slice:
 				record = np.array(r, dtype='object')
 				self.snv_chunk[i,:len(self.cols)] = record[:len(self.cols)]
-				self.snv_chunk[i,len(self.cols)] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:20]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:20])
+				self.snv_chunk[i,len(self.cols)] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
 				self.snv_chunk[i,len(self.cols)+1] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 				i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
@@ -463,6 +463,9 @@ cdef class Results(Variants):
 					self.snv_results['z'][i-1] = -1.0 * self.snv_results['z'][i-1]
 				if 't' in self.snv_results:
 					self.snv_results['t'][i-1] = -1.0 * self.snv_results['t'][i-1]
+				if 'dir' in self.snv_results:
+					self.snv_results['dir'][i-1] = self.snv_results['dir'][i-1].replace('+','!').replace('-','+').replace('!','-')
+				
 
 	def tag_results(self, tag):
 		logger = logging.getLogger("Geno.Results.get_tagged_results")
