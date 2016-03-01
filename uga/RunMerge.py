@@ -181,7 +181,7 @@ def RunMerge(args):
 		print Process.Error('failed to generate index for file ' + cfg['out'] + '.gz').out
 		return 1
 
-	if cfg['snpeff'] is not None:
+	if cfg['snpeff']:
 		from ConfigParser import SafeConfigParser
 		from pkg_resources import resource_filename
 		import subprocess
