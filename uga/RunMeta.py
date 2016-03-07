@@ -104,6 +104,7 @@ def process_regions(regions_df, cfg, cpu, log):
 			sys.stdout.flush()
 
 		for meta in cfg['meta_order']:
+			meta_objs[meta].calc_meta(results_region)
 			print '   processed meta analysis ' + meta + ' (' + cfg['meta'][meta] + ')'
 			if not meta_written[meta]:
 				results_final_meta[meta] = meta_objs[meta].out.copy()

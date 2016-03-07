@@ -1,4 +1,4 @@
-name: uga_dev_py2.7
+name: uga_v2.0b5
 channels:
 - https://conda.anaconda.org/rmkoesterer
 - defaults
