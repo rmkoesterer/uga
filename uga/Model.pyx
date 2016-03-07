@@ -1303,9 +1303,9 @@ cdef class SnvMeta(Meta):
 				df['meta.' + tag + '.wi'] = df.apply(lambda x: 1/(x[StdErr_idx]**2) if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
 				df['meta.' + tag + '.biwi'] = df.apply(lambda x: x[Eff_idx] * x['meta.' + tag + '.wi'] if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
 				df['meta.dir'] = df['meta.dir'] + df['meta.' + tag + '.dir']
-			N_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.n')]
-			Wi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.wi')]
-			BiWi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.biwi')]
+			N_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tuple('meta.' + x for x in self.meta_incl)) and s.endswith('.n')]
+			Wi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tuple('meta.' + x for x in self.meta_incl)) and s.endswith('.wi')]
+			BiWi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tuple('meta.' + x for x in self.meta_incl)) and s.endswith('.biwi')]
 			df['meta.n'] = df.apply(lambda x: x[N_idx_all].sum() if len(x['meta.dir'].replace('x','')) > 1 else float('nan'),axis=1)
 			df['meta.stderr'] = df.apply(lambda x: math.sqrt(1/(x[Wi_idx_all].sum())) if len(x['meta.dir'].replace('x','')) > 1 else float('nan'), axis=1)
 			df['meta.effect'] = df.apply(lambda x: (x[BiWi_idx_all].sum())/(x[Wi_idx_all].sum()) if len(x['meta.dir'].replace('x','')) > 1 else float('nan'), axis=1)
@@ -1313,7 +1313,7 @@ cdef class SnvMeta(Meta):
 			df['meta.z'] = df.apply(lambda x: x['meta.effect']/x['meta.stderr'] if len(x['meta.dir'].replace('x','')) > 1 else float('nan'), axis=1)
 			for tag in self.meta_incl:
 				df['meta.' + tag + '.hetq_pre'] = df.apply(lambda x: x['meta.' + tag + '.wi'] * (x[tag + '.effect'] - x['meta.effect'])**2 if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
-			Hetq_pre_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith('meta') and s.endswith('.hetq_pre')]
+			Hetq_pre_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tuple('meta.' + x for x in self.meta_incl)) and s.endswith('.hetq_pre')]
 			df['meta.hetq'] = df.apply(lambda x: x[Hetq_pre_idx_all].sum() if len(x['meta.dir'].replace('x','')) > 1 else float('nan'),axis=1)
 			df['meta.hetdf'] = df.apply(lambda x: len([a for a in x['meta.dir'] if a != 'x'])-1 if len(x['meta.dir'].replace('x','')) > 1 else float('nan'),axis=1)
 			df['meta.heti2'] = df.apply(lambda x: ((x['meta.hetq']-x['meta.hetdf'])/x['meta.hetq'])*100 if len(x['meta.dir'].replace('x','')) > 1 and x['meta.hetq'] != 0 else float('nan'),axis=1)
