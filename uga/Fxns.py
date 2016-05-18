@@ -40,9 +40,10 @@ def verify_results(directory, files):
 	pbar = ProgressBar(maxval=files.shape[0], widgets = ['   processed ', Counter(), ' of ' + str(files.shape[0]) + ' files (', Timer(), ')'])
 	pbar.start()
 	for i, row in files.iterrows():
-		f = directory + '/' + row['file']
+		f = directory + '/' + '/'.join(row['file'].split('/')[1:])
 		j = row['job']
-		logfile = glob.glob('/'.join(f.split('/')[0:len(f.split('/'))-1]) + "/*.log")
+		#logfile = glob.glob('/'.join(f.split('/')[0:len(f.split('/'))-1]) + "/*.log")
+		logfile = glob.glob(directory + '/' + row['out'].replace('.gz','') + ".o*." + str(j))
 		if os.path.exists(f):
 			if len(logfile) > 0:
 				p = subprocess.Popen(['grep','-cw','process complete',logfile[0]], stdout=subprocess.PIPE)	
@@ -70,7 +71,7 @@ def compile_results(directory, files):
 		pbar.start()
 		bgzfile[o] = bgzf.BgzfWriter(directory + '/' + o, 'wb')
 		for j, row in files_o.iterrows():
-			f = directory + '/' + row['file']
+			f = directory + '/' + '/'.join(row['file'].split('/')[1:])
 			sed = ['awk','{print $0}'] if j+1 == 1 else ['grep','-v','^#']
 			p1 = subprocess.Popen(['zcat',f], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
 			p2 = subprocess.Popen(sed, stdin=p1.stdout, stdout=subprocess.PIPE)
@@ -88,8 +89,9 @@ def compile_results(directory, files):
 	pbar = ProgressBar(maxval=files_o.shape[0], widgets = ['   processed ', Counter(), ' of ' + str(files_o.shape[0]) + ' results (', Timer(), ')'])
 	pbar.start()
 	for j, row in files_o.iterrows():
-		f = directory + '/' + row['file']
-		lf = glob.glob('/'.join(f.split('/')[0:len(f.split('/'))-1]) + "/*.log")
+		f = directory + '/' + '/'.join(row['file'].split('/')[1:])
+		#lf = glob.glob('/'.join(f.split('/')[0:len(f.split('/'))-1]) + "/*.log")
+		lf = glob.glob(directory + '/' + row['out'].replace('.gz','') + ".o*." + str(j))
 		if j+1 == 1:
 			p1 = subprocess.Popen(['cat',lf[0]], stdout=subprocess.PIPE)
 			p2 = subprocess.Popen(['awk','{print \"      \"$0}'], stdin=p1.stdout, stdout=subprocess.PIPE)
@@ -118,14 +120,22 @@ def compile_results(directory, files):
 	for o in out:
 		print "mapping compiled file " + o
 		files_o = files[files['out'] == o].reset_index(drop=True)
-		h=pysam.TabixFile(filename=directory + '/' + files.iloc[0]['file'],parser=pysam.asTuple())
-		header = [x for x in h.header][-1].split()
-		if header[1] == 'pos':
-			b = 1
-			e = 1
+		h=pysam.TabixFile(filename=directory + '/' + '/'.join(files.iloc[0]['file'].split('/')[1:]),parser=pysam.asTuple())
+		header = [x for x in h.header]
+		cols = header[-1].split()
+		source = header[0]
+		if '## source: uga' in source:
+			if cols[1] == 'pos':
+				b = 1
+				e = 1
+			else:
+				b = 1
+				e = 2
+			pysam.tabix_index(directory + '/' + o,seq_col=0,start_col=b,end_col=e,force=True)
+		elif '##fileformat=VCF' in source:
+			pysam.tabix_index(directory + '/' + o,preset='vcf',force=True)
 		else:
-			b = 1
-			e = 2
-		pysam.tabix_index(directory + '/' + o,seq_col=0,start_col=b,end_col=e,force=True)
+			print "compiled file source not recognized"
+			return False
 	print "file compilation complete"
 	return True

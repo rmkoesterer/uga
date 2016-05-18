@@ -56,6 +56,7 @@ def map(file,
 					regions.append(chr + ":" + str(rp) + "-" + str(rp+s-1))
 
 		for reg in regions:
+			print 'mapping region ' + reg
 			chr = reg.split(':')[0]
 			start = reg.split(':')[1].split('-')[0]
 			end = reg.split(':')[1].split('-')[1]

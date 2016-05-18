@@ -50,6 +50,7 @@ def get_parser():
 	snvgroupplot_parser = Args.snvgroupplot_args(subparsers.add_parser('snvgroupplot', help='generate qq and manhattan plots for grouped variant results', parents=[global_parser]))
 	filter_parser = Args.filter_args(subparsers.add_parser('filter', help='filter results / correct single variant results for genomic inflation', parents=[global_parser]))
 	merge_parser = Args.merge_args(subparsers.add_parser('merge', help='merge and annotate results with external files / snpEff', parents=[global_parser]))
+	tools_parser = Args.tools_args(subparsers.add_parser('tools', help='run any command line tool with ability to include genomic region automatically', parents=[global_parser]))
 
 	return main_parser
 
@@ -519,6 +520,54 @@ def generate_merge_cfg(args):
 	return config
 
 def print_merge_options(cfg):
+	print ''
+	print "main options ..."
+	for k in cfg:
+		if cfg[k] is not None and cfg[k] is not False:
+			if cfg[k] is True:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+			else:
+				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+
+def generate_tools_cfg(args):
+	config = {'file': None, 'out': None, 'cmd': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 
+				'split': False, 'split_n': None, 'split_chr': None, 'job': None, 'jobs': None, 'replace': False, 'debug': False}
+	for arg in args:
+		if arg[0] == 'file':
+			config['file'] = arg[1]
+		if arg[0] == 'out':
+			config['out'] = arg[1]
+		if arg[0] == 'cmd':
+			config['cmd'] = arg[1]
+		if arg[0] == 'buffer' and arg[1] is not None:
+			config['buffer'] = arg[1]
+		if arg[0] == 'region':
+			config['region'] = arg[1]
+		if arg[0] == 'region_file':
+			config['region_file'] = arg[1]
+		if arg[0] == 'cpus' and arg[1] is not None:
+			config['cpus'] = arg[1]
+		if arg[0] == 'mb' and arg[1] is not None:
+			config['mb'] = arg[1]
+		if arg[0] == 'qsub':
+			config['qsub'] = arg[1]
+		if arg[0] == 'split' and arg[1] is True:
+			config['split'] = arg[1]
+		if arg[0] == 'split_n':
+			config['split_n'] = arg[1]
+		if arg[0] == 'split_chr':
+			config['split_chr'] = arg[1]
+		if arg[0] == 'job':
+			config['job'] = arg[1]
+		if arg[0] == 'jobs':
+			config['jobs'] = arg[1]
+		if arg[0] == 'replace':
+			config['replace'] = arg[1]
+		if arg[0] == 'debug':
+			config['debug'] = arg[1]
+	return config
+
+def print_tools_options(cfg):
 	print ''
 	print "main options ..."
 	for k in cfg:

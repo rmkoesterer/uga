@@ -36,8 +36,8 @@ from Bio import bgzf
 def main(args=None):
 	rerun = []
 	args = Parse.get_args(Parse.get_parser())
-
-	if args.which in ['snv','snvgroup','meta','merge','resubmit']:
+	resubmit = False
+	if args.which in ['snv','snvgroup','meta','merge','resubmit','tools']:
 		if args.which == 'resubmit':
 			with open(args.dir + '/' + os.path.basename(args.dir) + '.args.pkl', 'rb') as p:
 				qsub = args.qsub if args.qsub else None
@@ -46,8 +46,8 @@ def main(args=None):
 					cfg['qsub'] = qsub
 			with open(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun.pkl', 'rb') as p:
 				rerun = pickle.load(p)
-			os.remove(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun.pkl')
 			cfg['replace'] = True
+			resubmit = True
 		else:
 			cfg = getattr(Parse, 'generate_' + args.which + '_cfg')(args.ordered_args)
 	elif args.which != 'settings':
@@ -64,131 +64,139 @@ def main(args=None):
 		return
 
 	##### distribute jobs #####
-	if args.which in ['snv','snvgroup','meta','merge']:
+	if args.which in ['snv','snvgroup','meta','merge','tools']:
 		run_type = 0
 		if cfg['cpus'] is not None and cfg['cpus'] > 1:
 			run_type = run_type + 1
-		if cfg['split']:
+		if cfg['split'] and cfg['qsub'] is not None:
 			run_type = run_type + 10
-		if cfg['split_n']:
+		if cfg['split_n'] and cfg['qsub'] is not None:
 			run_type = run_type + 100
+			
+		if resubmit:
+			regions_df = pd.read_table(cfg['out'] + '/' + cfg['out'] + '.regions')
+		else:
+			if args.which in ['snv','tools']:
+				#	generate regions dataframe with M rows, either from --snv-map or by splitting data file or --snv-region according to --mb
+				#	run_type = 0:   run as single job
+				#	run_type = 1:   --cpus C (distribute M regions over C cpus and run single job, 1 job C cpus)
+				#	run_type = 10:  --split (split M regions into single region jobs, M jobs 1 cpu)
+				#	run_type = 100: --split-n N (distribute M regions over N jobs, N jobs 1 cpu)
+				#	run_type = 11:  --split, --cpus C (split M regions into chunks of size M / C and run M jobs, M jobs C cpus)
+				#	run_type = 101: --split-n N, --cpus C (distribute M regions over N jobs and distribute each over C cpus, N jobs C cpus)
 
-		if args.which == 'snv':
-			#	generate regions dataframe with M rows, either from --snv-map or by splitting data file or --snv-region according to --mb
-			#	run_type = 0:   run as single job
-			#	run_type = 1:   --cpus C (distribute M regions over C cpus and run single job, 1 job C cpus)
-			#	run_type = 10:  --split (split M regions into single region jobs, M jobs 1 cpu)
-			#	run_type = 100: --split-n N (distribute M regions over N jobs, N jobs 1 cpu)
-			#	run_type = 11:  --split, --cpus C (split M regions into chunks of size M / C and run M jobs, M jobs C cpus)
-			#	run_type = 101: --split-n N, --cpus C (distribute M regions over N jobs and distribute each over C cpus, N jobs C cpus)
+				if cfg['region_file']:
+					regions_df = pd.read_table(cfg['region_file'],header=None,names=['region'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
+					regions_df['chr'] = [x.split(':')[0] for x in regions_df['region']]
+					regions_df['chr_idx'] = [int(x.split(':')[0].replace('X','23').replace('Y','24')) for x in regions_df['region']]
+					regions_df['start'] = [int(x.split(':')[1].split('-')[0]) for x in regions_df['region']]
+					regions_df['end'] = [int(x.split(':')[1].split('-')[1]) for x in regions_df['region']]
+					regions_df['job'] = 1
+					regions_df['cpu'] = 1
+				else:
+					snv_map = []
+					data_files = []
+					if args.which == 'snv':
+						for m in cfg['models']:
+							if cfg['models'][m]['file'] not in data_files:
+								snv_map.extend(Map.map(file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region']))
+								data_files.append(cfg['models'][m]['file'])
+					else:
+						snv_map.extend(Map.map(file=cfg['file'], mb = cfg['mb'], region = cfg['region']))
+					snv_map = list(set(snv_map))
+					regions_df = pd.DataFrame({'region': snv_map, 'chr': [x.split(':')[0] for x in snv_map], 'chr_idx': [int(x.split(':')[0].replace('X','23').replace('Y','24')) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
+					regions_df['job'] = 1
+					regions_df['cpu'] = 1
+					del data_files
+					del snv_map
+				regions_df.sort_values(by=['chr_idx','start'],inplace=True)
+				regions_df = regions_df[['chr','start','end','region','job','cpu']]
+				regions_df.reset_index(drop=True,inplace=True)
 
-			if cfg['region_file']:
-				regions_df = pd.read_table(cfg['region_file'],header=None,names=['region'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
-				regions_df['chr'] = [int(x.split(':')[0]) for x in regions_df['region']]
-				regions_df['start'] = [int(x.split(':')[1].split('-')[0]) for x in regions_df['region']]
-				regions_df['end'] = [int(x.split(':')[1].split('-')[1]) for x in regions_df['region']]
-				regions_df['job'] = 1
-				regions_df['cpu'] = 1
-			else:
-				snv_map = []
-				data_files = []
-				for m in cfg['models']:
-					if cfg['models'][m]['file'] not in data_files:
-						snv_map.extend(Map.map(file=cfg['models'][m]['file'], mb = cfg['mb'], region = cfg['region']))
-						data_files.append(cfg['models'][m]['file'])
-				snv_map = list(set(snv_map))
-				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
-				regions_df['job'] = 1
-				regions_df['cpu'] = 1
-				del data_files
-				del snv_map
-			regions_df = regions_df[['chr','start','end','region','job','cpu']]
-			regions_df.sort_values(by=['chr','start'],inplace=True)
-			regions_df.reset_index(drop=True,inplace=True)
-
-		if args.which in ['meta','merge']:
-			#	generate regions dataframe with M rows, either from --snv-map or by splitting data file or --snv-region according to --mb
-			#	run_type = 0:   run as single job
-			#	run_type = 1:   --cpus C (distribute M regions over C cpus and run single job, 1 job C cpus)
-			#	run_type = 10:  --split (split M regions into single region jobs, M jobs 1 cpu)
-			#	run_type = 100: --split-n N (distribute M regions over N jobs, N jobs 1 cpu)
-			#	run_type = 11:  --split, --cpus C (split M regions into chunks of size M / C and run M jobs, M jobs C cpus)
-			#	run_type = 101: --split-n N, --cpus C (distribute M regions over N jobs and distribute each over C cpus, N jobs C cpus)
-			if cfg['region_file']:
-				regions_df = pd.read_table(cfg['region_file'],header=None,names=['region'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
-				regions_df['chr'] = [int(x.split(':')[0]) for x in regions_df['region']]
-				regions_df['start'] = [int(x.split(':')[1].split('-')[0]) for x in regions_df['region']]
-				regions_df['end'] = [int(x.split(':')[1].split('-')[1]) for x in regions_df['region']]
-				regions_df['job'] = 1
-				regions_df['cpu'] = 1
-			else:
-				snv_map = []
-				data_files = []
-				for f in cfg['files']:
-					if f not in data_files:
-						snv_map.extend(Map.map(file=cfg['files'][f], mb = cfg['mb'], region = cfg['region']))
-						data_files.append(cfg['files'][f])
-				snv_map = list(set(snv_map))
-				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
-				regions_df['job'] = 1
-				regions_df['cpu'] = 1
-				del data_files
-				del snv_map
-			regions_df = regions_df[['chr','start','end','region','job','cpu']]
-			regions_df.sort_values(by=['chr','start'],inplace=True)
-			regions_df.reset_index(drop=True,inplace=True)
-
-		if args.which == 'snvgroup':
-			#	generate regions dataframe with M rows from --snvgroup-map
-			#	run_type = 0:   run as single job
-			#	run_type = 1:   --cpus C (distribute M snvgroups over C cpus and run single job, 1 job C cpus)
-			#	run_type = 10:  --split (split M snvgroups into single region jobs, M jobs 1 cpu)
-			#	run_type = 100: --split-n N (distribute M snvgroups over N jobs, N jobs 1 cpu)
-			#	run_type = 101: --split-n N, --cpus C (distribute M snvgroups over N jobs and distribute each job over C cpus, N jobs C cpus)
-
-			if cfg['region_file']:
-				regions_df = pd.read_table(cfg['region_file'],header=None,names=['region','group_id'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
-				regions_df['chr'] = [int(x.split(':')[0]) for x in regions_df['region']]
-				regions_df['start'] = [int(x.split(':')[1].split('-')[0]) for x in regions_df['region']]
-				regions_df['end'] = [int(x.split(':')[1].split('-')[1]) for x in regions_df['region']]
-				regions_df['job'] = 1
-				regions_df['cpu'] = 1
-				regions_df = regions_df[['chr','start','end','region','group_id','job','cpu']]
+			if args.which in ['meta','merge']:
+				#	generate regions dataframe with M rows, either from --snv-map or by splitting data file or --snv-region according to --mb
+				#	run_type = 0:   run as single job
+				#	run_type = 1:   --cpus C (distribute M regions over C cpus and run single job, 1 job C cpus)
+				#	run_type = 10:  --split (split M regions into single region jobs, M jobs 1 cpu)
+				#	run_type = 100: --split-n N (distribute M regions over N jobs, N jobs 1 cpu)
+				#	run_type = 11:  --split, --cpus C (split M regions into chunks of size M / C and run M jobs, M jobs C cpus)
+				#	run_type = 101: --split-n N, --cpus C (distribute M regions over N jobs and distribute each over C cpus, N jobs C cpus)
+				if cfg['region_file']:
+					regions_df = pd.read_table(cfg['region_file'],header=None,names=['region'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
+					regions_df['chr'] = [int(x.split(':')[0]) for x in regions_df['region']]
+					regions_df['start'] = [int(x.split(':')[1].split('-')[0]) for x in regions_df['region']]
+					regions_df['end'] = [int(x.split(':')[1].split('-')[1]) for x in regions_df['region']]
+					regions_df['job'] = 1
+					regions_df['cpu'] = 1
+				else:
+					snv_map = []
+					data_files = []
+					for f in cfg['files']:
+						if f not in data_files:
+							snv_map.extend(Map.map(file=cfg['files'][f], mb = cfg['mb'], region = cfg['region']))
+							data_files.append(cfg['files'][f])
+					snv_map = list(set(snv_map))
+					regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
+					regions_df['job'] = 1
+					regions_df['cpu'] = 1
+					del data_files
+					del snv_map
+				regions_df = regions_df[['chr','start','end','region','job','cpu']]
 				regions_df.sort_values(by=['chr','start'],inplace=True)
 				regions_df.reset_index(drop=True,inplace=True)
-			elif cfg['region']:
-				snv_map = []
-				data_files = []
-				for m in cfg['models']:
-					if cfg['models'][m]['file'] not in data_files:
-						snv_map.extend(Map.map(file=cfg['models'][m]['file'], mb = 1000, region = cfg['region']))
-						data_files.append(cfg['models'][m]['file'])
-				snv_map = list(set(snv_map))
-				regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
-				regions_df['group_id'] = cfg['region']
-				regions_df['job'] = 1
-				regions_df['cpu'] = 1
-				del data_files
-				del snv_map
-				regions_df = regions_df[['chr','start','end','region','group_id','job','cpu']]
-				regions_df.sort_values(by=['chr','start'],inplace=True)
-				regions_df.reset_index(drop=True,inplace=True)
-			else:
-				if cfg['snvgroup_map']:
-					snvgroup_map = pd.read_table(cfg['snvgroup_map'],header=None,names=['chr','pos','marker','group_id'], compression='gzip' if cfg['snvgroup_map'].split('.')[-1] == 'gz' else None)
-					regions_df = snvgroup_map[['chr','pos','group_id']]
-					regions_df=regions_df.groupby(['chr','group_id'])
-					regions_df = regions_df.agg({'pos': [np.min,np.max]})
-					regions_df.columns = ['start','end']
-					regions_df['chr'] = regions_df.index.get_level_values('chr')
-					regions_df['group_id'] = regions_df.index.get_level_values('group_id')
-					regions_df['region'] = regions_df.chr.map(str) + ':' + regions_df.start.map(str) + '-' + regions_df.end.map(str)
+
+			if args.which == 'snvgroup':
+				#	generate regions dataframe with M rows from --snvgroup-map
+				#	run_type = 0:   run as single job
+				#	run_type = 1:   --cpus C (distribute M snvgroups over C cpus and run single job, 1 job C cpus)
+				#	run_type = 10:  --split (split M snvgroups into single region jobs, M jobs 1 cpu)
+				#	run_type = 100: --split-n N (distribute M snvgroups over N jobs, N jobs 1 cpu)
+				#	run_type = 101: --split-n N, --cpus C (distribute M snvgroups over N jobs and distribute each job over C cpus, N jobs C cpus)
+
+				if cfg['region_file']:
+					regions_df = pd.read_table(cfg['region_file'],header=None,names=['region','group_id'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
+					regions_df['chr'] = [int(x.split(':')[0]) for x in regions_df['region']]
+					regions_df['chr_idx'] = 1
+					regions_df['start'] = [int(x.split(':')[1].split('-')[0]) for x in regions_df['region']]
+					regions_df['end'] = [int(x.split(':')[1].split('-')[1]) for x in regions_df['region']]
 					regions_df['job'] = 1
 					regions_df['cpu'] = 1
 					regions_df = regions_df[['chr','start','end','region','group_id','job','cpu']]
-					regions_df.drop_duplicates(inplace=True)
 					regions_df.sort_values(by=['chr','start'],inplace=True)
 					regions_df.reset_index(drop=True,inplace=True)
+				elif cfg['region']:
+					snv_map = []
+					data_files = []
+					for m in cfg['models']:
+						if cfg['models'][m]['file'] not in data_files:
+							snv_map.extend(Map.map(file=cfg['models'][m]['file'], mb = 1000, region = cfg['region']))
+							data_files.append(cfg['models'][m]['file'])
+					snv_map = list(set(snv_map))
+					regions_df = pd.DataFrame({'region': snv_map, 'chr': [int(x.split(':')[0]) for x in snv_map], 'start': [int(x.split(':')[1].split('-')[0]) for x in snv_map], 'end': [int(x.split(':')[1].split('-')[1]) for x in snv_map]})
+					regions_df['group_id'] = cfg['region']
+					regions_df['job'] = 1
+					regions_df['cpu'] = 1
+					del data_files
+					del snv_map
+					regions_df = regions_df[['chr','start','end','region','group_id','job','cpu']]
+					regions_df.sort_values(by=['chr','start'],inplace=True)
+					regions_df.reset_index(drop=True,inplace=True)
+				else:
+					if cfg['snvgroup_map']:
+						snvgroup_map = pd.read_table(cfg['snvgroup_map'],header=None,names=['chr','pos','marker','group_id'], compression='gzip' if cfg['snvgroup_map'].split('.')[-1] == 'gz' else None)
+						regions_df = snvgroup_map[['chr','pos','group_id']]
+						regions_df=regions_df.groupby(['chr','group_id'])
+						regions_df = regions_df.agg({'pos': [np.min,np.max]})
+						regions_df.columns = ['start','end']
+						regions_df['chr'] = regions_df.index.get_level_values('chr')
+						regions_df['group_id'] = regions_df.index.get_level_values('group_id')
+						regions_df['region'] = regions_df.chr.map(str) + ':' + regions_df.start.map(str) + '-' + regions_df.end.map(str)
+						regions_df['job'] = 1
+						regions_df['cpu'] = 1
+						regions_df = regions_df[['chr','start','end','region','group_id','job','cpu']]
+						regions_df.drop_duplicates(inplace=True)
+						regions_df.sort_values(by=['chr','start'],inplace=True)
+						regions_df.reset_index(drop=True,inplace=True)
 
 		if run_type == 1:
 			n = int(np.ceil(regions_df.shape[0] / float(cfg['cpus'])))
@@ -222,7 +230,7 @@ def main(args=None):
 			print Process.print_error('number of jobs exceeds 100,000, consider using --split-n to reduce the total number of jobs')
 			return
 
-	if args.which in ['snv','snvgroup','meta','merge']:
+	if args.which in ['snv','snvgroup','meta','merge','tools']:
 		print 'detected run type ' + str(run_type) + ' ...'
 		if len(rerun) == 0:
 			if int(max(regions_df['job'])) > 1 and cfg['qsub'] is not None:
@@ -230,9 +238,9 @@ def main(args=None):
 					print '   ' + str(regions_df.shape[0]) + ' regions of size ' + str(cfg['mb']) + 'mb detected'
 				else:
 					print '   ' + str(regions_df.shape[0]) + ' regions detected'
-				print '   ' + str(int(max(regions_df['job']))) + ' jobs will be submitted'
-				print '   <= ' + str(max(np.bincount(regions_df['job']))) + ' regions per job'
-				print '   <= '  + str(int(max(regions_df['cpu']))) + ' cpus per job'
+				print '   an array containing ' + str(int(max(regions_df['job']))) + ' tasks will be submitted'
+				print '   <= ' + str(max(np.bincount(regions_df['job']))) + ' regions per task'
+				print '   <= '  + str(int(max(regions_df['cpu']))) + ' cpus per task'
 				print '   qsub options: ' + cfg['qsub']
 				print '   output directory: ' + cfg['out']
 				print '   replace: ' + str(cfg['replace'])
@@ -262,6 +270,7 @@ def main(args=None):
 				pickle.dump([args, cfg], p)
 
 			if run_type in [10,11,100,101] and regions_df.shape[0] > 1:
+				print "initializing job array database ..."
 				for j in range(1, int(max(regions_df['job'])) + 1):
 					try:
 						os.mkdir(cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))
@@ -273,20 +282,21 @@ def main(args=None):
 						pass
 				with open(cfg['out'] + '/' + cfg['out'] + '.files', 'w') as jlist:
 					for j in range(1, int(max(regions_df['job'])) + 1):
-						if args.which in ['snv','snvgroup']:
+						if args.which in ['snv','snvgroup','tools']:
 							if 'model_order' in cfg:
 								for m in cfg['model_order']:
-									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
+									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
 							else:
-								jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
+								jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
 						if 'meta_order' in cfg:
 							if len(cfg['meta_order']) > 0:
 								for m in cfg['meta_order']:
-									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + 'jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
+									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
+			regions_df.to_csv(cfg['out'] + '/' + cfg['out'] + '.regions',header=True,index=False,sep="\t")
 		else:
 			if int(max(regions_df['job'])) > 1 and cfg['qsub'] is not None:
 				print 'detected resubmit ...'
-				print '   ' + str(len(rerun)) + ' jobs will be submitted'
+				print '   an array containing ' + str(len(rerun)) + ' tasks will be submitted'
 				print '   <= ' + str(max(np.bincount(regions_df['job']))) + ' regions per job'
 				print '   <= '  + str(int(max(regions_df['cpu']))) + ' cpus per job'
 				print '   qsub options: ' + cfg['qsub']
@@ -310,25 +320,26 @@ def main(args=None):
 			for k in ini.options(s):
 				print '   ' + k + ' = ' + ini.get(s,k)
 
-	elif args.which in ['snv','snvgroup','meta','merge','resubmit']:
+	elif args.which in ['snv','snvgroup','meta','merge','resubmit','tools']:
+		#if resubmit:
+			#os.remove(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun.pkl')
 		if cfg['qsub']:
 			print "submitting jobs\n"
 		out = cfg['out']
 		joblist = range(1, int(max(regions_df['job'])) + 1) if len(rerun) == 0 else rerun
-		for j in joblist:
-			regions_job_df = regions_df[regions_df['job'] == j].reset_index(drop=True)
-			if int(max(regions_df['job'])) > 1:
-				cfg['out'] = out + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + os.path.basename(out) + '.job' + str(j)
-				regions_job_df.to_csv(cfg['out'] + '.regions', index = False, header = True, sep='\t', na_rep='None')
-			else:
-				cfg['out'] = out + '/' + os.path.basename(out)
-				regions_job_df.to_csv(cfg['out'] + '.regions', index = False, header = True, sep='\t', na_rep='None')
-			args.ordered_args = [('out',cfg['out']),('region_file',cfg['out'] + '.regions'),('cpus',int(max(regions_job_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
+		if int(max(regions_df['job'])) > 1:
+			cfg['out'] = out + '/jobsSGE_TASK_ID_RANGE/jobSGE_TASK_ID/' + os.path.basename(out) + '.jobSGE_TASK_ID'
+			job = 'SGE_TASK_ID'
+			cfg['qsub'] = cfg['qsub'] + ' -t 1-' + str(max(regions_df['job'])) if len(rerun) == 0 else cfg['qsub'] + ' -t ' + ','.join([str(x) for x in rerun])
+			args.ordered_args = [('out',cfg['out']),('region_file',out + '/' + out + '.regions'),('job',job),('cpus',int(max(regions_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
 			cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
-			if cfg['qsub']:
-				Process.qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['out'] + '.' + args.which + '.log',qsub_wrapper],'\"' + cmd + '\"')
-			else:
-				Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
+			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-N',out,'-o',out + '/',qsub_wrapper],'\"' + cmd + '\"')
+		else:
+			cfg['out'] = out + '/' + os.path.basename(out)
+			job = 1
+			args.ordered_args = [('out',cfg['out']),('region_file',out + '/' + out + '.regions'),('job',job),('cpus',int(max(regions_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
+			cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
+			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
 
 	elif args.which == 'compile':
 		files = pd.read_table(args.dir + '/' + os.path.basename(args.dir) + '.files', names=['job','out','file'])

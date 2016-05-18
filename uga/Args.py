@@ -738,3 +738,69 @@ def merge_args(merge_parser):
 						action=AddTrue, 
 						help='annotate results with snpEff')
 	return merge_parser
+
+def tools_args(tools_parser):
+	tools_required = tools_parser.add_argument_group('required arguments')
+	tools_required.add_argument('--file', 
+						action=AddString, 
+						required=True, 
+						help='genotype filename, either vcf or dos, to be used for splitting into genomic regions used by the tool (replace Tabix region with UGA_REGION in --cmd; You can also use UGA_REGION_BP to replace the colon with a bp in output filenames)')
+	tools_required.add_argument('--out', 
+						action=AddString, 
+						required=True, 
+						help='out file basename (replace output file basename in --cmd with UGA_OUT; ex. --out UGA_OUT.gz)')
+	tools_required.add_argument('--cmd', 
+						action=AddString, 
+						required=True, 
+						help='full command line instructions for external tool')
+	tools_parser.add_argument('--cpus', 
+						action=AddString, 
+						type=int, 
+						help='number of cpus')
+	tools_parser.add_argument('--buffer', 
+						action=AddString, 
+						type=int, 
+						help='value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
+	tools_parser.add_argument('--replace', 
+						nargs=0, 
+						action=AddTrue, 
+						help='replace any existing output files')
+	tools_parser.add_argument('--mb', 
+						action=AddString, 
+						help='region size in megabases to use for split analyses (default: 1)')
+	tools_parser.add_argument('--qsub', 
+						action=AddString, 
+						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	tools_parser_split_group1 = tools_parser.add_mutually_exclusive_group()
+	tools_parser_split_group1.add_argument('--region', 
+						action=AddString, 
+						help='genomic region specified in Tabix format of any size up to an entire chromosome (ie. 1:1-1000000, 21).')
+	tools_parser_split_group1.add_argument('--region-file', 
+						action=AddString, 
+						help='filename for a list of tabix format regions of any size up to an entire chromosome (ie. 1:1-1000000, 21)')
+	tools_parser_split_group2 = tools_parser.add_mutually_exclusive_group()
+	tools_parser_split_group2.add_argument('--split', 
+						nargs=0, 
+						action=AddTrue, 
+						help='split --region-file into an individual job for each line in file (requires --region-file)')
+	tools_parser_split_group2.add_argument('--split-n', 
+						action=AddString, 
+						type=int, 
+						help='split --region-file into n individual jobs each with a subset of regions in the file (requires --region-file)')
+	tools_parser_split_group2.add_argument('--split-chr', 
+						nargs=0, 
+						action=AddTrue,  
+						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
+	tools_parser_split_group3 = tools_parser.add_mutually_exclusive_group()
+	tools_parser_split_group3.add_argument('--job', 
+						action=AddString, 
+						type=int, 
+						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	tools_parser_split_group3.add_argument('--jobs', 
+						action=AddString, 
+						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+	tools_parser.add_argument('--debug', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable debug mode (prints debug info to log file)')
+	return tools_parser

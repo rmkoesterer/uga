@@ -34,7 +34,6 @@ def main(argv):
 	env_vars = os.environ.copy()
 	local=False
 	user_name=pwd.getpwuid(os.getuid()).pw_name
-	group_name=subprocess.check_output(['id','-ng']).rstrip()
 
 	if not 'REQNAME' in env_vars.keys():
 		local=True
@@ -53,7 +52,6 @@ def main(argv):
 	if 'PWD' in env_vars.keys():
 		print "current directory: " + env_vars['PWD']
 	print "user name: " + user_name
-	print "group id: " + group_name
 	if 'JOB_ID' in env_vars.keys():
 		print "job id: " + env_vars['JOB_ID']
 	if 'REQNAME' in env_vars.keys():
@@ -75,7 +73,14 @@ def main(argv):
 		from uga.RunSnvgroupplot import RunSnvgroupplot
 	if argv[1].split('(')[0] == "RunFilter":
 		from uga.RunFilter import RunFilter
+	if argv[1].split('(')[0] == "RunTools":
+		from uga.RunTools import RunTools
 
+	if argv[1].split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"]:
+		if env_vars['SGE_TASK_ID'] is not 'None':
+			argv[1] = argv[1].replace("'SGE_TASK_ID'",env_vars['SGE_TASK_ID'])
+			argv[1] = argv[1].replace("SGE_TASK_ID_RANGE",str((100 * ((int(env_vars['SGE_TASK_ID'])-1) / 100) + 1)) + "-" + str((100 * ((int(env_vars['SGE_TASK_ID'])-1) / 100) + 100))).replace("SGE_TASK_ID",str(env_vars['SGE_TASK_ID']))
+	print "command entered: " + argv[1]
 	exec('r=' + argv[1])
 	if r == 0:
 		end_time = (localtime(), time())
