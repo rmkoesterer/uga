@@ -22,7 +22,6 @@ import os
 import pwd
 import psutil
 import resource
-import subprocess
 import sys
 from time import strftime, localtime, time, gmtime
 
@@ -77,7 +76,7 @@ def main(argv):
 		from uga.RunTools import RunTools
 
 	if argv[1].split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"]:
-		if env_vars['SGE_TASK_ID'] is not 'None':
+		if env_vars['SGE_TASK_ID'] != 'undefined':
 			argv[1] = argv[1].replace("'SGE_TASK_ID'",env_vars['SGE_TASK_ID'])
 			argv[1] = argv[1].replace("SGE_TASK_ID_RANGE",str((100 * ((int(env_vars['SGE_TASK_ID'])-1) / 100) + 1)) + "-" + str((100 * ((int(env_vars['SGE_TASK_ID'])-1) / 100) + 100))).replace("SGE_TASK_ID",str(env_vars['SGE_TASK_ID']))
 	print ""

@@ -330,15 +330,18 @@ def main(args=None):
 		if int(max(regions_df['job'])) > 1:
 			cfg['out'] = out + '/jobsSGE_TASK_ID_RANGE/jobSGE_TASK_ID/' + os.path.basename(out) + '.jobSGE_TASK_ID'
 			job = 'SGE_TASK_ID'
-			cfg['qsub'] = cfg['qsub'] + ' -t 1-' + str(max(regions_df['job'])) if len(rerun) == 0 else cfg['qsub'] + ' -t ' + ','.join([str(x) for x in rerun])
-			args.ordered_args = [('out',cfg['out']),('region_file',out + '/' + out + '.regions'),('job',job),('cpus',int(max(regions_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
-			cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
-			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-N',out,'-o',out + '/',qsub_wrapper],'\"' + cmd + '\"')
+			if cfg['qsub']:
+				cfg['qsub'] = cfg['qsub'] + ' -t 1-' + str(max(regions_df['job'])) if len(rerun) == 0 else cfg['qsub'] + ' -t ' + ','.join([str(x) for x in rerun])
 		else:
 			cfg['out'] = out + '/' + os.path.basename(out)
 			job = 1
-			args.ordered_args = [('out',cfg['out']),('region_file',out + '/' + out + '.regions'),('job',job),('cpus',int(max(regions_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
-			cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
+			if cfg['qsub']:
+				cfg['qsub'] = cfg['qsub'] + ' -t 1'
+		args.ordered_args = [('out',cfg['out']),('region_file',out + '/' + out + '.regions'),('job',job),('cpus',int(max(regions_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
+		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
+		if cfg['qsub']:
+			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-N',out,'-o',out + '/',qsub_wrapper],'\"' + cmd + '\"')
+		else:
 			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
 
 	elif args.which == 'compile':
