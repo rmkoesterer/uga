@@ -321,8 +321,8 @@ def main(args=None):
 				print '   ' + k + ' = ' + ini.get(s,k)
 
 	elif args.which in ['snv','snvgroup','meta','merge','resubmit','tools']:
-		#if resubmit:
-			#os.remove(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun.pkl')
+		if resubmit:
+			os.remove(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun.pkl')
 		if cfg['qsub']:
 			print "submitting jobs\n"
 		out = cfg['out']

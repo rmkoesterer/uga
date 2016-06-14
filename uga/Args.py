@@ -108,6 +108,9 @@ def snv_args(snv_parser):
 	snv_parser.add_argument('--drop', 
 						action=AddString, 
 						help='sample drop list file')
+	snv_parser.add_argument('--keep', 
+						action=AddString, 
+						help='sample keep list file')
 	snv_parser.add_argument('--sex', 
 						action=AddString, 
 						help='name of the column containing male/female status (requires --male and --female)')
@@ -276,6 +279,9 @@ def snvgroup_args(snvgroup_parser):
 	snvgroup_parser.add_argument('--drop', 
 						action=AddString, 
 						help='sample drop list file')
+	snvgroup_parser.add_argument('--keep', 
+						action=AddString, 
+						help='sample keep list file')
 	snvgroup_parser.add_argument('--covars', 
 						action=AddString, 
 						help='"+" separated list of numeric covariates (categorical covariates should be wrapped in factor())')

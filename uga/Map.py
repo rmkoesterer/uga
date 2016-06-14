@@ -55,9 +55,12 @@ def map(file,
 				for rp in starts:
 					regions.append(chr + ":" + str(rp) + "-" + str(rp+s-1))
 
+		prev_chr=''
 		for reg in regions:
-			print 'mapping region ' + reg
 			chr = reg.split(':')[0]
+			if chr != prev_chr:
+				print 'mapping chromosome ' + chr
+			prev_chr = chr
 			start = reg.split(':')[1].split('-')[0]
 			end = reg.split(':')[1].split('-')[1]
 			if not s is None:

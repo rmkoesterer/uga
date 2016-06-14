@@ -97,6 +97,7 @@ def process_regions(regions_df, cfg, cpu, log):
 																						variants_file=cfg['models'][n]['file'].replace('[CHR]',str(regions_df['chr'][k])), # variants_file=cfg['models'][n]['file']
 																						samples_file=cfg['models'][n]['sample'], 
 																						drop_file=cfg['models'][n]['drop'], 
+																						keep_file=cfg['models'][n]['keep'], 
 																						type=cfg['models'][n]['fxn'], 
 																						fid=cfg['models'][n]['fid'], 
 																						iid=cfg['models'][n]['iid'], 

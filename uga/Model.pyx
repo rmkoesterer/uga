@@ -48,14 +48,14 @@ cdef class Model(object):
 	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx, \
 							model_cols, results_header, calc_hwe_idx, \
 							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, male_idx, female_idx
-	cdef public bytes fxn, format, pheno, variants_file, type, samples_file, drop_file, \
+	cdef public bytes fxn, format, pheno, variants_file, type, samples_file, drop_file, keep_file, \
 						iid, fid, matid, patid, sex, sep, a1, a2
 	cdef public str metadata, metadata_cc, family, formula, focus, dep_var, interact, covars
-	cdef public object pheno_df, variants, out, results_dtypes, pedigree, drop
+	cdef public object pheno_df, variants, out, results_dtypes, pedigree, drop, keep
 	cdef public bint all_founders, reverse
 	def __cinit__(self, fxn, format, variants_file, pheno, type, iid, fid, 
 					case_code = None, ctrl_code = None, all_founders = False, dep_var = None, covars = None, interact = None, reverse = False, samples_file = None, 
-					drop_file = None, matid = None, patid = None, sex = None, male = 1, female = 2, sep = 'tab', **kwargs):
+					drop_file = None, keep_file = None, matid = None, patid = None, sex = None, male = 1, female = 2, sep = 'tab', **kwargs):
 		super(Model, self).__init__(**kwargs)
 		logger = logging.getLogger("Model.Model.__cinit__")
 		logger.debug("initialize model")
@@ -69,6 +69,7 @@ cdef class Model(object):
 		self.variants_file = variants_file
 		self.samples_file = samples_file
 		self.drop_file = drop_file
+		self.keep_file = keep_file
 		self.pheno = pheno
 		self.type = type
 		self.iid = iid
@@ -174,6 +175,13 @@ cdef class Model(object):
 					raise Process.Error("unable to load sample drop file " + self.drop_file)
 				print "dropping " + str(len([a for a in np.in1d(self.pheno_df[self.iid],self.drop) if a])) + " samples from file " + self.drop_file
 				self.pheno_df = self.pheno_df[np.in1d(self.pheno_df[self.iid],self.drop,invert=True)]
+			if self.keep_file is not None:
+				try:
+					self.keep=np.genfromtxt(fname=self.keep_file, dtype='object')
+				except:
+					raise Process.Error("unable to load sample keep file " + self.keep_file)
+				print "keeping " + str(len([a for a in np.in1d(self.pheno_df[self.iid],self.keep) if a])) + " samples from file " + self.keep_file
+				self.pheno_df = self.pheno_df[np.in1d(self.pheno_df[self.iid],self.keep)]
 			if self.pheno_df.shape[0] > 0:
 				iids_unique, iids_counts = np.unique(self.pheno_df[self.iid], return_counts=True)
 				fids_unique, fids_counts = np.unique(self.pheno_df[self.fid], return_counts=True)

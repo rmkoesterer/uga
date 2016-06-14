@@ -80,6 +80,7 @@ def main(argv):
 		if env_vars['SGE_TASK_ID'] is not 'None':
 			argv[1] = argv[1].replace("'SGE_TASK_ID'",env_vars['SGE_TASK_ID'])
 			argv[1] = argv[1].replace("SGE_TASK_ID_RANGE",str((100 * ((int(env_vars['SGE_TASK_ID'])-1) / 100) + 1)) + "-" + str((100 * ((int(env_vars['SGE_TASK_ID'])-1) / 100) + 100))).replace("SGE_TASK_ID",str(env_vars['SGE_TASK_ID']))
+	print ""
 	print "command entered: " + argv[1]
 	exec('r=' + argv[1])
 	if r == 0:

@@ -68,7 +68,7 @@ def get_args(parser):
 
 def generate_snv_cfg(args):
 	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'debug': False, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
+					'job': 1, 'debug': False, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
 	for arg in args:
 		if arg[0] == 'out':
 			config['out'] = arg[1]
@@ -100,6 +100,8 @@ def generate_snv_cfg(args):
 			config['replace'] = arg[1]
 		if arg[0] == 'debug':
 			config['debug'] = arg[1]
+		if arg[0] == 'job':
+			config['job'] = arg[1]
 
 	args = [x for x in args if x[0] not in config and not x[0] in ['meta_sample_size','meta_stderr']]
 
@@ -107,7 +109,7 @@ def generate_snv_cfg(args):
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
 							'male': 1, 'female': 2, 'miss': None, 'maf': None, 'maxmaf': None, 'mac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None,
-							'fxn': None, 'dep_var': None, 'format': None, 'file': None, 'sample': None, 'drop': None, 'corstr': None, 
+							'fxn': None, 'dep_var': None, 'format': None, 'file': None, 'sample': None, 'drop': None, 'keep': None, 'corstr': None, 
 							'pheno': None, 'covars': None, 'interact': None, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 
 							'adjust_kinship': False}
 	if len(tags_idx) > 1:
@@ -212,7 +214,7 @@ def generate_snvgroup_cfg(args):
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
 							'male': 1, 'female': 2, 'miss': None, 'maf': None, 'maxmaf': None, 'mac': None, 'cmac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None, 
-							'fxn': None, 'format': None, 'file': None, 'sample': None, 'drop': None, 'skat_wts': None, 'burden_wts': None, 'skat_method': None,
+							'fxn': None, 'format': None, 'file': None, 'sample': None, 'drop': None, 'keep': None, 'skat_wts': None, 'burden_wts': None, 'skat_method': None,
 							'pheno': None, 'dep_var': None, 'covars': None, 'mafrange': None, 'skato_rho': None, 'case_code': 1, 'ctrl_code': 0, 
 							'adjust_kinship': False}
 	if len(tags_idx) > 1:

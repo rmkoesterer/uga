@@ -91,7 +91,7 @@ def compile_results(directory, files):
 	for j, row in files_o.iterrows():
 		f = directory + '/' + '/'.join(row['file'].split('/')[1:])
 		#lf = glob.glob('/'.join(f.split('/')[0:len(f.split('/'))-1]) + "/*.log")
-		lf = glob.glob(directory + '/' + row['out'].replace('.gz','') + ".o*." + str(j))
+		lf = glob.glob(directory + '/' + row['out'].replace('.gz','') + ".o*." + str(j+1))
 		if j+1 == 1:
 			p1 = subprocess.Popen(['cat',lf[0]], stdout=subprocess.PIPE)
 			p2 = subprocess.Popen(['awk','{print \"      \"$0}'], stdin=p1.stdout, stdout=subprocess.PIPE)
