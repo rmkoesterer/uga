@@ -187,14 +187,14 @@ def snv_args(snv_parser):
 						nargs=0, 
 						action=AddTrue,  
 						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	snv_parser_split_group3 = snv_parser.add_mutually_exclusive_group()
-	snv_parser_split_group3.add_argument('--job', 
-						action=AddString, 
-						type=int, 
-						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
-	snv_parser_split_group3.add_argument('--jobs', 
-						action=AddString, 
-						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+	#snv_parser_split_group3 = snv_parser.add_mutually_exclusive_group()
+	#snv_parser_split_group3.add_argument('--job', 
+	#					action=AddString, 
+	#					type=int, 
+	#					help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	#snv_parser_split_group3.add_argument('--jobs', 
+	#					action=AddString, 
+	#					help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 	snv_parser.add_argument('--vcf', 
 						action=AddString, 
 						help='vcf 4.1/4.2 format genotype data file')
@@ -365,14 +365,14 @@ def snvgroup_args(snvgroup_parser):
 						nargs=0, 
 						action=AddTrue,  
 						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	snvgroup_parser_split_group3 = snvgroup_parser.add_mutually_exclusive_group()
-	snvgroup_parser_split_group3.add_argument('--job', 
-						action=AddString, 
-						type=int, 
-						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
-	snvgroup_parser_split_group3.add_argument('--jobs', 
-						action=AddString, 
-						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+	#snvgroup_parser_split_group3 = snvgroup_parser.add_mutually_exclusive_group()
+	#snvgroup_parser_split_group3.add_argument('--job', 
+	#					action=AddString, 
+	#					type=int, 
+	#					help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	#snvgroup_parser_split_group3.add_argument('--jobs', 
+	#					action=AddString, 
+	#					help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 	snvgroup_parser.add_argument('--vcf', 
 						action=AddString, 
 						help='vcf 4.1/4.2 format genotype data file')
@@ -474,14 +474,14 @@ def meta_args(meta_parser):
 						nargs=0, 
 						action=AddTrue,  
 						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	meta_parser_split_group3 = meta_parser.add_mutually_exclusive_group()
-	meta_parser_split_group3.add_argument('--job', 
-						action=AddString, 
-						type=int, 
-						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
-	meta_parser_split_group3.add_argument('--jobs', 
-						action=AddString, 
-						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+	#meta_parser_split_group3 = meta_parser.add_mutually_exclusive_group()
+	#meta_parser_split_group3.add_argument('--job', 
+	#					action=AddString, 
+	#					type=int, 
+	#					help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	#meta_parser_split_group3.add_argument('--jobs', 
+	#					action=AddString, 
+	#					help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 	meta_parser.add_argument('--meta-sample-size', 
 						nargs=2, 
 						action=AddString, 
@@ -535,6 +535,12 @@ def snvplot_args(snvplot_parser):
 						action=AddString, 
 						choices=['tiff','eps','pdf'], 
 						help='file type extension for plot files (default: tiff)')
+	snvplot_parser.add_argument('--chrcol', 
+						action=AddString, 
+						help='chromosome column (default: #chr)')
+	snvplot_parser.add_argument('--bpcol', 
+						action=AddString, 
+						help='genomic position column (default: pos)')
 	snvplot_parser.add_argument('--freqcol', 
 						action=AddString, 
 						help='effect allele frequency column (default: freq)')
@@ -731,14 +737,14 @@ def merge_args(merge_parser):
 						nargs=0, 
 						action=AddTrue,  
 						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	merge_parser_split_group3 = merge_parser.add_mutually_exclusive_group()
-	merge_parser_split_group3.add_argument('--job', 
-						action=AddString, 
-						type=int, 
-						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
-	merge_parser_split_group3.add_argument('--jobs', 
-						action=AddString, 
-						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+	#merge_parser_split_group3 = merge_parser.add_mutually_exclusive_group()
+	#merge_parser_split_group3.add_argument('--job', 
+	#					action=AddString, 
+	#					type=int, 
+	#					help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	#merge_parser_split_group3.add_argument('--jobs', 
+	#					action=AddString, 
+	#					help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 	merge_parser.add_argument('--snpeff', 
 						nargs=0, 
 						action=AddTrue, 
@@ -755,10 +761,10 @@ def tools_args(tools_parser):
 						action=AddString, 
 						required=True, 
 						help='out file basename (replace output file basename in --cmd with UGA_OUT; ex. --out UGA_OUT.gz)')
-	tools_required.add_argument('--cmd', 
+	tools_required.add_argument('--source', 
 						action=AddString, 
 						required=True, 
-						help='full command line instructions for external tool')
+						help='bash source file (environment setup and command, using wildcards where applicable)')
 	tools_parser.add_argument('--cpus', 
 						action=AddString, 
 						type=int, 
@@ -797,14 +803,14 @@ def tools_args(tools_parser):
 						nargs=0, 
 						action=AddTrue,  
 						help='split data into chromosomes (will generate up to 26 separate jobs depending on chromosome coverage)')
-	tools_parser_split_group3 = tools_parser.add_mutually_exclusive_group()
-	tools_parser_split_group3.add_argument('--job', 
-						action=AddString, 
-						type=int, 
-						help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
-	tools_parser_split_group3.add_argument('--jobs', 
-						action=AddString, 
-						help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
+	#tools_parser_split_group3 = tools_parser.add_mutually_exclusive_group()
+	#tools_parser_split_group3.add_argument('--job', 
+	#					action=AddString, 
+	#					type=int, 
+	#					help='run a particular job (use with --region-file and --split with value a tabix format region or --split-n with value a number from 1..n)')
+	#tools_parser_split_group3.add_argument('--jobs', 
+	#					action=AddString, 
+	#					help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 	tools_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 

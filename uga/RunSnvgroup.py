@@ -215,7 +215,7 @@ def RunSnvgroup(args):
 		logging.disable(logging.CRITICAL)
 
 	regions_df = pd.read_table(cfg['region_file'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
-	regions_df = regions_df[regions_df['job'] == cfg['job']].reset_index(drop=True)
+	regions_df = regions_df[regions_df['job'] == int(cfg['job'])].reset_index(drop=True)
 	return_values = {}
 	models_out = {}
 	bgzfiles = {}
@@ -285,7 +285,7 @@ def RunSnvgroup(args):
 
 		bgzfiles[m].close()
 
-		print "indexing out file for model " + m
+		print "indexing out file for model " + m if m != '___no_tag___' else "indexing out file"
 		try:
 			pysam.tabix_index(models_out[m] + '.gz',seq_col=0,start_col=tbx_start,end_col=tbx_end,force=True)
 		except:

@@ -178,7 +178,7 @@ def print_snv_options(cfg):
 
 def generate_snvgroup_cfg(args):
 	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'snvgroup_map': None, 
-					'debug': False, 'timeout': 3600, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
+					'job': 1, 'debug': False, 'timeout': 3600, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
 	for arg in args:
 		if arg[0] == 'out':
 			config['out'] = arg[1]
@@ -207,6 +207,8 @@ def generate_snvgroup_cfg(args):
 			config['debug'] = arg[1]
 		if arg[0] == 'timeout':
 			config['timeout'] = arg[1]
+		if arg[0] == 'job':
+			config['job'] = arg[1]
 
 	args = [x for x in args if x[0] not in config]
 
@@ -280,7 +282,7 @@ def print_snvgroup_options(cfg):
 
 def generate_meta_cfg(args):
 	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'debug': False, 'files': {}, 'file_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
+					'job': 1, 'debug': False, 'files': {}, 'file_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
 
 	for arg in args:
 		if arg[0] == 'out':
@@ -316,6 +318,8 @@ def generate_meta_cfg(args):
 		if arg[0] == 'file':
 			config['files'][arg[1][0]] = arg[1][1]
 			config['file_order'].append(arg[1][0])
+		if arg[0] == 'job':
+			config['job'] = arg[1]
 	return config
 
 def print_meta_options(cfg):
@@ -360,7 +364,7 @@ def print_compile_options(cfg):
 
 def generate_snvplot_cfg(args):
 	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 'qq_strat': False, 
-				'mht': False, 'crop': 10, 'pcol': 'p', 'freqcol': 'freq'}
+				'mht': False, 'crop': 10, 'chrcol': '#chr', 'bpcol': 'pos', 'pcol': 'p', 'freqcol': 'freq'}
 	for arg in args:
 		if arg[0] == 'file':
 			config['file'] = arg[1]
@@ -388,6 +392,10 @@ def generate_snvplot_cfg(args):
 			config['crop'] = arg[1]
 		if arg[0] == 'pcol':
 			config['pcol'] = arg[1]
+		if arg[0] == 'chrcol':
+			config['chrcol'] = arg[1]
+		if arg[0] == 'bpcol':
+			config['bpcol'] = arg[1]
 		if arg[0] == 'freqcol':
 			config['freqcol'] = arg[1]
 	return config
@@ -490,7 +498,7 @@ def print_filter_options(cfg):
 
 def generate_merge_cfg(args):
 	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'debug': False, 'files': {}, 'file_order': [], 'snpeff': False}
+					'job': 1, 'debug': False, 'files': {}, 'file_order': [], 'snpeff': False}
 	for arg in args:
 		if arg[0] == 'file':
 			config['files'][arg[1][0]] = arg[1][1]
@@ -519,6 +527,8 @@ def generate_merge_cfg(args):
 			config['split_n'] = arg[1]
 		if arg[0] == 'snpeff':
 			config['snpeff'] = arg[1]
+		if arg[0] == 'job':
+			config['job'] = arg[1]
 	return config
 
 def print_merge_options(cfg):
@@ -532,15 +542,15 @@ def print_merge_options(cfg):
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
 def generate_tools_cfg(args):
-	config = {'file': None, 'out': None, 'cmd': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 
-				'split': False, 'split_n': None, 'split_chr': None, 'job': None, 'jobs': None, 'replace': False, 'debug': False}
+	config = {'file': None, 'out': None, 'source': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 
+				'job': 1, 'split': False, 'split_n': None, 'split_chr': None, 'job': None, 'jobs': None, 'replace': False, 'debug': False}
 	for arg in args:
 		if arg[0] == 'file':
 			config['file'] = arg[1]
 		if arg[0] == 'out':
 			config['out'] = arg[1]
-		if arg[0] == 'cmd':
-			config['cmd'] = arg[1]
+		if arg[0] == 'source':
+			config['source'] = arg[1]
 		if arg[0] == 'buffer' and arg[1] is not None:
 			config['buffer'] = arg[1]
 		if arg[0] == 'region':
@@ -567,6 +577,8 @@ def generate_tools_cfg(args):
 			config['replace'] = arg[1]
 		if arg[0] == 'debug':
 			config['debug'] = arg[1]
+		if arg[0] == 'job':
+			config['job'] = arg[1]
 	return config
 
 def print_tools_options(cfg):

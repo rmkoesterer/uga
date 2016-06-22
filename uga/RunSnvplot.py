@@ -47,21 +47,21 @@ def RunSnvplot(args):
 	pcols = cfg['pcol'].split(',')
 	if cfg['qq_strat']:
 		if cfg['freqcol'] not in cols:
-			cols_extract = ['#chr','pos'] + pcols
+			cols_extract = [cfg['chrcol'],cfg['bpcol']] + pcols
 			print Process.Error("frequency column " + cfg['freqcol'] + " not found, unable to proceed with frequency stratified plots").out
 			return 1
 		else:
-			cols_extract = ['#chr','pos',cfg['freqcol']] + pcols
+			cols_extract = [cfg['chrcol'],cfg['bpcol'],cfg['freqcol']] + pcols
 			print "frequency column " + cfg['freqcol'] + " found"
 	else:
-		cols_extract = ['#chr','pos'] + pcols
+		cols_extract = [cfg['chrcol'],cfg['bpcol']] + pcols
 	print "importing data"
 	r = pd.read_table(cfg['file'],sep='\t',skiprows=skip_rows,usecols=cols_extract,compression='gzip')
 	print str(r.shape[0]) + " total variants found"
 
 	for pcol in pcols:
 		print "plotting p-values for column " + pcol + " ..."
-		results = r[['#chr','pos',cfg['freqcol'],pcol]] if cfg['freqcol'] in r else r[['#chr','pos',pcol]]
+		results = r[[cfg['chrcol'],cfg['bpcol'],cfg['freqcol'],pcol]] if cfg['freqcol'] in r else r[[cfg['chrcol'],cfg['bpcol'],pcol]]
 		results.dropna(inplace=True)
 		results = results[(results[pcol] > 0) & (results[pcol] <= 1)].reset_index(drop=True)
 		print "   " + str(results.shape[0]) + " variants with plottable p-values"
@@ -298,18 +298,18 @@ def RunSnvplot(args):
 				print "   skipping genomic inflation correction"
 
 			print "   calculating genomic positions"
-			results.sort_values(by=['#chr','pos'], inplace=True)
+			results.sort_values(by=[cfg['chrcol'],cfg['bpcol']], inplace=True)
 			ticks = []
 			lastbase = 0
 			results['gpos'] = 0
-			nchr = len(list(np.unique(results['#chr'].values)))
-			chrs = np.unique(results['#chr'].values)
+			nchr = len(list(np.unique(results[cfg['chrcol']].values)))
+			chrs = np.unique(results[cfg['chrcol']].values)
 			if cfg['color']:
 				colours = ["#08306B","#41AB5D","#000000","#F16913","#3F007D","#EF3B2C","#08519C","#238B45","#252525","#D94801","#54278F","#CB181D","#2171B5","#006D2C","#525252","#A63603","#6A51A3","#A50F15","#4292C6","#00441B","#737373","#7F2704","#807DBA","#67000D"]
 			else:
 				colours = ["#08589e","#4eb3d3","#08589e","#4eb3d3","#08589e","#4eb3d3","#08589e","#4eb3d3","#08589e","#4eb3d3","#08589e","#4eb3d3","#08589e","#4eb3d3","#08589e","#4eb3d3","#08589e","#4eb3d3","#08589e","#4eb3d3","#08589e","#4eb3d3","#08589e","#4eb3d3"]
 			if nchr == 1:
-				results['gpos'] = results['pos']
+				results['gpos'] = results[cfg['bpcol']]
 				results['colours'] = "#08589e"
 				if results['gpos'].max() - results['gpos'].min() <= 1000:
 					ticks = [x for x in range(results['gpos'].min(),results['gpos'].max()) if x % 100 == 0]
@@ -346,22 +346,22 @@ def RunSnvplot(args):
 				for i in range(len(chrs)):
 					print "      processed chromosome " + str(int(chrs[i]))
 					if i == 0:
-						results.loc[results['#chr'] == chrs[i],'gpos'] = results.loc[results['#chr'] == chrs[i],'pos']
+						results.loc[results[cfg['chrcol']] == chrs[i],'gpos'] = results.loc[results[cfg['chrcol']] == chrs[i],cfg['bpcol']]
 					else:
-						lastbase = lastbase + results.loc[results['#chr'] == chrs[i-1],'pos'].iloc[-1]
-						results.loc[results['#chr'] == chrs[i],'gpos'] = (results.loc[results['#chr'] == chrs[i],'pos']) + lastbase
-					if results.loc[results['#chr'] == chrs[i]].shape[0] > 1:
-						ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[0] + (results.loc[results['#chr'] == chrs[i],'gpos'].iloc[-1] - results.loc[results['#chr'] == chrs[i],'gpos'].iloc[0])/2)
+						lastbase = lastbase + results.loc[results[cfg['chrcol']] == chrs[i-1],cfg['bpcol']].iloc[-1]
+						results.loc[results[cfg['chrcol']] == chrs[i],'gpos'] = (results.loc[results[cfg['chrcol']] == chrs[i],cfg['bpcol']]) + lastbase
+					if results.loc[results[cfg['chrcol']] == chrs[i]].shape[0] > 1:
+						ticks.append(results.loc[results[cfg['chrcol']] == chrs[i],'gpos'].iloc[0] + (results.loc[results[cfg['chrcol']] == chrs[i],'gpos'].iloc[-1] - results.loc[results[cfg['chrcol']] == chrs[i],'gpos'].iloc[0])/2)
 					else:
-						ticks.append(results.loc[results['#chr'] == chrs[i],'gpos'].iloc[0])
-					results.loc[results['#chr'] == chrs[i],'colours'] = colours[int(chrs[i])]
+						ticks.append(results.loc[results[cfg['chrcol']] == chrs[i],'gpos'].iloc[0])
+					results.loc[results[cfg['chrcol']] == chrs[i],'colours'] = colours[int(chrs[i])]
 			results['logp'] = -1 * np.log10(results[pcol])
 			if results.shape[0] >= 1000000:
 				sig = 5.4e-8
 			else:
 				sig = 0.05 / results.shape[0]
 			print "   significance level set to p-value = " + str(sig) + " (-1*log10(p-value) = " + str(-1 * np.log10(sig)) + ")"
-			chr = results['#chr'][0]
+			chr = results[cfg['chrcol']][0]
 			maxy=int(max(np.ceil(-1 * np.log10(sig)),np.ceil(results['logp'].max())))
 			if maxy > 20:
 				y_breaks = range(0,maxy,5)

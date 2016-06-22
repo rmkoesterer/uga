@@ -44,12 +44,18 @@ def process_regions(regions_df, cfg, cpu, log):
 		sys.stdout = log_file
 
 	tool_error = False
+	print ''
+	print 'sourcing bash script ' + cfg['source']
+	with open(cfg['source'],'r') as s:
+		base_cmd = s.read()
 	for k in xrange(len(regions_df.index)):
 		print ''
 		print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['region'][k] + ') ...'
-		print cfg['cmd'].replace('UGA_FILE',cfg['file']).replace('UGA_OUT',cfg['out'] + '.cpu' + str(cpu) + '.chr' + regions_df['region'][k].replace(':','bp')).replace('UGA_REGION_BP',regions_df['region'][k].replace(':','bp')).replace('UGA_REGION',regions_df['region'][k]).replace('UGA_OUT',cfg['out']).split()
+		cmd = base_cmd.replace('UGA_FILE',cfg['file']).replace('UGA_OUT',cfg['out'] + '.cpu' + str(cpu) + '.chr' + regions_df['region'][k].replace(':','bp')).replace('UGA_REGION_BP',regions_df['region'][k].replace(':','bp')).replace('UGA_REGION',regions_df['region'][k]).replace('UGA_OUT',cfg['out'])
+		with open(cfg['out'] + '.source','w') as s:
+			s.write(cmd)
 		try:
-			p = subprocess.Popen(cfg['cmd'].replace('UGA_FILE',cfg['file']).replace('UGA_OUT',cfg['out'] + '.cpu' + str(cpu) + '.chr' + regions_df['region'][k].replace(':','bp')).replace('UGA_REGION_BP',regions_df['region'][k].replace(':','bp')).replace('UGA_REGION',regions_df['region'][k]).replace('UGA_OUT',cfg['out']).split(),stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+			p = subprocess.Popen(['sh','-c', cmd],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 			for line in iter(p.stdout.readline, ''):
 				sys.stdout.write(line)
 			p.wait()
@@ -79,7 +85,7 @@ def RunTools(args):
 		logging.disable(logging.CRITICAL)
 
 	regions_df = pd.read_table(cfg['region_file'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
-	regions_df = regions_df[regions_df['job'] == cfg['job']].reset_index(drop=True)
+	regions_df = regions_df[regions_df['job'] == int(cfg['job'])].reset_index(drop=True)
 	return_values = {}
 	print ''
 	print "initializing out file"
@@ -123,10 +129,11 @@ def RunTools(args):
 	for i in xrange(1,cfg['cpus']+1):
 		cpu_regions_df = regions_df[regions_df['cpu'] == i].reset_index()
 		for j in xrange(0,len(cpu_regions_df.index)):
+			f_temp=glob.glob(cfg['out'] + '.cpu' + str(i) + '.chr' + cpu_regions_df['region'][j].replace(':','bp') + '*.gz')[0]
 			try:
-				h=pysam.TabixFile(filename=cfg['out'] + '.cpu' + str(i) + '.chr' + cpu_regions_df['region'][j].replace(':','bp') + '.gz',parser=pysam.asVCF())
+				h=pysam.TabixFile(filename=f_temp,parser=pysam.asVCF())
 			except:
-				print Process.Error("failed to load vcf file " + cfg['out'] + '.cpu' + str(i) + '.chr' + cpu_regions_df['region'][j].replace(':','bp') + '.gz')
+				print Process.Error("failed to load vcf file " + f_temp)
 				return 1
 			if not written:
 				for row in h.header:
@@ -135,8 +142,8 @@ def RunTools(args):
 			h_iter = h.fetch(region=str(cpu_regions_df['chr'][j]))
 			for row in h_iter:
 				bgzfile.write(str(row) + '\n')
-			os.remove(cfg['out'] + '.cpu' + str(i) + '.chr' + cpu_regions_df['region'][j].replace(':','bp') + '.gz')
-			os.remove(cfg['out'] + '.cpu' + str(i) + '.chr' + cpu_regions_df['region'][j].replace(':','bp') + '.gz.tbi')
+			for f in glob.glob(cfg['out'] + '.cpu' + str(i) + '.chr' + cpu_regions_df['region'][j].replace(':','bp') + '.*'):
+				os.remove(f)
 
 	bgzfile.close()
 

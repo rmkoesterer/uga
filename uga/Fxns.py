@@ -42,8 +42,7 @@ def verify_results(directory, files):
 	for i, row in files.iterrows():
 		f = directory + '/' + '/'.join(row['file'].split('/')[1:])
 		j = row['job']
-		#logfile = glob.glob('/'.join(f.split('/')[0:len(f.split('/'))-1]) + "/*.log")
-		logfile = glob.glob(directory + '/' + row['out'].replace('.gz','') + ".o*." + str(j))
+		logfile = glob.glob('/'.join(f.split('/')[0:len(f.split('/'))-1]) + "/*.log")
 		if os.path.exists(f):
 			if len(logfile) > 0:
 				p = subprocess.Popen(['grep','-cw','process complete',logfile[0]], stdout=subprocess.PIPE)	
@@ -90,8 +89,7 @@ def compile_results(directory, files):
 	pbar.start()
 	for j, row in files_o.iterrows():
 		f = directory + '/' + '/'.join(row['file'].split('/')[1:])
-		#lf = glob.glob('/'.join(f.split('/')[0:len(f.split('/'))-1]) + "/*.log")
-		lf = glob.glob(directory + '/' + row['out'].replace('.gz','') + ".o*." + str(j+1))
+		lf = glob.glob('/'.join(f.split('/')[0:len(f.split('/'))-1]) + "/*.log")
 		if j+1 == 1:
 			p1 = subprocess.Popen(['cat',lf[0]], stdout=subprocess.PIPE)
 			p2 = subprocess.Popen(['awk','{print \"      \"$0}'], stdin=p1.stdout, stdout=subprocess.PIPE)
@@ -132,7 +130,7 @@ def compile_results(directory, files):
 				b = 1
 				e = 2
 			pysam.tabix_index(directory + '/' + o,seq_col=0,start_col=b,end_col=e,force=True)
-		elif '##fileformat=VCF' in source:
+		elif '##fileformat=VCF' in source or "#CHROM\tBEGIN\tEND\tMARKER_ID" in source: # if labeled as VCF or EPACTS results
 			pysam.tabix_index(directory + '/' + o,preset='vcf',force=True)
 		else:
 			print "compiled file source not recognized"

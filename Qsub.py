@@ -34,6 +34,22 @@ def main(argv):
 	local=False
 	user_name=pwd.getpwuid(os.getuid()).pw_name
 
+	if argv[1].split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"]:
+		if env_vars['SGE_TASK_ID'] != 'None':
+			with open(argv[2]) as f:
+				joblist = [line.rstrip() for line in f]
+			job = joblist[int(env_vars['SGE_TASK_ID'])-1]
+			argv[1] = argv[1].replace("UGA_JOB_ID",job)
+			argv[3] = argv[3].replace("UGA_JOB_ID",job)
+			argv[1] = argv[1].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
+			argv[3] = argv[3].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
+	try:
+		lf = open(argv[3],'w')
+	except(IOError, OSError):
+		return
+	sys.stdout = lf
+	sys.stderr = lf
+
 	if not 'REQNAME' in env_vars.keys():
 		local=True
 		env_vars['REQNAME'] = env_vars['HOSTNAME'] + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time[0]) if 'HOSTNAME' in env_vars.keys() else strftime('%Y_%m_%d_%H_%M_%S', start_time[0])
@@ -46,6 +62,12 @@ def main(argv):
 
 	print "uga v" + version
 	print "start time: " + strftime("%Y-%m-%d %H:%M:%S", start_time[0])
+	if 'SGE_CLUSTER_NAME' in env_vars.keys():
+		print "sge cluster: " + env_vars['SGE_CLUSTER_NAME']
+	if 'HOST' in env_vars.keys():
+		print "host: " + env_vars['HOST']
+	if 'Queue' in env_vars.keys():
+		print "queue: " + env_vars['QUEUE']
 	if 'HOSTNAME' in env_vars.keys():
 		print "compute node: " + env_vars['HOSTNAME']
 	if 'PWD' in env_vars.keys():
@@ -57,6 +79,8 @@ def main(argv):
 		print "job name: " + env_vars['REQNAME']
 	if 'SGE_TASK_ID' in env_vars.keys():
 		print "task index number: " + env_vars['SGE_TASK_ID']
+	if 'SGE_STDOUT_PATH' in env_vars.keys():
+		print "sge log file: " + env_vars['SGE_STDOUT_PATH']
 
 	if argv[1].split('(')[0] == "RunSnv":
 		from uga.RunSnv import RunSnv
@@ -75,10 +99,6 @@ def main(argv):
 	if argv[1].split('(')[0] == "RunTools":
 		from uga.RunTools import RunTools
 
-	if argv[1].split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"]:
-		if env_vars['SGE_TASK_ID'] != 'undefined':
-			argv[1] = argv[1].replace("'SGE_TASK_ID'",env_vars['SGE_TASK_ID'])
-			argv[1] = argv[1].replace("SGE_TASK_ID_RANGE",str((100 * ((int(env_vars['SGE_TASK_ID'])-1) / 100) + 1)) + "-" + str((100 * ((int(env_vars['SGE_TASK_ID'])-1) / 100) + 100))).replace("SGE_TASK_ID",str(env_vars['SGE_TASK_ID']))
 	print ""
 	print "command entered: " + argv[1]
 	exec('r=' + argv[1])

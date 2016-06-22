@@ -122,7 +122,7 @@ def RunMerge(args):
 		logging.disable(logging.CRITICAL)
 
 	regions_df = pd.read_table(cfg['region_file'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
-	regions_df = regions_df[regions_df['job'] == cfg['job']].reset_index(drop=True)
+	regions_df = regions_df[regions_df['job'] == int(cfg['job'])].reset_index(drop=True)
 	return_values = {}
 	print ''
 	try:
