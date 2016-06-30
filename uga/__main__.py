@@ -433,7 +433,6 @@ def main(args=None):
 			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'),qsub_wrapper],'\"' + cmd + '\"')
 		else:
 			Process.interactive(qsub_wrapper, cmd, cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'))
-
 	else:
 		print Process.print_error(args.which + " not a currently available module")
 

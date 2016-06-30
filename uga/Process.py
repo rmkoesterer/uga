@@ -27,9 +27,14 @@ class Error(Exception):
 def print_error(e):
 	return "\nERROR: " + e + "\n"
 
-def qsub(qsub_pre,cmd,jobs_run_file,log_file):
+def qsub(qsub_pre,cmd, jobs_run_file = None, log_file = None):
+	cmd_list = qsub_pre + [cmd[1:-1]]
+	if jobs_run_file is not None:
+		cmd_list = cmd_list + [jobs_run_file]
+	if log_file is not None:
+		cmd_list = cmd_list + [log_file]
 	try:
-		p = subprocess.Popen(qsub_pre + [cmd[1:-1],jobs_run_file,log_file],stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+		p = subprocess.Popen(cmd_list,stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		for line in iter(p.stdout.readline, ''):
 			sys.stdout.write(line)
 		p.wait()

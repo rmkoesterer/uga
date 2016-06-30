@@ -43,12 +43,12 @@ def main(argv):
 			argv[3] = argv[3].replace("UGA_JOB_ID",job)
 			argv[1] = argv[1].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
 			argv[3] = argv[3].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
-	try:
-		lf = open(argv[3],'w')
-	except(IOError, OSError):
-		return
-	sys.stdout = lf
-	sys.stderr = lf
+		try:
+			lf = open(argv[3],'w')
+		except(IOError, OSError):
+			return
+		sys.stdout = lf
+		sys.stderr = lf
 
 	if not 'REQNAME' in env_vars.keys():
 		local=True

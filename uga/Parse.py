@@ -363,8 +363,8 @@ def print_compile_options(cfg):
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
 def generate_snvplot_cfg(args):
-	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 'qq_strat': False, 
-				'mht': False, 'crop': 10, 'chrcol': '#chr', 'bpcol': 'pos', 'pcol': 'p', 'freqcol': 'freq'}
+	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 
+				'qq_strat_freq': False, 'qq_strat_mac': False, 'mht': False, 'crop': 10, 'chrcol': '#chr', 'bpcol': 'pos', 'pcol': 'p', 'freqcol': 'freq', 'maccol': 'mac'}
 	for arg in args:
 		if arg[0] == 'file':
 			config['file'] = arg[1]
@@ -384,8 +384,10 @@ def generate_snvplot_cfg(args):
 			config['color'] = arg[1]
 		if arg[0] == 'qq':
 			config['qq'] = arg[1]
-		if arg[0] == 'qq_strat':
-			config['qq_strat'] = arg[1]
+		if arg[0] == 'qq_strat_freq':
+			config['qq_strat_freq'] = arg[1]
+		if arg[0] == 'qq_strat_mac':
+			config['qq_strat_mac'] = arg[1]
 		if arg[0] == 'mht':
 			config['mht'] = arg[1]
 		if arg[0] == 'crop':
@@ -398,6 +400,10 @@ def generate_snvplot_cfg(args):
 			config['bpcol'] = arg[1]
 		if arg[0] == 'freqcol':
 			config['freqcol'] = arg[1]
+		if arg[0] == 'maccol':
+			config['maccol'] = arg[1]
+		if arg[0] == 'gc':
+			config['gc'] = arg[1]
 	return config
 
 def print_snvplot_options(cfg):
@@ -456,6 +462,8 @@ def print_snvgroupplot_options(cfg):
 
 def generate_filter_cfg(args):
 	config = {'file': None, 'tag': 'filtered', 'replace': False, 'qsub': None, 'debug': False, 'gc': False, 
+				'bpcol': 'pos', 'pcol': 'p', 'misscol': 'miss', 'freqcol': 'freq', 'maccol': 'mac', 'cmaccol': 'cmac', 'rsqcol': 'rsq', 'hwecol': 'hwe', 
+				'effectcol': 'effect', 'stderrcol': 'stderr', 'waldcol': 'wald', 'zcol': 'z', 'tcol': 't', 
 				'miss': None, 'maf': None, 'mac': None, 'cmac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None}
 	for arg in args:
 		if arg[0] == 'file':
@@ -482,6 +490,32 @@ def generate_filter_cfg(args):
 			config['rsq'] = arg[1]
 		if arg[0] == 'hwe':
 			config['hwe'] = arg[1]
+		if arg[0] == 'bpcol':
+			config['bpcol'] = arg[1]
+		if arg[0] == 'pcol':
+			config['pcol'] = arg[1]
+		if arg[0] == 'misscol':
+			config['misscol'] = arg[1]
+		if arg[0] == 'freqcol':
+			config['freqcol'] = arg[1]
+		if arg[0] == 'maccol':
+			config['maccol'] = arg[1]
+		if arg[0] == 'cmaccol':
+			config['cmaccol'] = arg[1]
+		if arg[0] == 'rsqcol':
+			config['rsqcol'] = arg[1]
+		if arg[0] == 'hwecol':
+			config['hwecol'] = arg[1]
+		if arg[0] == 'effectcol':
+			config['effectcol'] = arg[1]
+		if arg[0] == 'stderrcol':
+			config['stderrcol'] = arg[1]
+		if arg[0] == 'waldcol':
+			config['waldcol'] = arg[1]
+		if arg[0] == 'zcol':
+			config['zcol'] = arg[1]
+		if arg[0] == 'tcol':
+			config['tcol'] = arg[1]
 		if arg[0] == 'hwe_maf':
 			config['hwe_maf'] = arg[1]
 	return config

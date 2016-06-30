@@ -130,7 +130,7 @@ def compile_results(directory, files):
 				b = 1
 				e = 2
 			pysam.tabix_index(directory + '/' + o,seq_col=0,start_col=b,end_col=e,force=True)
-		elif '##fileformat=VCF' in source or "#CHROM\tBEGIN\tEND\tMARKER_ID" in source: # if labeled as VCF or EPACTS results
+		elif '##fileformat=VCF' in source or "#CHROM\tBEGIN\tEND\tMARKER_ID" in source or "#CHROM\tBEG\tEND\tMARKER_ID" in source: # if labeled as VCF or EPACTS results
 			pysam.tabix_index(directory + '/' + o,preset='vcf',force=True)
 		else:
 			print "compiled file source not recognized"

@@ -544,6 +544,9 @@ def snvplot_args(snvplot_parser):
 	snvplot_parser.add_argument('--freqcol', 
 						action=AddString, 
 						help='effect allele frequency column (default: freq)')
+	snvplot_parser.add_argument('--maccol', 
+						action=AddString, 
+						help='minor allele count column (default: mac)')
 	snvplot_parser.add_argument('--crop', 
 						action=AddString, 
 						type=float, 
@@ -552,10 +555,14 @@ def snvplot_args(snvplot_parser):
 						nargs=0, 
 						action=AddTrue, 
 						help='enable qq plot')
-	snvplot_parser.add_argument('--qq-strat', 
+	snvplot_parser.add_argument('--qq-strat-freq', 
 						nargs=0, 
 						action=AddTrue, 
 						help='enable frequency stratified qq plot')
+	snvplot_parser.add_argument('--qq-strat-mac', 
+						nargs=0, 
+						action=AddTrue, 
+						help='enable minor allele count stratified qq plot')
 	snvplot_parser.add_argument('--mht', 
 						nargs=0, 
 						action=AddTrue, 
@@ -653,7 +660,7 @@ def filter_args(filter_parser):
 	filter_parser.add_argument('--gc', 
 						nargs=0, 
 						action=AddTrue, 
-						help='apply genomic control adjustment (for single snv test results only)')
+						help='apply genomic control adjustment to p-value column and any other columns set by options --effectcol, --stderrcol, --waldcol, --zcol, --tcol (requires --pcol)')
 	filter_parser.add_argument('--miss', 
 						action=AddString, 
 						type=float, 
@@ -674,6 +681,45 @@ def filter_args(filter_parser):
 						action=AddString, 
 						type=float, 
 						help='threshold value for Hardy Weinberg p-value (ie. 1e-6 filters out markers with Hardy Weinberg p-value < 1e-6)')
+	filter_parser.add_argument('--bpcol', 
+						action=AddString, 
+						help='genomic position column name (default: "pos")')
+	filter_parser.add_argument('--pcol', 
+						action=AddString, 
+						help='p-value column name (default: "p")')
+	filter_parser.add_argument('--misscol', 
+						action=AddString, 
+						help='callrate (missingness) column name (default: "miss")')
+	filter_parser.add_argument('--freqcol', 
+						action=AddString, 
+						help='allele frequency column name (default: "freq")')
+	filter_parser.add_argument('--maccol', 
+						action=AddString, 
+						help='minor allele count column name (default: "mac")')
+	filter_parser.add_argument('--rsqcol', 
+						action=AddString, 
+						help='imputation quality column name (default: "rsq")')
+	filter_parser.add_argument('--hwecol', 
+						action=AddString, 
+						help='Hardy Weinberg p-value column name (default: "hwe")')
+	filter_parser.add_argument('--cmaccol', 
+						action=AddString, 
+						help='cumulative minor allele count column name (default: "cmac")')
+	filter_parser.add_argument('--effectcol', 
+						action=AddString, 
+						help='effect column name (setting allows column to be adjusted for genomic inflation; default: "effect")')
+	filter_parser.add_argument('--stderrcol', 
+						action=AddString, 
+						help='standard error column name (setting allows column to be adjusted for genomic inflation; default: "stderr")')
+	filter_parser.add_argument('--waldcol', 
+						action=AddString, 
+						help='wald statistic column name (setting allows column to be adjusted for genomic inflation; default: "wald")')
+	filter_parser.add_argument('--zcol', 
+						action=AddString, 
+						help='z statistic column name (setting allows column to be adjusted for genomic inflation; default: "z")')
+	filter_parser.add_argument('--tcol', 
+						action=AddString, 
+						help='t statistic column name (setting allows column to be adjusted for genomic inflation; default: "t")')
 	filter_parser.add_argument('--hwe-maf', 
 						action=AddString, 
 						type=float, 
