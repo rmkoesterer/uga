@@ -97,7 +97,7 @@ def process_regions(regions_df, cfg, cpu, log):
 				results_region = results_obj[f].snv_results_tagged.copy()
 				region_written = True
 			else:
-				results_region = results_region.merge(results_obj[f].snv_results_tagged, how='outer')
+				results_region = results_region.merge(results_obj[f].snv_results_tagged, how='outer')			
 
 			status = '   (' + f + ') processed ' + str(results_obj[f].snv_results.shape[0]) + ' variants'
 			print status
