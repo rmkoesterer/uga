@@ -364,7 +364,8 @@ def print_compile_options(cfg):
 
 def generate_snvplot_cfg(args):
 	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 
-				'qq_strat_freq': False, 'qq_strat_mac': False, 'mht': False, 'crop': 10, 'chrcol': '#chr', 'bpcol': 'pos', 'pcol': 'p', 'freqcol': 'freq', 'maccol': 'mac'}
+				'qq_strat_freq': False, 'freq_ticks': '0.005,0.01,0.03,0.05', 'qq_strat_mac': False, 'mac_ticks': '3,10,20,50', 
+				'mht': False, 'crop': 10, 'chrcol': '#chr', 'bpcol': 'pos', 'pcol': 'p', 'freqcol': 'freq', 'maccol': 'mac'}
 	for arg in args:
 		if arg[0] == 'file':
 			config['file'] = arg[1]
@@ -386,8 +387,12 @@ def generate_snvplot_cfg(args):
 			config['qq'] = arg[1]
 		if arg[0] == 'qq_strat_freq':
 			config['qq_strat_freq'] = arg[1]
+		if arg[0] == 'freq_ticks':
+			config['freq_ticks'] = arg[1]
 		if arg[0] == 'qq_strat_mac':
 			config['qq_strat_mac'] = arg[1]
+		if arg[0] == 'mac_ticks':
+			config['mac_ticks'] = arg[1]
 		if arg[0] == 'mht':
 			config['mht'] = arg[1]
 		if arg[0] == 'crop':

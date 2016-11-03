@@ -34,7 +34,7 @@ def main(argv):
 	local=False
 	user_name=pwd.getpwuid(os.getuid()).pw_name
 
-	if argv[1].split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"]:
+	if argv[1].split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"] and 'SGE_TASK_ID' in env_vars:
 		if env_vars['SGE_TASK_ID'] != 'None':
 			with open(argv[2]) as f:
 				joblist = [line.rstrip() for line in f]

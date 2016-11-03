@@ -210,6 +210,7 @@ def RunMerge(args):
 			print "canonical annotation process terminated by user"
 			sys.exit(1)
 
+		return
 		time.sleep(1)
 		try:
 			cmd = 'java -jar ' + ini.get('main','snpsift') + ' extractFields -s "," -e "NA" ' + cfg['out'] + '.annot2 CHROM POS ID REF ALT "ANN[*].ALLELE" "ANN[*].EFFECT" "ANN[*].IMPACT" "ANN[*].GENE" "ANN[*].GENEID" "ANN[*].FEATURE" "ANN[*].FEATUREID" "ANN[*].BIOTYPE" "ANN[*].RANK" "ANN[*].HGVS_C" "ANN[*].HGVS_P" "ANN[*].CDNA_POS" "ANN[*].CDNA_LEN" "ANN[*].CDNA_LEN" "ANN[*].CDS_POS" "ANN[*].CDS_LEN" "ANN[*].AA_POS" "ANN[*].AA_LEN" "ANN[*].DISTANCE" "ANN[*].ERRORS" | sed "s/ANN\[\*\]/ANN/g" > ' + cfg['out'] + '.annot'

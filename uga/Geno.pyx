@@ -450,7 +450,8 @@ cdef class Results(Variants):
 				self.snv_results['a2'][i-1] = ref.db[row['uid']]['a2']
 				self.snv_results['id'][i-1] = ref.db[row['uid']]['id']
 				self.snv_results['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
-				self.snv_results['freq'][i-1] = 1.0 - self.snv_results['freq'][i-1]
+				if 'freq' in self.snv_results:
+					self.snv_results['freq'][i-1] = 1.0 - self.snv_results['freq'][i-1]
 				if 'freq.case' in self.snv_results:
 					self.snv_results['freq.case'][i-1] = 1.0 - self.snv_results['freq.case'][i-1]
 				if 'freq.ctrl' in self.snv_results:

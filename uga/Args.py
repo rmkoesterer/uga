@@ -533,7 +533,7 @@ def snvplot_args(snvplot_parser):
 						help='replace any existing output files')
 	snvplot_parser.add_argument('--ext', 
 						action=AddString, 
-						choices=['tiff','eps','pdf'], 
+						choices=['tiff','eps','pdf','png'], 
 						help='file type extension for plot files (default: tiff)')
 	snvplot_parser.add_argument('--chrcol', 
 						action=AddString, 
@@ -559,10 +559,16 @@ def snvplot_args(snvplot_parser):
 						nargs=0, 
 						action=AddTrue, 
 						help='enable frequency stratified qq plot')
+	snvplot_parser.add_argument('--freq-ticks', 
+						action=AddString, 
+						help='set ticks for frequency stratified qq plot (default: 0.005,0.01,0.03,0.05 => (0,0.005), [0.005,0.01), [0.01,0.03), [0.03,0.05), and [0.05,0.5])')
 	snvplot_parser.add_argument('--qq-strat-mac', 
 						nargs=0, 
 						action=AddTrue, 
 						help='enable minor allele count stratified qq plot')
+	snvplot_parser.add_argument('--mac-ticks', 
+						action=AddString, 
+						help='set ticks for minor allele count stratified qq plot (default: 3,10,20,50 => (0,3), [3,10), [10,20), [20,50), and [50,max])')
 	snvplot_parser.add_argument('--mht', 
 						nargs=0, 
 						action=AddTrue, 

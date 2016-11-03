@@ -201,31 +201,31 @@ def main(args=None):
 			if run_type == 1:
 				n = int(np.ceil(jobs_df.shape[0] / float(cfg['cpus'])))
 				n_remain = int(jobs_df.shape[0] - (n-1) * cfg['cpus'])
-				jobs_df['cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)) + 1
+				jobs_df['cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)).astype(np.int64) + 1
 			elif run_type == 10:
 				jobs_df['job'] = jobs_df.index.values + 1
 			elif run_type == 100:
 				n = int(np.ceil(jobs_df.shape[0] / float(cfg['split_n'])))
 				n_remain = int(jobs_df.shape[0] - (n-1) * cfg['split_n'])
-				jobs_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)) + 1
+				jobs_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)).astype(np.int64) + 1
 			elif run_type == 11 and args.which != 'snvgroup':
 				cfg['split_n'] = int(np.ceil(jobs_df.shape[0] / float(cfg['cpus'])))
 				n = int(np.ceil(jobs_df.shape[0] / float(cfg['split_n'])))
 				n_remain = int(jobs_df.shape[0] - (n-1) * cfg['split_n'])
-				jobs_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)) + 1
+				jobs_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)).astype(np.int64) + 1
 				for i in range(1,int(max(jobs_df['job'])) + 1):
 					n = int(np.ceil(jobs_df[jobs_df['job'] == i].shape[0] / float(cfg['cpus'])))
 					n_remain = int(jobs_df[jobs_df['job'] == i].shape[0] - (n-1) * cfg['cpus'])
-					jobs_df.loc[jobs_df['job'] == i,'cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)) + 1
+					jobs_df.loc[jobs_df['job'] == i,'cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)).astype(np.int64) + 1
 				cfg['split'] = None
 			elif run_type == 101:
 				n = int(np.ceil(jobs_df.shape[0] / float(cfg['split_n'])))
 				n_remain = int(jobs_df.shape[0] - (n-1) * cfg['split_n'])
-				jobs_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)) + 1
+				jobs_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)).astype(np.int64) + 1
 				for i in range(1,int(max(jobs_df['job'])) + 1):
 					n = int(np.ceil(jobs_df[jobs_df['job'] == i].shape[0] / float(cfg['cpus'])))
 					n_remain = int(jobs_df[jobs_df['job'] == i].shape[0] - (n-1) * cfg['cpus'])
-					jobs_df.loc[jobs_df['job'] == i,'cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)) + 1
+					jobs_df.loc[jobs_df['job'] == i,'cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)).astype(np.int64) + 1
 			if int(max(jobs_df['job'])) + 1 > 100000:
 				print Process.print_error('number of jobs exceeds 100,000, consider using --split-n to reduce the total number of jobs')
 				return
