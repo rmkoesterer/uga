@@ -360,7 +360,7 @@ cdef class Results(Variants):
 			self.header = [x for x in self.handle.header]
 			#self.method = self.header[2].split()[2]
 			self.cols = [x.replace('#','') for x in self.header[-1].split()]
-			self.dtypes = zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['uint8','uint32','|S60','|S1000','|S1000']) + zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['|S1000' if x == 'dir' else 'f8' for x in self.cols if x not in ['chr','pos','id','a1','a2']]) + [('id_unique','|S1000'),('uid','|S1000')]
+			self.dtypes = zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['uint8','uint32','|S60','|S1000','|S1000']) + zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['|S1000' if x in ['dir','test'] else 'f8' for x in self.cols if x not in ['chr','pos','id','a1','a2']]) + [('id_unique','|S1000'),('uid','|S1000')]
 
 	def get_region(self, region):
 		logger = logging.getLogger("Geno.Results.get_region")

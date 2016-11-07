@@ -287,7 +287,7 @@ def main(args=None):
 						pass
 				with open(cfg['out'] + '/' + cfg['out'] + '.files', 'w') as jlist:
 					for j in range(1, int(max(jobs_df['job'])) + 1):
-						if args.which in ['snv','snvgroup','tools']:
+						if args.which in ['snv','snvgroup','tools','merge']:
 							if 'model_order' in cfg:
 								for m in cfg['model_order']:
 									if m != '___no_tag___':

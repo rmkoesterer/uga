@@ -53,7 +53,7 @@ def process_regions(regions_df, cfg, cpu, log):
 		except Process.Error as err:
 			print err.out
 			return 1
-		
+
 	variants_found = False
 	variant_ref = Variant.Ref()
 	results_final = None

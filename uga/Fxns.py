@@ -122,7 +122,7 @@ def compile_results(directory, files):
 		header = [x for x in h.header]
 		cols = header[-1].split()
 		source = header[0]
-		if '## source: uga' in source:
+		if '## source: uga' in source or "#chr" in source:
 			if cols[1] == 'pos':
 				b = 1
 				e = 1
