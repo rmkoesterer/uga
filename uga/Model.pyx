@@ -1314,7 +1314,7 @@ cdef class SnvMeta(Meta):
 			N_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tuple('meta.' + x for x in self.meta_incl)) and s.endswith('.n')]
 			Wi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tuple('meta.' + x for x in self.meta_incl)) and s.endswith('.wi')]
 			BiWi_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tuple('meta.' + x for x in self.meta_incl)) and s.endswith('.biwi')]
-			df['meta.n'] = df.apply(lambda x: x[N_idx_all].sum() if len(x['meta.dir'].replace('x','')) > 1 else x[N_idx] if len(x['meta.dir'].replace('x','')) == 1 else  float('nan'),axis=1)
+			df['meta.n'] = df.apply(lambda x: x[N_idx_all].sum() if len(x['meta.dir'].replace('x','')) > 0 else x[N_idx] if len(x['meta.dir'].replace('x','')) == 1 else  float('nan'),axis=1)
 			df['meta.stderr'] = df.apply(lambda x: math.sqrt(1/(x[Wi_idx_all].sum())) if len(x['meta.dir'].replace('x','')) > 0 else float('nan'), axis=1)
 			df['meta.effect'] = df.apply(lambda x: (x[BiWi_idx_all].sum())/(x[Wi_idx_all].sum()) if len(x['meta.dir'].replace('x','')) > 0 else float('nan'), axis=1)
 			df['meta.or'] = df.apply(lambda x: math.exp(x['meta.effect']) if len(x['meta.dir'].replace('x','')) > 0 and len([k + '.or' in df for k in self.meta_incl]) > 0 and not x['meta.effect'] > 709.782712893384 and not x['meta.effect'] < -709.782712893384 else float('nan'), axis=1)
