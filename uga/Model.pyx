@@ -297,7 +297,7 @@ cdef class Model(object):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef filter(self, np.float miss_thresh=None, np.float maf_thresh=None, np.float maxmaf_thresh=None, np.float mac_thresh=None, 
-								np.float rsq_thresh=None, np.float hwe_thresh=None, np.float hwe_maf_thresh=None, no_mono=True):
+								np.float rsq_thresh=None, np.float hwe_thresh=None, np.float hwe_maf_thresh=None, allow_mono=False):
 		logger = logging.getLogger("Model.Model.filter")
 		logger.debug("filter")
 		cdef unsigned int i
@@ -305,7 +305,7 @@ cdef class Model(object):
 			if (not miss_thresh is None and not np.isnan(self.variant_stats['callrate'][i]) and self.variant_stats['callrate'][i] < miss_thresh) or (not np.isnan(self.variant_stats['callrate'][i]) and self.variant_stats['callrate'][i] == 0) or np.isnan(self.variant_stats['callrate'][i]):
 				self.variant_stats['filter'][i] += 10000
 			if not np.isnan(self.variant_stats['freq'][i]): 
-				if no_mono and ((self.variant_stats['freq'][i] == 0 or self.variant_stats['freq'][i] == 1) or 
+				if not allow_mono and ((self.variant_stats['freq'][i] == 0 or self.variant_stats['freq'][i] == 1) or 
 								((self.variant_stats['freq.case'][i] is not None and not np.isnan(self.variant_stats['freq.case'][i]) and 
 									(self.variant_stats['freq.case'][i] == 0 or self.variant_stats['freq.case'][i] == 1)) or 
 									(self.variant_stats['freq.ctrl'][i] is not None and not np.isnan(self.variant_stats['freq.ctrl'][i]) and 

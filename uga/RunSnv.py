@@ -125,7 +125,7 @@ def process_regions(regions_df, cfg, cpu, log):
 					try:
 						models_obj[n].filter(miss_thresh=cfg['models'][n]['miss'], maf_thresh=cfg['models'][n]['maf'], maxmaf_thresh=cfg['models'][n]['maxmaf'], 
 										mac_thresh=cfg['models'][n]['mac'], rsq_thresh=cfg['models'][n]['rsq'], hwe_thresh=cfg['models'][n]['hwe'], 
-										hwe_maf_thresh=cfg['models'][n]['hwe_maf'])
+										hwe_maf_thresh=cfg['models'][n]['hwe_maf'], allow_mono=cfg['allow_mono'])
 					except:
 						break
 					try:

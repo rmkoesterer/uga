@@ -54,7 +54,6 @@ def map(file,
 			for chr in v.contigs:
 				for rp in starts:
 					regions.append(chr + ":" + str(rp) + "-" + str(rp+s-1))
-
 		prev_chr=''
 		for reg in regions:
 			chr = reg.split(':')[0]

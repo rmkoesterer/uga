@@ -4,6 +4,7 @@
 *.so
 */*.so
 build/
+dist/
 bin/
 uga.egg-info/
 .git

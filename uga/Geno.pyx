@@ -428,45 +428,55 @@ cdef class Results(Variants):
 		cdef unsigned int i = 0
 		for row in self.snv_results:
 			i += 1
-			if ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a1'] + row['a2']:
+			if (ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a1'] + row['a2'] or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a1'] + 'NA' or
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == 'NA' + row['a2'] or
+					(ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "AT" and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "TA" and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "GC" and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "CG" and 
+					(ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a1'][0]) + Variant.complement(row['a2'][0]) or	
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a1'][0]) + 'NA' or
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == 'NA' + Variant.complement(row['a2'][0])))):
 				self.snv_results['a1'][i-1] = ref.db[row['uid']]['a1']
 				self.snv_results['a2'][i-1] = ref.db[row['uid']]['a2']
 				self.snv_results['id'][i-1] = ref.db[row['uid']]['id']
 				self.snv_results['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
-			elif (((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] or 
+			elif (ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + 'NA' or
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == 'NA' + row['a1'] or
+					((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + 'NA') and 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == 'NA' + Variant.complement(row['a1'][0])) and
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "AT" and 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "TA" and 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "GC" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "CG") or 
-					((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "AT" or 
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "CG") or
+					(ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] and
+					(ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "AT" or 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "TA" or 
 					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "GC" or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "CG") and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'])):
+					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "CG"))):
 				self.snv_results['a1'][i-1] = ref.db[row['uid']]['a1']
 				self.snv_results['a2'][i-1] = ref.db[row['uid']]['a2']
 				self.snv_results['id'][i-1] = ref.db[row['uid']]['id']
 				self.snv_results['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
-				if 'freq' in self.snv_results:
+				if 'freq' in self.snv_results.dtype.names:
 					self.snv_results['freq'][i-1] = 1.0 - self.snv_results['freq'][i-1]
-				if 'freq.case' in self.snv_results:
+				if 'freq.case' in self.snv_results.dtype.names:
 					self.snv_results['freq.case'][i-1] = 1.0 - self.snv_results['freq.case'][i-1]
-				if 'freq.ctrl' in self.snv_results:
+				if 'freq.ctrl' in self.snv_results.dtype.names:
 					self.snv_results['freq.ctrl'][i-1] = 1.0 - self.snv_results['freq.ctrl'][i-1]
-				if 'effect' in self.snv_results:
+				if 'effect' in self.snv_results.dtype.names:
 					self.snv_results['effect'][i-1] = -1.0 * self.snv_results['effect'][i-1]
-				if 'or' in self.snv_results:
+				if 'or' in self.snv_results.dtype.names:
 					self.snv_results['or'][i-1] = 1.0 / self.snv_results['or'][i-1]
-				if 'z' in self.snv_results:
+				if 'z' in self.snv_results.dtype.names:
 					self.snv_results['z'][i-1] = -1.0 * self.snv_results['z'][i-1]
-				if 't' in self.snv_results:
+				if 't' in self.snv_results.dtype.names:
 					self.snv_results['t'][i-1] = -1.0 * self.snv_results['t'][i-1]
-				if 'dir' in self.snv_results:
+				if 'dir' in self.snv_results.dtype.names:
 					self.snv_results['dir'][i-1] = self.snv_results['dir'][i-1].replace('+','!').replace('-','+').replace('!','-')
-				
 
 	def tag_results(self, tag):
 		logger = logging.getLogger("Geno.Results.get_tagged_results")

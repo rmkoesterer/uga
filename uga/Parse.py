@@ -107,7 +107,7 @@ def generate_snv_cfg(args):
 
 	tags_idx = [args.index((x,y)) for x, y in args if x == 'tag'] + [len(args)]
 	global_args = [x for x in args[:tags_idx[0]] if x[0] not in config]
-	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'sep': 'tab', 'sex': None, 
+	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'allow_mono': False, 'sep': 'tab', 'sex': None, 
 							'male': 1, 'female': 2, 'miss': None, 'maf': None, 'maxmaf': None, 'mac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'dep_var': None, 'format': None, 'file': None, 'sample': None, 'drop': None, 'keep': None, 'corstr': None, 
 							'pheno': None, 'covars': None, 'interact': None, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 

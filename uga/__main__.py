@@ -112,7 +112,6 @@ def main(args=None):
 				jobs_df.sort_values(by=['chr_idx','start'],inplace=True)
 				jobs_df = jobs_df[['chr','start','end','region','job','cpu']]
 				jobs_df.reset_index(drop=True,inplace=True)
-
 			if args.which in ['meta','merge']:
 				#	generate regions dataframe with M rows, either from --snv-map or by splitting data file or --snv-region according to --mb
 				#	run_type = 0:   run as single job
@@ -198,6 +197,9 @@ def main(args=None):
 						jobs_df.sort_values(by=['chr','start'],inplace=True)
 						jobs_df.reset_index(drop=True,inplace=True)
 
+			if jobs_df.empty:
+				print Process.print_error('job list is empty, no variants found in region/s specified')
+				return
 			if run_type == 1:
 				n = int(np.ceil(jobs_df.shape[0] / float(cfg['cpus'])))
 				n_remain = int(jobs_df.shape[0] - (n-1) * cfg['cpus'])
