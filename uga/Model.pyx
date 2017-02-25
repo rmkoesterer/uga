@@ -47,7 +47,9 @@ cdef class Model(object):
 								nfamilies, nunrelated, ncases, nctrls, nmales, nfemales
 	cdef public np.ndarray cases_idx, ctrls_idx, male_cases_idx, male_ctrls_idx, female_cases_idx, female_ctrls_idx, \
 							model_cols, results_header, calc_hwe_idx, \
-							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, male_idx, female_idx
+							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, male_idx, female_idx, \
+							geno_cases_idx, geno_ctrls_idx, geno_male_cases_idx, geno_male_ctrls_idx, geno_female_cases_idx, geno_female_ctrls_idx, \
+							geno_calc_hwe_idx, geno_unique_idx, geno_male_idx, geno_female_idx
 	cdef public bytes fxn, format, pheno, variants_file, type, samples_file, drop_file, keep_file, \
 						iid, fid, matid, patid, sex, sep, a1, a2
 	cdef public str metadata, metadata_cc, family, formula, focus, dep_var, interact, covars
@@ -110,6 +112,17 @@ cdef class Model(object):
 		self.female_ctrls_idx = np.array([])
 		self.founders_ctrls_idx = np.array([])
 		self.calc_hwe_idx = np.array([])
+
+		self.geno_male_idx = np.array([])
+		self.geno_female_idx = np.array([])
+		self.geno_cases_idx = np.array([])
+		self.geno_ctrls_idx = np.array([])
+		self.geno_male_cases_idx = np.array([])
+		self.geno_male_ctrls_idx = np.array([])
+		self.geno_female_cases_idx = np.array([])
+		self.geno_female_ctrls_idx = np.array([])
+		self.geno_calc_hwe_idx = np.array([])
+
 		try:
 			self.variants = getattr(Geno,self.format.capitalize())(self.variants_file, self.samples_file)
 		except Process.Error as err:
@@ -273,25 +286,37 @@ cdef class Model(object):
 		logger.debug("calc_variant_stats")
 		self.variant_stats = np.zeros((self.variants.info.shape[0],1), dtype=[('filter','uint32'),('mac','f8'),('callrate','f8'),('freq','f8'),('freq.case','f8'),('freq.ctrl','f8'),('rsq','f8'),('hwe','f8'),('n','f8')])
 		cdef unsigned int i
+		logger.debug("idx uninitialized")
+		self.geno_unique_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.unique_idx])
+		self.geno_calc_hwe_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.calc_hwe_idx])
+		self.geno_cases_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.cases_idx])
+		self.geno_ctrls_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.ctrls_idx])
+		self.geno_male_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.male_idx])
+		self.geno_male_cases_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.male_cases_idx])
+		self.geno_male_ctrls_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.male_ctrls_idx])
+		self.geno_female_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.female_idx])
+		self.geno_female_cases_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.female_cases_idx])
+		self.geno_female_ctrls_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.female_ctrls_idx])
+		logger.debug("idx initialized")
 		if self.variants.chr == 23:
 			for i in xrange(self.variants.info.shape[0]):
-				self.variant_stats['mac'][i] = Variant.calc_mac(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['callrate'][i] = Variant.calc_callrate(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['freq'][i] = Variant.calc_freqX(male=self.variants.data[self.male_idx,i+1].astype('float64'), female=self.variants.data[self.female_idx,i+1].astype('float64')) if len(self.male_idx) > 0 and len(self.female_idx) > 0 else np.nan
-				self.variant_stats['freq.case'][i] = Variant.calc_freqX(male=self.variants.data[self.male_cases_idx,i+1].astype('float64'), female=self.variants.data[self.female_cases_idx,i+1].astype('float64')) if len(self.male_cases_idx) > 0 and len(self.female_cases_idx) > 0 else np.nan
-				self.variant_stats['freq.ctrl'][i] = Variant.calc_freqX(male=self.variants.data[self.male_ctrls_idx,i+1].astype('float64'), female=self.variants.data[self.female_ctrls_idx,i+1].astype('float64')) if len(self.male_ctrls_idx) > 0 and len(self.female_ctrls_idx) > 0 else np.nan
-				self.variant_stats['rsq'][i] = Variant.calc_rsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['hwe'][i] = Variant.calc_hwe(self.variants.data[self.calc_hwe_idx,i+1].astype('float64')) if len(self.calc_hwe_idx) > 0 else np.nan
+				self.variant_stats['mac'][i] = Variant.calc_mac(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
+				self.variant_stats['callrate'][i] = Variant.calc_callrate(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
+				self.variant_stats['freq'][i] = Variant.calc_freqX(male=self.variants.data[self.geno_male_idx,i+1].astype('float64'), female=self.variants.data[self.geno_female_idx,i+1].astype('float64')) if len(self.geno_male_idx) > 0 and len(self.geno_female_idx) > 0 else np.nan
+				self.variant_stats['freq.case'][i] = Variant.calc_freqX(male=self.variants.data[self.geno_male_cases_idx,i+1].astype('float64'), female=self.variants.data[self.geno_female_cases_idx,i+1].astype('float64')) if len(self.geno_male_cases_idx) > 0 and len(self.geno_female_cases_idx) > 0 else np.nan
+				self.variant_stats['freq.ctrl'][i] = Variant.calc_freqX(male=self.variants.data[self.geno_male_ctrls_idx,i+1].astype('float64'), female=self.variants.data[self.geno_female_ctrls_idx,i+1].astype('float64')) if len(self.geno_male_ctrls_idx) > 0 and len(self.geno_female_ctrls_idx) > 0 else np.nan
+				self.variant_stats['rsq'][i] = Variant.calc_rsq(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
+				self.variant_stats['hwe'][i] = Variant.calc_hwe(self.variants.data[self.geno_calc_hwe_idx,i+1].astype('float64')) if len(self.geno_calc_hwe_idx) > 0 else np.nan
 				self.variant_stats['n'][i] = round(self.variant_stats['callrate'][i] * self.nunique)
 		else:
 			for i in xrange(self.variants.info.shape[0]):
-				self.variant_stats['mac'][i] = Variant.calc_mac(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['callrate'][i] = Variant.calc_callrate(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['freq'][i] = Variant.calc_freq(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['freq.case'][i] = Variant.calc_freq(self.variants.data[self.cases_idx,i+1].astype('float64')) if len(self.cases_idx) > 0 else np.nan
-				self.variant_stats['freq.ctrl'][i] = Variant.calc_freq(self.variants.data[self.ctrls_idx,i+1].astype('float64')) if len(self.ctrls_idx) > 0 else np.nan
-				self.variant_stats['rsq'][i] = Variant.calc_rsq(self.variants.data[self.unique_idx,i+1].astype('float64'))
-				self.variant_stats['hwe'][i] = Variant.calc_hwe(self.variants.data[self.calc_hwe_idx,i+1].astype('float64')) if len(self.calc_hwe_idx) > 0 else np.nan
+				self.variant_stats['mac'][i] = Variant.calc_mac(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
+				self.variant_stats['callrate'][i] = Variant.calc_callrate(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
+				self.variant_stats['freq'][i] = Variant.calc_freq(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
+				self.variant_stats['freq.case'][i] = Variant.calc_freq(self.variants.data[self.geno_cases_idx,i+1].astype('float64')) if len(self.geno_cases_idx) > 0 else np.nan
+				self.variant_stats['freq.ctrl'][i] = Variant.calc_freq(self.variants.data[self.geno_ctrls_idx,i+1].astype('float64')) if len(self.geno_ctrls_idx) > 0 else np.nan
+				self.variant_stats['rsq'][i] = Variant.calc_rsq(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
+				self.variant_stats['hwe'][i] = Variant.calc_hwe(self.variants.data[self.geno_calc_hwe_idx,i+1].astype('float64')) if len(self.geno_calc_hwe_idx) > 0 else np.nan
 				self.variant_stats['n'][i] = round(self.variant_stats['callrate'][i] * self.nunique)
 
 	@cython.boundscheck(False)

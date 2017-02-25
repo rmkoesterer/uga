@@ -114,7 +114,7 @@ def process_regions(regions_df, cfg, cpu, log):
 							print '   processed 0 variants in region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['region'][k] + ')'
 						break
 					variants_found = True
-
+					
 					if len(cfg['meta_order']) > 0:
 						if n == cfg['model_order'][0]:
 							variant_ref.load(models_obj[n].variants.info)
@@ -125,7 +125,7 @@ def process_regions(regions_df, cfg, cpu, log):
 					try:
 						models_obj[n].filter(miss_thresh=cfg['models'][n]['miss'], maf_thresh=cfg['models'][n]['maf'], maxmaf_thresh=cfg['models'][n]['maxmaf'], 
 										mac_thresh=cfg['models'][n]['mac'], rsq_thresh=cfg['models'][n]['rsq'], hwe_thresh=cfg['models'][n]['hwe'], 
-										hwe_maf_thresh=cfg['models'][n]['hwe_maf'], allow_mono=cfg['allow_mono'])
+										hwe_maf_thresh=cfg['models'][n]['hwe_maf'], allow_mono=cfg['models'][n]['allow_mono'])
 					except:
 						break
 					try:
