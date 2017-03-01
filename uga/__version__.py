@@ -1,1 +1,1 @@
-version='2.0b6'
+version='2.0b7'

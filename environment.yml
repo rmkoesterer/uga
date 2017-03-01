@@ -1,4 +1,4 @@
-name: uga_v2.0b6
+name: uga
 channels:
 - https://conda.anaconda.org/rmkoesterer
 - r

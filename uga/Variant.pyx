@@ -37,10 +37,12 @@ cdef class Ref(object):
 		logger.debug("load")
 		for row in v:
 			self.db[row['uid']] = {}
-			self.db[row['uid']]['id'] = row['id']
-			self.db[row['uid']]['id_unique'] = row['id_unique']
+			self.db[row['uid']]['chr'] = row['chr']
+			self.db[row['uid']]['pos'] = row['pos']
 			self.db[row['uid']]['a1'] = row['a1']
 			self.db[row['uid']]['a2'] = row['a2']
+			self.db[row['uid']]['id'] = row['id']
+			self.db[row['uid']]['id_unique'] = row['id_unique']
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -50,10 +52,12 @@ cdef class Ref(object):
 		for row in v:
 			if not row['uid'] in self.db:
 				self.db[row['uid']] = {}
-				self.db[row['uid']]['id'] = row['id']
-				self.db[row['uid']]['id_unique'] = row['id_unique']
+				self.db[row['uid']]['chr'] = row['chr']
+				self.db[row['uid']]['pos'] = row['pos']
 				self.db[row['uid']]['a1'] = row['a1']
 				self.db[row['uid']]['a2'] = row['a2']
+				self.db[row['uid']]['id'] = row['id']
+				self.db[row['uid']]['id_unique'] = row['id_unique']
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

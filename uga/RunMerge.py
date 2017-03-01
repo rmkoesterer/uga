@@ -70,8 +70,6 @@ def process_regions(regions_df, cfg, cpu, log):
 			try:
 				results_obj[f].get_snvs(cfg['buffer'])
 			except:
-				if not variants_found:
-					print '   (' + f + ') processed 0 variants'
 				pass
 			variants_found = True
 
@@ -82,10 +80,13 @@ def process_regions(regions_df, cfg, cpu, log):
 				results_obj[f].align_results(variant_ref)
 
 			results_obj[f].tag_results(f)
+
 			if not region_written:
 				results_region = results_obj[f].snv_results_tagged.copy()
 				region_written = True
 			else:
+				if results_region.empty and not results_obj[f].snv_results_tagged.empty:
+					results_region=pd.concat([results_obj[f].snv_results_tagged[['chr','pos','id','a1','a2','id_unique','uid']].iloc[[0]],pd.DataFrame(dict(zip([x for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','uid']],[np.nan for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','uid']])),index=[0])],axis=1)
 				results_region = results_region.merge(results_obj[f].snv_results_tagged, how='outer')
 
 			status = '   (' + f + ') processed ' + str(results_obj[f].snv_results.shape[0]) + ' variants'
