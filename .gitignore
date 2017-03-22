@@ -10,3 +10,5 @@ uga.egg-info/
 .git
 .gitchangelog.rc
 notes.txt
+environment.yml.old
+Qsub.sh
