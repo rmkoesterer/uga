@@ -125,6 +125,10 @@ def process_regions(regions_df, cfg, cpu, log):
 				pass
 			variants_found = True
 
+			if models_obj[n].variants.duplicated is not None:
+				print '   WARNING! The following duplicated variant identifiers were generated'
+				print '\n'.join(['      ' + d for d in models_obj[n].variants.duplicated])
+
 			if len(cfg['meta_order']) > 0:
 				if n == cfg['model_order'][0]:
 					variant_ref.load(models_obj[n].variants.info)

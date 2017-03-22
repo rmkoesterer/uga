@@ -131,10 +131,10 @@ cdef class Model(object):
 			print "extracting model fields from pheno file and reducing to complete observations ..."
 			p_names = (self.fid,self.iid) + tuple(x for x in [self.matid, self.patid] if x is not None)
 			p_names = p_names + tuple(x for x in self.model_cols if x not in [self.fid,self.iid,self.matid,self.patid])
-			p_names = p_names + (self.sex,) if self.sex is not None and self.sex not in self.model_cols else p_names
+			p_names = p_names + (self.sex,) if self.sex not in self.model_cols else p_names
 			p_dtypes = ('|S100', '|S100') + tuple('|S100' for x in [self.matid, self.patid] if x is not None)
 			p_dtypes = p_dtypes + tuple('f8' for x in self.model_cols if x not in [self.fid,self.iid,self.matid,self.patid])
-			p_dtypes = p_dtypes + ('f8',) if self.sex is not None and self.sex not in self.model_cols else p_dtypes
+			p_dtypes = p_dtypes + ('f8',) if self.sex not in self.model_cols else p_dtypes
 			dtypes = dict(zip(p_names, p_dtypes))
 			try:
 				self.pheno_df = np.genfromtxt(fname=self.pheno, delimiter=Fxns.get_delimiter(self.sep), dtype=p_dtypes, names=True, usecols=p_names)
@@ -163,11 +163,10 @@ cdef class Model(object):
 					print "   patid column %s found" % self.patid
 				else:
 					raise Process.Error("column " + self.patid + " not found in phenotype file " + self.pheno)
-			if self.sex is not None:
-				if self.sex in self.pheno_df.dtype.names:
-					print "   sex column %s found" % self.sex
-				else:
-					raise Process.Error("column " + self.sex + " not found in phenotype file " + self.pheno)
+			if self.sex in self.pheno_df.dtype.names:
+				print "   sex column %s found" % self.sex
+			else:
+				raise Process.Error("column " + self.sex + " not found in phenotype file " + self.pheno)
 			if self.matid is not None and self.patid is not None and self.sex is not None and set([self.iid,self.fid,self.matid,self.patid,self.sex]) <= set(self.pheno_df.dtype.names):
 				print "   extracting pedigree"
 				self.pedigree = pd.DataFrame(self.pheno_df[[self.iid,self.fid,self.matid,self.patid,self.sex]])
@@ -221,32 +220,27 @@ cdef class Model(object):
 				else:
 					self.nfounders = self.nunique
 					print "   " + str(self.nfounders) + " founders"
-				if self.sex is not None:
-					if self.male is not None:
-						self.nmales = self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.male].shape[0]
-						self.male_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.male][self.iid])
-						print "   " + str(self.nmales) + " male"
-					if self.female is not None:
-						self.nfemales = self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.female].shape[0]
-						self.female_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.female][self.iid])
-						print "   " + str(self.nfemales) + " female"
+				if self.male is not None:
+					self.nmales = self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.male].shape[0]
+					self.male_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.male][self.iid])
+					print "   " + str(self.nmales) + " male"
+				if self.female is not None:
+					self.nfemales = self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.female].shape[0]
+					self.female_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.sex] == self.female][self.iid])
+					print "   " + str(self.nfemales) + " female"
 				if len(np.unique(self.pheno_df[self.dep_var])) == 2:
 					self.family = 'binomial'
-					#self.ctrl_code = min(self.pheno_df[self.dep_var]) if not self.ctrl_code else self.ctrl_code
-					#self.case_code = max(self.pheno_df[self.dep_var]) if not self.case_code else self.case_code
 					self.ncases = self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.dep_var] == self.case_code].shape[0]
 					self.cases_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.dep_var] == self.case_code][self.iid])
-					if self.sex is not None:
-						self.male_cases_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.male_idx][self.pheno_df[self.male_idx][self.dep_var] == self.case_code][self.iid])
-						self.female_cases_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.female_idx][self.pheno_df[self.female_idx][self.dep_var] == self.case_code][self.iid])
+					self.male_cases_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.male_idx][self.pheno_df[self.male_idx][self.dep_var] == self.case_code][self.iid])
+					self.female_cases_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.female_idx][self.pheno_df[self.female_idx][self.dep_var] == self.case_code][self.iid])
 					print "   " + str(self.ncases) + " cases"
 					self.nctrls = self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.dep_var] == self.ctrl_code].shape[0]
 					self.ctrls_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.unique_idx][self.pheno_df[self.unique_idx][self.dep_var] == self.ctrl_code][self.iid])
 					self.founders_ctrls_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.founders_idx][self.pheno_df[self.founders_idx][self.dep_var] == self.ctrl_code][self.iid])
 					self.calc_hwe_idx = self.founders_ctrls_idx.copy()
-					if self.sex is not None:
-						self.male_ctrls_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.male_idx][self.pheno_df[self.male_idx][self.dep_var] == self.ctrl_code][self.iid])
-						self.female_ctrls_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.female_idx][self.pheno_df[self.female_idx][self.dep_var] == self.ctrl_code][self.iid])
+					self.male_ctrls_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.male_idx][self.pheno_df[self.male_idx][self.dep_var] == self.ctrl_code][self.iid])
+					self.female_ctrls_idx = np.in1d(self.pheno_df[self.iid],self.pheno_df[self.female_idx][self.pheno_df[self.female_idx][self.dep_var] == self.ctrl_code][self.iid])
 					print "   " + str(self.nctrls) + " controls"
 					self.pheno_df[self.dep_var][self.cases_idx] = 1
 					self.pheno_df[self.dep_var][self.ctrls_idx] = 0
@@ -284,27 +278,30 @@ cdef class Model(object):
 	cpdef calc_variant_stats(self):
 		logger = logging.getLogger("Model.Model.calc_variant_stats")
 		logger.debug("calc_variant_stats")
-		self.variant_stats = np.zeros((self.variants.info.shape[0],1), dtype=[('filter','uint32'),('mac','f8'),('callrate','f8'),('freq','f8'),('freq.case','f8'),('freq.ctrl','f8'),('rsq','f8'),('hwe','f8'),('n','f8')])
+		if self.family == "binomial":
+			self.variant_stats = np.zeros((self.variants.info.shape[0],1), dtype=[('filter','uint32'),('mac','f8'),('callrate','f8'),('freq','f8'),('freq.case','f8'),('freq.ctrl','f8'),('rsq','f8'),('hwe','f8'),('n','f8')])
+		else:
+			self.variant_stats = np.zeros((self.variants.info.shape[0],1), dtype=[('filter','uint32'),('mac','f8'),('callrate','f8'),('freq','f8'),('rsq','f8'),('hwe','f8'),('n','f8')])
 		cdef unsigned int i
-		logger.debug("idx uninitialized")
 		self.geno_unique_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.unique_idx])
 		self.geno_calc_hwe_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.calc_hwe_idx])
-		self.geno_cases_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.cases_idx])
-		self.geno_ctrls_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.ctrls_idx])
 		self.geno_male_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.male_idx])
-		self.geno_male_cases_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.male_cases_idx])
-		self.geno_male_ctrls_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.male_ctrls_idx])
 		self.geno_female_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.female_idx])
-		self.geno_female_cases_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.female_cases_idx])
-		self.geno_female_ctrls_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.female_ctrls_idx])
-		logger.debug("idx initialized")
+		if self.family == "binomial":
+			self.geno_cases_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.cases_idx])
+			self.geno_ctrls_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.ctrls_idx])
+			self.geno_male_cases_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.male_cases_idx])
+			self.geno_male_ctrls_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.male_ctrls_idx])
+			self.geno_female_cases_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.female_cases_idx])
+			self.geno_female_ctrls_idx = np.in1d(self.variants.data[:,0],self.pheno_df[self.iid][self.female_ctrls_idx])
 		if self.variants.chr == 23:
 			for i in xrange(self.variants.info.shape[0]):
 				self.variant_stats['mac'][i] = Variant.calc_mac(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
 				self.variant_stats['callrate'][i] = Variant.calc_callrate(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
 				self.variant_stats['freq'][i] = Variant.calc_freqX(male=self.variants.data[self.geno_male_idx,i+1].astype('float64'), female=self.variants.data[self.geno_female_idx,i+1].astype('float64')) if len(self.geno_male_idx) > 0 and len(self.geno_female_idx) > 0 else np.nan
-				self.variant_stats['freq.case'][i] = Variant.calc_freqX(male=self.variants.data[self.geno_male_cases_idx,i+1].astype('float64'), female=self.variants.data[self.geno_female_cases_idx,i+1].astype('float64')) if len(self.geno_male_cases_idx) > 0 and len(self.geno_female_cases_idx) > 0 else np.nan
-				self.variant_stats['freq.ctrl'][i] = Variant.calc_freqX(male=self.variants.data[self.geno_male_ctrls_idx,i+1].astype('float64'), female=self.variants.data[self.geno_female_ctrls_idx,i+1].astype('float64')) if len(self.geno_male_ctrls_idx) > 0 and len(self.geno_female_ctrls_idx) > 0 else np.nan
+				if self.family == "binomial":
+					self.variant_stats['freq.case'][i] = Variant.calc_freqX(male=self.variants.data[self.geno_male_cases_idx,i+1].astype('float64'), female=self.variants.data[self.geno_female_cases_idx,i+1].astype('float64')) if len(self.geno_male_cases_idx) > 0 and len(self.geno_female_cases_idx) > 0 else np.nan
+					self.variant_stats['freq.ctrl'][i] = Variant.calc_freqX(male=self.variants.data[self.geno_male_ctrls_idx,i+1].astype('float64'), female=self.variants.data[self.geno_female_ctrls_idx,i+1].astype('float64')) if len(self.geno_male_ctrls_idx) > 0 and len(self.geno_female_ctrls_idx) > 0 else np.nan
 				self.variant_stats['rsq'][i] = Variant.calc_rsq(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
 				self.variant_stats['hwe'][i] = Variant.calc_hwe(self.variants.data[self.geno_calc_hwe_idx,i+1].astype('float64')) if len(self.geno_calc_hwe_idx) > 0 else np.nan
 				self.variant_stats['n'][i] = round(self.variant_stats['callrate'][i] * self.nunique)
@@ -313,8 +310,9 @@ cdef class Model(object):
 				self.variant_stats['mac'][i] = Variant.calc_mac(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
 				self.variant_stats['callrate'][i] = Variant.calc_callrate(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
 				self.variant_stats['freq'][i] = Variant.calc_freq(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
-				self.variant_stats['freq.case'][i] = Variant.calc_freq(self.variants.data[self.geno_cases_idx,i+1].astype('float64')) if len(self.geno_cases_idx) > 0 else np.nan
-				self.variant_stats['freq.ctrl'][i] = Variant.calc_freq(self.variants.data[self.geno_ctrls_idx,i+1].astype('float64')) if len(self.geno_ctrls_idx) > 0 else np.nan
+				if self.family == "binomial":
+					self.variant_stats['freq.case'][i] = Variant.calc_freq(self.variants.data[self.geno_cases_idx,i+1].astype('float64')) if len(self.geno_cases_idx) > 0 else np.nan
+					self.variant_stats['freq.ctrl'][i] = Variant.calc_freq(self.variants.data[self.geno_ctrls_idx,i+1].astype('float64')) if len(self.geno_ctrls_idx) > 0 else np.nan
 				self.variant_stats['rsq'][i] = Variant.calc_rsq(self.variants.data[self.geno_unique_idx,i+1].astype('float64'))
 				self.variant_stats['hwe'][i] = Variant.calc_hwe(self.variants.data[self.geno_calc_hwe_idx,i+1].astype('float64')) if len(self.geno_calc_hwe_idx) > 0 else np.nan
 				self.variant_stats['n'][i] = round(self.variant_stats['callrate'][i] * self.nunique)
@@ -331,10 +329,11 @@ cdef class Model(object):
 				self.variant_stats['filter'][i] += 10000
 			if not np.isnan(self.variant_stats['freq'][i]): 
 				if not allow_mono and ((self.variant_stats['freq'][i] == 0 or self.variant_stats['freq'][i] == 1) or 
-								((self.variant_stats['freq.case'][i] is not None and not np.isnan(self.variant_stats['freq.case'][i]) and 
+								(self.family == "binomial" and 
+									((self.variant_stats['freq.case'][i] is not None and not np.isnan(self.variant_stats['freq.case'][i]) and 
 									(self.variant_stats['freq.case'][i] == 0 or self.variant_stats['freq.case'][i] == 1)) or 
 									(self.variant_stats['freq.ctrl'][i] is not None and not np.isnan(self.variant_stats['freq.ctrl'][i]) and 
-									(self.variant_stats['freq.ctrl'][i] == 0 or self.variant_stats['freq.ctrl'][i] == 1)))):
+									(self.variant_stats['freq.ctrl'][i] == 0 or self.variant_stats['freq.ctrl'][i] == 1))))):
 					self.variant_stats['filter'][i] += 1000
 				else:
 					if ((	not maf_thresh is None
@@ -366,7 +365,10 @@ cdef class SnvModel(Model):
 		super(SnvModel, self).__init__(**kwargs)
 		self.tbx_start = 1
 		self.tbx_end = 1
-		self.results_header = np.array(['chr','pos','id','a1','a2','filter','callrate','rsq','hwe','n','mac','freq','freq.case','freq.ctrl'])
+		if self.family == "binomial":
+			self.results_header = np.array(['chr','pos','id','a1','a2','filter','callrate','rsq','hwe','n','mac','freq','freq.case','freq.ctrl'])
+		else:
+			self.results_header = np.array(['chr','pos','id','a1','a2','filter','callrate','rsq','hwe','n','mac','freq'])
 
 		self.metadata_snv = '## chr: chromosome' + '\n' + \
 							'## pos: chromosomal position' + '\n' + \
@@ -392,6 +394,7 @@ cdef class SnvModel(Model):
 		try:
 			self.variants.get_snvs(buffer)
 		except:
+			logger.debug("found 0 variants for " + str(self.variants.data.shape[0]) + " samples")
 			raise
 		else:
 			try:
@@ -399,6 +402,7 @@ cdef class SnvModel(Model):
 			except:
 				raise Process.Error("ped file and data file contain no common samples")
 			else:
+				logger.debug("found " + str(self.variants.data.shape[1]) + " variants for " + str(self.variants.data.shape[0]) + " samples")
 				self.calc_variant_stats()
 
 cdef class SnvgroupModel(Model):
