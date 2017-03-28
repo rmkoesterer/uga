@@ -68,7 +68,7 @@ Installation
 ************
 
 This software uses a variety of Python modules, R packages, and some stand-alone software. Thus, the easiest method for installation is to use one of two platforms of the 
-software `conda`_; `Anaconda`_ or `Miniconda`_. The required modules are installed easily using the environment.yml file included with this distribution, as described in the 
+software `conda`_; either `Anaconda`_ or `Miniconda`_. The required modules are installed easily using the environment.yml file included with this distribution, as described in the 
 Pre-installation section below.
 
 .. _`conda`: https://conda.io/docs/download.html
@@ -80,36 +80,33 @@ Consolidation and compression of data and results files requires `tabix/bgzip`_ 
 .. _`tabix/bgzip`: http://www.htslib.org/
 .. _`gzip`: http://www.gzip.org/
 
-**Pre-Installation (preparing the environment for uga)**
-
-To prepare your system for uga, you need to `clone an environment`_ using conda. You will need the included environment.yml file from the source code and a number of 
-conda packages from `my anaconda cloud channel`_ and other custom channels (listed in the environment.yml file). After downloading the most recent 
+To prepare your system for uga, you need to `clone an environment`_. You will need the included environment.yml file from the source code and a number of 
+packages from `my anaconda cloud channel`_ and other custom channels (listed in the environment.yml file). After downloading the most recent 
 release (available `here`_), use the following commands to begin the installation.
 
 .. _`clone an environment`: http://conda.pydata.org/docs/using/envs.html#clone-an-environment
 .. _`my anaconda cloud channel`: https://conda.anaconda.org/rmkoesterer
 .. _`here`: https://github.com/rmkoesterer/uga/releases
 
-   >>> tar -xvf uga-2.0b7.tar.gz
-   >>> cd uga-2.0b7
+For the sake of this tutorial, let's assume the release version is 'X'.
 
-At this point you change the name of the environment to anything you'd prefer by modifying the first line of the environment.yml file. For these instructions, we will 
-assume the name is just 'uga'.
+   >>> tar -xvf uga-X.tar.gz
+   >>> cd uga-X
+
+At this point you may change the name of the environment to anything you'd prefer by modifying the first line of the environment.yml file. For these instructions, we will 
+assume the name stays as 'uga'.
 
    >>> conda env create -f environment.yml
    >>> source activate uga
 
-Now your conda environment is activated and you are ready to install uga from source.
-
-**Installing uga from source**
+Now that your environment is activated, you are ready to install uga from source.
 
    >>> python setup.py install
 
 **Cutting Edge Install**
 
-Keeping up with the most current changes may be of interest to you as I will likely continue to add features on a regular basis. Thus, under the realization 
-that you may encounter unexpected behavior and bugs, you may want to run a fork of this repository rather than installing from source. See this tutorial describing
-how to `fork this repository`_
+Keeping up with the most current changes may be of interest to you as I will likely continue to add features and fix bugs on a regular basis. Thus, you may want to run a fork 
+of this repository rather than installing from source. See a tutorial describing how to `fork this repository`_.
 
 .. _`fork this repository`: https://help.github.com/articles/fork-a-repo/
 
