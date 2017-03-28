@@ -68,14 +68,13 @@ Installation
 ************
 
 This software uses a variety of Python modules, R packages, and some stand-alone software. Thus, the easiest method for installation is to use one of two platforms of the 
-software `conda`_; either `Anaconda`_ or `Miniconda`_. The required modules are installed easily using the environment.yml file included with this distribution, as described in the 
-Pre-installation section below.
+software `conda`_; either `Anaconda`_ or `Miniconda`_.
 
 .. _`conda`: https://conda.io/docs/download.html
 .. _`Anaconda`: https://www.continuum.io/downloads
 .. _`Miniconda`: https://conda.io/miniconda.html
 
-Consolidation and compression of data and results files requires `tabix/bgzip`_ and `gzip`_.
+Also, consolidation and compression of data and results files requires `tabix/bgzip`_ and `gzip`_.
 
 .. _`tabix/bgzip`: http://www.htslib.org/
 .. _`gzip`: http://www.gzip.org/
@@ -94,7 +93,7 @@ For the sake of this tutorial, let's assume the release version is 'X'.
    >>> cd uga-X
 
 At this point you may change the name of the environment to anything you'd prefer by modifying the first line of the environment.yml file. For these instructions, we will 
-assume the name stays as 'uga'.
+assume the name is unchanged from 'uga'.
 
    >>> conda env create -f environment.yml
    >>> source activate uga
@@ -110,7 +109,10 @@ of this repository rather than installing from source. See a tutorial describing
 
 .. _`fork this repository`: https://help.github.com/articles/fork-a-repo/
 
-**Note**: If you install uga under a conda environment, you need to source the environment as shown above before running any task in uga.
+Getting Started
+***************
+
+If you install uga under a conda environment, you need to source the environment as shown above before running any task in uga.
 
    >>> source activate uga
 
