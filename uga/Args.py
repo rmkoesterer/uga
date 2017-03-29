@@ -269,6 +269,10 @@ def snvgroup_args(snvgroup_parser):
 						nargs=0, 
 						action=AddTrue, 
 						help='use all samples to calculate variant statistics regardless of --matid and --patid column information')
+	snvgroup_parser.add_argument('--allow-mono', 
+						nargs=0, 
+						action=AddTrue, 
+						help='allow monomorphic variants (this option may lead to certain R-based association tests failing to return)')
 	snvgroup_parser.add_argument('--adjust-kinship', 
 						nargs=0, 
 						action=AddTrue, 
