@@ -1,6 +1,9 @@
 Universal Genome Analyst
 ************************
 
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.578712.svg
+   :target: https://doi.org/10.5281/zenodo.578712
+
 Universal Genome Analyst (**uga**) is an open, flexible, and efficient tool for the distribution, management, and visualization of whole genome data analyses. 
 It is designed to assist biomedical researchers in complex genomic data analysis through the use of a low level interface between the powerful R statistical 
 environment and Python, allowing for rapid integration of emerging analytical strategies. This project uses `Cython`_ for a significant reduction in computation 
@@ -133,10 +136,12 @@ with other PBS systems.
 
 .. _`qsub`: http://gridscheduler.sourceforge.net/htmlman/htmlman1/qsub.html
 
-References
-==========
+Citation
+========
 
-Manuscript to be submitted
+Please cite this software as follows. A manuscript is in the works and yet to be submitted.
+
+Koesterer, Ryan. Universal Genome Analyst (uga). https://github.com/rmkoesterer/uga. DOI: 10.5281/zenodo.578712.
 
 Contact
 =======
