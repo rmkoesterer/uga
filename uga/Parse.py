@@ -116,7 +116,7 @@ def generate_snv_cfg(args):
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
 			for arg in global_args:
-				if arg[0] in ['score','lm','glm','gee']:
+				if arg[0] in ['score','lm','glm','gee','glmer']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['dep_var'] = arg[1]
 				elif arg[0] in ['vcf','dos','oxford']:
@@ -125,7 +125,7 @@ def generate_snv_cfg(args):
 				else:
 					config['models'][args[tags_idx[i]][1]][arg[0]] = arg[1]
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['score','lm','glm','gee']:
+				if arg[0] in ['score','lm','glm','gee','glmer']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['dep_var'] = arg[1]
 				elif arg[0] in ['vcf','dos','oxford']:
@@ -137,7 +137,7 @@ def generate_snv_cfg(args):
 	else:
 		config['models']['___no_tag___'] = config_default
 		for arg in global_args:
-			if arg[0] in ['score','lm','glm','gee']:
+			if arg[0] in ['score','lm','glm','gee','glmer']:
 				config['models']['___no_tag___']['fxn'] = arg[0]
 				config['models']['___no_tag___']['dep_var'] = arg[1]
 			elif arg[0] in ['vcf','dos','oxford']:

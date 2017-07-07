@@ -228,6 +228,9 @@ def snv_args(snv_parser):
 	snv_parser.add_argument('--lm', 
 						action=AddString, 
 						help='lm test dependent variable')
+	snv_parser.add_argument('--glmer', 
+						action=AddString, 
+						help='glmer test dependent variable')
 	snv_parser.add_argument('--meta-sample-size', 
 						nargs=2, 
 						action=AddString, 

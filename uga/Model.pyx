@@ -779,6 +779,96 @@ cdef class Lm(SnvModel):
 					self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
+cdef class Glmer(SnvModel):
+	cdef public str corstr
+	def __cinit__(self, corstr = None, **kwargs):
+		logger = logging.getLogger("Model.Glmer.__cinit__")
+		logger.debug("initialize Glmer model")
+		self.corstr = corstr if corstr is not None else 'exchangeable'
+		super(Glmer, self).__init__(**kwargs)
+		print "setting Glmer test family option to " + self.family
+
+		if self.reverse:
+			if self.interact is not None:
+				self.formula = '___snv___~' + self.dep_var + '*' + self.interact
+				self.focus = self.dep_var + ':' + self.interact
+			else:
+				self.formula = '___snv___~' + self.dep_var
+				self.focus = self.dep_var
+			self.family = 'gaussian'
+		else:
+			if self.interact is not None:
+				self.formula = self.dep_var + '~___snv___*' + self.interact
+				self.focus = '___snv___:' + self.interact
+			else:
+				self.formula = self.dep_var + '~___snv___'
+				self.focus = '___snv___'
+		self.formula = self.formula + '+' + self.covars if self.covars is not None else self.formula
+		print "formula: " + self.formula
+
+		self.results_dtypes = [('err','f8'),('effect','f8'),('stderr','f8'),('or','f8'),('wald','f8'),('p','f8')]
+		if self.family == 'binomial':
+			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','or','wald','p']))
+		else:
+			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','wald','p']))
+
+		print "loading R package lme4"
+		ro.r('suppressMessages(library(lme4))')
+
+		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
+		self.metadata = self.metadata + '\n' + '## formula: ' + self.formula
+		self.metadata_snv = self.metadata_snv + '\n' + self.metadata_snv_cc if self.family == 'binomial' else self.metadata_snv
+		self.metadata = self.metadata + '\n' + \
+						'## corstr: ' + self.corstr + '\n' + \
+						self.metadata_snv + '\n' + \
+						'## err: error code (0: no error, 1: geeglm error reported, 2: infinite value or zero p-value detected, 3: geeglm failed)' + '\n' + \
+						'## effect: effect size' + '\n' + \
+						'## stderr: standard error'
+		self.metadata = self.metadata + '\n' + '## or: odds ratio (included only if binomial family)' if self.family == 'binomial' else self.metadata
+		self.metadata = self.metadata + '\n' + \
+						'## wald: wald-statistic' + '\n' + \
+						'## p: p-value' + '\n#'
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	cpdef calc_model(self):
+		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
+		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
+		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
+		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
+		if len(passed) > 0:
+			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
+			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
+			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
+			ro.r('model_df$' + self.fid + '<-as.factor(model_df$' + self.fid + ')')
+			ro.r('model_df<-model_df[order(model_df$' + self.fid + '),]')
+			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
+				ro.r('class(model_df$' + col + ')<-"numeric"')
+			for v in passed:
+				vu = self.variants.info['id_unique'][v]
+				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [self.fid] + [vu]))
+				cmd = 'geeglm(' + self.formula.replace('___snv___',vu) + ',id=' + self.fid + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + self.family + ',corstr="' + self.corstr + '")'
+				try:
+					ro.globalenv['result'] = ro.r(cmd)
+				except RRuntimeError as rerr:
+					self.results['err'][v] = 3
+					print vu + ": " + rerr.message
+				else:
+					ro.r('result<-summary(result)')
+					vu = self.focus.replace('___snv___',vu)
+					if ro.r('result$error')[0] == 0:
+						ro.r('err<-0')
+						ro.r('err[! is.finite(result$coefficients["' + vu + '",1]) | ! is.finite(result$coefficients["' + vu + '",2]) | ! is.finite(result$coefficients["' + vu + '",4]) | result$coefficients["' + vu + '",4] == 0]<-2')
+						self.results['err'][v] = np.array(ro.r('err'))[:,None]
+						self.results['effect'][v] = np.array(ro.r('result$coefficients["' + vu + '",1]'))[:,None]
+						self.results['stderr'][v] = np.array(ro.r('result$coefficients["' + vu + '",2]'))[:,None]
+						self.results['or'][v] = np.array(np.exp(ro.r('result$coefficients["' + vu + '",1]')))[:,None]
+						self.results['wald'][v] = np.array(ro.r('result$coefficients["' + vu + '",3]'))[:,None]
+						self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
+					else:
+						self.results['err'][v] = 1
+		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
+
 cdef class Skat(SnvgroupModel):
 	cdef public str skat_wts, skat_method, mafrange
 	cdef unsigned int timeout

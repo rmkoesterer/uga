@@ -421,6 +421,7 @@ cdef class Results(Variants):
 		if i == 0:
 			raise
 		else:
+			self.snv_results[self.snv_results == "NA"]=np.nan
 			self.snv_results = np.array([tuple(row) for row in self.snv_results], dtype=self.dtypes)
 			var_ids, var_ids_idx, var_ids_cnt = np.unique(self.snv_results['id_unique'], return_inverse=True, return_counts=True)
 			self.duplicated = var_ids[var_ids_cnt > 1]
