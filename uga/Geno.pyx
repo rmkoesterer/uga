@@ -166,7 +166,7 @@ cdef class Vcf(Variants):
 					self.snv_chunk[i,:9] = record[:9]
 					self.snv_chunk[i,11:] = extract_vcf_dose(record[9:], field)
 					self.snv_chunk[i,5] = self.group_id
-					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
+					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
 					self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 					i += 1
 				elif 'GT' in fields:
@@ -184,7 +184,7 @@ cdef class Vcf(Variants):
 							self.snv_chunk[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
 							self.snv_chunk[i,4] = alts[alt]
 							self.snv_chunk[i,5] = self.group_id
-							self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
+							self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
 							self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 							het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
 							hom1 = ['0/0','0|0']
@@ -194,7 +194,7 @@ cdef class Vcf(Variants):
 							self.snv_chunk[i+1,3] = record[3]
 							self.snv_chunk[i+1,4] = alts[alt]
 							self.snv_chunk[i+1,5] = self.group_id
-							self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,4][0:1000])
+							self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,4][0:1000])
 							self.snv_chunk[i+1,10] = Variant.get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
 							i += 2
 					else:
@@ -204,7 +204,7 @@ cdef class Vcf(Variants):
 						self.snv_chunk[i,:9] = record[:9]
 						self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
 						self.snv_chunk[i,5] = self.group_id
-						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000]) + '_' + str(i)
+						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000]) + '.' + str(i)
 						self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 						i += 1
 				else:
@@ -222,7 +222,7 @@ cdef class Vcf(Variants):
 			raise
 		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,11:].transpose()))
-		var_ids, var_ids_idx, var_ids_cnt = np.unique(['_'.join(x.split('_')[0:(len(x.split('_'))-1)]) for x in self.info['id_unique']], return_inverse=True, return_counts=True)
+		var_ids, var_ids_idx, var_ids_cnt = np.unique(['.'.join(x.split('.')[0:len(x.split('.'))]) for x in self.info['id_unique']], return_inverse=True, return_counts=True)
 		self.duplicated = var_ids[var_ids_cnt > 1]
 		np.place(self.data, self.data == 'NA',np.nan)
 
@@ -305,7 +305,7 @@ cdef class Dos(Variants):
 				self.snv_chunk[i,:5] = record[:5]
 				self.snv_chunk[i,8:] = record[5:]
 				self.snv_chunk[i,5] = self.group_id
-				self.snv_chunk[i,6] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000]) + '_' + str(i)
+				self.snv_chunk[i,6] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000]) + '.' + str(i)
 				self.snv_chunk[i,7] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 				i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
@@ -321,7 +321,7 @@ cdef class Dos(Variants):
 			raise
 		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,8:].transpose()))
-		var_ids, var_ids_idx, var_ids_cnt = np.unique(['_'.join(x.split('_')[0:(len(x.split('_'))-1)]) for x in self.info['id_unique']], return_inverse=True, return_counts=True)
+		var_ids, var_ids_idx, var_ids_cnt = np.unique(['.'.join(x.split('.')[0:len(x.split('.'))]) for x in self.info['id_unique']], return_inverse=True, return_counts=True)
 		self.duplicated = var_ids[var_ids_cnt > 1]
 		np.place(self.data, self.data == 'NA',np.nan)
 
@@ -399,7 +399,7 @@ cdef class Results(Variants):
 			for r in slice:
 				record = np.array(r, dtype='object')
 				self.snv_chunk[i,:len(self.cols)] = record[:len(self.cols)]
-				self.snv_chunk[i,len(self.cols)] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '_'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
+				self.snv_chunk[i,len(self.cols)] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
 				self.snv_chunk[i,len(self.cols)+1] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 				i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]

@@ -115,7 +115,7 @@ def process_regions(regions_df, cfg, cpu, log):
 						break
 					variants_found = True
 
-					if models_obj[n].variants.duplicated is not None:
+					if len(models_obj[n].variants.duplicated) > 0:
 						print '   WARNING! The following duplicated variant identifiers were generated'
 						print '\n'.join(['      ' + d for d in models_obj[n].variants.duplicated])
 
