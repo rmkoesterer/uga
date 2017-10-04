@@ -52,11 +52,11 @@ cdef class Model(object):
 							geno_calc_hwe_idx, geno_unique_idx, geno_male_idx, geno_female_idx
 	cdef public bytes fxn, format, pheno, variants_file, type, samples_file, drop_file, keep_file, \
 						iid, fid, matid, patid, sex, sep, a1, a2
-	cdef public str metadata, metadata_cc, family, formula, focus, dep_var, interact, covars
+	cdef public str metadata, metadata_cc, family, formula, focus, dep_var, interact, random_effects, covars
 	cdef public object pheno_df, variants, out, results_dtypes, pedigree, drop, keep
-	cdef public bint all_founders, reverse
+	cdef public bint all_founders, reverse, reml
 	def __cinit__(self, fxn, format, variants_file, pheno, type, iid, fid, 
-					case_code = None, ctrl_code = None, all_founders = False, dep_var = None, covars = None, interact = None, reverse = False, samples_file = None, 
+					case_code = None, ctrl_code = None, all_founders = False, dep_var = None, covars = None, interact = None, random_effects = None, reml = False, reverse = False, samples_file = None, 
 					drop_file = None, keep_file = None, matid = None, patid = None, sex = None, male = 1, female = 2, sep = 'tab', **kwargs):
 		super(Model, self).__init__(**kwargs)
 		logger = logging.getLogger("Model.Model.__cinit__")
@@ -66,6 +66,8 @@ cdef class Model(object):
 		self.dep_var = dep_var
 		self.covars = covars
 		self.interact = interact
+		self.random_effects = random_effects
+		self.reml = reml
 		self.reverse = reverse
 		self.format = format
 		self.variants_file = variants_file
@@ -100,6 +102,7 @@ cdef class Model(object):
 		self.model_cols = np.array([self.dep_var])
 		self.model_cols = np.append(self.model_cols,np.array([x.replace('factor(','').replace(')','') for x in self.covars.split('+')])) if self.covars else self.model_cols
 		self.model_cols = np.append(self.model_cols,np.array(self.interact.replace('factor(','').replace(')',''))) if self.interact else self.model_cols
+		self.model_cols = np.append(self.model_cols,np.array(self.random_effects.split('+'))) if self.random_effects else self.model_cols
 		self.model_cols = np.unique(self.model_cols)
 
 		self.male_idx = np.array([])
@@ -779,14 +782,12 @@ cdef class Lm(SnvModel):
 					self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
-cdef class Glmer(SnvModel):
-	cdef public str corstr
+cdef class Lmer(SnvModel):
 	def __cinit__(self, corstr = None, **kwargs):
-		logger = logging.getLogger("Model.Glmer.__cinit__")
-		logger.debug("initialize Glmer model")
-		self.corstr = corstr if corstr is not None else 'exchangeable'
-		super(Glmer, self).__init__(**kwargs)
-		print "setting Glmer test family option to " + self.family
+		logger = logging.getLogger("Model.Lmer.__cinit__")
+		logger.debug("initialize Lmer model")
+		super(Lmer, self).__init__(**kwargs)
+		print "lmer test will treat outcome as quantitative"
 
 		if self.reverse:
 			if self.interact is not None:
@@ -795,7 +796,6 @@ cdef class Glmer(SnvModel):
 			else:
 				self.formula = '___snv___~' + self.dep_var
 				self.focus = self.dep_var
-			self.family = 'gaussian'
 		else:
 			if self.interact is not None:
 				self.formula = self.dep_var + '~___snv___*' + self.interact
@@ -804,30 +804,33 @@ cdef class Glmer(SnvModel):
 				self.formula = self.dep_var + '~___snv___'
 				self.focus = '___snv___'
 		self.formula = self.formula + '+' + self.covars if self.covars is not None else self.formula
+
+		if self.random_effects is not None:
+			for reff in self.random_effects.split("+"):
+				print "adding random effect " + reff
+				self.formula = self.formula + '+(1|' + reff + ')' 
 		print "formula: " + self.formula
 
-		self.results_dtypes = [('err','f8'),('effect','f8'),('stderr','f8'),('or','f8'),('wald','f8'),('p','f8')]
-		if self.family == 'binomial':
-			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','or','wald','p']))
-		else:
-			self.results_header = np.append(self.results_header,np.array(['err','effect','stderr','wald','p']))
+		self.results_dtypes = [('effect','f8'),('stderr','f8'),('t','f8'),('p_z','f8'),('df_satt','f8'),('f_satt','f8'),('p_satt','f8'),('df_kr','f8'),('f_kr','f8'),('p_kr','f8')]
+		self.results_header = np.append(self.results_header,np.array(['effect','stderr','t','p_z','df_satt','f_satt','p_satt','df_kr','f_kr','p_kr']))
 
-		print "loading R package lme4"
-		ro.r('suppressMessages(library(lme4))')
+		print "loading R package lmerTest and pbkrtest and their dependencies"
+		ro.r('suppressMessages(library(lmerTest))')
+		ro.r('suppressMessages(library(pbkrtest))')
 
-		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
 		self.metadata = self.metadata + '\n' + '## formula: ' + self.formula
-		self.metadata_snv = self.metadata_snv + '\n' + self.metadata_snv_cc if self.family == 'binomial' else self.metadata_snv
 		self.metadata = self.metadata + '\n' + \
-						'## corstr: ' + self.corstr + '\n' + \
 						self.metadata_snv + '\n' + \
-						'## err: error code (0: no error, 1: geeglm error reported, 2: infinite value or zero p-value detected, 3: geeglm failed)' + '\n' + \
 						'## effect: effect size' + '\n' + \
-						'## stderr: standard error'
-		self.metadata = self.metadata + '\n' + '## or: odds ratio (included only if binomial family)' if self.family == 'binomial' else self.metadata
-		self.metadata = self.metadata + '\n' + \
-						'## wald: wald-statistic' + '\n' + \
-						'## p: p-value' + '\n#'
+						'## stderr: standard error' + '\n' + \
+						'## t: t statistic' + '\n' + \
+						'## p_z: p-value from z-statistic (t-statistic treated as z-statistic)' + '\n' + \
+						'## df_satt: satterthwaite estimated degrees of freedom' + '\n' + \
+						'## f_satt: satterthwaite f statistic' + '\n' + \
+						'## p_satt: satterthwaite p-value' + '\n' + \
+						'## df_kr: kenward-roger estimated degrees of freedom' + '\n' + \
+						'## f_kr: kenward-roger f statistic' + '\n' + \
+						'## p_kr: kenward-roger p-value' + '\n#'
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -844,29 +847,32 @@ cdef class Glmer(SnvModel):
 			ro.r('model_df<-model_df[order(model_df$' + self.fid + '),]')
 			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
+			ro.r('write.table(model_df,"test.model.df",row.names=F,col.names=T,sep="\t",append=F,quote=F)')	
 			for v in passed:
 				vu = self.variants.info['id_unique'][v]
 				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [self.fid] + [vu]))
-				cmd = 'geeglm(' + self.formula.replace('___snv___',vu) + ',id=' + self.fid + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + self.family + ',corstr="' + self.corstr + '")'
+				cmd = 'lmer(' + self.formula.replace('___snv___',vu) + ',data=na.omit(model_df[,names(model_df) %in% cols]),REML=' + str(self.reml).upper() + ')'
 				try:
 					ro.globalenv['result'] = ro.r(cmd)
 				except RRuntimeError as rerr:
 					self.results['err'][v] = 3
 					print vu + ": " + rerr.message
 				else:
-					ro.r('result<-summary(result)')
+					ro.r('result_base<-summary(result)')
+					ro.r('result_satt<-anova(result)')
+					ro.r('result_kr<-anova(result, ddf="Kenward-Roger")')
 					vu = self.focus.replace('___snv___',vu)
-					if ro.r('result$error')[0] == 0:
-						ro.r('err<-0')
-						ro.r('err[! is.finite(result$coefficients["' + vu + '",1]) | ! is.finite(result$coefficients["' + vu + '",2]) | ! is.finite(result$coefficients["' + vu + '",4]) | result$coefficients["' + vu + '",4] == 0]<-2')
-						self.results['err'][v] = np.array(ro.r('err'))[:,None]
-						self.results['effect'][v] = np.array(ro.r('result$coefficients["' + vu + '",1]'))[:,None]
-						self.results['stderr'][v] = np.array(ro.r('result$coefficients["' + vu + '",2]'))[:,None]
-						self.results['or'][v] = np.array(np.exp(ro.r('result$coefficients["' + vu + '",1]')))[:,None]
-						self.results['wald'][v] = np.array(ro.r('result$coefficients["' + vu + '",3]'))[:,None]
-						self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
-					else:
-						self.results['err'][v] = 1
+					self.results['effect'][v] = np.array(ro.r('result_base$coefficients["' + vu + '",1]'))[:,None]
+					self.results['stderr'][v] = np.array(ro.r('result_base$coefficients["' + vu + '",2]'))[:,None]
+					self.results['t'][v] = np.array(np.exp(ro.r('result_base$coefficients["' + vu + '",1] / result_base$coefficients["' + vu + '",2]')))[:,None]
+					self.results['p_z'][v] = np.array(2 * scipy.norm.cdf(-1 * abs(self.results['effect'][v] / self.results['stderr'][v])))[:,None]
+					self.results['df_satt'][v] = np.array(ro.r('result_satt["' + vu + '","DenDF"]'))[:,None]
+					self.results['f_satt'][v] = np.array(ro.r('result_satt["' + vu + '","F.value"]'))[:,None]
+					self.results['p_satt'][v] = np.array(ro.r('result_satt["' + vu + '","Pr(>F)"]'))[:,None]
+					self.results['df_kr'][v] = np.array(ro.r('result_kr["' + vu + '","DenDF"]'))[:,None]
+					self.results['f_kr'][v] = np.array(ro.r('result_kr["' + vu + '","F.value"]'))[:,None]
+					self.results['p_kr'][v] = np.array(ro.r('result_kr["' + vu + '","Pr(>F)"]'))[:,None]
+
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 
 cdef class Skat(SnvgroupModel):

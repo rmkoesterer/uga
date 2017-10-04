@@ -5,6 +5,7 @@ channels:
 - defaults
 - asmeurer
 - bioconda
+- mittner
 dependencies:
 - anaconda-client=1.1.2=py27_0
 - biopython=1.66=np110py27_0
@@ -92,6 +93,8 @@ dependencies:
 - r-stringi=1.0_1=r3.2.2_0a
 - r-stringr=1.0.0=r3.2.2_0a
 - r-survival=2.38_3=r3.2.2_0a
+- r-lmertest=2.0_29=r3.2.2_0
+- r-pbkrtest=0.4_2=r3.2.2_2a
 - readline=6.2.5=1
 - requests=2.8.1=py27_0
 - rpy2=2.7.4=py27r3.2.2_0

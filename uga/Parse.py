@@ -110,13 +110,13 @@ def generate_snv_cfg(args):
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'allow_mono': False, 'sep': 'tab', 'sex': 'SEX', 
 							'male': 1, 'female': 2, 'miss': None, 'maf': None, 'maxmaf': None, 'mac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'dep_var': None, 'format': None, 'file': None, 'sample': None, 'drop': None, 'keep': None, 'corstr': None, 
-							'pheno': None, 'covars': None, 'interact': None, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 
+							'pheno': None, 'covars': None, 'interact': None, 'random_effects': None, 'reml': False, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 
 							'adjust_kinship': False}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
 			for arg in global_args:
-				if arg[0] in ['score','lm','glm','gee','glmer']:
+				if arg[0] in ['score','lm','glm','gee','lmer']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['dep_var'] = arg[1]
 				elif arg[0] in ['vcf','dos','oxford']:
@@ -125,7 +125,7 @@ def generate_snv_cfg(args):
 				else:
 					config['models'][args[tags_idx[i]][1]][arg[0]] = arg[1]
 			for arg in args[tags_idx[i]+1:tags_idx[i+1]]:
-				if arg[0] in ['score','lm','glm','gee','glmer']:
+				if arg[0] in ['score','lm','glm','gee','lmer']:
 					config['models'][args[tags_idx[i]][1]]['fxn'] = arg[0]
 					config['models'][args[tags_idx[i]][1]]['dep_var'] = arg[1]
 				elif arg[0] in ['vcf','dos','oxford']:
@@ -137,7 +137,7 @@ def generate_snv_cfg(args):
 	else:
 		config['models']['___no_tag___'] = config_default
 		for arg in global_args:
-			if arg[0] in ['score','lm','glm','gee','glmer']:
+			if arg[0] in ['score','lm','glm','gee','lmer']:
 				config['models']['___no_tag___']['fxn'] = arg[0]
 				config['models']['___no_tag___']['dep_var'] = arg[1]
 			elif arg[0] in ['vcf','dos','oxford']:

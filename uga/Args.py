@@ -228,9 +228,16 @@ def snv_args(snv_parser):
 	snv_parser.add_argument('--lm', 
 						action=AddString, 
 						help='lm test dependent variable')
-	snv_parser.add_argument('--glmer', 
+	snv_parser.add_argument('--lmer', 
 						action=AddString, 
-						help='glmer test dependent variable')
+						help='lmer test dependent variable (used for quantitative outcomes; --reverse and --interact are not implemented for this model type)')
+	snv_parser.add_argument('--random-effects', 
+						action=AddString, 
+						help='lme random effect variables (can be used with --lmer; if multiple, separate with a "+" character; variable names should not be wrapped in factor(); eg. A+B converts to (1|A)+(1|B) in model syntax)')
+	snv_parser.add_argument('--reml', 
+						nargs=0,
+						action=AddTrue, 
+						help='lmer REML option (REML=TRUE)')
 	snv_parser.add_argument('--meta-sample-size', 
 						nargs=2, 
 						action=AddString, 
