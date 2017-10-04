@@ -17,7 +17,7 @@ This software is currently under rapid development. Updates and bug fixes are be
 .. _`uga github page`: https://github.com/rmkoesterer/uga
 
 **Notable Features**
-   - Single variant association modeling (R base: lm, glm; R `geepack`_: geeglm, R `seqMeta`_: singlesnpMeta)
+   - Single variant association modeling (R base: lm, glm; R `geepack`_: geeglm, R `seqMeta`_: singlesnpMeta, R `lme4`_: lmer)
    - Gene/Group based association modeling (with meta analysis: R `seqMeta`_: burdenMeta, skatMeta, skatOMeta)
    - Family based single variant association modeling
    - Publication quality Q-Q and manhattan plots
@@ -35,6 +35,7 @@ This software is currently under rapid development. Updates and bug fixes are be
 
 .. _`geepack`: https://cran.r-project.org/web/packages/geepack/index.html
 .. _`seqMeta`: https://cran.r-project.org/web/packages/seqMeta/index.html
+.. _`lme4`: https://cran.r-project.org/web/packages/lme4/index.html
 .. _`qsub`: http://gridscheduler.sourceforge.net/htmlman/htmlman1/qsub.html
 .. _`Gzip`: http://www.gzip.org/
 .. _`Bgzip`: http://www.htslib.org/
@@ -42,14 +43,13 @@ This software is currently under rapid development. Updates and bug fixes are be
 
 **Planned For Future Releases**
    - Full documentation
-   - Additional association models (R `survival`_: coxph; `lme4`_: lmer, `nlme`_: lme)
+   - Additional association models (R `survival`_: coxph; `nlme`_: lme)
    - Family data inclusion in gene/group based tests
    - Calculation for grouped analysis multiple test correction
    - Region-based plots via `Locuszoom`_ software
    - Results annotation using `SnpEff`_
 
 .. _`survival`: https://cran.r-project.org/web/packages/survival/index.html
-.. _`lme4`: https://cran.r-project.org/web/packages/lme4/index.html
 .. _`nlme`: https://cran.r-project.org/web/packages/nlme/index.html
 .. _`Locuszoom`: http://genome.sph.umich.edu/wiki/LocusZoom_Standalone
 .. _`SnpEff`: http://snpeff.sourceforge.net/
@@ -60,12 +60,14 @@ In the interest of user efficiency and to avoid limitations induced by excessive
    - **settings** user definable settings
    - **snv** single variant statistical modeling
    - **snvgroup** gene/region-based statistical modeling
+   - **meta** meta-analysis
    - **compile** verify and compile split analysis results
    - **resubmit** automatically resubmit failed jobs for a project
    - **snvplot** Q-Q and manhattan plots for snv tests
    - **snvgroupplot** Q-Q and manhattan plots for snvgroup tests
-   - **meta** meta-analysis
    - **filter** filter results / apply genomic control to results
+   - **merge** merge and annotate results with external files
+   - **tools** run any command line tool with ability to include genomic region automatically
 
 Installation
 ************
