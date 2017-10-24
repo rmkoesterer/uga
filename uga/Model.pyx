@@ -17,6 +17,7 @@ import pandas as pd
 import numpy as np
 import readline
 from re import split as re_split
+import sys
 import Process
 cimport numpy as np
 cimport cython
@@ -140,9 +141,9 @@ cdef class Model(object):
 			p_dtypes = p_dtypes + ('f8',) if self.sex not in self.model_cols else p_dtypes
 			dtypes = dict(zip(p_names, p_dtypes))
 			try:
-				self.pheno_df = np.genfromtxt(fname=self.pheno, delimiter=Fxns.get_delimiter(self.sep), dtype=p_dtypes, names=True, usecols=p_names)
+				self.pheno_df = np.genfromtxt(fname=self.pheno, delimiter=Fxns.get_delimiter(self.sep), dtype=dtypes.values(), names=True, usecols=dtypes.keys())
 			except:
-				raise Process.Error("unable to load phenotype file " + self.pheno + " with columns " + ', '.join(p_names))
+				raise Process.Error("unable to load phenotype file " + self.pheno + " with columns " + ', '.join(p_names) + "; " + str(sys.exc_info()[0]))
 			for x in self.model_cols:
 				if x in self.pheno_df.dtype.names:
 					print "   model column %s found" % (x)
