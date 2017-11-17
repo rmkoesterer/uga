@@ -55,9 +55,9 @@ cdef class Model(object):
 						iid, fid, matid, patid, sex, sep, a1, a2
 	cdef public str metadata, metadata_cc, family, formula, focus, dep_var, interact, random_effects, covars
 	cdef public object pheno_df, variants, out, results_dtypes, pedigree, drop, keep
-	cdef public bint all_founders, reverse, reml
+	cdef public bint all_founders, reverse, reml, satt, kr
 	def __cinit__(self, fxn, format, variants_file, pheno, type, iid, fid, 
-					case_code = None, ctrl_code = None, all_founders = False, dep_var = None, covars = None, interact = None, random_effects = None, reml = False, reverse = False, samples_file = None, 
+					case_code = None, ctrl_code = None, all_founders = False, dep_var = None, covars = None, interact = None, random_effects = None, reml = False, satt = False, kr = False, reverse = False, samples_file = None, 
 					drop_file = None, keep_file = None, matid = None, patid = None, sex = None, male = 1, female = 2, sep = 'tab', **kwargs):
 		super(Model, self).__init__(**kwargs)
 		logger = logging.getLogger("Model.Model.__cinit__")
@@ -69,6 +69,8 @@ cdef class Model(object):
 		self.interact = interact
 		self.random_effects = random_effects
 		self.reml = reml
+		self.satt = satt
+		self.kr = kr
 		self.reverse = reverse
 		self.format = format
 		self.variants_file = variants_file
@@ -812,8 +814,14 @@ cdef class Lmer(SnvModel):
 				self.formula = self.formula + '+(1|' + reff + ')' 
 		print "formula: " + self.formula
 
-		self.results_dtypes = [('effect','f8'),('stderr','f8'),('t','f8'),('p_z','f8'),('df_satt','f8'),('f_satt','f8'),('p_satt','f8'),('df_kr','f8'),('f_kr','f8'),('p_kr','f8')]
-		self.results_header = np.append(self.results_header,np.array(['effect','stderr','t','p_z','df_satt','f_satt','p_satt','df_kr','f_kr','p_kr']))
+		self.results_dtypes = [('effect','f8'),('stderr','f8'),('t','f8'),('p_z','f8')]
+		self.results_header = np.append(self.results_header,np.array(['effect','stderr','t','p_z']))
+		if self.satt:
+			self.results_dtypes = self.results_dtypes + [('df_satt','f8'),('f_satt','f8'),('p_satt','f8')]
+			self.results_header = np.append(self.results_header,np.array(['df_satt','f_satt','p_satt']))
+		if self.kr:
+			self.results_dtypes = self.results_dtypes + [('df_kr','f8'),('f_kr','f8'),('p_kr','f8')]
+			self.results_header = np.append(self.results_header,np.array(['df_kr','f_kr','p_kr']))
 
 		print "loading R package lmerTest and pbkrtest and their dependencies"
 		ro.r('suppressMessages(library(lmerTest))')
@@ -825,13 +833,18 @@ cdef class Lmer(SnvModel):
 						'## effect: effect size' + '\n' + \
 						'## stderr: standard error' + '\n' + \
 						'## t: t statistic' + '\n' + \
-						'## p_z: p-value from z-statistic (t-statistic treated as z-statistic)' + '\n' + \
+						'## p_z: p-value from z-statistic (t-statistic treated as z-statistic)'
+		if self.satt:
+			self.metadata = self.metadata + '\n' + \
 						'## df_satt: satterthwaite estimated degrees of freedom' + '\n' + \
 						'## f_satt: satterthwaite f statistic' + '\n' + \
-						'## p_satt: satterthwaite p-value' + '\n' + \
+						'## p_satt: satterthwaite p-value'
+		if self.kr:
+			self.metadata = self.metadata + '\n' + \
 						'## df_kr: kenward-roger estimated degrees of freedom' + '\n' + \
 						'## f_kr: kenward-roger f statistic' + '\n' + \
-						'## p_kr: kenward-roger p-value' + '\n#'
+						'## p_kr: kenward-roger p-value'
+		self.metadata = self.metadata + '\n#'
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -848,7 +861,6 @@ cdef class Lmer(SnvModel):
 			ro.r('model_df<-model_df[order(model_df$' + self.fid + '),]')
 			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
 				ro.r('class(model_df$' + col + ')<-"numeric"')
-			ro.r('write.table(model_df,"test.model.df",row.names=F,col.names=T,sep="\t",append=F,quote=F)')	
 			for v in passed:
 				vu = self.variants.info['id_unique'][v]
 				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [self.fid] + [vu]))
@@ -860,19 +872,23 @@ cdef class Lmer(SnvModel):
 					print vu + ": " + rerr.message
 				else:
 					ro.r('result_base<-summary(result)')
-					ro.r('result_satt<-anova(result)')
-					ro.r('result_kr<-anova(result, ddf="Kenward-Roger")')
 					vu = self.focus.replace('___snv___',vu)
 					self.results['effect'][v] = np.array(ro.r('result_base$coefficients["' + vu + '",1]'))[:,None]
 					self.results['stderr'][v] = np.array(ro.r('result_base$coefficients["' + vu + '",2]'))[:,None]
 					self.results['t'][v] = np.array(np.exp(ro.r('result_base$coefficients["' + vu + '",1] / result_base$coefficients["' + vu + '",2]')))[:,None]
 					self.results['p_z'][v] = np.array(2 * scipy.norm.cdf(-1 * abs(self.results['effect'][v] / self.results['stderr'][v])))[:,None]
-					self.results['df_satt'][v] = np.array(ro.r('result_satt["' + vu + '","DenDF"]'))[:,None]
-					self.results['f_satt'][v] = np.array(ro.r('result_satt["' + vu + '","F.value"]'))[:,None]
-					self.results['p_satt'][v] = np.array(ro.r('result_satt["' + vu + '","Pr(>F)"]'))[:,None]
-					self.results['df_kr'][v] = np.array(ro.r('result_kr["' + vu + '","DenDF"]'))[:,None]
-					self.results['f_kr'][v] = np.array(ro.r('result_kr["' + vu + '","F.value"]'))[:,None]
-					self.results['p_kr'][v] = np.array(ro.r('result_kr["' + vu + '","Pr(>F)"]'))[:,None]
+
+					if self.satt:
+						ro.r('result_satt<-anova(result)')
+						self.results['df_satt'][v] = np.array(ro.r('result_satt["' + vu + '","DenDF"]'))[:,None]
+						self.results['f_satt'][v] = np.array(ro.r('result_satt["' + vu + '","F.value"]'))[:,None]
+						self.results['p_satt'][v] = np.array(ro.r('result_satt["' + vu + '","Pr(>F)"]'))[:,None]
+
+					if self.satt:
+						ro.r('result_kr<-anova(result, ddf="Kenward-Roger")')
+						self.results['df_kr'][v] = np.array(ro.r('result_kr["' + vu + '","DenDF"]'))[:,None]
+						self.results['f_kr'][v] = np.array(ro.r('result_kr["' + vu + '","F.value"]'))[:,None]
+						self.results['p_kr'][v] = np.array(ro.r('result_kr["' + vu + '","Pr(>F)"]'))[:,None]
 
 		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
 

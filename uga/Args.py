@@ -238,6 +238,14 @@ def snv_args(snv_parser):
 						nargs=0,
 						action=AddTrue, 
 						help='lmer REML option (REML=TRUE)')
+	snv_parser.add_argument('--satt', 
+						nargs=0,
+						action=AddTrue, 
+						help='also run a Satterthwaite approximation')
+	snv_parser.add_argument('--kr', 
+						nargs=0,
+						action=AddTrue, 
+						help='also run a Kenward-Roger approximation')
 	snv_parser.add_argument('--meta-sample-size', 
 						nargs=2, 
 						action=AddString, 
