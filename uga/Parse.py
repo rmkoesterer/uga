@@ -110,7 +110,7 @@ def generate_snv_cfg(args):
 	config_default = {'fid': 'FID', 'iid': 'IID', 'patid': None, 'matid': None, 'all_founders': False, 'allow_mono': False, 'sep': 'tab', 'sex': 'SEX', 
 							'male': 1, 'female': 2, 'miss': None, 'maf': None, 'maxmaf': None, 'mac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None,
 							'fxn': None, 'dep_var': None, 'format': None, 'file': None, 'sample': None, 'drop': None, 'keep': None, 'corstr': None, 
-							'pheno': None, 'covars': None, 'interact': None, 'random_effects': None, 'reml': False, 'satt': False, 'kr': False, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 
+							'pheno': None, 'covars': None, 'interact': None, 'random_effects': None, 'reml': False, 'kr': False, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 
 							'adjust_kinship': False}
 	if len(tags_idx) > 1:
 		for i in xrange(len(tags_idx[:-1])):

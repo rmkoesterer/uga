@@ -230,7 +230,7 @@ def snv_args(snv_parser):
 						help='lm test dependent variable')
 	snv_parser.add_argument('--lmer', 
 						action=AddString, 
-						help='lmer test dependent variable (used for quantitative outcomes; --reverse and --interact are not implemented for this model type)')
+						help='lmer test dependent variable (used for quantitative outcomes; defaults to a Satterthwaite approximation; --reverse is not implemented for this model type)')
 	snv_parser.add_argument('--random-effects', 
 						action=AddString, 
 						help='lme random effect variables (can be used with --lmer; if multiple, separate with a "+" character; variable names should not be wrapped in factor(); eg. A+B converts to (1|A)+(1|B) in model syntax)')
@@ -238,10 +238,6 @@ def snv_args(snv_parser):
 						nargs=0,
 						action=AddTrue, 
 						help='lmer REML option (REML=TRUE)')
-	snv_parser.add_argument('--satt', 
-						nargs=0,
-						action=AddTrue, 
-						help='also run a Satterthwaite approximation')
 	snv_parser.add_argument('--kr', 
 						nargs=0,
 						action=AddTrue, 

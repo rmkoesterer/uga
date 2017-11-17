@@ -77,7 +77,6 @@ def process_regions(regions_df, cfg, cpu, log):
 																						interact=cfg['models'][n]['interact'], 
 																						random_effects=cfg['models'][n]['random_effects'], 
 																						reml=cfg['models'][n]['reml'], 
-																						satt=cfg['models'][n]['satt'], 
 																						kr=cfg['models'][n]['kr'], 
 																						reverse=cfg['models'][n]['reverse'], 
 																						all_founders=cfg['models'][n]['all_founders'], 

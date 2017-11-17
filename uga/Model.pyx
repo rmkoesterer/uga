@@ -55,9 +55,9 @@ cdef class Model(object):
 						iid, fid, matid, patid, sex, sep, a1, a2
 	cdef public str metadata, metadata_cc, family, formula, focus, dep_var, interact, random_effects, covars
 	cdef public object pheno_df, variants, out, results_dtypes, pedigree, drop, keep
-	cdef public bint all_founders, reverse, reml, satt, kr
+	cdef public bint all_founders, reverse, reml, kr
 	def __cinit__(self, fxn, format, variants_file, pheno, type, iid, fid, 
-					case_code = None, ctrl_code = None, all_founders = False, dep_var = None, covars = None, interact = None, random_effects = None, reml = False, satt = False, kr = False, reverse = False, samples_file = None, 
+					case_code = None, ctrl_code = None, all_founders = False, dep_var = None, covars = None, interact = None, random_effects = None, reml = False, kr = False, reverse = False, samples_file = None, 
 					drop_file = None, keep_file = None, matid = None, patid = None, sex = None, male = 1, female = 2, sep = 'tab', **kwargs):
 		super(Model, self).__init__(**kwargs)
 		logger = logging.getLogger("Model.Model.__cinit__")
@@ -69,7 +69,6 @@ cdef class Model(object):
 		self.interact = interact
 		self.random_effects = random_effects
 		self.reml = reml
-		self.satt = satt
 		self.kr = kr
 		self.reverse = reverse
 		self.format = format
@@ -814,11 +813,8 @@ cdef class Lmer(SnvModel):
 				self.formula = self.formula + '+(1|' + reff + ')' 
 		print "formula: " + self.formula
 
-		self.results_dtypes = [('effect','f8'),('stderr','f8'),('t','f8'),('p_z','f8')]
-		self.results_header = np.append(self.results_header,np.array(['effect','stderr','t','p_z']))
-		if self.satt:
-			self.results_dtypes = self.results_dtypes + [('df_satt','f8'),('f_satt','f8'),('p_satt','f8')]
-			self.results_header = np.append(self.results_header,np.array(['df_satt','f_satt','p_satt']))
+		self.results_dtypes = [('effect','f8'),('stderr','f8'),('df','f8'),('t','f8'),('p','f8')]
+		self.results_header = np.append(self.results_header,np.array(['effect','stderr','df','t','p']))
 		if self.kr:
 			self.results_dtypes = self.results_dtypes + [('df_kr','f8'),('f_kr','f8'),('p_kr','f8')]
 			self.results_header = np.append(self.results_header,np.array(['df_kr','f_kr','p_kr']))
@@ -827,18 +823,17 @@ cdef class Lmer(SnvModel):
 		ro.r('suppressMessages(library(lmerTest))')
 		ro.r('suppressMessages(library(pbkrtest))')
 
+		print "setting R contrasts to Type III sum of squares"
+		ro.r('options(contrasts = c("contr.sum","contr.poly"))')
+
 		self.metadata = self.metadata + '\n' + '## formula: ' + self.formula
 		self.metadata = self.metadata + '\n' + \
 						self.metadata_snv + '\n' + \
 						'## effect: effect size' + '\n' + \
 						'## stderr: standard error' + '\n' + \
+						'## df: satterthwaite estimated degrees of freedom' + '\n' + \
 						'## t: t statistic' + '\n' + \
-						'## p_z: p-value from z-statistic (t-statistic treated as z-statistic)'
-		if self.satt:
-			self.metadata = self.metadata + '\n' + \
-						'## df_satt: satterthwaite estimated degrees of freedom' + '\n' + \
-						'## f_satt: satterthwaite f statistic' + '\n' + \
-						'## p_satt: satterthwaite p-value'
+						'## p: p value'
 		if self.kr:
 			self.metadata = self.metadata + '\n' + \
 						'## df_kr: kenward-roger estimated degrees of freedom' + '\n' + \
@@ -875,16 +870,11 @@ cdef class Lmer(SnvModel):
 					vu = self.focus.replace('___snv___',vu)
 					self.results['effect'][v] = np.array(ro.r('result_base$coefficients["' + vu + '",1]'))[:,None]
 					self.results['stderr'][v] = np.array(ro.r('result_base$coefficients["' + vu + '",2]'))[:,None]
-					self.results['t'][v] = np.array(np.exp(ro.r('result_base$coefficients["' + vu + '",1] / result_base$coefficients["' + vu + '",2]')))[:,None]
-					self.results['p_z'][v] = np.array(2 * scipy.norm.cdf(-1 * abs(self.results['effect'][v] / self.results['stderr'][v])))[:,None]
+					self.results['df'][v] = np.array(ro.r('result_base$coefficients["' + vu + '",3]'))[:,None]
+					self.results['t'][v] = np.array(ro.r('result_base$coefficients["' + vu + '",4]'))[:,None]
+					self.results['p'][v] = np.array(ro.r('result_base$coefficients["' + vu + '",5]'))[:,None]
 
-					if self.satt:
-						ro.r('result_satt<-anova(result)')
-						self.results['df_satt'][v] = np.array(ro.r('result_satt["' + vu + '","DenDF"]'))[:,None]
-						self.results['f_satt'][v] = np.array(ro.r('result_satt["' + vu + '","F.value"]'))[:,None]
-						self.results['p_satt'][v] = np.array(ro.r('result_satt["' + vu + '","Pr(>F)"]'))[:,None]
-
-					if self.satt:
+					if self.kr:
 						ro.r('result_kr<-anova(result, ddf="Kenward-Roger")')
 						self.results['df_kr'][v] = np.array(ro.r('result_kr["' + vu + '","DenDF"]'))[:,None]
 						self.results['f_kr'][v] = np.array(ro.r('result_kr["' + vu + '","F.value"]'))[:,None]
