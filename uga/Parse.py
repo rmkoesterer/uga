@@ -19,10 +19,13 @@ import __version__
 import textwrap
 from datetime import date
 import Args
+from collections import OrderedDict
 
 def version():
 	print ''
-	print 'uga v' + __version__.version + ' (c) 2015 Ryan Koesterer   GNU General Public License v3'
+	print 'uga v' + __version__.version
+	print '(c) 2015 Ryan Koesterer'
+	print 'GNU General Public License v3'
 	print ''
 	print textwrap.fill("This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.", initial_indent='   ', subsequent_indent='   ')
 	print ''
@@ -537,10 +540,16 @@ def print_filter_options(cfg):
 
 def generate_merge_cfg(args):
 	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'job': 1, 'debug': False, 'files': {}, 'file_order': [], 'snpeff': False}
+					'job': 1, 'debug': False, 'files': {}, 'columns': {}, 'file_order': [], 'snpeff': False}
 	for arg in args:
 		if arg[0] == 'file':
-			config['files'][arg[1][0]] = arg[1][1]
+			config['files'][arg[1][0]] = arg[1][6]
+			config['columns'][arg[1][0]] = OrderedDict()
+			config['columns'][arg[1][0]]['chr'] = arg[1][1]
+			config['columns'][arg[1][0]]['pos'] = arg[1][2]
+			config['columns'][arg[1][0]]['id'] = arg[1][3]
+			config['columns'][arg[1][0]]['a1'] = arg[1][4]
+			config['columns'][arg[1][0]]['a2'] = arg[1][5]
 			config['file_order'].append(arg[1][0])
 		if arg[0] == 'out':
 			config['out'] = arg[1]

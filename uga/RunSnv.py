@@ -163,7 +163,7 @@ def process_regions(regions_df, cfg, cpu, log):
 		print "preparing data for meta analysis ..."
 		results_all = None
 		for n in cfg['model_order']:
-			out_all[n] = out_all[n][[x for x in out_all[n].columns if x not in ['group_id','id_unique','uid']]]
+			out_all[n] = out_all[n][[x for x in out_all[n].columns if x not in ['group_id','id_unique','___uid___']]]
 			out_all[n].columns = np.array([n + '.' + x if x not in ['chr','pos','id','a1','a2'] else x for x in out_all[n].columns])
 			out_all[n][n + '.n'] = out_all[n].apply(lambda x: round(float(x[n + '.callrate']) * models_obj[n].nunique),axis=1)
 			if n == cfg['model_order'][0]:

@@ -4,17 +4,25 @@ from codecs import open
 import os
 from Cython.Build import cythonize
 import numpy as np
-
-execfile("uga/__version__.py")
+from uga import __version__
+import subprocess
 
 with open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'README.rst')) as f:
     long_description = f.read()
+
+githash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip()
+
+if githash != "":
+	__version__ = __version__ + '-' + githash
+
+with open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'uga/__version__.py'), "w") as f:
+	f.write('version="' + __version__ + '"')
 
 setup(
     name='uga',
 	description='Universal Genome Analyst (uga) is a tool designed to assist biomedical researchers in complex genomic data analysis',
 	long_description=long_description, 
-    version=version,
+    version=__version__,
     url='',
     author='Ryan Koesterer',
 	author_email='uga-feedback@gmail.com', 

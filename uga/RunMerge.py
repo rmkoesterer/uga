@@ -49,7 +49,7 @@ def process_regions(regions_df, cfg, cpu, log):
 	for f in cfg['file_order']:
 		print "\nloading results file " + f
 		try:
-			results_obj[f] = Geno.Results(filename=cfg['files'][f])
+			results_obj[f] = Geno.Results(filename=cfg['files'][f], chr=cfg['columns'][f]['chr'], pos=cfg['columns'][f]['pos'], id=cfg['columns'][f]['id'], a1=cfg['columns'][f]['a1'], a2=cfg['columns'][f]['a2'])
 		except Process.Error as err:
 			print err.out
 			return 1
@@ -87,7 +87,7 @@ def process_regions(regions_df, cfg, cpu, log):
 			else:
 				results_region_cols = [x for x in results_region.columns.values] + [x for x in results_obj[f].snv_results_tagged.columns.values if x not in results_region.columns.values]
 				if results_region.empty and not results_obj[f].snv_results_tagged.empty:
-					results_region=pd.concat([results_obj[f].snv_results_tagged[['chr','pos','id','a1','a2','id_unique','uid']].iloc[[0]],pd.DataFrame(dict(zip([x for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','uid']],[np.nan for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','uid']])),index=[0])],axis=1)
+					results_region=pd.concat([results_obj[f].snv_results_tagged[['chr','pos','id','a1','a2','id_unique','___uid___']].iloc[[0]],pd.DataFrame(dict(zip([x for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']],[np.nan for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']])),index=[0])],axis=1)
 				results_region = results_region.merge(results_obj[f].snv_results_tagged, how='outer')
 				results_region = results_region[results_region_cols]
 
@@ -100,7 +100,7 @@ def process_regions(regions_df, cfg, cpu, log):
 		else:
 			results_final = results_final.merge(results_region, how='outer')
 
-	results_final = results_final[[a for a in results_final.columns if a not in ['id_unique','uid']]]
+	results_final = results_final[[a for a in results_final.columns if a not in ['id_unique','___uid___']]]
 	results_final = results_final.sort_values(by=['chr','pos'])
 	results_final['chr'] = results_final['chr'].astype(np.int64)
 	results_final['pos'] = results_final['pos'].astype(np.int64)

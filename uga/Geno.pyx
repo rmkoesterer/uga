@@ -65,7 +65,7 @@ cdef double[:] extract_vcf_dose(np.ndarray genos, np.int field):
 
 cdef class Variants(object):
 
-	def __cinit__(self, filename, sample_filename = None):
+	def __cinit__(self, filename, sample_filename = None, chr = None, pos = None, id = None, a1 = None, a2 = None):
 		logger = logging.getLogger("Geno.Variants.__cinit__")
 		logger.debug("initialize variants")
 		self.filename = filename
@@ -80,28 +80,28 @@ cdef class Variants(object):
 		cdef unsigned int i = 0
 		for row in self.info:
 			i += 1
-			if ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a1'] + row['a2']:
-				self.info['a1'][i-1] = ref.db[row['uid']]['a1']
-				self.info['a2'][i-1] = ref.db[row['uid']]['a2']
-				self.info['id'][i-1] = ref.db[row['uid']]['id']
-				self.info['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
-			elif (((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + 'NA') and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "AT" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "TA" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "GC" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "CG") or 
-					((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "AT" or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "TA" or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "GC" or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "CG") and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'])):
-				self.info['a1'][i-1] = ref.db[row['uid']]['a1']
-				self.info['a2'][i-1] = ref.db[row['uid']]['a2']
-				self.info['id'][i-1] = ref.db[row['uid']]['id']
-				self.info['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
+			if ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a1'] + row['a2']:
+				self.info['a1'][i-1] = ref.db[row['___uid___']]['a1']
+				self.info['a2'][i-1] = ref.db[row['___uid___']]['a2']
+				self.info['id'][i-1] = ref.db[row['___uid___']]['id']
+				self.info['id_unique'][i-1] = ref.db[row['___uid___']]['id_unique']
+			elif (((ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + row['a1'] or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + 'NA') and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "AT" and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "TA" and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "GC" and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "CG") or 
+					((ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "AT" or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "TA" or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "GC" or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "CG") and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + row['a1'])):
+				self.info['a1'][i-1] = ref.db[row['___uid___']]['a1']
+				self.info['a2'][i-1] = ref.db[row['___uid___']]['a2']
+				self.info['id'][i-1] = ref.db[row['___uid___']]['id']
+				self.info['id_unique'][i-1] = ref.db[row['___uid___']]['id_unique']
 				self.data[:,i] = 2.0 - self.data[:,i].astype(float)
 
 	def load_snvgroup_map(self, snvgroup_map):
@@ -220,7 +220,7 @@ cdef class Vcf(Variants):
 			self.get_chunk(buffer)
 		except:
 			raise
-		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
+		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,11:].transpose()))
 		var_ids, var_ids_idx, var_ids_cnt = np.unique(['.'.join(x.split('.')[0:len(x.split('.'))]) for x in self.info['id_unique']], return_inverse=True, return_counts=True)
 		self.duplicated = var_ids[var_ids_cnt > 1]
@@ -247,7 +247,7 @@ cdef class Vcf(Variants):
 		if i == 0:
 			raise
 		else:
-			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
+			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
 			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,11:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)
 
@@ -319,7 +319,7 @@ cdef class Dos(Variants):
 			self.get_chunk(buffer)
 		except:
 			raise
-		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
+		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,8:].transpose()))
 		var_ids, var_ids_idx, var_ids_cnt = np.unique(['.'.join(x.split('.')[0:len(x.split('.'))]) for x in self.info['id_unique']], return_inverse=True, return_counts=True)
 		self.duplicated = var_ids[var_ids_cnt > 1]
@@ -346,15 +346,15 @@ cdef class Dos(Variants):
 		if i == 0:
 			raise
 		else:
-			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','uid']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
+			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
 			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,8:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)
 
 cdef class Results(Variants):
-	def __cinit__(self, filename):
+	def __cinit__(self, filename, chr, pos, id, a1, a2):
 		logger = logging.getLogger("Geno.Results.__cinit__")
 		logger.debug("initialize results")
-		super(Results, self).__init__(filename)
+		super(Results, self).__init__(filename, chr, pos, id, a1, a2)
 
 		try:
 			self.handle=pysam.TabixFile(filename=filename,parser=pysam.asTuple())
@@ -363,8 +363,10 @@ cdef class Results(Variants):
 		else:
 			self.header = [x for x in self.handle.header]
 			#self.method = self.header[2].split()[2]
-			self.cols = [x.replace('#','') for x in self.header[-1].split()]
-			self.dtypes = zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['uint8','uint32','|S60','|S1000','|S1000']) + zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['|S1000' if x in ['dir','test'] else 'f8' for x in self.cols if x not in ['chr','pos','id','a1','a2']]) + [('id_unique','|S1000'),('uid','|S1000')]
+			colsdict = OrderedDict({v:k for k, v in {'chr': chr, 'pos': pos, 'id': id, 'a1': a1, 'a2': a2}.iteritems()})
+			self.cols = [x for x in map(colsdict.get, self.header[-1].split(), self.header[-1].split())]
+			self.cols = ['chr','pos','id','a1','a2'] + [x for x in self.cols if x not in ['chr','pos','id','a1','a2']]
+			self.dtypes = zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['uint8','uint32','|S60','|S1000','|S1000']) + zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['|S1000' if x in ['dir','test'] else 'f8' for x in self.cols if x not in ['chr','pos','id','a1','a2']]) + [('id_unique','|S1000'),('___uid___','|S1000')]
 
 	def get_region(self, region):
 		logger = logging.getLogger("Geno.Results.get_region")
@@ -435,39 +437,39 @@ cdef class Results(Variants):
 		cdef unsigned int i = 0
 		for row in self.snv_results:
 			i += 1
-			if (ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a1'] + row['a2'] or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a1'] + 'NA' or
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == 'NA' + row['a2'] or
-					(ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "AT" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "TA" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "GC" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "CG" and 
-					(ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a1'][0]) + Variant.complement(row['a2'][0]) or	
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a1'][0]) + 'NA' or
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == 'NA' + Variant.complement(row['a2'][0])))):
-				self.snv_results['a1'][i-1] = ref.db[row['uid']]['a1']
-				self.snv_results['a2'][i-1] = ref.db[row['uid']]['a2']
-				self.snv_results['id'][i-1] = ref.db[row['uid']]['id']
-				self.snv_results['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
-			elif (ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + 'NA' or
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == 'NA' + row['a1'] or
-					((ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == 'NA' + Variant.complement(row['a1'][0])) and
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "AT" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "TA" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "GC" and 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] != "CG") or
-					(ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == row['a2'] + row['a1'] and
-					(ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "AT" or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "TA" or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "GC" or 
-					ref.db[row['uid']]['a1'] + ref.db[row['uid']]['a2'] == "CG"))):
-				self.snv_results['a1'][i-1] = ref.db[row['uid']]['a1']
-				self.snv_results['a2'][i-1] = ref.db[row['uid']]['a2']
-				self.snv_results['id'][i-1] = ref.db[row['uid']]['id']
-				self.snv_results['id_unique'][i-1] = ref.db[row['uid']]['id_unique']
+			if (ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a1'] + row['a2'] or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a1'] + 'NA' or
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + row['a2'] or
+					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "AT" and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "TA" and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "GC" and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "CG" and 
+					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a1'][0]) + Variant.complement(row['a2'][0]) or	
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a1'][0]) + 'NA' or
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + Variant.complement(row['a2'][0])))):
+				self.snv_results['a1'][i-1] = ref.db[row['___uid___']]['a1']
+				self.snv_results['a2'][i-1] = ref.db[row['___uid___']]['a2']
+				self.snv_results['id'][i-1] = ref.db[row['___uid___']]['id']
+				self.snv_results['id_unique'][i-1] = ref.db[row['___uid___']]['id_unique']
+			elif (ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + row['a1'] or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + 'NA' or
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + row['a1'] or
+					((ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + Variant.complement(row['a1'][0])) and
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "AT" and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "TA" and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "GC" and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "CG") or
+					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + row['a1'] and
+					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "AT" or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "TA" or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "GC" or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "CG"))):
+				self.snv_results['a1'][i-1] = ref.db[row['___uid___']]['a1']
+				self.snv_results['a2'][i-1] = ref.db[row['___uid___']]['a2']
+				self.snv_results['id'][i-1] = ref.db[row['___uid___']]['id']
+				self.snv_results['id_unique'][i-1] = ref.db[row['___uid___']]['id_unique']
 				if 'freq' in self.snv_results.dtype.names:
 					self.snv_results['freq'][i-1] = 1.0 - self.snv_results['freq'][i-1]
 				if 'freq.case' in self.snv_results.dtype.names:
@@ -489,4 +491,4 @@ cdef class Results(Variants):
 		logger = logging.getLogger("Geno.Results.get_tagged_results")
 		logger.debug("get_tagged_results")
 		self.snv_results_tagged = pd.to_numeric(pd.DataFrame(self.snv_results),errors='coerce')
-		self.snv_results_tagged.columns = [tag + '.' + x[0] if x[0] not in ['chr','pos','id','a1','a2','id_unique','uid'] else x[0] for x in self.dtypes]
+		self.snv_results_tagged.columns = [tag + '.' + x[0] if x[0] not in ['chr','pos','id','a1','a2','id_unique','___uid___'] else x[0] for x in self.dtypes]

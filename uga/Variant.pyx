@@ -36,13 +36,13 @@ cdef class Ref(object):
 		logger = logging.getLogger("Variant.Ref.load")
 		logger.debug("load")
 		for row in v:
-			self.db[row['uid']] = {}
-			self.db[row['uid']]['chr'] = row['chr']
-			self.db[row['uid']]['pos'] = row['pos']
-			self.db[row['uid']]['a1'] = row['a1']
-			self.db[row['uid']]['a2'] = row['a2']
-			self.db[row['uid']]['id'] = row['id']
-			self.db[row['uid']]['id_unique'] = row['id_unique']
+			self.db[row['___uid___']] = {}
+			self.db[row['___uid___']]['chr'] = row['chr']
+			self.db[row['___uid___']]['pos'] = row['pos']
+			self.db[row['___uid___']]['a1'] = row['a1']
+			self.db[row['___uid___']]['a2'] = row['a2']
+			self.db[row['___uid___']]['id'] = row['id']
+			self.db[row['___uid___']]['id_unique'] = row['id_unique']
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -50,14 +50,14 @@ cdef class Ref(object):
 		logger = logging.getLogger("Variant.Ref.update")
 		logger.debug("update")
 		for row in v:
-			if not row['uid'] in self.db:
-				self.db[row['uid']] = {}
-				self.db[row['uid']]['chr'] = row['chr']
-				self.db[row['uid']]['pos'] = row['pos']
-				self.db[row['uid']]['a1'] = row['a1']
-				self.db[row['uid']]['a2'] = row['a2']
-				self.db[row['uid']]['id'] = row['id']
-				self.db[row['uid']]['id_unique'] = row['id_unique']
+			if not row['___uid___'] in self.db:
+				self.db[row['___uid___']] = {}
+				self.db[row['___uid___']]['chr'] = row['chr']
+				self.db[row['___uid___']]['pos'] = row['pos']
+				self.db[row['___uid___']]['a1'] = row['a1']
+				self.db[row['___uid___']]['a2'] = row['a2']
+				self.db[row['___uid___']]['id'] = row['id']
+				self.db[row['___uid___']]['id_unique'] = row['id_unique']
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

@@ -761,10 +761,10 @@ def filter_args(filter_parser):
 def merge_args(merge_parser):
 	merge_required = merge_parser.add_argument_group('required arguments')
 	merge_required.add_argument('--file', 
-						nargs=2, 
+						nargs=7, 
 						action=AddString, 
 						required=True, 
-						help='filename for results or annotations')
+						help='tag, chr col, pos col, id col, a1 col, a2 col, filename')
 	merge_required.add_argument('--out', 
 						action=AddString, 
 						required=True, 
