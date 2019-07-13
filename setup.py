@@ -8,15 +8,15 @@ from uga import __version__
 import subprocess
 
 with open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'README.rst')) as f:
-    long_description = f.read()
+	long_description = f.read()
 
 setup(
-    name='uga',
+	name='uga',
 	description='Universal Genome Analyst (uga) is a tool designed to assist biomedical researchers in complex genomic data analysis',
 	long_description=long_description, 
-    version=str(__version__),
-    url='',
-    author='Ryan Koesterer',
+	version=__version__.version,
+	url='',
+	author='Ryan Koesterer',
 	author_email='uga-feedback@gmail.com', 
 	ext_modules = cythonize(["uga/Geno.pyx","uga/Geno.pxd","uga/Model.pyx","uga/Variant.pyx","uga/Variant.pxd"]), 
 	install_requires=['singledispatch', 
@@ -29,19 +29,19 @@ setup(
 						'pysam', 
 						'Cython', 
 						'scipy'], 
-    entry_points={
-       'console_scripts': [
+	entry_points={
+		'console_scripts': [
 			'uga = uga.__main__:main',
-           ],
-       },
-    packages=['uga'], 
+			],
+	},
+	packages=['uga'], 
 	include_dirs = [np.get_include()], 
 	package_data={'uga': ['settings.ini',]},
-    classifiers = [
-        'Programming Language :: Python :: 2.7',
-        'Development Status :: 4 - Beta',
-        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-        'Topic :: Scientific/Engineering :: Bio-Informatics',
+	classifiers = [
+		'Programming Language :: Python :: 2.7',
+		'Development Status :: 4 - Beta',
+		'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+		'Topic :: Scientific/Engineering :: Bio-Informatics',
 		],
 	zip_safe=False
 )
