@@ -22,6 +22,7 @@ setup(
     name='uga',
 	description='Universal Genome Analyst (uga) is a tool designed to assist biomedical researchers in complex genomic data analysis',
 	long_description=long_description, 
+	long_description_content_type='text/x-rst',
     version=__version__,
     url='',
     author='Ryan Koesterer',
