@@ -1,1 +1,1 @@
-version="3.0.0-SNAPSHOT-9fe60dec36d1f4b6806b30a150e84e10513749ae"
+version="3.0.0-SNAPSHOT"
