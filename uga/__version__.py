@@ -1,1 +1,1 @@
-version="2.0.0-7078a825c8475ec8fe1ad07234d2924f21c8d0fd"
+version="2.0.0"
