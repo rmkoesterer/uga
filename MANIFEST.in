@@ -1,0 +1,2 @@
+include uga/*.pyx
+include uga/*.pyd
