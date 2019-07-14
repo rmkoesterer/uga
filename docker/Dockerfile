@@ -40,4 +40,4 @@ RUN pip install demandimport && \
 	pip install progressbar
 
 # install uga
-#RUN pip install uga
+RUN pip install uga
