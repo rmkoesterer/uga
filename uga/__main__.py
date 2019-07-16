@@ -20,8 +20,6 @@ import numpy as np
 import pandas as pd
 from collections import OrderedDict
 import glob
-from ConfigParser import SafeConfigParser
-from pkg_resources import resource_filename
 import signal
 import subprocess
 import shutil
@@ -52,15 +50,8 @@ def main(args=None):
 	elif args.which != 'settings':
 		cfg = getattr(Parse, 'generate_' + args.which + '_cfg')(args.ordered_args)
 
-	##### read settings file #####
-	ini = SafeConfigParser()
-	ini.read(resource_filename('uga', 'settings.ini'))
-
 	##### locate qsub wrapper #####
-	qsub_wrapper = ini.get('main','wrapper')
-	if 'qsub' in args and not os.access(ini.get('main','wrapper'),os.X_OK):
-		print Process.print_error('uga qsub wrapper ' + ini.get('main','wrapper') + ' is not executable')
-		return
+	qsub_wrapper = os.path.join(os.path.dirname(__file__), 'Qsub.py')
 
 	##### distribute jobs #####
 	if args.which in ['snv','snvgroup','meta','merge','tools']:

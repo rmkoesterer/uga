@@ -36,7 +36,6 @@ setup(
 	},
 	packages=['uga'], 
 	include_dirs = [np.get_include()], 
-	package_data={'uga': ['settings.ini',]},
 	include_package_data=True,
 	classifiers = [
 		'Programming Language :: Python :: 2.7',

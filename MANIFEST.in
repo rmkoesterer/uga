@@ -1,2 +1,3 @@
 include uga/*.pyx
 include uga/*.pyd
+include uga/Qsub.py
