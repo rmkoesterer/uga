@@ -83,7 +83,7 @@ RUN echo "source activate uga" > ~/.bashrc
 ENV PATH /opt/conda/envs/uga/bin:/opt/conda/bin:$PATH
 
 # install uga
-RUN pip install uga
+RUN pip install uga==2.0.3
 
 # open /work directory permissions
 RUN chmod -R 777 /work
