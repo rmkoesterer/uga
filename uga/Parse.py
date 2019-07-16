@@ -43,7 +43,6 @@ def get_parser():
 	subparsers = main_parser.add_subparsers(title='modules', dest='which')
 	global_parser = argparse.ArgumentParser(add_help=False)
 
-	settings_parser = Args.settings_args(subparsers.add_parser('settings', help='user definable settings', parents=[global_parser]))
 	snv_parser = Args.snv_args(subparsers.add_parser('snv', help='run single nucleotide variant association models', parents=[global_parser]))
 	snvgroup_parser = Args.snvgroup_args(subparsers.add_parser('snvgroup', help='run variant group (ie. gene) based association models', parents=[global_parser]))
 	meta_parser = Args.meta_args(subparsers.add_parser('meta', help='run meta analysis', parents=[global_parser]))
@@ -63,8 +62,7 @@ def get_args(parser):
 		for k in args.ordered_args:
 			vars(args).update({k[0]: k[1]})
 	else:
-		if args.which != 'settings':
-			parser.error("missing argument: no options selected")
+		parser.error("missing argument: no options selected")
 	print ''
 	print 'active module: ' + args.which
 	return args
@@ -540,7 +538,7 @@ def print_filter_options(cfg):
 
 def generate_merge_cfg(args):
 	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'job': 1, 'debug': False, 'files': {}, 'columns': {}, 'file_order': [], 'snpeff': False}
+					'job': 1, 'debug': False, 'files': {}, 'columns': {}, 'file_order': [], 'snpeff': None}
 	for arg in args:
 		if arg[0] == 'file':
 			config['files'][arg[1][0]] = arg[1][6]

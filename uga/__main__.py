@@ -47,7 +47,7 @@ def main(args=None):
 			resubmit = True
 		else:
 			cfg = getattr(Parse, 'generate_' + args.which + '_cfg')(args.ordered_args)
-	elif args.which != 'settings':
+	else:
 		cfg = getattr(Parse, 'generate_' + args.which + '_cfg')(args.ordered_args)
 
 	##### locate qsub wrapper #####
@@ -314,18 +314,7 @@ def main(args=None):
 				f.write("\n".join([str(x) for x in jobs_df['job'][jobs_df['job'].isin(rerun)]]))
 			os.remove(cfg['out'] + '/' + os.path.basename(cfg['out']) + '.rerun')
 
-	if args.which == 'settings':
-		if 'ordered_args' in args:
-			for k in args.ordered_args:
-				ini.set('main',k[0],k[1])
-			with open(resource_filename('uga', 'settings.ini'), 'w') as f:
-				ini.write(f)
-		print 'main settings ...'
-		for s in ini.sections():
-			for k in ini.options(s):
-				print '   ' + k + ' = ' + ini.get(s,k)
-
-	elif args.which in ['snv','snvgroup','meta','merge','resubmit','tools']:
+	if args.which in ['snv','snvgroup','meta','merge','resubmit','tools']:
 		if cfg['qsub']:
 			print "submitting jobs\n"
 		out = cfg['out']

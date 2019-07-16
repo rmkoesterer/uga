@@ -39,24 +39,6 @@ class AddFalse(argparse.Action):
 		previous.append((self.dest, False))
 		setattr(namespace, 'ordered_args', previous)
 
-def settings_args(settings_parser):
-	settings_parser.add_argument('--snpeff', 
-						action=AddString, 
-						help='set full path to snpEff executable')
-	settings_parser.add_argument('--snpsift', 
-						action=AddString, 
-						help='set full path to SnpSift executable')
-	settings_parser.add_argument('--dbnsfp', 
-						action=AddString, 
-						help='set full path to dbNSFP database')
-	settings_parser.add_argument('--locuszoom', 
-						action=AddString, 
-						help='set full path to locuszoom executable')
-	settings_parser.add_argument('--wrapper', 
-						action=AddString, 
-						help='set full path to qsub wrapper python script')
-	return settings_parser
-
 def snv_args(snv_parser):
 	snv_parser.add_argument('--out', 
 						action=AddString, 
@@ -820,9 +802,8 @@ def merge_args(merge_parser):
 	#					action=AddString, 
 	#					help='filename for a list of jobs to run (use with --region-file and --split with a column of tabix format regions or --split-n with a column of numbers from 1..n)')
 	merge_parser.add_argument('--snpeff', 
-						nargs=0, 
-						action=AddTrue, 
-						help='annotate results with snpEff')
+						action=AddString, 
+						help='snpEff directory (must contain snpEff.jar, SnpSift.jar, and the directory data/dbNSFP_current)')
 	return merge_parser
 
 def tools_args(tools_parser):

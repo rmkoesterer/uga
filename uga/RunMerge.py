@@ -185,14 +185,10 @@ def RunMerge(args):
 		print Process.Error('failed to generate index for file ' + cfg['out'] + '.gz').out
 		return 1
 
-	if cfg['snpeff']:
-		from ConfigParser import SafeConfigParser
-		from pkg_resources import resource_filename
+	if cfg['snpeff'] is not None:
 		import subprocess
 		import xlsxwriter
 		import time
-		ini = SafeConfigParser()
-		ini.read(resource_filename('uga', 'settings.ini'))
 
 		results_final = pd.read_table(cfg['out'] + '.gz')
 		outdf = results_final[['#chr','pos','id','a1','a2']]
@@ -204,7 +200,7 @@ def RunMerge(args):
 
 		time.sleep(1)
 		try:
-			cmd = 'java -jar ' + ini.get('main','snpeff') + ' -s ' + cfg['out'] + '.annot.summary.html -v -canon GRCh37.75 ' + cfg['out'] + '.annot1 > ' + cfg['out'] + '.annot2'
+			cmd = 'java -jar ' + cfg['snpeff'] + '/snpEff.jar' + ' -s ' + cfg['out'] + '.annot.summary.html -v -canon GRCh37.75 ' + cfg['out'] + '.annot1 > ' + cfg['out'] + '.annot2'
 			print cmd
 			p = subprocess.Popen(cmd,shell=True)
 			p.wait()
@@ -216,7 +212,7 @@ def RunMerge(args):
 		return
 		time.sleep(1)
 		try:
-			cmd = 'java -jar ' + ini.get('main','snpsift') + ' extractFields -s "," -e "NA" ' + cfg['out'] + '.annot2 CHROM POS ID REF ALT "ANN[*].ALLELE" "ANN[*].EFFECT" "ANN[*].IMPACT" "ANN[*].GENE" "ANN[*].GENEID" "ANN[*].FEATURE" "ANN[*].FEATUREID" "ANN[*].BIOTYPE" "ANN[*].RANK" "ANN[*].HGVS_C" "ANN[*].HGVS_P" "ANN[*].CDNA_POS" "ANN[*].CDNA_LEN" "ANN[*].CDNA_LEN" "ANN[*].CDS_POS" "ANN[*].CDS_LEN" "ANN[*].AA_POS" "ANN[*].AA_LEN" "ANN[*].DISTANCE" "ANN[*].ERRORS" | sed "s/ANN\[\*\]/ANN/g" > ' + cfg['out'] + '.annot'
+			cmd = 'java -jar ' + cfg['snpeff'] + '/SnpSift.jar' + ' extractFields -s "," -e "NA" ' + cfg['out'] + '.annot2 CHROM POS ID REF ALT "ANN[*].ALLELE" "ANN[*].EFFECT" "ANN[*].IMPACT" "ANN[*].GENE" "ANN[*].GENEID" "ANN[*].FEATURE" "ANN[*].FEATUREID" "ANN[*].BIOTYPE" "ANN[*].RANK" "ANN[*].HGVS_C" "ANN[*].HGVS_P" "ANN[*].CDNA_POS" "ANN[*].CDNA_LEN" "ANN[*].CDNA_LEN" "ANN[*].CDS_POS" "ANN[*].CDS_LEN" "ANN[*].AA_POS" "ANN[*].AA_LEN" "ANN[*].DISTANCE" "ANN[*].ERRORS" | sed "s/ANN\[\*\]/ANN/g" > ' + cfg['out'] + '.annot'
 			print cmd
 			p = subprocess.Popen(cmd,shell=True)
 			p.wait()
