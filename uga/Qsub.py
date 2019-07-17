@@ -23,86 +23,68 @@ import pwd
 import psutil
 import resource
 import sys
+import argparse
 from time import strftime, localtime, time, gmtime
 
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
 
-def main(argv):
+def main(args=None):
 
 	start_time = (localtime(), time())
-	env_vars = os.environ.copy()
-	local=False
-	user_name=pwd.getpwuid(os.getuid()).pw_name
 
-	if argv[1].split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"] and 'SGE_TASK_ID' in env_vars:
-		if len(argv) > 3:
-			if env_vars['SGE_TASK_ID'] != 'None':
-				with open(argv[2]) as f:
-					joblist = [line.rstrip() for line in f]
-				job = joblist[int(env_vars['SGE_TASK_ID'])-1]
-				argv[1] = argv[1].replace("UGA_JOB_ID",job)
-				argv[3] = argv[3].replace("UGA_JOB_ID",job)
-				argv[1] = argv[1].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
-				argv[3] = argv[3].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
-			try:
-				lf = open(argv[3],'w')
-			except(IOError, OSError):
-				return
-			sys.stdout = lf
-			sys.stderr = lf
-
-	if not 'REQNAME' in env_vars.keys():
-		local=True
-		env_vars['REQNAME'] = env_vars['HOSTNAME'] + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time[0]) if 'HOSTNAME' in env_vars.keys() else strftime('%Y_%m_%d_%H_%M_%S', start_time[0])
-	if not 'JOB_ID' in env_vars.keys():
-		env_vars['JOB_ID'] = '1'
-	if not 'SGE_TASK_ID' in env_vars.keys():
-		env_vars['SGE_TASK_ID'] = 'None'
+	if args.cmd.split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"] and args.taskid != 'None':
+		with open(args.job_list) as f:
+			joblist = [line.rstrip() for line in f]
+		job = joblist[int(args.taskid)-1]
+		args.cmd = args.cmd.replace("UGA_JOB_ID",job)
+		args.log = args.log.replace("UGA_JOB_ID",job)
+		args.cmd = args.cmd.replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
+		args.log = args.log.replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
+		try:
+			lf = open(args.log,'w')
+		except(IOError, OSError):
+			return
+		sys.stdout = lf
+		sys.stderr = lf
+    
+	if args.reqname != 'None':
+		args.reqname = args.hostname + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time[0]) if args.hostname != 'None' else strftime('%Y_%m_%d_%H_%M_%S', start_time[0])
 
 	from uga.__version__ import version
-
+    
 	print "uga v" + version
 	print "start time: " + strftime("%Y-%m-%d %H:%M:%S", start_time[0])
-	if 'SGE_CLUSTER_NAME' in env_vars.keys():
-		print "sge cluster: " + env_vars['SGE_CLUSTER_NAME']
-	if 'HOST' in env_vars.keys():
-		print "host: " + env_vars['HOST']
-	if 'Queue' in env_vars.keys():
-		print "queue: " + env_vars['QUEUE']
-	if 'HOSTNAME' in env_vars.keys():
-		print "compute node: " + env_vars['HOSTNAME']
-	if 'PWD' in env_vars.keys():
-		print "current directory: " + env_vars['PWD']
-	print "user name: " + user_name
-	if 'JOB_ID' in env_vars.keys():
-		print "job id: " + env_vars['JOB_ID']
-	if 'REQNAME' in env_vars.keys():
-		print "job name: " + env_vars['REQNAME']
-	if 'SGE_TASK_ID' in env_vars.keys():
-		print "task index number: " + env_vars['SGE_TASK_ID']
-	if 'SGE_STDOUT_PATH' in env_vars.keys():
-		print "sge log file: " + env_vars['SGE_STDOUT_PATH']
-
-	if argv[1].split('(')[0] == "RunSnv":
+	print "sge cluster: " + args.clustername
+	print "host: " + args.host
+	print "queue: " + args.queue
+	print "compute node: " + args.hostname
+	print "current directory: " + args.pwd
+	print "user name: " + args.user
+	print "job id: " + args.jobid
+	print "job name: " + args.reqname
+	print "task index number: " + args.taskid
+	print "sge log file: " + args.stdoutpath
+    
+	if args.cmd.split('(')[0] == "RunSnv":
 		from uga.RunSnv import RunSnv
-	if argv[1].split('(')[0] == "RunSnvgroup":
+	if args.cmd.split('(')[0] == "RunSnvgroup":
 		from uga.RunSnvgroup import RunSnvgroup
-	if argv[1].split('(')[0] == "RunMeta":
+	if args.cmd.split('(')[0] == "RunMeta":
 		from uga.RunMeta import RunMeta
-	if argv[1].split('(')[0] == "RunMerge":
+	if args.cmd.split('(')[0] == "RunMerge":
 		from uga.RunMerge import RunMerge
-	if argv[1].split('(')[0] == "RunSnvplot":
+	if args.cmd.split('(')[0] == "RunSnvplot":
 		from uga.RunSnvplot import RunSnvplot
-	if argv[1].split('(')[0] == "RunSnvgroupplot":
+	if args.cmd.split('(')[0] == "RunSnvgroupplot":
 		from uga.RunSnvgroupplot import RunSnvgroupplot
-	if argv[1].split('(')[0] == "RunFilter":
+	if args.cmd.split('(')[0] == "RunFilter":
 		from uga.RunFilter import RunFilter
-	if argv[1].split('(')[0] == "RunTools":
+	if args.cmd.split('(')[0] == "RunTools":
 		from uga.RunTools import RunTools
-
+    
 	print ""
-	print "command entered: " + argv[1]
-	exec('r=' + argv[1])
+	print "command entered: " + args.cmd
+	exec('r=' + args.cmd)
 	if r == 0:
 		end_time = (localtime(), time())
 		process = psutil.Process(os.getpid())
@@ -114,4 +96,20 @@ def main(argv):
 		print 'max memory used by any subprocess: ' + str('%.2f' % mem_children) + ' MB'
 
 if __name__ == "__main__":
-	main(sys.argv)
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--user', help='USER')
+	parser.add_argument('--taskid', help='SGE_TASK_ID')
+	parser.add_argument('--reqname', help='REQNAME')
+	parser.add_argument('--hostname', help='HOSTNAME')
+	parser.add_argument('--jobid', help='JOB_ID')
+	parser.add_argument('--clustername', help='SGE_CLUSTER_NAME')
+	parser.add_argument('--host', help='HOST')
+	parser.add_argument('--queue', help='Queue')
+	parser.add_argument('--pwd', help='PWD')
+	parser.add_argument('--stdoutpath', help='SGE_STDOUT_PATH')
+	requiredArgs = parser.add_argument_group('required arguments')
+	requiredArgs.add_argument('--cmd', help='a command', required=True)
+	requiredArgs.add_argument('--job-list', help='a job list', required=True)
+	requiredArgs.add_argument('--log', help='a log file name', required=True)
+	args = parser.parse_args()
+	main(args)

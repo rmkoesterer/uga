@@ -68,7 +68,7 @@ def get_args(parser):
 	return args
 
 def generate_snv_cfg(args):
-	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
+	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'bind': None, 'image': None, 'split': False, 'split_n': None, 'replace': False, 
 					'job': 1, 'debug': False, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
 	for arg in args:
 		if arg[0] == 'out':
@@ -93,6 +93,10 @@ def generate_snv_cfg(args):
 			config['mb'] = arg[1]
 		if arg[0] == 'qsub':
 			config['qsub'] = arg[1]
+		if arg[0] == 'bind':
+			config['bind'] = arg[1]
+		if arg[0] == 'image':
+			config['image'] = arg[1]
 		if arg[0] == 'split' and arg[1] is True:
 			config['split'] = arg[1]
 		if arg[0] == 'split_n':
@@ -178,7 +182,7 @@ def print_snv_options(cfg):
 				print "      {0:>{1}}".format(str('--meta-sample-size'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
 
 def generate_snvgroup_cfg(args):
-	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'snvgroup_map': None, 
+	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'qsub': None, 'bind': None, 'image': None, 'split': False, 'split_n': None, 'replace': False, 'snvgroup_map': None, 
 					'job': 1, 'debug': False, 'timeout': 3600, 'models': {}, 'model_order': [], 'meta': {}, 'meta_order': []}
 	for arg in args:
 		if arg[0] == 'out':
@@ -192,6 +196,10 @@ def generate_snvgroup_cfg(args):
 			config['cpus'] = arg[1]
 		if arg[0] == 'qsub':
 			config['qsub'] = arg[1]
+		if arg[0] == 'bind':
+			config['bind'] = arg[1]
+		if arg[0] == 'image':
+			config['image'] = arg[1]
 		if arg[0] == 'split' and arg[1] is True:
 			config['split'] = arg[1]
 		if arg[0] == 'split_n':
@@ -282,7 +290,7 @@ def print_snvgroup_options(cfg):
 			print "      {0:>{1}}".format(str('--meta'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
 
 def generate_meta_cfg(args):
-	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
+	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'bind': None, 'image': None, 'split': False, 'split_n': None, 'replace': False, 
 					'job': 1, 'debug': False, 'files': {}, 'file_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
 
 	for arg in args:
@@ -308,6 +316,10 @@ def generate_meta_cfg(args):
 			config['mb'] = arg[1]
 		if arg[0] == 'qsub':
 			config['qsub'] = arg[1]
+		if arg[0] == 'bind':
+			config['bind'] = arg[1]
+		if arg[0] == 'image':
+			config['image'] = arg[1]
 		if arg[0] == 'split' and arg[1] is True:
 			config['split'] = arg[1]
 		if arg[0] == 'split_n':
@@ -364,7 +376,7 @@ def print_compile_options(cfg):
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
 def generate_snvplot_cfg(args):
-	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 
+	config = {'file': None, 'qsub': None, 'bind': None, 'image': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 
 				'qq_strat_freq': False, 'freq_ticks': '0.005,0.01,0.03,0.05', 'qq_strat_mac': False, 'mac_ticks': '3,10,20,50', 
 				'mht': False, 'crop': 10, 'chrcol': '#chr', 'bpcol': 'pos', 'pcol': 'p', 'freqcol': 'freq', 'maccol': 'mac'}
 	for arg in args:
@@ -372,6 +384,10 @@ def generate_snvplot_cfg(args):
 			config['file'] = arg[1]
 		if arg[0] == 'qsub':
 			config['qsub'] = arg[1]
+		if arg[0] == 'bind':
+			config['bind'] = arg[1]
+		if arg[0] == 'image':
+			config['image'] = arg[1]
 		if arg[0] == 'replace':
 			config['replace'] = arg[1]
 		if arg[0] == 'debug':
@@ -423,13 +439,17 @@ def print_snvplot_options(cfg):
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
 def generate_snvgroupplot_cfg(args):
-	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 'qq_strat': False, 
+	config = {'file': None, 'qsub': None, 'bind': None, 'image': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 'qq_strat': False, 
 				'mht': False, 'crop': 10, 'pcol': 'p', 'cmaccol': 'cmac'}
 	for arg in args:
 		if arg[0] == 'file':
 			config['file'] = arg[1]
 		if arg[0] == 'qsub':
 			config['qsub'] = arg[1]
+		if arg[0] == 'bind':
+			config['bind'] = arg[1]
+		if arg[0] == 'image':
+			config['image'] = arg[1]
 		if arg[0] == 'replace':
 			config['replace'] = arg[1]
 		if arg[0] == 'debug':
@@ -467,7 +487,7 @@ def print_snvgroupplot_options(cfg):
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
 def generate_filter_cfg(args):
-	config = {'file': None, 'tag': 'filtered', 'replace': False, 'qsub': None, 'debug': False, 'gc': False, 
+	config = {'file': None, 'tag': 'filtered', 'replace': False, 'qsub': None, 'bind': None, 'image': None, 'debug': False, 'gc': False, 
 				'bpcol': 'pos', 'pcol': 'p', 'misscol': 'miss', 'freqcol': 'freq', 'maccol': 'mac', 'cmaccol': 'cmac', 'rsqcol': 'rsq', 'hwecol': 'hwe', 
 				'effectcol': 'effect', 'stderrcol': 'stderr', 'waldcol': 'wald', 'zcol': 'z', 'tcol': 't', 
 				'miss': None, 'maf': None, 'mac': None, 'cmac': None, 'rsq': None, 'hwe': None, 'hwe_maf': None}
@@ -480,6 +500,10 @@ def generate_filter_cfg(args):
 			config['replace'] = arg[1]
 		if arg[0] == 'qsub':
 			config['qsub'] = arg[1]
+		if arg[0] == 'bind':
+			config['bind'] = arg[1]
+		if arg[0] == 'image':
+			config['image'] = arg[1]
 		if arg[0] == 'debug':
 			config['debug'] = arg[1]
 		if arg[0] == 'gc':
@@ -537,7 +561,7 @@ def print_filter_options(cfg):
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
 def generate_merge_cfg(args):
-	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
+	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'bind': None, 'image': None, 'split': False, 'split_n': None, 'replace': False, 
 					'job': 1, 'debug': False, 'files': {}, 'columns': {}, 'file_order': [], 'snpeff': None}
 	for arg in args:
 		if arg[0] == 'file':
@@ -555,6 +579,10 @@ def generate_merge_cfg(args):
 			config['replace'] = arg[1]
 		if arg[0] == 'qsub':
 			config['qsub'] = arg[1]
+		if arg[0] == 'bind':
+			config['bind'] = arg[1]
+		if arg[0] == 'image':
+			config['image'] = arg[1]
 		if arg[0] == 'debug':
 			config['debug'] = arg[1]
 		if arg[0] == 'region':
@@ -588,7 +616,7 @@ def print_merge_options(cfg):
 				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
 
 def generate_tools_cfg(args):
-	config = {'file': None, 'out': None, 'source': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 
+	config = {'file': None, 'out': None, 'source': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 'bind': None, 'image': None, 
 				'job': 1, 'split': False, 'split_n': None, 'split_chr': None, 'job': None, 'jobs': None, 'replace': False, 'debug': False}
 	for arg in args:
 		if arg[0] == 'file':
@@ -609,6 +637,10 @@ def generate_tools_cfg(args):
 			config['mb'] = arg[1]
 		if arg[0] == 'qsub':
 			config['qsub'] = arg[1]
+		if arg[0] == 'bind':
+			config['bind'] = arg[1]
+		if arg[0] == 'image':
+			config['image'] = arg[1]
 		if arg[0] == 'split' and arg[1] is True:
 			config['split'] = arg[1]
 		if arg[0] == 'split_n':

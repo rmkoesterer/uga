@@ -235,6 +235,8 @@ def main(args=None):
 				print '   <= ' + str(max(np.bincount(jobs_df['job']))) + ' regions per task'
 				print '   <= '  + str(int(max(jobs_df['cpu']))) + ' cpus per task'
 				print '   qsub options: ' + cfg['qsub']
+				print '   image: ' + cfg['image']
+				print '   bind: ' + cfg['bind']
 				print '   output directory: ' + cfg['out']
 				print '   replace: ' + str(cfg['replace'])
 				input_var = None
@@ -302,6 +304,8 @@ def main(args=None):
 				print '   <= ' + str(max(np.bincount(jobs_df['job']))) + ' regions per job'
 				print '   <= '  + str(int(max(jobs_df['cpu']))) + ' cpus per job'
 				print '   qsub options: ' + cfg['qsub']
+				print '   image: ' + cfg['image']
+				print '   bind: ' + cfg['bind']
 				print '   output directory: ' + cfg['out']
 				print '   replace: ' + str(cfg['replace'])
 				input_var = None
@@ -329,10 +333,17 @@ def main(args=None):
 			cfg['job'] = 1
 			if cfg['qsub']:
 				cfg['qsub'] = cfg['qsub'] + ' -t 1'
+		singularity_cmd = 'singularity exec'
+		if cfg['bind'] is not None:
+			bind = cfg['bind'].split(',')
+			for b in bind:
+				singularity_cmd = singularity_cmd + " -B " + b
+		if cfg['image'] is not None:
+			singularity_cmd = singularity_cmd + " " + cfg['image']
 		args.ordered_args = [('out',cfg['out']),('region_file',out + '/' + out + '.jobs'),('job',cfg['job']),('cpus',int(max(jobs_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
 		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
 		if cfg['qsub']:
-			Process.qsub(cfg['qsub'].split() + ['-N',out,'-o',out + '/temp',qsub_wrapper],'\"' + cmd + '\"',out + '/' + out + '.jobs.run',cfg['out'] + '.log')
+			Process.qsub(qsub_pre = cfg['qsub'].split() + ['-N',out,'-o',out + '/temp','-e',out + '/temp'], singularity_cmd = singularity_cmd, qsub_wrapper = qsub_wrapper, cmd = cmd, qsub_script = out + '/qsub.sh', jobs_run_file = out + '/' + out + '.jobs.run', log_file = cfg['out'] + '.log')
 		else:
 			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
 
@@ -376,7 +387,14 @@ def main(args=None):
 		args.ordered_args = [('out',cfg['out'])] + [x for x in args.ordered_args if x[0] not in ['out']]
 		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
 		if cfg['qsub'] is not None:
-			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['out'] + '.log',qsub_wrapper],'\"' + cmd + '\"')
+			singularity_cmd = 'singularity exec'
+			if cfg['bind'] is not None:
+				bind = cfg['bind'].split(',')
+				for b in bind:
+					singularity_cmd = singularity_cmd + " -B " + b
+			if cfg['image'] is not None:
+				singularity_cmd = singularity_cmd + " " + cfg['image']
+			Process.qsub(cfg['qsub'].split() + ['-o',cfg['out'] + '.log'] + singularity_cmd.split() + ['python',qsub_wrapper],'\\"' + cmd + '\\"')
 		else:
 			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.log')
 
@@ -411,7 +429,14 @@ def main(args=None):
 				return
 		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
 		if cfg['qsub'] is not None:
-			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-o',cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'),qsub_wrapper],'\"' + cmd + '\"')
+			singularity_cmd = 'singularity exec'
+			if cfg['bind'] is not None:
+				bind = cfg['bind'].split(',')
+				for b in bind:
+					singularity_cmd = singularity_cmd + " -B " + b
+			if cfg['image'] is not None:
+				singularity_cmd = singularity_cmd + " " + cfg['image']
+			Process.qsub(cfg['qsub'].split() + ['-o',cfg['file'].replace('.gz','.' + cfg['tag'] + '.log')] + singularity_cmd.split() + ['python',qsub_wrapper],'\\"' + cmd + '\\"')
 		else:
 			Process.interactive(qsub_wrapper, cmd, cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'))
 	else:

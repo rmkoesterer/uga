@@ -150,6 +150,12 @@ def snv_args(snv_parser):
 	snv_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	snv_parser.add_argument('--bind', 
+						action=AddString, 
+						help='comma separated string indicating paths to bind to the singularity image (makes path accessible inside container)')
+	snv_parser.add_argument('--image', 
+						action=AddString, 
+						help='full path of uga singularity image')
 	snv_parser.add_argument('--tag', 
 						action=AddString, 
 						help='tag for individual model')
@@ -343,6 +349,12 @@ def snvgroup_args(snvgroup_parser):
 	snvgroup_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	snvgroup_parser.add_argument('--bind', 
+						action=AddString, 
+						help='comma separated string indicating paths to bind to the singularity image (makes path accessible inside container)')
+	snvgroup_parser.add_argument('--image', 
+						action=AddString, 
+						help='full path of uga singularity image')
 	snvgroup_parser.add_argument('--tag', 
 						action=AddString, 
 						help='tag for individual model')
@@ -458,6 +470,12 @@ def meta_args(meta_parser):
 	meta_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	meta_parser.add_argument('--bind', 
+						action=AddString, 
+						help='comma separated string indicating paths to bind to the singularity image (makes path accessible inside container)')
+	meta_parser.add_argument('--image', 
+						action=AddString, 
+						help='full path of uga singularity image')
 	meta_parser_split_group1 = meta_parser.add_mutually_exclusive_group()
 	meta_parser_split_group1.add_argument('--region', 
 						action=AddString, 
@@ -520,6 +538,12 @@ def resubmit_args(resubmit_parser):
 	resubmit_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	resubmit_parser.add_argument('--bind', 
+						action=AddString, 
+						help='comma separated string indicating paths to bind to the singularity image (makes path accessible inside container)')
+	resubmit_parser.add_argument('--image', 
+						action=AddString, 
+						help='full path of uga singularity image')
 	return resubmit_parser
 
 def snvplot_args(snvplot_parser):
@@ -580,6 +604,12 @@ def snvplot_args(snvplot_parser):
 	snvplot_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	snvplot_parser.add_argument('--bind', 
+						action=AddString, 
+						help='comma separated string indicating paths to bind to the singularity image (makes path accessible inside container)')
+	snvplot_parser.add_argument('--image', 
+						action=AddString, 
+						help='full path of uga singularity image')
 	snvplot_parser.add_argument('--gc', 
 						nargs=0, 
 						action=AddTrue, 
@@ -633,6 +663,12 @@ def snvgroupplot_args(snvgroupplot_parser):
 	snvgroupplot_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	snvgroupplot_parser.add_argument('--bind', 
+						action=AddString, 
+						help='comma separated string indicating paths to bind to the singularity image (makes path accessible inside container)')
+	snvgroupplot_parser.add_argument('--image', 
+						action=AddString, 
+						help='full path of uga singularity image')
 	snvgroupplot_parser.add_argument('--gc', 
 						nargs=0, 
 						action=AddTrue, 
@@ -663,6 +699,12 @@ def filter_args(filter_parser):
 	filter_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	filter_parser.add_argument('--bind', 
+						action=AddString, 
+						help='comma separated string indicating paths to bind to the singularity image (makes path accessible inside container)')
+	filter_parser.add_argument('--image', 
+						action=AddString, 
+						help='full path of uga singularity image')
 	filter_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 
@@ -769,6 +811,12 @@ def merge_args(merge_parser):
 	merge_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	merge_parser.add_argument('--bind', 
+						action=AddString, 
+						help='comma separated string indicating paths to bind to the singularity image (makes path accessible inside container)')
+	merge_parser.add_argument('--image', 
+						action=AddString, 
+						help='full path of uga singularity image')
 	merge_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 
@@ -838,6 +886,12 @@ def tools_args(tools_parser):
 	tools_parser.add_argument('--qsub', 
 						action=AddString, 
 						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+	tools_parser.add_argument('--bind', 
+						action=AddString, 
+						help='comma separated string indicating paths to bind to the singularity image (makes path accessible inside container)')
+	tools_parser.add_argument('--image', 
+						action=AddString, 
+						help='full path of uga singularity image')
 	tools_parser_split_group1 = tools_parser.add_mutually_exclusive_group()
 	tools_parser_split_group1.add_argument('--region', 
 						action=AddString, 

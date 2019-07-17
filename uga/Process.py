@@ -19,6 +19,81 @@ import subprocess
 import logging
 import os
 
+qsub_script_prefix = """#!/bin/bash
+#$ -cwd
+
+if [ ! -z "$SGE_TASK_ID" ]
+then
+taskid=$SGE_TASK_ID
+else
+taskid="None"
+fi
+
+if [ ! -z "$REQNAME" ]
+then
+reqname=$REQNAME
+else
+reqname="None"
+fi
+
+if [ ! -z "$HOSTNAME" ]
+then
+hostname=$HOSTNAME
+else
+hostname="None"
+fi
+
+if [ ! -z "$JOB_ID" ]
+then
+jobid=$JOB_ID
+else
+jobid="None"
+fi
+
+if [ ! -z "$SGE_CLUSTER_NAME" ]
+then
+clustername=$SGE_CLUSTER_NAME
+else
+clustername="None"
+fi
+
+if [ ! -z "$HOST" ]
+then
+host=$HOST
+else
+host="None"
+fi
+
+if [ ! -z "$Queue" ]
+then
+queue=$Queue
+else
+queue="None"
+fi
+
+if [ ! -z "$PWD" ]
+then
+pwd=$PWD
+else
+pwd="None"
+fi
+
+if [ ! -z "$SGE_STDOUT_PATH" ]
+then
+stdoutpath=$SGE_STDOUT_PATH
+else
+stdoutpath="None"
+fi
+
+user=$USER
+"""
+
+qsub_script_postfix = """
+EXIT_CODE=$?
+	
+exit $EXIT_CODE
+"""
+
 class Error(Exception):
 	def __init__(self, msg):
 		self.out = 'ERROR: ' + msg
@@ -27,12 +102,15 @@ class Error(Exception):
 def print_error(e):
 	return "\nERROR: " + e + "\n"
 
-def qsub(qsub_pre,cmd, jobs_run_file = None, log_file = None):
-	cmd_list = qsub_pre + [cmd[1:-1]]
-	if jobs_run_file is not None:
-		cmd_list = cmd_list + [jobs_run_file]
-	if log_file is not None:
-		cmd_list = cmd_list + [log_file]
+def write_qsub_script(singularity_cmd, qsub_wrapper, cmd, qsub_script, jobs_run_file, log_file):
+	text = [qsub_script_prefix, singularity_cmd + " " + qsub_wrapper + " --user $user --taskid $taskid --reqname $reqname --hostname $hostname --jobid $jobid --clustername $clustername --host $host --queue $queue --pwd $pwd --stdoutpath $stdoutpath --cmd " + '\"' + cmd + '\"' + " --job-list " + jobs_run_file + " --log " + log_file, qsub_script_postfix]
+	with open(qsub_script, 'w') as f:
+		f.write("\n".join(text).encode('utf-8'))
+	os.chmod(qsub_script, 0775)
+
+def qsub(qsub_pre, singularity_cmd, qsub_wrapper, cmd, qsub_script, jobs_run_file, log_file):
+	write_qsub_script(singularity_cmd, qsub_wrapper, cmd, qsub_script, jobs_run_file, log_file)
+	cmd_list = qsub_pre + [os.path.abspath(qsub_script)]
 	try:
 		p = subprocess.Popen(cmd_list,stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		for line in iter(p.stdout.readline, ''):
