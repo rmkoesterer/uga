@@ -332,7 +332,7 @@ def main(args=None):
 		args.ordered_args = [('out',cfg['out']),('region_file',out + '/' + out + '.jobs'),('job',cfg['job']),('cpus',int(max(jobs_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
 		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
 		if cfg['qsub']:
-			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-N',out,'-o',out + '/temp',qsub_wrapper],'\"' + cmd + '\"',out + '/' + out + '.jobs.run',cfg['out'] + '.log')
+			Process.qsub(cfg['qsub'].split() + ['-N',out,'-o',out + '/temp',qsub_wrapper],'\"' + cmd + '\"',out + '/' + out + '.jobs.run',cfg['out'] + '.log')
 		else:
 			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
 

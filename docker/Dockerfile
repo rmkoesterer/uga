@@ -79,11 +79,10 @@ RUN conda config --set auto_update_conda false && \
 	conda env create -f /work/environment.yml && \
 	conda clean -afy
 
-RUN echo "source activate uga" > ~/.bashrc
 ENV PATH /opt/conda/envs/uga/bin:/opt/conda/bin:$PATH
 
-# install uga
-RUN pip install uga==2.0.3
-
-# open /work directory permissions
-RUN chmod -R 777 /work
+RUN echo "source activate uga" > ~/.bashrc && \
+	pip install uga==2.0.4 && \
+	ln -s /opt/conda/envs/uga/bin/python /usr/local/bin/python && \
+	chmod 775 /opt/conda/envs/uga/lib/python2.7/site-packages/uga/Qsub.py && \
+	chmod -R 777 /work

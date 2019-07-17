@@ -149,7 +149,7 @@ def snv_args(snv_parser):
 						help='region size in megabases to use for split analyses (default: 1)')
 	snv_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	snv_parser.add_argument('--tag', 
 						action=AddString, 
 						help='tag for individual model')
@@ -342,7 +342,7 @@ def snvgroup_args(snvgroup_parser):
 						help='replace any existing output files')
 	snvgroup_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	snvgroup_parser.add_argument('--tag', 
 						action=AddString, 
 						help='tag for individual model')
@@ -457,7 +457,7 @@ def meta_args(meta_parser):
 						help='value for number of markers calculated at a time (WARNING: this argument will affect RAM memory usage; default: 100)')
 	meta_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	meta_parser_split_group1 = meta_parser.add_mutually_exclusive_group()
 	meta_parser_split_group1.add_argument('--region', 
 						action=AddString, 
@@ -519,7 +519,7 @@ def resubmit_args(resubmit_parser):
 						help='base directory name of existing results')
 	resubmit_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	return resubmit_parser
 
 def snvplot_args(snvplot_parser):
@@ -579,7 +579,7 @@ def snvplot_args(snvplot_parser):
 						help='enable manhattan plot')
 	snvplot_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	snvplot_parser.add_argument('--gc', 
 						nargs=0, 
 						action=AddTrue, 
@@ -632,7 +632,7 @@ def snvgroupplot_args(snvgroupplot_parser):
 						help='enable manhattan plot')
 	snvgroupplot_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	snvgroupplot_parser.add_argument('--gc', 
 						nargs=0, 
 						action=AddTrue, 
@@ -662,7 +662,7 @@ def filter_args(filter_parser):
 						help='replace any existing output files')
 	filter_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	filter_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 
@@ -768,7 +768,7 @@ def merge_args(merge_parser):
 						help='replace any existing output files')
 	merge_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	merge_parser.add_argument('--debug', 
 						nargs=0, 
 						action=AddTrue, 
@@ -837,7 +837,7 @@ def tools_args(tools_parser):
 						help='region size in megabases to use for split analyses (default: 1)')
 	tools_parser.add_argument('--qsub', 
 						action=AddString, 
-						help='string indicating all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
+						help='string indicating qsub path and all qsub options to be added to the qsub command (triggers submission of all jobs to the cluster)')
 	tools_parser_split_group1 = tools_parser.add_mutually_exclusive_group()
 	tools_parser_split_group1.add_argument('--region', 
 						action=AddString, 

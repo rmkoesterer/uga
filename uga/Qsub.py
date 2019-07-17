@@ -35,20 +35,21 @@ def main(argv):
 	user_name=pwd.getpwuid(os.getuid()).pw_name
 
 	if argv[1].split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"] and 'SGE_TASK_ID' in env_vars:
-		if env_vars['SGE_TASK_ID'] != 'None':
-			with open(argv[2]) as f:
-				joblist = [line.rstrip() for line in f]
-			job = joblist[int(env_vars['SGE_TASK_ID'])-1]
-			argv[1] = argv[1].replace("UGA_JOB_ID",job)
-			argv[3] = argv[3].replace("UGA_JOB_ID",job)
-			argv[1] = argv[1].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
-			argv[3] = argv[3].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
-		try:
-			lf = open(argv[3],'w')
-		except(IOError, OSError):
-			return
-		sys.stdout = lf
-		sys.stderr = lf
+		if len(argv) > 3:
+			if env_vars['SGE_TASK_ID'] != 'None':
+				with open(argv[2]) as f:
+					joblist = [line.rstrip() for line in f]
+				job = joblist[int(env_vars['SGE_TASK_ID'])-1]
+				argv[1] = argv[1].replace("UGA_JOB_ID",job)
+				argv[3] = argv[3].replace("UGA_JOB_ID",job)
+				argv[1] = argv[1].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
+				argv[3] = argv[3].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
+			try:
+				lf = open(argv[3],'w')
+			except(IOError, OSError):
+				return
+			sys.stdout = lf
+			sys.stderr = lf
 
 	if not 'REQNAME' in env_vars.keys():
 		local=True
