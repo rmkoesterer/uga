@@ -343,9 +343,9 @@ def main(args=None):
 		args.ordered_args = [('out',cfg['out']),('region_file',out + '/' + out + '.jobs'),('job',cfg['job']),('cpus',int(max(jobs_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
 		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
 		if cfg['qsub']:
-			Process.qsub(qsub_pre = cfg['qsub'].split() + ['-N',out,'-o',out + '/temp','-e',out + '/temp'], singularity_cmd = singularity_cmd, qsub_wrapper = qsub_wrapper, cmd = cmd, qsub_script = out + '/qsub.sh', jobs_run_file = out + '/' + out + '.jobs.run', log_file = cfg['out'] + '.log')
+			Process.qsub(qsub_pre = cfg['qsub'].split() + ['-N',out,'-o',out + '/temp'], singularity_cmd = singularity_cmd, qsub_wrapper = qsub_wrapper, cmd = cmd, qsub_script = out + '/qsub.sh', jobs_run_file = out + '/' + out + '.jobs.run', log_file = cfg['out'] + '.' + args.which + '.log')
 		else:
-			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
+			Process.interactive(qsub_wrapper = qsub_wrapper, cmd = cmd, log_file = cfg['out'] + '.' + args.which + '.log')
 
 	elif args.which == 'compile':
 		files = pd.read_table(args.dir + '/' + os.path.basename(args.dir) + '.files', names=['job','out','file'])
@@ -394,9 +394,9 @@ def main(args=None):
 					singularity_cmd = singularity_cmd + " -B " + b
 			if cfg['image'] is not None:
 				singularity_cmd = singularity_cmd + " " + cfg['image']
-			Process.qsub(cfg['qsub'].split() + ['-o',cfg['out'] + '.log'] + singularity_cmd.split() + ['python',qsub_wrapper],'\\"' + cmd + '\\"')
+			Process.qsub(qsub_pre = cfg['qsub'].split() + ['-o',cfg['out'] + '.log'], singularity_cmd = singularity_cmd, qsub_wrapper = qsub_wrapper, cmd = cmd, qsub_script = cfg['out'] + '.qsub.sh')
 		else:
-			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.log')
+			Process.interactive(qsub_wrapper = qsub_wrapper, cmd = cmd, log_file = cfg['out'] + '.log')
 
 	elif args.which == 'filter':
 		if os.path.exists(cfg['file'].replace('.gz','.' + cfg['tag'] + '.log')):
@@ -436,9 +436,10 @@ def main(args=None):
 					singularity_cmd = singularity_cmd + " -B " + b
 			if cfg['image'] is not None:
 				singularity_cmd = singularity_cmd + " " + cfg['image']
-			Process.qsub(cfg['qsub'].split() + ['-o',cfg['file'].replace('.gz','.' + cfg['tag'] + '.log')] + singularity_cmd.split() + ['python',qsub_wrapper],'\\"' + cmd + '\\"')
+			Process.qsub(qsub_pre = cfg['qsub'].split() + ['-o',cfg['file'].replace('.gz','.' + cfg['tag'] + '.log')], singularity_cmd = singularity_cmd, qsub_wrapper = qsub_wrapper, cmd = cmd, qsub_script = cfg['file'] + '.filter.qsub.sh')
 		else:
-			Process.interactive(qsub_wrapper, cmd, cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'))
+			Process.interactive(qsub_wrapper = qsub_wrapper, cmd = cmd, log_file = cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'))
+
 	else:
 		print Process.print_error(args.which + " not a currently available module")
 

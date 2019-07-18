@@ -32,21 +32,22 @@ def main(args=None):
 
 	start_time = (localtime(), time())
 
-	if args.cmd.split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"] and args.taskid != 'None':
+	if args.cmd.split('(')[0] in ["RunSnv","RunSnvgroup","RunMeta","RunMerge","RunTools"] and args.taskid != 'None' and args.job_list != 'None':
 		with open(args.job_list) as f:
 			joblist = [line.rstrip() for line in f]
 		job = joblist[int(args.taskid)-1]
 		args.cmd = args.cmd.replace("UGA_JOB_ID",job)
-		args.log = args.log.replace("UGA_JOB_ID",job)
 		args.cmd = args.cmd.replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
-		args.log = args.log.replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
-		try:
-			lf = open(args.log,'w')
-		except(IOError, OSError):
-			return
-		sys.stdout = lf
-		sys.stderr = lf
-    
+		if args.log != 'None':
+			args.log = args.log.replace("UGA_JOB_ID",job)
+			args.log = args.log.replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
+			try:
+				lf = open(args.log,'w')
+			except(IOError, OSError):
+				return
+			sys.stdout = lf
+			sys.stderr = lf
+ 
 	if args.reqname != 'None':
 		args.reqname = args.hostname + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time[0]) if args.hostname != 'None' else strftime('%Y_%m_%d_%H_%M_%S', start_time[0])
 
@@ -97,19 +98,19 @@ def main(args=None):
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--user', help='USER')
-	parser.add_argument('--taskid', help='SGE_TASK_ID')
-	parser.add_argument('--reqname', help='REQNAME')
-	parser.add_argument('--hostname', help='HOSTNAME')
-	parser.add_argument('--jobid', help='JOB_ID')
-	parser.add_argument('--clustername', help='SGE_CLUSTER_NAME')
-	parser.add_argument('--host', help='HOST')
-	parser.add_argument('--queue', help='Queue')
-	parser.add_argument('--pwd', help='PWD')
-	parser.add_argument('--stdoutpath', help='SGE_STDOUT_PATH')
+	parser.add_argument('--user', default = "None", help='USER')
+	parser.add_argument('--taskid', default = "None", help='SGE_TASK_ID')
+	parser.add_argument('--reqname', default = "None", help='REQNAME')
+	parser.add_argument('--hostname', default = "None", help='HOSTNAME')
+	parser.add_argument('--jobid', default = "None", help='JOB_ID')
+	parser.add_argument('--clustername', default = "None", help='SGE_CLUSTER_NAME')
+	parser.add_argument('--host', default = "None", help='HOST')
+	parser.add_argument('--queue', default = "None", help='Queue')
+	parser.add_argument('--pwd', default = "None", help='PWD')
+	parser.add_argument('--stdoutpath', default = "None", help='SGE_STDOUT_PATH')
+	parser.add_argument('--job-list', default = "None", help='a job list')
+	parser.add_argument('--log', default = "None", help='a log file name')
 	requiredArgs = parser.add_argument_group('required arguments')
 	requiredArgs.add_argument('--cmd', help='a command', required=True)
-	requiredArgs.add_argument('--job-list', help='a job list', required=True)
-	requiredArgs.add_argument('--log', help='a log file name', required=True)
 	args = parser.parse_args()
 	main(args)

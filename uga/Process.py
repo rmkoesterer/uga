@@ -109,7 +109,7 @@ def write_qsub_script(singularity_cmd, qsub_wrapper, cmd, qsub_script, jobs_run_
 	os.chmod(qsub_script, 0775)
 
 def qsub(qsub_pre, singularity_cmd, qsub_wrapper, cmd, qsub_script, jobs_run_file, log_file):
-	write_qsub_script(singularity_cmd, qsub_wrapper, cmd, qsub_script, jobs_run_file, log_file)
+	write_qsub_script(singularity_cmd = singularity_cmd, qsub_wrapper = qsub_wrapper, cmd = cmd, qsub_script = qsub_script, jobs_run_file = jobs_run_file, log_file = log_file)
 	cmd_list = qsub_pre + [os.path.abspath(qsub_script)]
 	try:
 		p = subprocess.Popen(cmd_list,stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
@@ -121,9 +121,9 @@ def qsub(qsub_pre, singularity_cmd, qsub_wrapper, cmd, qsub_script, jobs_run_fil
 		print "   ... process terminated by user"
 		sys.exit(1)
 
-def interactive(submit, cmd, log_file = None):
+def interactive(qsub_wrapper, cmd, log_file = None):
 	try:
-		p = subprocess.Popen([submit,cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+		p = subprocess.Popen([qsub_wrapper,'--cmd',cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		if log_file:
 			log = open(log_file, 'w')
 		for line in iter(p.stdout.readline, ''):
