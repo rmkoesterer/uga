@@ -59,7 +59,16 @@ ENV PATH /opt/conda/envs/uga/bin:/opt/conda/bin:$PATH
 RUN R -e 'install.packages(c("kinship2", "geepack", "lme4", "lmertest", "pbkrtest", "seqMeta", "RColorBrewer", "ggplot2","R.utils"), repos="http://cran.us.r-project.org", dependencies=TRUE)'
 
 RUN echo "source activate uga" > ~/.bashrc && \
-	pip install uga==2.0.5 && \
+	apt-get update && \
+	apt-get -y --no-install-recommends install \
+		gcc \
+		python-dev && \
+	pip install uga==2.0.6 && \
 	ln -s /opt/conda/envs/uga/bin/python /usr/local/bin/python && \
 	chmod 775 /opt/conda/envs/uga/lib/python2.7/site-packages/uga/Qsub.py && \
-	chmod -R 777 /work
+	chmod -R 777 /work && \
+	apt-get -y remove --purge \
+		gcc \
+		python-dev && \
+	apt-get -y autoremove && \
+	rm -rf /var/lib/apt/lists/*
