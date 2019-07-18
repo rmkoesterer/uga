@@ -63,7 +63,7 @@ RUN echo "source activate uga" > ~/.bashrc && \
 	apt-get -y --no-install-recommends install \
 		gcc \
 		python-dev && \
-	pip install uga==2.0.6 && \
+	pip install uga && \
 	ln -s /opt/conda/envs/uga/bin/python /usr/local/bin/python && \
 	chmod 775 /opt/conda/envs/uga/lib/python2.7/site-packages/uga/Qsub.py && \
 	chmod -R 777 /work && \
