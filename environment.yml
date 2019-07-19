@@ -1,11 +1,11 @@
 name: uga
 channels:
-- https://conda.anaconda.org/rmkoesterer
 - r
-- defaults
-- asmeurer
 - bioconda
+- conda-forge
 - mittner
+- https://conda.anaconda.org/rmkoesterer
+- defaults
 dependencies:
 - anaconda-client=1.1.2=py27_0
 - biopython=1.66=np110py27_0
@@ -15,97 +15,37 @@ dependencies:
 - demandimport=0.3.2=py27_0
 - fontconfig=2.11.1=5
 - freetype=2.5.5=0
-- glib=2.43.0=2
-- harfbuzz=0.9.35=6
-- hdf5=1.8.15.1=2
-- jbig=2.1=0
-- jpeg=8d=0
-- libffi=3.0.13=0
-- libgcc=4.8.5=1
-- libgfortran=1.0=0
-- libpng=1.6.17=0
-- libtiff=4.0.6=1
-- libxml2=2.9.2=0
-- ncurses=5.9=5
-- nlopt=2.4.2=1
-- numexpr=2.4.4=np110py27_0
-- numpy=1.10.1=py27_0
-- openblas=0.2.14=3
-- openssl=1.0.2f=0
-- pandas=0.17.1=np110py27_0
-- pango=1.36.8=3
-- pcre=8.31=0
-- pillow=3.0.0=py27_1
-- pip=8.0.2=py27_0
-- pixman=0.26.2=0
-- progressbar=2.3=py27_0
-- psutil=3.3.0=py27_0
-- pysam=0.8.4=py27_0
-- python=2.7.11=0
-- python-dateutil=2.4.2=py27_0
-- pytz=2015.7=py27_0
-- pyyaml=3.11=py27_1
-- r=3.2.2=0
-- r-base=3.2.2=0
-- r-bdsmatrix=1.3_2=r3.2.2_2a
-- r-boot=1.3_17=r3.2.2_0a
-- r-class=7.3_14=r3.2.2_0a
-- r-cluster=2.0.3=r3.2.2_0a
-- r-codetools=0.2_14=r3.2.2_0a
-- r-colorspace=1.2_6=r3.2.2_0a
-- r-compquadform=1.4.1=r3.2.2_0
-- r-coxme=2.2_5=r3.2.2_0
-- r-dichromat=2.0_0=r3.2.2_2a
-- r-digest=0.6.9=r3.2.2_0
-- r-foreign=0.8_66=r3.2.2_0a
-- r-geepack=1.2_0.1=r3.2.2_0
-- r-ggplot2=1.0.1=r3.2.2_0a
-- r-gtable=0.1.2=r3.2.2_2a
-- r-kernsmooth=2.23_15=r3.2.2_0a
-- r-kinship2=1.6.4=r3.2.2_0
-- r-labeling=0.3=r3.2.2_1a
-- r-lattice=0.20_33=r3.2.2_0a
-- r-lme4=1.1_9=r3.2.2_0a
-- r-magrittr=1.5=r3.2.2_1a
-- r-mass=7.3_45=r3.2.2_0a
-- r-matrix=1.2_2=r3.2.2_0a
-- r-mgcv=1.8_9=r3.2.2_0a
-- r-minqa=1.2.4=r3.2.2_1a
-- r-munsell=0.4.2=r3.2.2_1a
-- r-nlme=3.1_122=r3.2.2_0a
-- r-nloptr=1.0.4=r3.2.2_1a
-- r-nnet=7.3_11=r3.2.2_0a
-- r-plyr=1.8.3=r3.2.2_0a
-- r-proto=0.3_10=r3.2.2_1a
-- r-quadprog=1.5_5=r3.2.2_1a
-- r-r.methodss3=1.7.0=r3.2.2_0
-- r-r.oo=1.19.0=r3.2.2_0
-- r-r.utils=2.2.0=r3.2.2_0
-- r-rcolorbrewer=1.1_2=r3.2.2_2a
-- r-rcpp=0.12.2=r3.2.2_0a
-- r-rcppeigen=0.3.2.5.1=r3.2.2_0a
-- r-recommended=3.2.2=r3.2.2_0
-- r-reshape2=1.4.1=r3.2.2_1a
-- r-rpart=4.1_10=r3.2.2_0a
-- r-scales=0.3.0=r3.2.2_0a
-- r-seqmeta=1.6.5=r3.2.2_0
-- r-spatial=7.3_11=r3.2.2_0a
-- r-stringi=1.0_1=r3.2.2_0a
-- r-stringr=1.0.0=r3.2.2_0a
-- r-survival=2.38_3=r3.2.2_0a
-- r-lmertest=2.0_29=r3.2.2_0
-- r-pbkrtest=0.4_2=r3.2.2_2a
-- readline=6.2.5=1
-- requests=2.8.1=py27_0
-- rpy2=2.7.4=py27r3.2.2_0
-- scipy=0.16.0=np110py27_1
-- setuptools=19.6.2=py27_0
-- singledispatch=3.4.0.3=py27_0
-- six=1.10.0=py27_0
-- sqlite=3.9.2=0
-- tk=8.5.18=0
-- wheel=0.29.0=py27_0
-- xlsxwriter=0.8.4=py27_0
-- xz=5.0.5=0
-- yaml=0.1.6=0
-- zlib=1.2.8=0
+
+- python=2.7
+- numpy
+- nomkl
+- pandas
+- psutil
+- pysam=0.15.2
+- rpy2
+- scipy
+- setuptools
+- cython
+- biopython
+- progressbar
+- r-base
+
+ncurses                   6.1                  he6710b0_1  
+openssl                   1.1.1b               h7b6447c_1  
+pip                       19.0.3                   py27_0  
+pycosat                   0.6.3            py27h14c3975_0  
+pycparser                 2.19                     py27_0  
+pyopenssl                 19.0.0                   py27_0  
+pysocks                   1.6.8                    py27_0  
+python                    2.7.16               h9bab390_0  
+readline                  7.0                  h7b6447c_5  
+requests                  2.21.0                   py27_0  
+ruamel_yaml               0.15.46          py27h14c3975_0  
+setuptools                41.0.0                   py27_0  
+six                       1.12.0                   py27_0  
+sqlite                    3.27.2               h7b6447c_0  
+tk                        8.6.8                hbc83047_0  
+urllib3                   1.24.1                   py27_0  
+wheel                     0.33.1                   py27_0  
+yaml                      0.1.7                had09818_2  
+zlib                      1.2.11               h7b6447c_3  

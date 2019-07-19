@@ -43,7 +43,7 @@ RUN conda config --set auto_update_conda false && \
 	echo "- nomkl" >> /work/environment.yml && \
 	echo "- pandas" >> /work/environment.yml && \
 	echo "- psutil" >> /work/environment.yml && \
-	echo "- pysam=0.15.2" >> /work/environment.yml && \
+	echo "- pysam" >> /work/environment.yml && \
 	echo "- rpy2" >> /work/environment.yml && \
 	echo "- scipy" >> /work/environment.yml && \
 	echo "- setuptools" >> /work/environment.yml && \
@@ -54,12 +54,13 @@ RUN conda config --set auto_update_conda false && \
 	conda env create -f /work/environment.yml && \
 	conda clean -afy
 
+RUN echo "source activate uga" >> ~/.bashrc
+
 ENV PATH /opt/conda/envs/uga/bin:/opt/conda/bin:$PATH
 
 RUN R -e 'install.packages(c("kinship2", "geepack", "lme4", "lmertest", "pbkrtest", "seqMeta", "RColorBrewer", "ggplot2","R.utils"), repos="http://cran.us.r-project.org", dependencies=TRUE)'
 
-RUN echo "source activate uga" > ~/.bashrc && \
-	apt-get update && \
+RUN apt-get update && \
 	apt-get -y --no-install-recommends install \
 		gcc \
 		python-dev && \
@@ -72,3 +73,9 @@ RUN echo "source activate uga" > ~/.bashrc && \
 		python-dev && \
 	apt-get -y autoremove && \
 	rm -rf /var/lib/apt/lists/*
+
+RUN echo "#!/bin/bash" > /work/.uga_init && \
+	echo ". activate uga" >> /work/.uga_init && \
+	chmod 775 /work/.uga_init
+
+CMD ["/work/.uga_init"]
