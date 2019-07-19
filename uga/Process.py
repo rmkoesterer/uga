@@ -40,7 +40,7 @@ def qsub(qsub_pre,cmd, jobs_run_file = None, log_file = None):
 		p.wait()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
-		print "   ... process terminated by user"
+		print("   ... process terminated by user")
 		sys.exit(1)
 
 def interactive(submit, cmd, log_file = None):
@@ -57,7 +57,7 @@ def interactive(submit, cmd, log_file = None):
 			log.close()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
-		print "   ... process terminated by user"
+		print("   ... process terminated by user")
 		sys.exit(1)
 
 def kill_all(pid):

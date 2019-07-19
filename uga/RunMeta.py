@@ -16,14 +16,14 @@
 import pandas as pd
 import numpy as np
 import numpy.lib.recfunctions as recfxns
-import Geno
-import Model
-import Parse
-import Variant
+from . import Geno
+from . import Model
+from . import Parse
+from . import Variant
 import pysam
-import Fxns
+from . import Fxns
 from Bio import bgzf
-import Process
+from . import Process
 import multiprocessing as mp
 import sys
 import os
@@ -41,7 +41,7 @@ def process_regions(regions_df, cfg, cpu, log):
 		try:
 			log_file = open(cfg['out'] + '.cpu' + str(cpu) + '.log','w')
 		except:
-			print Process.Error("unable to initialize log file " + cfg['out'] + '.cpu' + str(cpu) + '.log').out
+			print(Process.Error("unable to initialize log file " + cfg['out'] + '.cpu' + str(cpu) + '.log').out)
 			return 1
 		else:
 			stdout_orig = sys.stdout
@@ -51,11 +51,11 @@ def process_regions(regions_df, cfg, cpu, log):
 
 	results_obj = {}
 	for f in cfg['file_order']:
-		print "\nloading results file " + f
+		print("\nloading results file " + f)
 		try:
 			results_obj[f] = Geno.Results(filename=cfg['files'][f])
 		except Process.Error as err:
-			print err.out
+			print(err.out)
 			return 1
 
 	variants_found = False
@@ -67,10 +67,10 @@ def process_regions(regions_df, cfg, cpu, log):
 		meta_written[meta] = False
 		results_final_meta[meta] = pd.DataFrame({})
 		meta_objs[meta] = Model.SnvMeta(tag = meta, meta = cfg['meta'][meta], type = cfg['meta_type'][meta])
-	for k in xrange(len(regions_df.index)):
+	for k in range(len(regions_df.index)):
 		region_written = False
-		print ''
-		print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['region'][k] + ') ...'
+		print('')
+		print('loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['region'][k] + ') ...')
 		for f in cfg['file_order']:
 			try:
 				results_obj[f].get_region(regions_df['region'][k])
@@ -97,17 +97,17 @@ def process_regions(regions_df, cfg, cpu, log):
 			else:
 				results_region_cols = [x for x in results_region.columns.values] + [x for x in results_obj[f].snv_results_tagged.columns.values if x not in results_region.columns.values]
 				if results_region.empty and not results_obj[f].snv_results_tagged.empty:
-					results_region=pd.concat([results_obj[f].snv_results_tagged[['chr','pos','id','a1','a2','id_unique','___uid___']].iloc[[0]],pd.DataFrame(dict(zip([x for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']],[np.nan for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']])),index=[0])],axis=1)
+					results_region=pd.concat([results_obj[f].snv_results_tagged[['chr','pos','id','a1','a2','id_unique','___uid___']].iloc[[0]],pd.DataFrame(dict(list(zip([x for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']],[np.nan for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']]))),index=[0])],axis=1)
 				results_region = results_region.merge(results_obj[f].snv_results_tagged, how='outer')			
 				results_region = results_region[results_region_cols]
 
 			status = '   (' + f + ') processed ' + str(results_obj[f].snv_results.shape[0]) + ' variants'
-			print status
+			print(status)
 			sys.stdout.flush()
 
 		for meta in cfg['meta_order']:
 			meta_objs[meta].calc_meta(results_region)
-			print '   processed meta analysis ' + meta + ' (' + cfg['meta'][meta] + ')'
+			print('   processed meta analysis ' + meta + ' (' + cfg['meta'][meta] + ')')
 			if not meta_written[meta]:
 				results_final_meta[meta] = meta_objs[meta].out.copy()
 				meta_written[meta] = True
@@ -143,49 +143,49 @@ def RunMeta(args):
 	return_values = {}
 	meta_out = {}
 	bgzfiles = {}
-	print ''
+	print('')
 	for m in cfg['meta_order']:
-		print "initializing out file for meta " + m
+		print("initializing out file for meta " + m)
 		meta_out[m] = cfg['out'] + '.' + m
 		try:
 			bgzfiles[m] = bgzf.BgzfWriter(meta_out[m] + '.gz', 'wb')
 		except:
-			print Process.Error("failed to initialize bgzip format out file " + meta_out[m] + '.gz').out
+			print(Process.Error("failed to initialize bgzip format out file " + meta_out[m] + '.gz').out)
 			return 1
 
 	if cfg['cpus'] > 1:
 		pool = mp.Pool(cfg['cpus']-1)
-		for i in xrange(1,cfg['cpus']):
+		for i in range(1,cfg['cpus']):
 			return_values[i] = pool.apply_async(process_regions, args=(regions_df,cfg,i,True,))
-			print "submitting job on cpu " + str(i) + " of " + str(cfg['cpus'])
+			print("submitting job on cpu " + str(i) + " of " + str(cfg['cpus']))
 		pool.close()
-		print "executing job for cpu " + str(cfg['cpus']) + " of " + str(cfg['cpus']) + " via main process"
+		print("executing job for cpu " + str(cfg['cpus']) + " of " + str(cfg['cpus']) + " via main process")
 		main_return = process_regions(regions_df,cfg,cfg['cpus'],True)
 		pool.join()
 
 		if 1 in [return_values[i].get() for i in return_values] or main_return == 1:
-			print Process.Error("error detected, see log files").out
+			print(Process.Error("error detected, see log files").out)
 			return 1
 
 	else:
 		main_return = process_regions(regions_df,cfg,1,True)
 		if main_return == 1:
-			print Process.Error("error detected, see log files").out
+			print(Process.Error("error detected, see log files").out)
 			return 1
 
-	for i in xrange(1,cfg['cpus']+1):
+	for i in range(1,cfg['cpus']+1):
 		try:
 			logfile = open(cfg['out'] + '.cpu' + str(i) + '.log', 'r')
 		except:
-			print Process.Error("failed to initialize log file " + cfg['out'] + '.cpu' + str(i) + '.log').out
+			print(Process.Error("failed to initialize log file " + cfg['out'] + '.cpu' + str(i) + '.log').out)
 			return 1
-		print logfile.read()
+		print(logfile.read())
 		logfile.close()
 		os.remove(cfg['out'] + '.cpu' + str(i) + '.log')
 
 	for m in cfg['meta_order']:
 		written = False
-		for i in xrange(1,cfg['cpus']+1):
+		for i in range(1,cfg['cpus']+1):
 			out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.' + m + '.pkl'
 			pkl = open(out_model_meta,"rb")
 			results_final_meta,metadata,results_header,tbx_start,tbx_end = pickle.load(pkl)
@@ -199,12 +199,12 @@ def RunMeta(args):
 			os.remove(out_model_meta)
 
 		bgzfiles[m].close()
-		print "indexing out file for meta " + m
+		print("indexing out file for meta " + m)
 		try:
 			pysam.tabix_index(meta_out[m] + '.gz',seq_col=0,start_col=tbx_start,end_col=tbx_end,force=True)
 		except:
-			print Process.Error('failed to generate index for file ' + meta_out[m] + '.gz').out
+			print(Process.Error('failed to generate index for file ' + meta_out[m] + '.gz').out)
 			return 1
 
-	print "process complete"
+	print("process complete")
 	return 0

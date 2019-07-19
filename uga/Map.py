@@ -13,7 +13,7 @@
 ##    You should have received a copy of the GNU General Public License
 ##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __main__ import *
+from .__main__ import *
 from multiprocessing import Process, Manager, cpu_count
 from itertools import islice,groupby
 from operator import attrgetter
@@ -34,7 +34,7 @@ def map(file,
 
 	files_glob = glob.glob(file.replace('[CHR]','*'))
 	for f in files_glob:
-		print "mapping file " + os.path.basename(f)
+		print("mapping file " + os.path.basename(f))
 		v = pysam.TabixFile(filename=f, parser=pysam.asTuple())
 		regions = []
 		start = 1
@@ -44,13 +44,13 @@ def map(file,
 				start = region.split(':')[1].split('-')[0]
 				end = region.split(':')[1].split('-')[1]
 			if start != end:
-				starts = range(int(start),int(end),s-shift)
+				starts = list(range(int(start),int(end),s-shift))
 			else:
 				starts = [int(start)]
 			for rp in starts:
 				regions.append(region.split(':')[0] + ":" + str(rp) + "-" + str(min(rp+s-1,int(end))))
 		else:
-			starts = range(start,end,s-shift)
+			starts = list(range(start,end,s-shift))
 			for chr in v.contigs:
 				for rp in starts:
 					regions.append(chr + ":" + str(rp) + "-" + str(rp+s-1))
@@ -58,7 +58,7 @@ def map(file,
 		for reg in regions:
 			chr = reg.split(':')[0]
 			if chr != prev_chr:
-				print 'mapping chromosome ' + chr
+				print('mapping chromosome ' + chr)
 			prev_chr = chr
 			start = reg.split(':')[1].split('-')[0]
 			end = reg.split(':')[1].split('-')[1]

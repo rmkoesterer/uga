@@ -38,7 +38,7 @@ setup(
 	include_dirs = [np.get_include()], 
 	package_data={'uga': ['settings.ini',]},
     classifiers = [
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.7.3',
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Topic :: Scientific/Engineering :: Bio-Informatics',

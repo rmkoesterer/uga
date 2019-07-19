@@ -34,7 +34,7 @@ def get_delimiter(d):
 	return d
 
 def verify_results(directory, files):
-	print "verifying results"
+	print("verifying results")
 	reg_complete = []
 	reg_rerun = []
 	pbar = ProgressBar(maxval=files.shape[0], widgets = ['   processed ', Counter(), ' of ' + str(files.shape[0]) + ' files (', Timer(), ')'])
@@ -64,7 +64,7 @@ def compile_results(directory, files):
 	out = np.unique(files['out'])
 	bgzfile = {}
 	for o in out:
-		print "compiling results to file " + o
+		print("compiling results to file " + o)
 		files_o = files[files['out'] == o].reset_index(drop=True)
 		pbar = ProgressBar(maxval=files_o.shape[0], widgets = ['   processed ', Counter(), ' of ' + str(files_o.shape[0]) + ' files (', Timer(), ')'])
 		pbar.start()
@@ -81,7 +81,7 @@ def compile_results(directory, files):
 		pbar.finish()
 		bgzfile[o].close()
 
-	print "compiling log files"
+	print("compiling log files")
 	summary = file(directory + '/' + os.path.basename(directory) + '.summary', 'w')
 	logs = file(directory + '/' + os.path.basename(directory) + '.logs', 'w')
 	files_o = files[files['out'] == out[0]].reset_index(drop=True)
@@ -116,7 +116,7 @@ def compile_results(directory, files):
 	summary.close()
 	logs.close()
 	for o in out:
-		print "mapping compiled file " + o
+		print("mapping compiled file " + o)
 		files_o = files[files['out'] == o].reset_index(drop=True)
 		h=pysam.TabixFile(filename=directory + '/' + '/'.join(files.iloc[0]['file'].split('/')[1:]),parser=pysam.asTuple())
 		header = [x for x in h.header]
@@ -133,7 +133,7 @@ def compile_results(directory, files):
 		elif '##fileformat=VCF' in source or "#CHROM\tBEGIN\tEND\tMARKER_ID" in source or "#CHROM\tBEG\tEND\tMARKER_ID" in source: # if labeled as VCF or EPACTS results
 			pysam.tabix_index(directory + '/' + o,preset='vcf',force=True)
 		else:
-			print "compiled file source not recognized"
+			print("compiled file source not recognized")
 			return False
-	print "file compilation complete"
+	print("file compilation complete")
 	return True

@@ -15,13 +15,13 @@
 
 import pandas as pd
 import numpy as np
-import Model
-import Parse
-import Variant
+from . import Model
+from . import Parse
+from . import Variant
 import pysam
-import Fxns
+from . import Fxns
 from Bio import bgzf
-import Process
+from . import Process
 import multiprocessing as mp
 import sys
 import os
@@ -40,7 +40,7 @@ def process_regions(regions_df, cfg, cpu, log):
 		try:
 			log_file = open(cfg['out'] + '.cpu' + str(cpu) + '.log','w')
 		except:
-			print Process.Error("unable to initialize log file " + cfg['out'] + '.cpu' + str(cpu) + '.log').out
+			print(Process.Error("unable to initialize log file " + cfg['out'] + '.cpu' + str(cpu) + '.log').out)
 			return 1
 		stdout_orig = sys.stdout
 		sys.stdout = log_file
@@ -66,18 +66,18 @@ def process_regions(regions_df, cfg, cpu, log):
 		results_final_meta[meta] = pd.DataFrame({})
 		meta_objs[meta] = getattr(Model,cfg['models'][cfg['meta'][meta].split('+')[0]]['fxn'].capitalize() + 'Meta')(tag = meta, meta = cfg['meta'][meta])
 	last_chr = None
-	for k in xrange(len(regions_df.index)):
+	for k in range(len(regions_df.index)):
 		meta_incl = []
 		region_written = False
 		results_region = pd.DataFrame({})
-		print ''
-		print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['group_id'][k] + ": " + regions_df['region'][k] + ') ...'
+		print('')
+		print('loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['group_id'][k] + ": " + regions_df['region'][k] + ') ...')
 		for n in cfg['model_order']:
 			if not model_loaded[n] or (last_chr != regions_df['chr'][k] and len(variants_files[n]) > 1):
 				if not model_loaded[n]:
-					print "\nloading model for " + n if n != '___no_tag___' else "\nloading model"
+					print("\nloading model for " + n if n != '___no_tag___' else "\nloading model")
 				else:
-					print "\nupdating model for " + n if n != '___no_tag___' else "\nupdating model"
+					print("\nupdating model for " + n if n != '___no_tag___' else "\nupdating model")
 				try:
 					models_obj[n] = getattr(Model,cfg['models'][n]['fxn'].capitalize())(fxn=cfg['models'][n]['fxn'], 
 																						snvgroup_map=cfg['snvgroup_map'], 
@@ -108,7 +108,7 @@ def process_regions(regions_df, cfg, cpu, log):
 																						female=cfg['models'][n]['female'], 
 																						sep=cfg['models'][n]['sep'])
 				except Process.Error as err:
-					print err.out
+					print(err.out)
 					return 1
 				model_loaded[n] = True
 
@@ -121,13 +121,13 @@ def process_regions(regions_df, cfg, cpu, log):
 				models_obj[n].get_snvgroup(cfg['buffer'], regions_df['group_id'][k])
 			except:
 				if not variants_found:
-					print '   (' + n + ') processed 0 variants'
+					print('   (' + n + ') processed 0 variants')
 				pass
 			variants_found = True
 
 			if models_obj[n].variants.duplicated is not None:
-				print '   WARNING! The following duplicated variant identifiers were generated'
-				print '\n'.join(['      ' + d for d in models_obj[n].variants.duplicated])
+				print('   WARNING! The following duplicated variant identifiers were generated')
+				print('\n'.join(['      ' + d for d in models_obj[n].variants.duplicated]))
 
 			if len(cfg['meta_order']) > 0:
 				if n == cfg['model_order'][0]:
@@ -147,7 +147,7 @@ def process_regions(regions_df, cfg, cpu, log):
 				logger.debug("calc_model")
 				models_obj[n].calc_model()
 			except Process.Error as err:
-				print err.out
+				print(err.out)
 				pass
 
 			if len(cfg['meta_order']) > 0:
@@ -173,13 +173,13 @@ def process_regions(regions_df, cfg, cpu, log):
 			analyzed = len(models_obj[n].variant_stats['filter'][models_obj[n].variant_stats['filter'] == 0])
 
 			status = '   (' + n + ') processed ' + str(models_obj[n].variants.info.shape[0]) + ' variants, ' + str(analyzed) + ' passed filters'
-			print status
+			print(status)
 			sys.stdout.flush()
 
 		if len(cfg['meta_order']) > 0:
 			for meta in cfg['meta_order']:
 				meta_objs[meta].calc_meta(regions_df['chr'][k], regions_df['start'][k], regions_df['end'][k], regions_df['group_id'][k], models_obj[cfg['meta'][meta].split('+')[0]],meta_incl)
-				print '   processed meta analysis ' + meta + ' (' + "+".join([x for x in cfg['meta'][meta].split('+') if x in meta_incl]) + ')'
+				print('   processed meta analysis ' + meta + ' (' + "+".join([x for x in cfg['meta'][meta].split('+') if x in meta_incl]) + ')')
 				if not meta_written[meta]:
 					results_final_meta[meta] = meta_objs[meta].out.copy()
 					meta_written[meta] = True
@@ -223,58 +223,58 @@ def RunSnvgroup(args):
 	return_values = {}
 	models_out = {}
 	bgzfiles = {}
-	print ''
+	print('')
 	for m in cfg['model_order']:
-		print "initializing out file for model " + m
+		print("initializing out file for model " + m)
 		models_out[m] = cfg['out'] if m == '___no_tag___' else cfg['out'] + '.' + m
 		try:
 			bgzfiles[m] = bgzf.BgzfWriter(models_out[m] + '.gz', 'wb')
 		except:
-			print Process.Error("failed to initialize bgzip format out file " + models_out[m] + '.gz').out
+			print(Process.Error("failed to initialize bgzip format out file " + models_out[m] + '.gz').out)
 			return 1
 	if len(cfg['meta_order']) > 0:
 		for m in cfg['meta_order']:
-			print "initializing out file for meta " + m
+			print("initializing out file for meta " + m)
 			models_out[m] = cfg['out'] + '.' + m
 			try:
 				bgzfiles[m] = bgzf.BgzfWriter(models_out[m] + '.gz', 'wb')
 			except:
-				print Process.Error("failed to initialize bgzip format out file " + models_out[m] + '.gz').out
+				print(Process.Error("failed to initialize bgzip format out file " + models_out[m] + '.gz').out)
 				return 1
 
 	if cfg['cpus'] > 1:
 		pool = mp.Pool(cfg['cpus']-1)
-		for i in xrange(1,cfg['cpus']):
+		for i in range(1,cfg['cpus']):
 			return_values[i] = pool.apply_async(process_regions, args=(regions_df,cfg,i,True,))
-			print "submitting job on cpu " + str(i) + " of " + str(cfg['cpus'])
+			print("submitting job on cpu " + str(i) + " of " + str(cfg['cpus']))
 		pool.close()
-		print "executing job for cpu " + str(cfg['cpus']) + " of " + str(cfg['cpus']) + " via main process"
+		print("executing job for cpu " + str(cfg['cpus']) + " of " + str(cfg['cpus']) + " via main process")
 		main_return = process_regions(regions_df,cfg,cfg['cpus'],True)
 		pool.join()
 
 		if 1 in [return_values[i].get() for i in return_values] or main_return == 1:
-			print Process.Error("error detected, see log files").out
+			print(Process.Error("error detected, see log files").out)
 			return 1
 
 	else:
 		main_return = process_regions(regions_df,cfg,1,True)
 		if main_return == 1:
-			print Process.Error("error detected, see log files").out
+			print(Process.Error("error detected, see log files").out)
 			return 1
 
-	for i in xrange(1,cfg['cpus']+1):
+	for i in range(1,cfg['cpus']+1):
 		try:
 			logfile = open(cfg['out'] + '.cpu' + str(i) + '.log', 'r')
 		except:
-			print Process.Error("failed to initialize log file " + cfg['out'] + '.cpu' + str(i) + '.log').out
+			print(Process.Error("failed to initialize log file " + cfg['out'] + '.cpu' + str(i) + '.log').out)
 			return 1
-		print logfile.read()
+		print(logfile.read())
 		logfile.close()
 		os.remove(cfg['out'] + '.cpu' + str(i) + '.log')
 
 	for m in cfg['model_order']:
 		written = False
-		for i in xrange(1,cfg['cpus']+1):
+		for i in range(1,cfg['cpus']+1):
 			out_model_cpu = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.' + m + '.pkl'
 			pkl = open(out_model_cpu,"rb")
 			results_final,metadata,results_header,tbx_start,tbx_end = pickle.load(pkl)
@@ -289,17 +289,17 @@ def RunSnvgroup(args):
 
 		bgzfiles[m].close()
 
-		print "indexing out file for model " + m if m != '___no_tag___' else "indexing out file"
+		print("indexing out file for model " + m if m != '___no_tag___' else "indexing out file")
 		try:
 			pysam.tabix_index(models_out[m] + '.gz',seq_col=0,start_col=tbx_start,end_col=tbx_end,force=True)
 		except:
-			print Process.Error('failed to generate index for file ' + models_out[m] + '.gz').out
+			print(Process.Error('failed to generate index for file ' + models_out[m] + '.gz').out)
 			return 1
 
 	if len(cfg['meta_order']) > 0:
 		for m in cfg['meta_order']:
 			written = False
-			for i in xrange(1,cfg['cpus']+1):
+			for i in range(1,cfg['cpus']+1):
 				out_model_meta = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.' + m + '.pkl'
 				pkl = open(out_model_meta,"rb")
 				results_final_meta,metadata,results_header,tbx_start,tbx_end = pickle.load(pkl)
@@ -314,12 +314,12 @@ def RunSnvgroup(args):
 
 			bgzfiles[m].close()
 
-			print "indexing out file for meta " + m
+			print("indexing out file for meta " + m)
 			try:
 				pysam.tabix_index(models_out[m] + '.gz',seq_col=0,start_col=tbx_start,end_col=tbx_end,force=True)
 			except:
-				print Process.Error('failed to generate index for file ' + models_out[m] + '.gz').out
+				print(Process.Error('failed to generate index for file ' + models_out[m] + '.gz').out)
 				return 1
 
-	print "process complete"
+	print("process complete")
 	return 0
