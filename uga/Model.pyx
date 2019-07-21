@@ -52,7 +52,7 @@ cdef class Model(object):
 							geno_cases_idx, geno_ctrls_idx, geno_male_cases_idx, geno_male_ctrls_idx, geno_female_cases_idx, geno_female_ctrls_idx, \
 							geno_calc_hwe_idx, geno_unique_idx, geno_male_idx, geno_female_idx
 	cdef public bytes fxn, format, pheno, variants_file, type, samples_file, drop_file, keep_file, \
-						iid, fid, matid, patid, sex, sep, a1, a2
+						iid, fid, matid, patid, sex, sep
 	cdef public str metadata, metadata_cc, family, formula, focus, dep_var, interact, random_effects, covars
 	cdef public object pheno_df, variants, out, results_dtypes, pedigree, drop, keep
 	cdef public bint all_founders, reverse, reml, kr
@@ -62,6 +62,7 @@ cdef class Model(object):
 		super(Model, self).__init__(**kwargs)
 		logger = logging.getLogger("Model.Model.__cinit__")
 		logger.debug("initialize model")
+
 		self.out = None
 		self.fxn = fxn
 		self.dep_var = dep_var
@@ -142,7 +143,7 @@ cdef class Model(object):
 			p_dtypes = p_dtypes + ('f8',) if self.sex not in self.model_cols else p_dtypes
 			dtypes = dict(zip(p_names, p_dtypes))
 			try:
-				self.pheno_df = np.genfromtxt(fname=self.pheno, delimiter=Fxns.get_delimiter(self.sep), dtype=dtypes.values(), names=True, usecols=dtypes.keys())
+				self.pheno_df = np.genfromtxt(fname=self.pheno, delimiter=Fxns.get_delimiter(self.sep), dtype=list(dtypes.values()), names=True, usecols=dtypes.keys())
 			except:
 				raise Process.Error("unable to load phenotype file " + self.pheno + " with columns " + ', '.join(p_names) + "; " + str(sys.exc_info()[0]))
 			for x in self.model_cols:

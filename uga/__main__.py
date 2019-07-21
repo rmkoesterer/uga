@@ -259,7 +259,7 @@ def main(args=None):
 					try:
 						shutil.rmtree(cfg['out'])
 					except OSError:
-						print(Process.print_error('unable to replace results directory' + cfg['out']))
+						print(Process.print_error('unable to replace results directory ' + cfg['out']))
 				else:
 					print(Process.print_error('results directory ' + cfg['out'] + ' already exists, use --replace to overwrite existing results'))
 					return
