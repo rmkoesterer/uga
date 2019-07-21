@@ -101,7 +101,7 @@ def main(argv):
 
 	print("")
 	print("command entered: " + argv[1])
-	exec('r=' + argv[1])
+	r = eval(argv[1])
 	if r == 0:
 		end_time = (localtime(), time())
 		process = psutil.Process(os.getpid())

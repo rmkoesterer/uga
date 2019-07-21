@@ -51,7 +51,7 @@ cdef class Model(object):
 							variant_stats, results, unique_idx, founders_idx, founders_ctrls_idx, male_idx, female_idx, \
 							geno_cases_idx, geno_ctrls_idx, geno_male_cases_idx, geno_male_ctrls_idx, geno_female_cases_idx, geno_female_ctrls_idx, \
 							geno_calc_hwe_idx, geno_unique_idx, geno_male_idx, geno_female_idx
-	cdef public bytes fxn, format, pheno, variants_file, type, samples_file, drop_file, keep_file, \
+	cdef public str fxn, format, pheno, variants_file, type, samples_file, drop_file, keep_file, \
 						iid, fid, matid, patid, sex, sep
 	cdef public str metadata, metadata_cc, family, formula, focus, dep_var, interact, random_effects, covars
 	cdef public object pheno_df, variants, out, results_dtypes, pedigree, drop, keep
@@ -178,12 +178,12 @@ cdef class Model(object):
 				self.pedigree = pd.DataFrame(self.pheno_df[[self.iid,self.fid,self.matid,self.patid,self.sex]])
 				self.pedigree.loc[(self.pedigree[self.sex] != self.male) & (self.pedigree[self.sex] != self.female),self.sex]=-999
 				self.pedigree[self.sex].replace({self.male: 1, self.female: 2, -999: 3})
-				self.pedigree[self.matid].replace({'0': 'NA'})
-				self.pedigree[self.patid].replace({'0': 'NA'})
+				self.pedigree[self.matid].replace({b'0': b'NA'})
+				self.pedigree[self.patid].replace({b'0': b'NA'})
 			for x in [y for y in dtypes if dtypes[y] == 'f8']:
 				self.pheno_df = self.pheno_df[~np.isnan(self.pheno_df[x])]
 			for x in [y for y in dtypes if dtypes[y] == '|S100']:
-				self.pheno_df = self.pheno_df[~(self.pheno_df[x] == 'NA')]
+				self.pheno_df = self.pheno_df[~(self.pheno_df[x] == b'NA')]
 			self.pheno_df = self.pheno_df[np.in1d(self.pheno_df[self.iid],np.intersect1d(self.pheno_df[self.iid],self.variants.samples))]
 			print "phenotype file and data file contain " + str(self.pheno_df.shape[0]) + " common samples"
 			if self.drop_file is not None:
