@@ -16,13 +16,13 @@
 import pandas as pd
 import numpy as np
 import numpy.lib.recfunctions as recfxns
-from . import Model
-from . import Parse
-from . import Variant
+from uga import Model
+from uga import Parse
+from uga import Variant
 import pysam
-from . import Fxns
+from uga import Fxns
 from Bio import bgzf
-from . import Process
+from uga import Process
 import multiprocessing as mp
 import sys
 import os
@@ -262,7 +262,7 @@ def RunSnv(args):
 				bgzfiles[m].write("\t".join(results_header) + '\n')
 				written = True
 			if results_final.shape[0] > 0:
-				results_final.replace({'None': 'NA'}).to_csv(bgzfiles[m], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
+				bgzfiles[m].write(results_final.replace({'None': 'NA'}).to_csv(index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header))
 			pkl.close()
 			os.remove(out_model_range)
 
@@ -286,7 +286,7 @@ def RunSnv(args):
 					bgzfiles[m].write('#' + '\t'.join(results_header) + '\n')
 					written = True
 				if results_final_meta.shape[0] > 0:
-					results_final_meta.replace({'None': 'NA'}).to_csv(bgzfiles[m], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
+					bgzfiles[m].write(results_final_meta.replace({'None': 'NA'}).to_csv(index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header))
 				pkl.close()
 				os.remove(out_model_meta)
 

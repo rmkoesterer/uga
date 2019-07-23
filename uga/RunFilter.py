@@ -15,12 +15,12 @@
 
 import pandas as pd
 import numpy as np
-from . import Parse
+from uga import Parse
 import pysam
 from Bio import bgzf
 import scipy.stats as scipy
 import math
-from . import Process
+from uga import Process
 import logging
 
 logging.basicConfig(format='%(asctime)s - %(processName)s - %(name)s - %(message)s',level=logging.DEBUG)

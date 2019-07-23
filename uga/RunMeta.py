@@ -16,14 +16,14 @@
 import pandas as pd
 import numpy as np
 import numpy.lib.recfunctions as recfxns
-from . import Geno
-from . import Model
-from . import Parse
-from . import Variant
+from uga import Geno
+from uga import Model
+from uga import Parse
+from uga import Variant
 import pysam
-from . import Fxns
+from uga import Fxns
 from Bio import bgzf
-from . import Process
+from uga import Process
 import multiprocessing as mp
 import sys
 import os

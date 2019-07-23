@@ -25,10 +25,10 @@ from pkg_resources import resource_filename
 import signal
 import subprocess
 import shutil
-from . import Parse
-from . import Process
-from . import Map
-from . import Fxns
+from uga import Parse
+from uga import Process
+from uga import Map
+from uga import Fxns
 import pickle
 from Bio import bgzf
 

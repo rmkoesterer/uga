@@ -15,8 +15,7 @@
 
 import numpy as np
 import pandas as pd
-import Variant
-cimport Variant
+from uga.Variant cimport Ref
 cimport numpy as np
 cimport cython
 import math
@@ -26,4 +25,4 @@ cdef class Variants:
 	cdef public object handle, region_iter, snvgroup_map, results, header, cols, dtypes, snv_results_tagged, duplicated
 	cdef public unsigned int chr, start, end
 	cdef public np.ndarray genos, data, info, snv_chunk, snvgroup_chunk, snv_results, samples
-	cpdef align(self, Variant.Ref ref)
+	cpdef align(self, Ref ref)

@@ -16,10 +16,10 @@
 import pandas as pd
 import numpy as np
 import scipy.stats as scipy
-from . import Parse
+from uga import Parse
 import pysam
 import math
-from . import Process
+from uga import Process
 import readline
 import rpy2.robjects as ro
 from rpy2.robjects import pandas2ri

@@ -15,9 +15,9 @@
 
 import pandas as pd
 import numpy as np
-from . import Parse
+from uga import Parse
 from Bio import bgzf
-from . import Process
+from uga import Process
 import subprocess
 import multiprocessing as mp
 import sys

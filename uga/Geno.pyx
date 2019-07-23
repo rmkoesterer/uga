@@ -22,17 +22,16 @@ import numpy as np
 cimport numpy as np
 import numpy.lib.recfunctions as recfxns
 cimport cython
-import Variant
-cimport Variant
+from uga.Variant cimport Ref, get_universal_variant_id, complement
 from cython.view cimport array
 from collections import OrderedDict
-import Process
+from uga import Process
 import logging
 import resource
 import os
 
 module_logger = logging.getLogger("Geno")
-ILLEGAL_CHARS = '!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~'
+ILLEGAL_CHARS = b'!|@|#|\$|%|\^|&|\*|\(|\)|-|_|=|\+|\||{|}|\[|\]|;|:|\'|,|<|\.|>|/|\?|~'
 MAX_CELL_LEN = 1000
 
 @cython.boundscheck(False)
@@ -40,8 +39,8 @@ MAX_CELL_LEN = 1000
 @cython.nonecheck(False)
 cdef double[:] vcf2dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 	cdef double[:] dose = np.ndarray(len(genos))
-	for i in xrange(len(genos)):
-		geno = genos[i].split(':')[gt]
+	for i in range(len(genos)):
+		geno = genos[i].decode("utf-8").split(':')[gt]
 		dose[i] = float('nan')
 		if geno in hom1:
 			dose[i] = 2.0
@@ -56,7 +55,7 @@ cdef double[:] vcf2dose(np.ndarray genos, hom1, het, hom2, np.int gt):
 @cython.nonecheck(False)
 cdef double[:] extract_vcf_dose(np.ndarray genos, np.int field):
 	cdef double[:] dose = np.ndarray(len(genos))
-	for i in xrange(len(genos)):
+	for i in range(len(genos)):
 		try:
 			dose[i] = 2.0 - float(genos[i].split(':')[field])
 		except:
@@ -74,7 +73,7 @@ cdef class Variants(object):
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cpdef align(self, Variant.Ref ref):
+	cpdef align(self, Ref ref):
 		logger = logging.getLogger("Geno.Variants.align")
 		logger.debug("align")
 		cdef unsigned int i = 0
@@ -85,9 +84,9 @@ cdef class Variants(object):
 				self.info['a2'][i-1] = ref.db[row['___uid___']]['a2']
 				self.info['id'][i-1] = ref.db[row['___uid___']]['id']
 				self.info['id_unique'][i-1] = ref.db[row['___uid___']]['id_unique']
-			elif (((ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
+			elif (((ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'][0]) + complement(row['a1'][0]) or 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + row['a1'] or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'][0]) + 'NA' or 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + 'NA') and 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "AT" and 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "TA" and 
@@ -107,7 +106,7 @@ cdef class Variants(object):
 	def load_snvgroup_map(self, snvgroup_map):
 		logger = logging.getLogger("Geno.Variants.load_snvgroup_map")
 		logger.debug("load_snvgroup_map")
-		print "loading snvgroup map " + os.path.basename(snvgroup_map)
+		print("loading snvgroup map " + os.path.basename(snvgroup_map))
 		try:
 			self.snvgroup_map=pd.read_table(snvgroup_map,names=['chr','pos','id','group_id'], compression='gzip' if snvgroup_map.split('.')[-1] == 'gz' else None)
 		except:
@@ -119,13 +118,13 @@ cdef class Vcf(Variants):
 		logger.debug("initialize vcf")
 		super(Vcf, self).__init__(filename)
 
-		print "loading vcf file " + os.path.basename(filename)
+		print("loading vcf file " + os.path.basename(filename))
 		try:
 			self.handle=pysam.TabixFile(filename=filename,parser=pysam.asVCF())
 		except:
 			raise Process.Error("failed to load vcf file " + os.path.basename(filename))
 		else:
-			self.samples = np.array([a for a in self.handle.header][-1].split('\t')[9:])
+			self.samples = np.array([a for a in self.handle.header][-1].split('\t')[9:], dtype='|S100')
 
 	def get_region(self, region, group_id = None):
 		logger = logging.getLogger("Geno.Vcf.get_region")
@@ -153,49 +152,49 @@ cdef class Vcf(Variants):
 		cdef unsigned int i = 0
 		slice = islice(self.region_iter, buffer)
 		try:
-			first = slice.next()
+			first = next(slice)
 		except StopIteration:
 			raise
 		else:
 			slice = chain([first], slice)
 			for r in slice:
 				record = np.array(r, dtype='|S' + str(MAX_CELL_LEN))
-				fields = record[8].split(':')
+				fields = record[8].decode("utf-8").split(':')
 				if 'DS' in fields:
 					field = fields.index('DS')
 					self.snv_chunk[i,:9] = record[:9]
 					self.snv_chunk[i,11:] = extract_vcf_dose(record[9:], field)
 					self.snv_chunk[i,5] = self.group_id
 					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
-					self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+					self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 					i += 1
 				elif 'GT' in fields:
 					gt = fields.index('GT')
-					alts = record[4].split(',')
+					alts = record[4].decode("utf-8").split(',')
 					if len(alts) > 1:
 						self.snv_chunk = np.append(self.snv_chunk, np.empty((2*len(alts),11 + len(self.samples)), dtype='object'),axis=0)
-						for alt in xrange(len(alts)):
+						for alt in range(len(alts)):
 							oth = [alts.index(a) for a in alts if a != alts[alt]]
 							het = het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']] + [str(alts.index(k)+1) + sep + str(alt+1) for k in alts if k != alts[alt] for sep in ['/','|']] + [str(alt+1) + sep + str(alts.index(k)+1) for k in alts if k != alts[alt] for sep in ['/','|']]))
 							hom1 = list(set(['0/0'] + [str(a+1) + '/' + str(a+1) for a in oth] + ['0|0'] + [str(a+1) + '|' + str(a+1) for a in oth]))
 							hom2 = list(set([str(alt+1) + '/' + str(alt+1)] + [str(alt+1) + '|' + str(alt+1)]))
 							self.snv_chunk[i,:9] = record[:9]
 							self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
-							self.snv_chunk[i,3] = '&'.join([record[3]] + [alts[a] for a in oth])
-							self.snv_chunk[i,4] = alts[alt]
+							self.snv_chunk[i,3] = b'&'.join([record[3]] + [alts[a].encode("utf-8") for a in oth])
+							self.snv_chunk[i,4] = alts[alt].encode("utf-8")
 							self.snv_chunk[i,5] = self.group_id
-							self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
-							self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+							self.snv_chunk[i,9] = b'chr' + self.snv_chunk[i,0] + b'bp' + self.snv_chunk[i,1] + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,2][0:60]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,3][0:1000]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,4][0:1000])
+							self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0].decode("utf-8"),self.snv_chunk[i,1].decode("utf-8"),self.snv_chunk[i,3].decode("utf-8"),self.snv_chunk[i,4].decode("utf-8"),'><')
 							het = list(set(['0' + sep + str(alt+1) for sep in ['/','|']] + [str(alt+1) + sep + '0' for sep in ['/','|']]))
 							hom1 = ['0/0','0|0']
 							hom2 = [str(alt+1) + '/' + str(alt+1), str(alt+1) + '|' + str(alt+1)]
 							self.snv_chunk[i+1,:9] = record[:9]
 							self.snv_chunk[i+1,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
 							self.snv_chunk[i+1,3] = record[3]
-							self.snv_chunk[i+1,4] = alts[alt]
+							self.snv_chunk[i+1,4] = alts[alt].encode("utf-8")
 							self.snv_chunk[i+1,5] = self.group_id
-							self.snv_chunk[i+1,9] = 'chr' + self.snv_chunk[i+1,0] + 'bp' + self.snv_chunk[i+1,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i+1,4][0:1000])
-							self.snv_chunk[i+1,10] = Variant.get_universal_variant_id(self.snv_chunk[i+1,0],self.snv_chunk[i+1,1],self.snv_chunk[i+1,3],self.snv_chunk[i+1,4],'><')
+							self.snv_chunk[i+1,9] = b'chr' + self.snv_chunk[i+1,0] + b'bp' + self.snv_chunk[i+1,1] + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i+1,2][0:60]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i+1,3][0:1000]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i+1,4][0:1000])
+							self.snv_chunk[i+1,10] = get_universal_variant_id(self.snv_chunk[i+1,0].decode("utf-8"),self.snv_chunk[i+1,1].decode("utf-8"),self.snv_chunk[i+1,3].decode("utf-8"),self.snv_chunk[i+1,4].decode("utf-8"),'><')
 							i += 2
 					else:
 						het = ['1/0','0/1','1|0','0|1']
@@ -204,8 +203,8 @@ cdef class Vcf(Variants):
 						self.snv_chunk[i,:9] = record[:9]
 						self.snv_chunk[i,11:] = vcf2dose(record[9:], hom1, het, hom2, gt)
 						self.snv_chunk[i,5] = self.group_id
-						self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000]) + '.' + str(i)
-						self.snv_chunk[i,10] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+						self.snv_chunk[i,9] = b'chr' + self.snv_chunk[i,0] + b'bp' + self.snv_chunk[i,1] + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,2][0:60]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,3][0:1000]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,4][0:1000]) + b'.' + str(i).encode("utf-8")
+						self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0].decode("utf-8"),self.snv_chunk[i,1].decode("utf-8"),self.snv_chunk[i,3].decode("utf-8"),self.snv_chunk[i,4].decode("utf-8"),'><')
 						i += 1
 				else:
 					raise Process.Error("failed to load vcf file, GT or DS field required")
@@ -220,9 +219,9 @@ cdef class Vcf(Variants):
 			self.get_chunk(buffer)
 		except:
 			raise
-		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
+		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=list(zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000']))))
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,11:].transpose()))
-		var_ids, var_ids_idx, var_ids_cnt = np.unique(['.'.join(x.split('.')[0:len(x.split('.'))]) for x in self.info['id_unique']], return_inverse=True, return_counts=True)
+		var_ids, var_ids_idx, var_ids_cnt = np.unique(['.'.join(x.decode("utf-8").split('.')[0:len(x.decode("utf-8").split('.'))]) for x in self.info['id_unique']], return_inverse=True, return_counts=True)
 		self.duplicated = var_ids[var_ids_cnt > 1]
 		np.place(self.data, self.data == 'NA',np.nan)
 
@@ -247,7 +246,7 @@ cdef class Vcf(Variants):
 		if i == 0:
 			raise
 		else:
-			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
+			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,9,10]]], dtype=list(zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000']))))
 			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,11:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)
 
@@ -257,13 +256,13 @@ cdef class Dos(Variants):
 		logger.debug("initialize dos")
 		super(Dos, self).__init__(filename, sample_filename)
 
-		print "loading dos file " + os.path.basename(filename)
+		print("loading dos file " + os.path.basename(filename))
 		try:
 			self.handle=pysam.TabixFile(filename=filename,parser=pysam.asTuple())
 		except:
 			raise Process.Error("failed to load dos file " + os.path.basename(filename))
 		else:
-			print "loading dos sample file " + os.path.basename(sample_filename)
+			print("loading dos sample file " + os.path.basename(sample_filename))
 			try:
 				self.samples=np.genfromtxt(fname=self.sample_filename, dtype='object')
 			except:
@@ -295,7 +294,7 @@ cdef class Dos(Variants):
 		cdef unsigned int i = 0
 		slice = islice(self.region_iter, buffer)
 		try:
-			first = slice.next()
+			first = next(slice)
 		except StopIteration:
 			raise
 		else:
@@ -306,7 +305,7 @@ cdef class Dos(Variants):
 				self.snv_chunk[i,8:] = record[5:]
 				self.snv_chunk[i,5] = self.group_id
 				self.snv_chunk[i,6] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000]) + '.' + str(i)
-				self.snv_chunk[i,7] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+				self.snv_chunk[i,7] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 				i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
 
@@ -393,7 +392,7 @@ cdef class Results(Variants):
 		cdef unsigned int i = 0
 		slice = islice(self.region_iter, buffer)
 		try:
-			first = slice.next()
+			first = next(slice)
 		except StopIteration:
 			raise
 		else:
@@ -402,7 +401,7 @@ cdef class Results(Variants):
 				record = np.array(r, dtype='object')
 				self.snv_chunk[i,:len(self.cols)] = record[:len(self.cols)]
 				self.snv_chunk[i,len(self.cols)] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
-				self.snv_chunk[i,len(self.cols)+1] = Variant.get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+				self.snv_chunk[i,len(self.cols)+1] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 				i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
 
@@ -431,7 +430,7 @@ cdef class Results(Variants):
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
-	cpdef align_results(self, Variant.Ref ref):
+	cpdef align_results(self, Ref ref):
 		logger = logging.getLogger("Geno.Results.align_results")
 		logger.debug("align_results")
 		cdef unsigned int i = 0
@@ -444,9 +443,9 @@ cdef class Results(Variants):
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "TA" and 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "GC" and 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "CG" and 
-					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a1'][0]) + Variant.complement(row['a2'][0]) or	
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a1'][0]) + 'NA' or
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + Variant.complement(row['a2'][0])))):
+					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a1'][0]) + complement(row['a2'][0]) or	
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a1'][0]) + 'NA' or
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + complement(row['a2'][0])))):
 				self.snv_results['a1'][i-1] = ref.db[row['___uid___']]['a1']
 				self.snv_results['a2'][i-1] = ref.db[row['___uid___']]['a2']
 				self.snv_results['id'][i-1] = ref.db[row['___uid___']]['id']
@@ -454,9 +453,9 @@ cdef class Results(Variants):
 			elif (ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + row['a1'] or 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + 'NA' or
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + row['a1'] or
-					((ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a2'][0]) + Variant.complement(row['a1'][0]) or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == Variant.complement(row['a2'][0]) + 'NA' or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + Variant.complement(row['a1'][0])) and
+					((ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'][0]) + complement(row['a1'][0]) or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'][0]) + 'NA' or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + complement(row['a1'][0])) and
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "AT" and 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "TA" and 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "GC" and 

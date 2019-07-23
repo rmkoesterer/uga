@@ -15,13 +15,13 @@
 
 import pandas as pd
 import numpy as np
-from . import Model
-from . import Parse
-from . import Variant
+from uga import Model
+from uga import Parse
+from uga import Variant
 import pysam
-from . import Fxns
+from uga import Fxns
 from Bio import bgzf
-from . import Process
+from uga import Process
 import multiprocessing as mp
 import sys
 import os

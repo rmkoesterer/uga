@@ -18,7 +18,7 @@ setup(
     url='',
     author='Ryan Koesterer',
 	author_email='uga-feedback@gmail.com', 
-	ext_modules = cythonize(["uga/Geno.pyx","uga/Geno.pxd","uga/Model.pyx","uga/Variant.pyx","uga/Variant.pxd"]), 
+	ext_modules = cythonize(["uga/Geno.pyx","uga/Geno.pxd","uga/Model.pyx","uga/Variant.pyx","uga/Variant.pxd"], language_level='3'), 
 	install_requires=['singledispatch', 
 						'rpy2', 
 						'numpy', 
@@ -36,7 +36,7 @@ setup(
        },
     packages=['uga'], 
 	include_dirs = [np.get_include()], 
-	package_data={'uga': ['settings.ini',]},
+	package_data={'uga': ['settings.ini']},
     classifiers = [
         'Programming Language :: Python :: 3.7.3',
         'Development Status :: 4 - Beta',

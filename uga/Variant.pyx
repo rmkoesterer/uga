@@ -15,8 +15,6 @@
 
 import numpy as np
 import pandas as pd
-import Geno
-cimport Geno
 cimport numpy as np
 cimport cython
 import math
@@ -171,7 +169,7 @@ cdef double calc_rsq(np.ndarray[np.float64_t, ndim=1] x):
 	x = x[~np.isnan(x)]
 	cdef double rsq = float('nan')
 	if len(x) > 0 and not set(x).issubset(set([0,1,2])):
-		rsq = x.var(ddof=1) / (2 * (x.mean() / 2) * (1 - (x.mean() / 2))) if x.mean() != 0 and x.mean() != 2 else 0.0
+		rsq = np.var(x, ddof=1) / (2 * (np.mean(x) / 2) * (1 - (np.mean(x) / 2))) if np.mean(x) != 0 and np.mean(x) != 2 else 0.0
 		return rsq if rsq >= 0 and rsq <= 1 else 1 / rsq
 	else:
 		return rsq
@@ -197,18 +195,18 @@ def calc_hwe(np.ndarray[np.float64_t, ndim=1] x):
 			common = 2*max(x_hom1,x_hom2)+x_hets
 			if not rare:
 				return 1.0
-			hets = rare*common/(rare+common)
+			hets = rare*common//(rare+common)
 			if rare%2 != hets%2:
 				hets += 1
-			hom_r = (rare-hets)/2
-			hom_c = (common-hets)/2
-			prx = [0]*(rare/2+1)
-			prx[hets/2] = 1.0
-			for i,h in enumerate(xrange(hets,1,-2)):
-				prx[h/2-1] = prx[h/2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
-			for i,h in enumerate(xrange(hets,rare-1,2)):
-				prx[h/2+1] = prx[h/2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
-			p_x = prx[x_hets/2]
+			hom_r = (rare-hets)//2
+			hom_c = (common-hets)//2
+			prx = [0]*(rare//2+1)
+			prx[hets//2] = 1.0
+			for i,h in enumerate(range(hets,1,-2)):
+				prx[h//2-1] = prx[h//2]*h*(h-1) / (4*(hom_r+i+1)*(hom_c+i+1))
+			for i,h in enumerate(range(hets,rare-1,2)):
+				prx[h//2+1] = prx[h//2]*4*(hom_r-i)*(hom_c-i) / ((h+1)*(h+2))
+			p_x = prx[x_hets//2]
 			p_hwe = sum(p for p in prx if p <= p_x)/sum(prx)
 			return p_hwe
 		else:
