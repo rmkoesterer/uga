@@ -283,7 +283,7 @@ def RunSnvgroup(args):
 				bgzfiles[m].write("\t".join(results_header) + '\n')
 				written = True
 			if results_final.shape[0] > 0:
-				results_final.replace({'None': 'NA'}).to_csv(bgzfiles[m], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
+				bgzfiles[m].write(results_final.replace({'None': 'NA'}).to_csv(index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header))
 			pkl.close()
 			os.remove(out_model_cpu)
 
@@ -308,7 +308,7 @@ def RunSnvgroup(args):
 					bgzfiles[m].write('\t'.join(results_header) + '\n')
 					written = True
 				if results_final_meta.shape[0] > 0:
-					results_final_meta.replace({'None': 'NA'}).to_csv(bgzfiles[m], index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
+					bgzfiles[m].write(results_final_meta.replace({'None': 'NA'}).to_csv(index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header))
 				pkl.close()
 				os.remove(out_model_meta)
 

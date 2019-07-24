@@ -173,7 +173,7 @@ def RunMerge(args):
 			bgzfile.write('#' + '\t'.join(results_header) + '\n')
 			written = True
 		if results_final.shape[0] > 0:
-			results_final.replace({'None': 'NA', 'nan': 'NA'}).to_csv(bgzfile, index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
+			bgzfile.write(results_final.replace({'None': 'NA', 'nan': 'NA'}).to_csv(index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header))
 		pkl.close()
 		os.remove(out)
 

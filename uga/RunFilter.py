@@ -134,7 +134,7 @@ def RunFilter(args):
 		print(Process.Error("unable to initialize out file " + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz')).out)
 		return 1
 	bgzfile.write('\n'.join([x for x in handle.header]) + '\n')
-	r[cols].to_csv(bgzfile,header=False,index=False,sep="\t",na_rep='NA', float_format='%.5g')
+	bgzfile.write(r[cols].to_csv(header=False,index=False,sep="\t",na_rep='NA', float_format='%.5g'))
 	bgzfile.close()
 	handle.close()
 

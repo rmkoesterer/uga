@@ -502,18 +502,22 @@ cdef class Score(SnvModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self):
-		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df)
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
 		if len(passed) > 0:
-			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
+			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
+			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
+			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
+			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
+			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
-				ro.r('class(model_df$' + col + ')<-"numeric"')
 			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
-			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
+			ro.globalenv['snp_info'] = pd.DataFrame({'Name': [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])], 'gene': 'NA'})
 			ro.r('snp_info$Name<-as.character(snp_info$Name)')
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
@@ -551,7 +555,12 @@ cdef class Score(SnvModel):
 				self.results['stderr'][passed] = np.array(ro.r('result$se'))[:,None]
 				self.results['or'][passed] = np.array(np.exp(ro.r('result$beta')))[:,None]
 				self.results['p'][passed] = np.array(ro.r('result$p'))[:,None]
-		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
+		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True))
+		self.out_dtypes = dict(dict(dict({x:str(y[0]) for x,y in self.variant_stats.dtype.fields.items()}, **{x:str(y[0]) for x,y in self.variants.info.dtype.fields.items()})), **{x:np.dtype(y).name for x,y in self.results_dtypes})
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Gee(SnvModel):
 	cdef public str corstr
@@ -606,20 +615,25 @@ cdef class Gee(SnvModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self):
-		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df)
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
 		if len(passed) > 0:
-			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
+			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
+			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
+			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
+			for col in [x for x in pheno_df.columns if x not in [self.iid, self.fid]]:
+				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
+			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
+			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			ro.r('model_df$' + self.fid + '<-as.factor(model_df$' + self.fid + ')')
 			ro.r('model_df<-model_df[order(model_df$' + self.fid + '),]')
-			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
-				ro.r('class(model_df$' + col + ')<-"numeric"')
 			for v in passed:
-				vu = self.variants.info['id_unique'][v]
+				vu = self.variants.info['id_unique'][v].decode("utf-8")
 				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [self.fid] + [vu]))
 				cmd = 'geeglm(' + self.formula.replace('___snv___',vu) + ',id=' + self.fid + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + self.family + ',corstr="' + self.corstr + '")'
 				try:
@@ -641,7 +655,12 @@ cdef class Gee(SnvModel):
 						self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
 					else:
 						self.results['err'][v] = 1
-		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
+		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True))
+		self.out_dtypes = dict(dict(dict({x:str(y[0]) for x,y in self.variant_stats.dtype.fields.items()}, **{x:str(y[0]) for x,y in self.variants.info.dtype.fields.items()})), **{x:np.dtype(y).name for x,y in self.results_dtypes})
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Glm(SnvModel):
 	def __cinit__(self, **kwargs):
@@ -771,18 +790,22 @@ cdef class Lm(SnvModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self):
-		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df)
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
 		if len(passed) > 0:
-			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
+			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
+			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
+			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
+			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
+			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
-				ro.r('class(model_df$' + col + ')<-"numeric"')
 			for v in passed:
-				vu = self.variants.info['id_unique'][v]
+				vu = self.variants.info['id_unique'][v].decode("utf-8")
 				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [vu]))
 				cmd = 'lm(' + self.formula.replace('___snv___',vu) + ',data=na.omit(model_df[,names(model_df) %in% cols]))'
 				try:
@@ -801,7 +824,12 @@ cdef class Lm(SnvModel):
 					self.results['stderr'][v] = np.array(ro.r('result$coefficients["' + vu + '",2]'))[:,None]
 					self.results['t'][v] = np.array(ro.r('result$coefficients["' + vu + '",3]'))[:,None]
 					self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
-		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
+		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True))
+		self.out_dtypes = dict(dict(dict({x:str(y[0]) for x,y in self.variant_stats.dtype.fields.items()}, **{x:str(y[0]) for x,y in self.variants.info.dtype.fields.items()})), **{x:np.dtype(y).name for x,y in self.results_dtypes})
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Lmer(SnvModel):
 	def __cinit__(self, corstr = None, **kwargs):
@@ -863,20 +891,24 @@ cdef class Lmer(SnvModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self):
-		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df)
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
 		self.results = np.full((self.variants.info.shape[0],1), fill_value=np.nan, dtype=self.results_dtypes)
 		if len(passed) > 0:
-			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
+			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
+			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
+			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
+			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
+			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			ro.r('model_df$' + self.fid + '<-as.factor(model_df$' + self.fid + ')')
 			ro.r('model_df<-model_df[order(model_df$' + self.fid + '),]')
-			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
-				ro.r('class(model_df$' + col + ')<-"numeric"')
 			for v in passed:
-				vu = self.variants.info['id_unique'][v]
+				vu = self.variants.info['id_unique'][v].decode("utf-8")
 				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [self.fid] + [vu]))
 				cmd = 'lmer(' + self.formula.replace('___snv___',vu) + ',data=na.omit(model_df[,names(model_df) %in% cols]),REML=' + str(self.reml).upper() + ')'
 				try:
@@ -899,7 +931,12 @@ cdef class Lmer(SnvModel):
 						self.results['f_kr'][v] = np.array(ro.r('result_kr["' + vu + '","F.value"]'))[:,None]
 						self.results['p_kr'][v] = np.array(ro.r('result_kr["' + vu + '","Pr(>F)"]'))[:,None]
 
-		self.out = pd.to_numeric(pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True), dtype='object'),errors='coerce')
+		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True))
+		self.out_dtypes = dict(dict(dict({x:str(y[0]) for x,y in self.variant_stats.dtype.fields.items()}, **{x:str(y[0]) for x,y in self.variants.info.dtype.fields.items()})), **{x:np.dtype(y).name for x,y in self.results_dtypes})
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Skat(SnvgroupModel):
 	cdef public str skat_wts, skat_method, mafrange
@@ -922,6 +959,7 @@ cdef class Skat(SnvgroupModel):
 			self.formula = self.dep_var + '~1'
 		print("formula: " + self.formula)
 
+		self.results_dtypes = [('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('q','f8')]
 		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnps','cmaf','p','q']))
 
 		print("loading R package seqMeta")
@@ -953,10 +991,10 @@ cdef class Skat(SnvgroupModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self, meta = None):
-		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df)
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('q','f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=self.results_dtypes)
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -969,20 +1007,24 @@ cdef class Skat(SnvgroupModel):
 		self.results['p'][0] = np.nan
 		self.results['q'][0] = np.nan
 		if len(passed) > 1:
-			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
+			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
+			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
+			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
+			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
+			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
-				ro.r('class(model_df$' + col + ')<-"numeric"')
-			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
-			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
+			ro.globalenv['variants'] = ro.StrVector([x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])])
+			ro.globalenv['snp_info'] = pd.DataFrame({'Name': [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])], 'gene': 'NA'})
 			ro.r('snp_info$Name<-as.character(snp_info$Name)')
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['cmac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['cmac'][0] >= self.cmac:
 				if len(passed) == 1:
-					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
+					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0].decode("utf-8") + '"')
 				if self.adjust_kinship:
 					ro.globalenv['ped'] = self.pedigree
 					ro.globalenv['kins'] = ro.r("kinship(pedigree(famid=ped$" + self.fid + ",id=ped$" + self.iid + ",dadid=ped$" + self.patid + ",momid=ped$" + self.matid + ",sex=ped$" + self.sex + ",missid='NA'))")
@@ -1024,7 +1066,12 @@ cdef class Skat(SnvgroupModel):
 				self.results['err'][0] = 6
 		else:
 			self.results['err'][0] = 5
-		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
+		self.out = pd.DataFrame(self.results.flatten(),index=[0])
+		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -1060,6 +1107,7 @@ cdef class Skato(SnvgroupModel):
 			self.formula = self.dep_var + '~1'
 		print("formula: " + self.formula)
 
+		self.results_dtypes = [('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('pmin','f8'),('rho','f8')]
 		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho']))
 
 		print("loading R package seqMeta")
@@ -1092,10 +1140,10 @@ cdef class Skato(SnvgroupModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self, meta = None):
-		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df)
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('pmin','f8'),('rho','f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=self.results_dtypes)
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -1109,20 +1157,24 @@ cdef class Skato(SnvgroupModel):
 		self.results['p'][0] = np.nan
 		self.results['rho'][0] = np.nan
 		if len(passed) > 1:
-			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
+			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
+			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
+			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
+			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
+			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
-				ro.r('class(model_df$' + col + ')<-"numeric"')
-			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
-			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
+			ro.globalenv['variants'] = ro.StrVector([x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])])
+			ro.globalenv['snp_info'] = pd.DataFrame({'Name': [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])], 'gene': 'NA'})
 			ro.r('snp_info$Name<-as.character(snp_info$Name)')
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['cmac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['cmac'][0] >= self.cmac:
 				if passed == 1:
-					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
+					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0].decode("utf-8") + '"')
 				if self.adjust_kinship:
 					ro.globalenv['ped'] = self.pedigree
 					ro.globalenv['kins'] = ro.r("kinship(pedigree(famid=ped$" + self.fid + ",id=ped$" + self.iid + ",dadid=ped$" + self.patid + ",momid=ped$" + self.matid + ",sex=ped$" + self.sex + ",missid='NA'))")
@@ -1167,7 +1219,12 @@ cdef class Skato(SnvgroupModel):
 				self.results['err'][0] = 6
 		else:
 			self.results['err'][0] = 5
-		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
+		self.out = pd.DataFrame(self.results.flatten(),index=[0])
+		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -1200,6 +1257,7 @@ cdef class Burden(SnvgroupModel):
 			self.formula = self.dep_var + '~1'
 		print("formula: " + self.formula)
 
+		self.results_dtypes = [('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnpsTotal','f8'),('nsnpsUsed','f8'),('cmafTotal','f8'),('cmafUsed','f8'),('beta','f8'),('se','f8'),('p','f8')]
 		self.results_header = np.append(self.results_header,np.array(['total','passed','cmac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']))
 
 		print("loading R package seqMeta")
@@ -1232,10 +1290,10 @@ cdef class Burden(SnvgroupModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self, meta = None):
-		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df)
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnpsTotal','f8'),('nsnpsUsed','f8'),('cmafTotal','f8'),('cmafUsed','f8'),('beta','f8'),('se','f8'),('p','f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=self.results_dtypes)
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -1251,20 +1309,24 @@ cdef class Burden(SnvgroupModel):
 		self.results['se'][0] = np.nan
 		self.results['p'][0] = np.nan
 		if len(passed) > 1:
-			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data],dtype='object')
-			variants_df.columns = [self.iid] + list(self.variants.info['id_unique'][passed])
+			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
+			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
+			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
+			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
+			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			for col in list(self.model_cols) + list(self.variants.info['id_unique'][passed]):
-				ro.r('class(model_df$' + col + ')<-"numeric"')
-			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
-			ro.globalenv['snp_info'] = pd.DataFrame({'Name': list(self.variants.info['id_unique'][passed]), 'gene': 'NA'})
+			ro.globalenv['variants'] = ro.StrVector([x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])])
+			ro.globalenv['snp_info'] = pd.DataFrame({'Name': [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])], 'gene': 'NA'})
 			ro.r('snp_info$Name<-as.character(snp_info$Name)')
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			self.results['cmac'][0] = np.sum(self.variant_stats['mac'][passed])
 			if self.results['cmac'][0] >= self.cmac:
 				if len(passed) == 1:
-					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
+					ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0].decode("utf-8") + '"')
 				if self.adjust_kinship:
 					ro.globalenv['ped'] = self.pedigree
 					ro.globalenv['kins'] = ro.r("kinship(pedigree(famid=ped$" + self.fid + ",id=ped$" + self.iid + ",dadid=ped$" + self.patid + ",momid=ped$" + self.matid + ",sex=ped$" + self.sex + ",missid='NA'))")
@@ -1312,7 +1374,12 @@ cdef class Burden(SnvgroupModel):
 				self.results['err'][0] = 6
 		else:
 			self.results['err'][0] = 5
-		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
+		self.out = pd.DataFrame(self.results.flatten(), index=[0])
+		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -1338,6 +1405,7 @@ cdef class Neff(SnvgroupModel):
 			self.formula = self.dep_var + '~1'
 		print("formula: " + self.formula)
 
+		self.results_dtypes = [('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('eff','f8')]
 		self.results_header = np.append(self.results_header,np.array(['total','passed','eff']))
 
 		self.metadata = self.metadata + '\n' + self.metadata_cc if self.family == 'binomial' else self.metadata
@@ -1352,10 +1420,10 @@ cdef class Neff(SnvgroupModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	cpdef calc_model(self, meta = None):
-		pheno_df = pd.DataFrame(self.pheno_df,dtype='object')
+		pheno_df = pd.DataFrame(self.pheno_df)
 		passed = list(np.where(self.variant_stats['filter'] == 0)[0])
 		passed_data = list(np.where(self.variant_stats['filter'] == 0)[0]+1)
-		self.results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('total','uint32'),('passed','uint32'),('eff','f8')])
+		self.results = np.full((1,1), fill_value=np.nan, dtype=self.results_dtypes)
 		self.results['chr'][0] = self.variants.chr
 		self.results['start'][0] = self.variants.start
 		self.results['end'][0] = self.variants.end
@@ -1375,7 +1443,12 @@ cdef class Neff(SnvgroupModel):
 				self.results['eff'][0] = 1.0
 		else:
 			self.results['eff'][0] = 0.0
-		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
+		self.out = pd.DataFrame(self.results.flatten(), index=[0])
+		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Meta(object):
 	cdef public unsigned int tbx_start, tbx_end
@@ -1493,6 +1566,7 @@ cdef class SkatMeta(Meta):
 		self.tbx_start = 1
 		self.tbx_end = 2
 		self.meta_incl = np.array(self.meta.split('+'))
+		self.results_dtypes = [('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('q','f8')]
 		self.results_header = np.array(['chr','start','end','id','incl','cmac','err','nmiss','nsnps','cmaf','p','q'])
 		self.metadata = self.metadata + '\n' + \
 						'## chr: chromosome' + '\n' + \
@@ -1511,7 +1585,7 @@ cdef class SkatMeta(Meta):
 	def calc_meta(self, chr, start, end, id, Skat obj, incl):
 		# obj: the first model object from individual analyses
 		# incl: a list of individual model tags to include in meta
-		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('q','f8')])
+		results = np.full((1,1), fill_value=np.nan, dtype=self.results_dtypes)
 		results['chr'][0] = chr
 		results['start'][0] = start
 		results['end'][0] = end
@@ -1554,7 +1628,12 @@ cdef class SkatMeta(Meta):
 			results['cmaf'][0] = np.nan
 			results['p'][0] = np.nan
 			results['q'][0] = np.nan
-		self.out = pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')[self.results_header]
+		self.out = pd.DataFrame(results.flatten(), index=[0])[self.results_header]
+		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class SkatoMeta(Meta):
 	cdef public object df
@@ -1566,6 +1645,7 @@ cdef class SkatoMeta(Meta):
 		self.tbx_start = 1
 		self.tbx_end = 2
 		self.meta_incl = np.array(self.meta.split('+'))
+		self.results_dtypes = [('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('pmin','f8'),('rho','f8')]
 		self.results_header = np.array(['chr','start','end','id','incl','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho'])
 		self.metadata = self.metadata + '\n' + \
 						'## chr: chromosome' + '\n' + \
@@ -1585,7 +1665,7 @@ cdef class SkatoMeta(Meta):
 	def calc_meta(self, chr, start, end, id, Skato obj, incl):
 		# obj: the first model object from individual analyses
 		# incl: a list of individual model tags to include in meta
-		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnps','f8'),('cmaf','f8'),('p','f8'),('pmin','f8'),('rho','f8')])
+		results = np.full((1,1), fill_value=np.nan, dtype=self.results_dtypes)
 		results['chr'][0] = chr
 		results['start'][0] = start
 		results['end'][0] = end
@@ -1632,7 +1712,12 @@ cdef class SkatoMeta(Meta):
 			results['pmin'][0] = np.nan
 			results['p'][0] = np.nan
 			results['rho'][0] = np.nan
-		self.out = pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')[self.results_header]
+		self.out = pd.DataFrame(results.flatten(),index=[0])[self.results_header]
+		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class BurdenMeta(Meta):
 	cdef public object df
@@ -1644,7 +1729,7 @@ cdef class BurdenMeta(Meta):
 		self.tbx_start = 1
 		self.tbx_end = 2
 		self.meta_incl = np.array(self.meta.split('+'))
-
+		self.results_dtypes = [('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnpsTotal','f8'),('nsnpsUsed','f8'),('cmafTotal','f8'),('cmafUsed','f8'),('beta','f8'),('se','f8'),('p','f8')]
 		self.results_header = np.array(['chr','start','end','id','incl','cmac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p'])
 
 		self.metadata = self.metadata + '\n' + \
@@ -1667,7 +1752,7 @@ cdef class BurdenMeta(Meta):
 	def calc_meta(self, chr, start, end, id, Burden obj, incl):
 		# obj: the first model object from individual analyses
 		# incl: a list of individual model tags to include in meta
-		results = np.full((1,1), fill_value=np.nan, dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),('incl','|S100'),('cmac','f8'),('err','f8'),('nmiss','f8'),('nsnpsTotal','f8'),('nsnpsUsed','f8'),('cmafTotal','f8'),('cmafUsed','f8'),('beta','f8'),('se','f8'),('p','f8')])
+		results = np.full((1,1), fill_value=np.nan, dtype=self.results_dtypes)
 		results['chr'][0] = chr
 		results['start'][0] = start
 		results['end'][0] = end
@@ -1719,4 +1804,9 @@ cdef class BurdenMeta(Meta):
 			results['beta'][0] = np.nan
 			results['se'][0] = np.nan
 			results['p'][0] = np.nan
-		self.out = pd.to_numeric(pd.DataFrame(results.flatten(), dtype='object',index=[0]),errors='coerce')[self.results_header]
+		self.out = pd.DataFrame(results.flatten(), index=[0])[self.results_header]
+		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+			self.out[col] = self.out[col].str.decode("utf-8")

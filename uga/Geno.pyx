@@ -264,7 +264,7 @@ cdef class Dos(Variants):
 		else:
 			print("loading dos sample file " + os.path.basename(sample_filename))
 			try:
-				self.samples=np.genfromtxt(fname=self.sample_filename, dtype='object')
+				self.samples=np.genfromtxt(fname=self.sample_filename, dtype='|S100')
 			except:
 				raise Process.Error("failed to load dos sample file " + os.path.basename(sample_filename))
 
@@ -304,8 +304,8 @@ cdef class Dos(Variants):
 				self.snv_chunk[i,:5] = record[:5]
 				self.snv_chunk[i,8:] = record[5:]
 				self.snv_chunk[i,5] = self.group_id
-				self.snv_chunk[i,6] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000]) + '.' + str(i)
-				self.snv_chunk[i,7] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+				self.snv_chunk[i,6] = b'chr' + self.snv_chunk[i,0] + b'bp' + self.snv_chunk[i,1] + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,2][0:60]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,3][0:1000]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,4][0:1000]) + b'.' + str(i).encode("utf-8")
+				self.snv_chunk[i,7] = get_universal_variant_id(self.snv_chunk[i,0].decode("utf-8"),self.snv_chunk[i,1].decode("utf-8"),self.snv_chunk[i,3].decode("utf-8"),self.snv_chunk[i,4].decode("utf-8"),'><')
 				i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
 
@@ -318,9 +318,9 @@ cdef class Dos(Variants):
 			self.get_chunk(buffer)
 		except:
 			raise
-		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
+		self.info = np.array([tuple(row) for row in self.snv_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=list(zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000']))))
 		self.data = np.column_stack((self.samples, self.snv_chunk[:,8:].transpose()))
-		var_ids, var_ids_idx, var_ids_cnt = np.unique(['.'.join(x.split('.')[0:len(x.split('.'))]) for x in self.info['id_unique']], return_inverse=True, return_counts=True)
+		var_ids, var_ids_idx, var_ids_cnt = np.unique(['.'.join(x.decode("utf-8").split('.')[0:len(x.decode("utf-8").split('.'))]) for x in self.info['id_unique']], return_inverse=True, return_counts=True)
 		self.duplicated = var_ids[var_ids_cnt > 1]
 		np.place(self.data, self.data == 'NA',np.nan)
 
@@ -345,7 +345,7 @@ cdef class Dos(Variants):
 		if i == 0:
 			raise
 		else:
-			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000'])))
+			self.info = np.array([tuple(row) for row in self.snvgroup_chunk[:,[0,1,2,3,4,5,6,7]]], dtype=list(zip(np.array(['chr','pos','id','a1','a2','group_id','id_unique','___uid___']),np.array(['uint8','uint32','|S60','|S1000','|S1000','|S1000','|S1000','|S1000']))))
 			self.data = np.column_stack((self.samples, self.snvgroup_chunk[:,8:].transpose()))
 			np.place(self.data, self.data == 'NA',np.nan)
 
@@ -365,7 +365,7 @@ cdef class Results(Variants):
 			colsdict = OrderedDict({v:k for k, v in {'chr': chr, 'pos': pos, 'id': id, 'a1': a1, 'a2': a2}.iteritems()})
 			self.cols = [x for x in map(colsdict.get, self.header[-1].split(), self.header[-1].split())]
 			self.cols = ['chr','pos','id','a1','a2'] + [x for x in self.cols if x not in ['chr','pos','id','a1','a2']]
-			self.dtypes = zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['uint8','uint32','|S60','|S1000','|S1000']) + zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['|S1000' if x in ['dir','test'] else 'f8' for x in self.cols if x not in ['chr','pos','id','a1','a2']]) + [('id_unique','|S1000'),('___uid___','|S1000')]
+			self.dtypes = list(zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['uint8','uint32','|S60','|S1000','|S1000'])) + list(zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['|S1000' if x in ['dir','test'] else 'f8' for x in self.cols if x not in ['chr','pos','id','a1','a2']])) + [('id_unique','|S1000'),('___uid___','|S1000')]
 
 	def get_region(self, region):
 		logger = logging.getLogger("Geno.Results.get_region")
@@ -400,8 +400,8 @@ cdef class Results(Variants):
 			for r in slice:
 				record = np.array(r, dtype='object')
 				self.snv_chunk[i,:len(self.cols)] = record[:len(self.cols)]
-				self.snv_chunk[i,len(self.cols)] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
-				self.snv_chunk[i,len(self.cols)+1] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+				self.snv_chunk[i,len(self.cols)] = b'chr' + self.snv_chunk[i,0] + b'bp' + self.snv_chunk[i,1] + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,2][0:60]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,3][0:1000]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,4][0:1000])
+				self.snv_chunk[i,len(self.cols)+1] = get_universal_variant_id(self.snv_chunk[i,0].decode("utf-8"),self.snv_chunk[i,1].decode("utf-8"),self.snv_chunk[i,3].decode("utf-8"),self.snv_chunk[i,4].decode("utf-8"),'><')
 				i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
 
@@ -424,7 +424,7 @@ cdef class Results(Variants):
 		else:
 			self.snv_results[self.snv_results == "NA"]=np.nan
 			self.snv_results = np.array([tuple(row) for row in self.snv_results], dtype=self.dtypes)
-			var_ids, var_ids_idx, var_ids_cnt = np.unique(self.snv_results['id_unique'], return_inverse=True, return_counts=True)
+			var_ids, var_ids_idx, var_ids_cnt = np.unique([x.decode("utf-8") for x in self.snv_results['id_unique']], return_inverse=True, return_counts=True)
 			self.duplicated = var_ids[var_ids_cnt > 1]
 			np.place(self.snv_results, self.snv_results == 'NA',np.nan)
 
