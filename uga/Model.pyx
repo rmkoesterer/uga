@@ -1454,7 +1454,7 @@ cdef class Meta(object):
 	cdef public unsigned int tbx_start, tbx_end
 	cdef public str tag, meta, metadata
 	cdef public np.ndarray results_header
-	cdef public object out
+	cdef public object out, results_dtypes, out_dtypes
 	def __cinit__(self, tag, meta, **kwargs):
 		super(Meta, self).__init__(**kwargs)
 		logger = logging.getLogger("Model.Meta.__cinit__")
@@ -1480,8 +1480,10 @@ cdef class SnvMeta(Meta):
 		self.meta_incl = np.array(self.meta.split('+'))
 
 		if self.type == 'stderr':
+			self.results_dtypes = [('chr','int64'),('pos','int64'),('id','str'),('a1','str'),('a2','str'),('effect','float64'),('stderr','float64'),('or','float64'),('z','float64'),('p','float64'),('dir','str'),('n','float64'),('hetq','float64'),('hetdf','float64'),('heti2','float64'),('hetp','float64')]
 			self.results_header = np.array(['chr','pos','id','a1','a2','effect','stderr','or','z','p','dir','n','hetq','hetdf','heti2','hetp'])
 		else:
+			self.results_dtypes = [('chr','int64'),('pos','int64'),('id','str'),('a1','str'),('a2','str'),('z','float64'),('p','float64'),('dir','str'),('n','float64')]
 			self.results_header = np.array(['chr','pos','id','a1','a2','z','p','dir','n'])
 
 		self.metadata = self.metadata + '\n' + \
@@ -1554,7 +1556,12 @@ cdef class SnvMeta(Meta):
 		df['meta.dir'] = df.apply(lambda x: x['meta.dir'] if not math.isnan(x['meta.p']) else float('nan'), axis=1)
 		df = df[['chr','pos','id','a1','a2'] + [x for x in df.columns if 'meta.' in x]]
 		df.columns = [x.replace('meta.','') for x in df.columns]
-		self.out = df[self.results_header]
+		self.out = df[self.results_header].copy()
+		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x] != 'str']:
+			self.out[col] = self.out[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x] == 'str']:
+			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class SkatMeta(Meta):
 	cdef public object df
@@ -1630,9 +1637,9 @@ cdef class SkatMeta(Meta):
 			results['q'][0] = np.nan
 		self.out = pd.DataFrame(results.flatten(), index=[0])[self.results_header]
 		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("bytes")]:
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("bytes")]:
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class SkatoMeta(Meta):
@@ -1714,9 +1721,9 @@ cdef class SkatoMeta(Meta):
 			results['rho'][0] = np.nan
 		self.out = pd.DataFrame(results.flatten(),index=[0])[self.results_header]
 		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("bytes")]:
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("bytes")]:
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class BurdenMeta(Meta):

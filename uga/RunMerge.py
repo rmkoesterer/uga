@@ -101,6 +101,13 @@ def process_regions(regions_df, cfg, cpu, log):
 			results_final = results_final.merge(results_region, how='outer')
 
 	results_final = results_final[[a for a in results_final.columns if a not in ['id_unique','___uid___']]]
+
+	out_dtypes = results_final.dtypes.apply(lambda x: x.name).to_dict()
+	for col in [x for x in results_final.columns if x in out_dtypes and out_dtypes[x] != 'object']:
+		results_final[col] = results_final[col].astype(out_dtypes[col])
+	for col in [x for x in results_final.columns if x in out_dtypes and out_dtypes[x] == 'object']:
+		results_final[col] = results_final[col].str.decode("utf-8")
+
 	results_final = results_final.sort_values(by=['chr','pos'])
 	results_final['chr'] = results_final['chr'].astype(np.int64)
 	results_final['pos'] = results_final['pos'].astype(np.int64)

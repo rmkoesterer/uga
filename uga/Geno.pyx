@@ -366,6 +366,7 @@ cdef class Results(Variants):
 			self.cols = [x for x in map(colsdict.get, self.header[-1].split(), self.header[-1].split())]
 			self.cols = ['chr','pos','id','a1','a2'] + [x for x in self.cols if x not in ['chr','pos','id','a1','a2']]
 			self.dtypes = list(zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['uint8','uint32','|S60','|S1000','|S1000'])) + list(zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['|S1000' if x in ['dir','test'] else 'f8' for x in self.cols if x not in ['chr','pos','id','a1','a2']])) + [('id_unique','|S1000'),('___uid___','|S1000')]
+			self.out_dtypes = list(zip([x for x in self.cols if x in ['chr','pos','id','a1','a2']],['int','int','str','str','str'])) + list(zip([x for x in self.cols if x not in ['chr','pos','id','a1','a2']],['str' if x in ['dir','test'] else 'float64' for x in self.cols if x not in ['chr','pos','id','a1','a2']])) + [('id_unique','str'),('___uid___','str')]
 
 	def get_region(self, region):
 		logger = logging.getLogger("Geno.Results.get_region")
@@ -398,10 +399,10 @@ cdef class Results(Variants):
 		else:
 			slice = chain([first], slice)
 			for r in slice:
-				record = np.array(r, dtype='object')
+				record = np.array(r, dtype = 'object')
 				self.snv_chunk[i,:len(self.cols)] = record[:len(self.cols)]
-				self.snv_chunk[i,len(self.cols)] = b'chr' + self.snv_chunk[i,0] + b'bp' + self.snv_chunk[i,1] + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,2][0:60]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,3][0:1000]) + b'.' + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,4][0:1000])
-				self.snv_chunk[i,len(self.cols)+1] = get_universal_variant_id(self.snv_chunk[i,0].decode("utf-8"),self.snv_chunk[i,1].decode("utf-8"),self.snv_chunk[i,3].decode("utf-8"),self.snv_chunk[i,4].decode("utf-8"),'><')
+				self.snv_chunk[i,len(self.cols)] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.' + re_sub(ILLEGAL_CHARS.decode("utf-8"),'_',self.snv_chunk[i,2][0:60]) + '.' + re_sub(ILLEGAL_CHARS.decode("utf-8"),'_',self.snv_chunk[i,3][0:1000]) + '.' + re_sub(ILLEGAL_CHARS.decode("utf-8"),'_',self.snv_chunk[i,4][0:1000])
+				self.snv_chunk[i,len(self.cols)+1] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
 				i += 1
 			self.snv_chunk = self.snv_chunk[np.where((self.snv_chunk[:i,1].astype(int) >= self.start) & (self.snv_chunk[:i,1].astype(int) <= self.end))]
 
@@ -411,7 +412,7 @@ cdef class Results(Variants):
 		logger = logging.getLogger("Geno.Results.get_snvs")
 		logger.debug("get_snvs")
 		cdef unsigned int i = 0
-		self.snv_results = np.empty((0,len(self.dtypes)), dtype='object')
+		self.snv_results = np.empty((0,len(self.dtypes)), dtype = 'object')
 		while True:
 			try:
 				self.get_chunk(buffer)
@@ -426,7 +427,6 @@ cdef class Results(Variants):
 			self.snv_results = np.array([tuple(row) for row in self.snv_results], dtype=self.dtypes)
 			var_ids, var_ids_idx, var_ids_cnt = np.unique([x.decode("utf-8") for x in self.snv_results['id_unique']], return_inverse=True, return_counts=True)
 			self.duplicated = var_ids[var_ids_cnt > 1]
-			np.place(self.snv_results, self.snv_results == 'NA',np.nan)
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -489,5 +489,9 @@ cdef class Results(Variants):
 	def tag_results(self, tag):
 		logger = logging.getLogger("Geno.Results.get_tagged_results")
 		logger.debug("get_tagged_results")
-		self.snv_results_tagged = pd.to_numeric(pd.DataFrame(self.snv_results),errors='coerce')
+		self.snv_results_tagged = pd.DataFrame(self.snv_results)
 		self.snv_results_tagged.columns = [tag + '.' + x[0] if x[0] not in ['chr','pos','id','a1','a2','id_unique','___uid___'] else x[0] for x in self.dtypes]
+		for col in [x for x in self.snv_results_tagged.columns if x in self.out_dtypes and self.out_dtypes[x] != "str"]:
+			self.snv_results_tagged[col] = self.snv_results_tagged[col].astype(self.out_dtypes[col])
+		for col in [x for x in self.snv_results_tagged.columns if x in self.out_dtypes and self.out_dtypes[x] == "str"]:
+			self.snv_results_tagged[col] = self.snv_results_tagged[col].str.decode("utf-8")

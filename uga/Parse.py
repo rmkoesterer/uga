@@ -285,7 +285,7 @@ def print_snvgroup_options(cfg):
 
 def generate_meta_cfg(args):
 	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'job': 1, 'debug': False, 'files': {}, 'file_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
+					'job': 1, 'debug': False, 'files': {}, 'chrs': {}, 'poss': {}, 'ids': {}, 'a1s': {}, 'a2s': {}, 'file_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
 
 	for arg in args:
 		if arg[0] == 'out':
@@ -321,15 +321,36 @@ def generate_meta_cfg(args):
 		if arg[0] == 'file':
 			config['files'][arg[1][0]] = arg[1][1]
 			config['file_order'].append(arg[1][0])
+		if arg[0] == 'chr':
+			config['chrs'][arg[1][0]] = arg[1][1]
+		if arg[0] == 'pos':
+			config['poss'][arg[1][0]] = arg[1][1]
+		if arg[0] == 'id':
+			config['ids'][arg[1][0]] = arg[1][1]
+		if arg[0] == 'a1':
+			config['a1s'][arg[1][0]] = arg[1][1]
+		if arg[0] == 'a2':
+			config['a2s'][arg[1][0]] = arg[1][1]
 		if arg[0] == 'job':
 			config['job'] = arg[1]
+	for f in config['file_order']:
+		if f not in config['chrs']:
+			config['chrs'][f] = "#chr"
+		if f not in config['poss']:
+			config['poss'][f] = "pos"
+		if f not in config['ids']:
+			config['ids'][f] = "id"
+		if f not in config['a1s']:
+			config['a1s'][f] = "a1"
+		if f not in config['a2s']:
+			config['a2s'][f] = "a2"
 	return config
 
 def print_meta_options(cfg):
 	print('')
 	print("main options ...")
 	for k in cfg:
-		if not k in ['files','file_order','meta','meta_order','meta_type']:
+		if not k in ['files','chrs','poss','ids','a1s','a2s','file_order','meta','meta_order','meta_type']:
 			if cfg[k] is not None and cfg[k] is not False:
 				if cfg[k] is True:
 					print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))))
@@ -338,6 +359,11 @@ def print_meta_options(cfg):
 	for f in cfg['file_order']:
 		print('   file ' + str(f) + ' ...' if len(cfg['files']) > 1 else '   file ...')
 		print("      {0:>{1}}".format('--file ' + f, len('--file')) + " " + cfg['files'][f])
+		print("      {0:>{1}}".format('--chr ' + f, len('--chr')) + " " + cfg['chrs'][f])
+		print("      {0:>{1}}".format('--pos ' + f, len('--pos')) + " " + cfg['poss'][f])
+		print("      {0:>{1}}".format('--id ' + f, len('--id')) + " " + cfg['ids'][f])
+		print("      {0:>{1}}".format('--a1 ' + f, len('--a1')) + " " + cfg['a1s'][f])
+		print("      {0:>{1}}".format('--a2 ' + f, len('--a2')) + " " + cfg['a2s'][f])
 	if len(cfg['meta_order']) > 0:
 		print('   meta analysis ...')
 		for m in cfg['meta_order']:

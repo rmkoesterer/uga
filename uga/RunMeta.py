@@ -53,7 +53,7 @@ def process_regions(regions_df, cfg, cpu, log):
 	for f in cfg['file_order']:
 		print("\nloading results file " + f)
 		try:
-			results_obj[f] = Geno.Results(filename=cfg['files'][f])
+			results_obj[f] = Geno.Results(filename=cfg['files'][f], chr=cfg['chrs'][f], pos=cfg['poss'][f], id=cfg['ids'][f], a1=cfg['a1s'][f], a2=cfg['a2s'][f])
 		except Process.Error as err:
 			print(err.out)
 			return 1
@@ -98,7 +98,7 @@ def process_regions(regions_df, cfg, cpu, log):
 				results_region_cols = [x for x in results_region.columns.values] + [x for x in results_obj[f].snv_results_tagged.columns.values if x not in results_region.columns.values]
 				if results_region.empty and not results_obj[f].snv_results_tagged.empty:
 					results_region=pd.concat([results_obj[f].snv_results_tagged[['chr','pos','id','a1','a2','id_unique','___uid___']].iloc[[0]],pd.DataFrame(dict(list(zip([x for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']],[np.nan for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']]))),index=[0])],axis=1)
-				results_region = results_region.merge(results_obj[f].snv_results_tagged, how='outer')			
+				results_region = results_region.merge(results_obj[f].snv_results_tagged, how='outer')
 				results_region = results_region[results_region_cols]
 
 			status = '   (' + f + ') processed ' + str(results_obj[f].snv_results.shape[0]) + ' variants'
@@ -115,9 +115,9 @@ def process_regions(regions_df, cfg, cpu, log):
 				results_final_meta[meta] = results_final_meta[meta].merge(meta_objs[meta].out, how='outer')
 
 	for meta in cfg['meta_order']:
-		results_final_meta[meta] = results_final_meta[meta].sort_values(by=['chr','pos'])
 		results_final_meta[meta]['chr'] = results_final_meta[meta]['chr'].astype(np.int64)
 		results_final_meta[meta]['pos'] = results_final_meta[meta]['pos'].astype(np.int64)
+		results_final_meta[meta] = results_final_meta[meta].sort_values(by=['chr','pos'])
 		pkl = open('/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(cpu) + '.' + meta + '.pkl', "wb")
 		pickle.dump([results_final_meta[meta],meta_objs[meta].metadata,np.array(results_final_meta[meta].columns.values),meta_objs[meta].tbx_start,meta_objs[meta].tbx_end],pkl,protocol=2)
 		pkl.close()
@@ -194,7 +194,7 @@ def RunMeta(args):
 				bgzfiles[m].write('\t'.join(results_header) + '\n')
 				written = True
 			if results_final_meta.shape[0] > 0:
-				bgzfiles[m].write(results_final_meta.replace({'None': 'NA'}).to_csv(index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header))
+				bgzfiles[m].write(results_final_meta.to_csv(index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header))
 			pkl.close()
 			os.remove(out_model_meta)
 

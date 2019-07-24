@@ -458,6 +458,26 @@ def meta_args(meta_parser):
 						nargs=2,
 						action=AddString, 
 						help='results file tag and name (ie. --file X file.gz: add file "file.gz" with tag "X"')
+	meta_parser.add_argument('--chr', 
+						nargs=2,
+						action=AddString, 
+						help='results file tag and chromosome column name (ie. --chr X "#chr"')
+	meta_parser.add_argument('--pos', 
+						nargs=2,
+						action=AddString, 
+						help='results file tag and chromosome position column name (ie. --pos X pos')
+	meta_parser.add_argument('--id', 
+						nargs=2,
+						action=AddString, 
+						help='results file tag and variant id column name (ie. --id X id')
+	meta_parser.add_argument('--a1',
+						nargs=2,
+						action=AddString, 
+						help='results file tag and effect allele column name (ie. --a1 X a1')
+	meta_parser.add_argument('--a2', 
+						nargs=2,
+						action=AddString, 
+						help='results file tag and other allele column name (ie. --a2 X a2')
 	meta_parser.add_argument('--replace', 
 						nargs=0, 
 						action=AddTrue, 

@@ -286,6 +286,7 @@ def main(args=None):
 						os.mkdir(cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j))
 					except OSError:
 						pass
+				print(cfg['out'])
 				with open(cfg['out'] + '/' + cfg['out'] + '.files', 'w') as jlist:
 					for j in range(1, int(max(jobs_df['job'])) + 1):
 						if args.which in ['snv','snvgroup','tools','merge']:
