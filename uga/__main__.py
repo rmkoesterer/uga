@@ -279,11 +279,11 @@ def main(args=None):
 					pass
 				for j in range(1, int(max(jobs_df['job'])) + 1):
 					try:
-						os.mkdir(cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))
+						os.mkdir(cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)))
 					except OSError:
 						pass
 					try:
-						os.mkdir(cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j))
+						os.mkdir(cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j))
 					except OSError:
 						pass
 				with open(cfg['out'] + '/' + cfg['out'] + '.files', 'w') as jlist:
@@ -292,15 +292,15 @@ def main(args=None):
 							if 'model_order' in cfg:
 								for m in cfg['model_order']:
 									if m != '___no_tag___':
-										jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
+										jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
 									else:
-										jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
+										jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
 							else:								
-								jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
+								jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
 						if 'meta_order' in cfg:
 							if len(cfg['meta_order']) > 0:
 								for m in cfg['meta_order']:
-									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
+									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
 			jobs_df.to_csv(cfg['out'] + '/' + cfg['out'] + '.jobs',header=True,index=False,sep="\t")
 			with open(cfg['out'] + '/' + cfg['out'] + '.jobs.run','w') as f:
 				f.write("\n".join([str(x) for x in jobs_df['job'].unique()]))
