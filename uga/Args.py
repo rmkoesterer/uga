@@ -575,8 +575,8 @@ def snvplot_args(snvplot_parser):
 						help='replace any existing output files')
 	snvplot_parser.add_argument('--ext', 
 						action=AddString, 
-						choices=['tiff','eps','pdf','png'], 
-						help='file type extension for plot files (default: tiff)')
+						choices=['pdf','tiff','eps','png'], 
+						help='file type extension for plot files (default: pdf)')
 	snvplot_parser.add_argument('--chrcol', 
 						action=AddString, 
 						help='chromosome column (default: #chr)')

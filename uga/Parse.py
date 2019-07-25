@@ -392,7 +392,7 @@ def print_compile_options(cfg):
 				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))) + " " + str(cfg[k]))
 
 def generate_snvplot_cfg(args):
-	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 
+	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'pdf', 'gc': False, 'color': False, 'qq': False, 
 				'qq_strat_freq': False, 'freq_ticks': '0.005,0.01,0.03,0.05', 'qq_strat_mac': False, 'mac_ticks': '3,10,20,50', 
 				'mht': False, 'crop': 10, 'chrcol': '#chr', 'bpcol': 'pos', 'pcol': 'p', 'freqcol': 'freq', 'maccol': 'mac'}
 	for arg in args:

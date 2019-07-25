@@ -440,6 +440,8 @@ def RunSnvplot(args):
 			ro.globalenv['colours'] = ro.StrVector(colours)
 			ro.globalenv['chrs'] = ro.FloatVector(chrs)
 
+			ro.r('save.image("R.img")')
+
 			print("   generating manhattan plot")
 			if cfg['ext'] == 'tiff':
 				ggsave = 'ggsave(filename="%s",plot=gp,width=16,height=4,units="in",bg="white",compression="lzw",dpi=300)' % (cfg['out'] + '.' + pcol + '.mht.tiff')
@@ -454,7 +456,7 @@ def RunSnvplot(args):
 					gp<-ggplot(df, aes_string(x='gpos',y='logp')) +
 						geom_hline(yintercept = -1 * log10(%g),colour="#B8860B", linetype=5, size = 0.25) + 
 						geom_point(size=1.5) + 
-						scale_x_continuous(expression(Chromosome~~%d~~(kb))'),breaks=ticks,labels=labels) + \
+						scale_x_continuous(expression(Chromosome~~%d~~(kb)),breaks=ticks,labels=labels) + \
 						scale_y_continuous(expression(-log[10](italic(p))),breaks=seq(0,%d,1),limits=c(0,%d)) + \
 						theme_bw(base_size = 8) + \
 						theme(axis.title.x = element_text(vjust=-0.5,size=14), axis.title.y = element_text(vjust=1,angle=90,size=14), 
@@ -498,7 +500,7 @@ def RunSnvplot(args):
 						gp<-ggplot(df, aes_string(x='gpos',y='logp')) +
 							geom_hline(yintercept = -1 * log10(%g),colour="#B8860B", linetype=5, size = 0.25) + 
 							geom_point(aes(shape=factor(shape)),size=1.5) + 
-							scale_x_continuous(expression(Chromosome~~%d~~(kb))'),breaks=ticks,labels=labels) + 
+							scale_x_continuous(expression(Chromosome~~%d~~(kb)),breaks=ticks,labels=labels) + 
 							scale_y_continuous(expression(-log[10](italic(p))),breaks=seq(0,%d,1),limits=c(0,%d)) + 
 							theme_bw(base_size = 8) + 
 							theme(axis.title.x = element_text(vjust=-0.5,size=14), axis.title.y = element_text(vjust=1,angle=90,size=14), 
