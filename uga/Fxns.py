@@ -34,7 +34,7 @@ def get_delimiter(d):
 	return d
 
 def verify_results(directory, files):
-	print "verifying results"
+	print("verifying results")
 	reg_complete = []
 	reg_rerun = []
 	pbar = ProgressBar(maxval=files.shape[0], widgets = ['   processed ', Counter(), ' of ' + str(files.shape[0]) + ' files (', Timer(), ')'])
@@ -46,7 +46,7 @@ def verify_results(directory, files):
 		if os.path.exists(f):
 			if len(logfile) > 0:
 				p = subprocess.Popen(['grep','-cw','process complete',logfile[0]], stdout=subprocess.PIPE)	
-				complete = p.communicate()[0]
+				complete = p.communicate()[0].decode('utf-8')
 				complete = int(complete.strip())
 				if complete == 0:
 					reg_rerun.append(j)
@@ -64,7 +64,7 @@ def compile_results(directory, files):
 	out = np.unique(files['out'])
 	bgzfile = {}
 	for o in out:
-		print "compiling results to file " + o
+		print("compiling results to file " + o)
 		files_o = files[files['out'] == o].reset_index(drop=True)
 		pbar = ProgressBar(maxval=files_o.shape[0], widgets = ['   processed ', Counter(), ' of ' + str(files_o.shape[0]) + ' files (', Timer(), ')'])
 		pbar.start()
@@ -74,16 +74,16 @@ def compile_results(directory, files):
 			sed = ['awk','{print $0}'] if j+1 == 1 else ['grep','-v','^#']
 			p1 = subprocess.Popen(['zcat',f], stdout=subprocess.PIPE, preexec_fn=lambda:signal.signal(signal.SIGPIPE, signal.SIG_DFL))
 			p2 = subprocess.Popen(sed, stdin=p1.stdout, stdout=subprocess.PIPE)
-			bgzfile[o].write(p2.communicate()[0])
+			bgzfile[o].write(p2.communicate()[0].decode('utf-8'))
 			p1.wait()
 			p2.wait()
 			pbar.update(j)
 		pbar.finish()
 		bgzfile[o].close()
 
-	print "compiling log files"
-	summary = file(directory + '/' + os.path.basename(directory) + '.summary', 'w')
-	logs = file(directory + '/' + os.path.basename(directory) + '.logs', 'w')
+	print("compiling log files")
+	summary = open(directory + '/' + os.path.basename(directory) + '.summary', 'w')
+	logs = open(directory + '/' + os.path.basename(directory) + '.logs', 'w')
 	files_o = files[files['out'] == out[0]].reset_index(drop=True)
 	pbar = ProgressBar(maxval=files_o.shape[0], widgets = ['   processed ', Counter(), ' of ' + str(files_o.shape[0]) + ' results (', Timer(), ')'])
 	pbar.start()
@@ -94,29 +94,29 @@ def compile_results(directory, files):
 			p1 = subprocess.Popen(['cat',lf[0]], stdout=subprocess.PIPE)
 			p2 = subprocess.Popen(['awk','{print \"      \"$0}'], stdin=p1.stdout, stdout=subprocess.PIPE)
 			summary.write('Sample log file from ' + lf[0] + '\n\n')
-			summary.write(p2.communicate()[0])
+			summary.write(p2.communicate()[0].decode('utf-8'))
 			p1.wait()
 			p2.wait()
 			summary.write('\nElapsed time and max memory used for each job in list\n\n')
 		p = subprocess.Popen(['grep','time elapsed:',lf[0]], stdout=subprocess.PIPE)
-		elap = p.communicate()[0].strip()
+		elap = p.communicate()[0].decode('utf-8').strip()
 		p.wait()
 		p = subprocess.Popen(['grep','max memory used by main process:',lf[0]], stdout=subprocess.PIPE)
-		maxmem = p.communicate()[0].strip()
+		maxmem = p.communicate()[0].decode('utf-8').strip()
 		p.wait()
 		p = subprocess.Popen(['grep','max memory used by any subprocess:',lf[0]], stdout=subprocess.PIPE)
-		maxmemsub = p.communicate()[0].strip()
+		maxmemsub = p.communicate()[0].decode('utf-8').strip()
 		p.wait()
 		summary.write('job ' + str(j+1) + ' - ' + elap + ' - ' + maxmem + ' - ' + maxmemsub + '\n')
 		p = subprocess.Popen(['cat',lf[0]], stdout=subprocess.PIPE)
-		logs.write(p.communicate()[0] + '\n\n')
+		logs.write(p.communicate()[0].decode('utf-8') + '\n\n')
 		p.wait()
 		pbar.update(j)
 	pbar.finish()
 	summary.close()
 	logs.close()
 	for o in out:
-		print "mapping compiled file " + o
+		print("mapping compiled file " + o)
 		files_o = files[files['out'] == o].reset_index(drop=True)
 		h=pysam.TabixFile(filename=directory + '/' + '/'.join(files.iloc[0]['file'].split('/')[1:]),parser=pysam.asTuple())
 		header = [x for x in h.header]
@@ -133,7 +133,7 @@ def compile_results(directory, files):
 		elif '##fileformat=VCF' in source or "#CHROM\tBEGIN\tEND\tMARKER_ID" in source or "#CHROM\tBEG\tEND\tMARKER_ID" in source: # if labeled as VCF or EPACTS results
 			pysam.tabix_index(directory + '/' + o,preset='vcf',force=True)
 		else:
-			print "compiled file source not recognized"
+			print("compiled file source not recognized")
 			return False
-	print "file compilation complete"
+	print("file compilation complete")
 	return True

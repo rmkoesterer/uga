@@ -15,12 +15,12 @@
 
 import pandas as pd
 import numpy as np
-import Geno
-import Parse
-import Variant
+from uga import Geno
+from uga import Parse
+from uga import Variant
 import pysam
 from Bio import bgzf
-import Process
+from uga import Process
 import multiprocessing as mp
 import sys
 import os
@@ -37,7 +37,7 @@ def process_regions(regions_df, cfg, cpu, log):
 		try:
 			log_file = open(cfg['out'] + '.cpu' + str(cpu) + '.log','w')
 		except:
-			print Process.Error("unable to initialize log file " + cfg['out'] + '.cpu' + str(cpu) + '.log').out
+			print(Process.Error("unable to initialize log file " + cfg['out'] + '.cpu' + str(cpu) + '.log').out)
 			return 1
 		else:
 			stdout_orig = sys.stdout
@@ -47,20 +47,20 @@ def process_regions(regions_df, cfg, cpu, log):
 
 	results_obj = {}
 	for f in cfg['file_order']:
-		print "\nloading results file " + f
+		print("\nloading results file " + f)
 		try:
 			results_obj[f] = Geno.Results(filename=cfg['files'][f], chr=cfg['columns'][f]['chr'], pos=cfg['columns'][f]['pos'], id=cfg['columns'][f]['id'], a1=cfg['columns'][f]['a1'], a2=cfg['columns'][f]['a2'])
 		except Process.Error as err:
-			print err.out
+			print(err.out)
 			return 1
 
 	variants_found = False
 	variant_ref = Variant.Ref()
 	results_final = None
-	for k in xrange(len(regions_df.index)):
+	for k in range(len(regions_df.index)):
 		region_written = False
-		print ''
-		print 'loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['region'][k] + ') ...'
+		print('')
+		print('loading region ' + str(k+1) + '/' + str(len(regions_df.index)) + ' (' + regions_df['region'][k] + ') ...')
 		for f in cfg['file_order']:
 			try:
 				results_obj[f].get_region(regions_df['region'][k])
@@ -87,12 +87,12 @@ def process_regions(regions_df, cfg, cpu, log):
 			else:
 				results_region_cols = [x for x in results_region.columns.values] + [x for x in results_obj[f].snv_results_tagged.columns.values if x not in results_region.columns.values]
 				if results_region.empty and not results_obj[f].snv_results_tagged.empty:
-					results_region=pd.concat([results_obj[f].snv_results_tagged[['chr','pos','id','a1','a2','id_unique','___uid___']].iloc[[0]],pd.DataFrame(dict(zip([x for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']],[np.nan for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']])),index=[0])],axis=1)
+					results_region=pd.concat([results_obj[f].snv_results_tagged[['chr','pos','id','a1','a2','id_unique','___uid___']].iloc[[0]],pd.DataFrame(dict(list(zip([x for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']],[np.nan for x in results_region.columns.values if x not in ['chr','pos','id','a1','a2','id_unique','___uid___']]))),index=[0])],axis=1)
 				results_region = results_region.merge(results_obj[f].snv_results_tagged, how='outer')
 				results_region = results_region[results_region_cols]
 
 			status = '   (' + f + ') processed ' + str(results_obj[f].snv_results.shape[0]) + ' variants'
-			print status
+			print(status)
 			sys.stdout.flush()
 
 		if k == 0:
@@ -101,6 +101,13 @@ def process_regions(regions_df, cfg, cpu, log):
 			results_final = results_final.merge(results_region, how='outer')
 
 	results_final = results_final[[a for a in results_final.columns if a not in ['id_unique','___uid___']]]
+
+	out_dtypes = results_final.dtypes.apply(lambda x: x.name).to_dict()
+	for col in [x for x in results_final.columns if x in out_dtypes and out_dtypes[x] != 'object']:
+		results_final[col] = results_final[col].astype(out_dtypes[col])
+	for col in [x for x in results_final.columns if x in out_dtypes and out_dtypes[x] == 'object']:
+		results_final[col] = results_final[col].str.decode("utf-8")
+
 	results_final = results_final.sort_values(by=['chr','pos'])
 	results_final['chr'] = results_final['chr'].astype(np.int64)
 	results_final['pos'] = results_final['pos'].astype(np.int64)
@@ -127,45 +134,45 @@ def RunMerge(args):
 	regions_df = pd.read_table(cfg['region_file'], compression='gzip' if cfg['region_file'].split('.')[-1] == 'gz' else None)
 	regions_df = regions_df[regions_df['job'] == int(cfg['job'])].reset_index(drop=True)
 	return_values = {}
-	print ''
+	print('')
 	try:
 		bgzfile = bgzf.BgzfWriter(cfg['out'] + '.gz', 'wb')
 	except:
-		print Process.Error("failed to initialize bgzip format out file " + cfg['out'] + '.gz').out
+		print(Process.Error("failed to initialize bgzip format out file " + cfg['out'] + '.gz').out)
 		return 1
 
 	if cfg['cpus'] > 1:
 		pool = mp.Pool(cfg['cpus']-1)
-		for i in xrange(1,cfg['cpus']):
+		for i in range(1,cfg['cpus']):
 			return_values[i] = pool.apply_async(process_regions, args=(regions_df,cfg,i,True,))
-			print "submitting job on cpu " + str(i) + " of " + str(cfg['cpus'])
+			print("submitting job on cpu " + str(i) + " of " + str(cfg['cpus']))
 		pool.close()
-		print "executing job for cpu " + str(cfg['cpus']) + " of " + str(cfg['cpus']) + " via main process"
+		print("executing job for cpu " + str(cfg['cpus']) + " of " + str(cfg['cpus']) + " via main process")
 		main_return = process_regions(regions_df,cfg,cfg['cpus'],True)
 		pool.join()
 
 		if 1 in [return_values[i].get() for i in return_values] or main_return == 1:
-			print Process.Error("error detected, see log files").out
+			print(Process.Error("error detected, see log files").out)
 			return 1
 
 	else:
 		main_return = process_regions(regions_df,cfg,1,True)
 		if main_return == 1:
-			print Process.Error("error detected, see log files").out
+			print(Process.Error("error detected, see log files").out)
 			return 1
 
-	for i in xrange(1,cfg['cpus']+1):
+	for i in range(1,cfg['cpus']+1):
 		try:
 			logfile = open(cfg['out'] + '.cpu' + str(i) + '.log', 'r')
 		except:
-			print Process.Error("failed to initialize log file " + cfg['out'] + '.cpu' + str(i) + '.log').out
+			print(Process.Error("failed to initialize log file " + cfg['out'] + '.cpu' + str(i) + '.log').out)
 			return 1
-		print logfile.read()
+		print(logfile.read())
 		logfile.close()
 		os.remove(cfg['out'] + '.cpu' + str(i) + '.log')
 
 	written = False
-	for i in xrange(1,cfg['cpus']+1):
+	for i in range(1,cfg['cpus']+1):
 		out = '/'.join(cfg['out'].split('/')[0:-1]) + '/' + cfg['out'].split('/')[-1] + '.cpu' + str(i) + '.pkl'
 		pkl = open(out,"rb")
 		results_final,results_header = pickle.load(pkl)
@@ -173,20 +180,20 @@ def RunMerge(args):
 			bgzfile.write('#' + '\t'.join(results_header) + '\n')
 			written = True
 		if results_final.shape[0] > 0:
-			results_final.replace({'None': 'NA', 'nan': 'NA'}).to_csv(bgzfile, index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header, append=True)
+			bgzfile.write(results_final.replace({'None': 'NA', 'nan': 'NA'}).to_csv(index=False, sep='\t', header=False, na_rep='NA', float_format='%.5g', columns = results_header))
 		pkl.close()
 		os.remove(out)
 
 	bgzfile.close()
-	print "indexing out file"
+	print("indexing out file")
 	try:
 		pysam.tabix_index(cfg['out'] + '.gz',seq_col=0,start_col=1,end_col=1,force=True)
 	except:
-		print Process.Error('failed to generate index for file ' + cfg['out'] + '.gz').out
+		print(Process.Error('failed to generate index for file ' + cfg['out'] + '.gz').out)
 		return 1
 
 	if cfg['snpeff']:
-		from ConfigParser import SafeConfigParser
+		from configparser import SafeConfigParser
 		from pkg_resources import resource_filename
 		import subprocess
 		import xlsxwriter
@@ -205,24 +212,24 @@ def RunMerge(args):
 		time.sleep(1)
 		try:
 			cmd = 'java -jar ' + ini.get('main','snpeff') + ' -s ' + cfg['out'] + '.annot.summary.html -v -canon GRCh37.75 ' + cfg['out'] + '.annot1 > ' + cfg['out'] + '.annot2'
-			print cmd
+			print(cmd)
 			p = subprocess.Popen(cmd,shell=True)
 			p.wait()
 		except KeyboardInterrupt:
 			kill_all(p.pid)
-			print "canonical annotation process terminated by user"
+			print("canonical annotation process terminated by user")
 			sys.exit(1)
 
 		return
 		time.sleep(1)
 		try:
 			cmd = 'java -jar ' + ini.get('main','snpsift') + ' extractFields -s "," -e "NA" ' + cfg['out'] + '.annot2 CHROM POS ID REF ALT "ANN[*].ALLELE" "ANN[*].EFFECT" "ANN[*].IMPACT" "ANN[*].GENE" "ANN[*].GENEID" "ANN[*].FEATURE" "ANN[*].FEATUREID" "ANN[*].BIOTYPE" "ANN[*].RANK" "ANN[*].HGVS_C" "ANN[*].HGVS_P" "ANN[*].CDNA_POS" "ANN[*].CDNA_LEN" "ANN[*].CDNA_LEN" "ANN[*].CDS_POS" "ANN[*].CDS_LEN" "ANN[*].AA_POS" "ANN[*].AA_LEN" "ANN[*].DISTANCE" "ANN[*].ERRORS" | sed "s/ANN\[\*\]/ANN/g" > ' + cfg['out'] + '.annot'
-			print cmd
+			print(cmd)
 			p = subprocess.Popen(cmd,shell=True)
 			p.wait()
 		except KeyboardInterrupt:
 			kill_all(p.pid)
-			print "SnpSift annotation process terminated by user"
+			print("SnpSift annotation process terminated by user")
 			sys.exit(1)
 		os.remove(cfg['out'] + '.annot1')
 		os.remove(cfg['out'] + '.annot2')
@@ -270,5 +277,5 @@ def RunMerge(args):
 
 		os.remove(cfg['out'] + '.annot')
 
-	print "process complete"
+	print("process complete")
 	return 0

@@ -15,24 +15,24 @@
 
 import os
 import argparse
-import __version__
+from . import __version__
 import textwrap
 from datetime import date
-import Args
+from . import Args
 from collections import OrderedDict
 
 def version():
-	print ''
-	print 'uga v' + __version__.version
-	print '(c) 2015 Ryan Koesterer'
-	print 'GNU General Public License v3'
-	print ''
-	print textwrap.fill("This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.", initial_indent='   ', subsequent_indent='   ')
-	print ''
-	print textwrap.fill("This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.", initial_indent='   ', subsequent_indent='   ')
-	print ''
-	print textwrap.fill("You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>", initial_indent='   ', subsequent_indent='   ')
-	print ''
+	print('')
+	print('uga v' + __version__.version)
+	print('(c) 2015 Ryan Koesterer')
+	print('GNU General Public License v3')
+	print('')
+	print(textwrap.fill("This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.", initial_indent='   ', subsequent_indent='   '))
+	print('')
+	print(textwrap.fill("This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.", initial_indent='   ', subsequent_indent='   '))
+	print('')
+	print(textwrap.fill("You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>", initial_indent='   ', subsequent_indent='   '))
+	print('')
 
 def get_parser():
 	main_parser = argparse.ArgumentParser()
@@ -65,8 +65,8 @@ def get_args(parser):
 	else:
 		if args.which != 'settings':
 			parser.error("missing argument: no options selected")
-	print ''
-	print 'active module: ' + args.which
+	print('')
+	print('active module: ' + args.which)
 	return args
 
 def generate_snv_cfg(args):
@@ -116,7 +116,7 @@ def generate_snv_cfg(args):
 							'pheno': None, 'covars': None, 'interact': None, 'random_effects': None, 'reml': False, 'kr': False, 'reverse': False, 'case_code': 1, 'ctrl_code': 0, 
 							'adjust_kinship': False}
 	if len(tags_idx) > 1:
-		for i in xrange(len(tags_idx[:-1])):
+		for i in range(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
 			for arg in global_args:
 				if arg[0] in ['score','lm','glm','gee','lmer']:
@@ -152,32 +152,32 @@ def generate_snv_cfg(args):
 	return config
 
 def print_snv_options(cfg):
-	print ''
-	print "main options ..."
+	print('')
+	print("main options ...")
 	for k in cfg:
 		if not k in ['models','model_order','meta','meta_order','meta_type']:
 			if cfg[k] is not None and cfg[k] is not False:
 				if cfg[k] is True:
-					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+					print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))))
 				else:
-					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+					print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))) + " " + str(cfg[k]))
 	for m in cfg['model_order']:
-		print '   model ' + str(m) + ' ...' if len(cfg['models']) > 1 else '   model ...'
-		print "      {0:>{1}}".format(str('--' + cfg['models'][m]['fxn'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m]['dep_var'])
-		print "      {0:>{1}}".format(str('--' + cfg['models'][m]['format'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m]['file'])
+		print('   model ' + str(m) + ' ...' if len(cfg['models']) > 1 else '   model ...')
+		print("      {0:>{1}}".format(str('--' + cfg['models'][m]['fxn'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg['models'][m].keys())],key=len))) + " " + str(cfg['models'][m]['dep_var']))
+		print("      {0:>{1}}".format(str('--' + cfg['models'][m]['format'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg['models'][m].keys())],key=len))) + " " + str(cfg['models'][m]['file']))
 		for n in cfg['models'][m]:
 			if cfg['models'][m][n] is not None and cfg['models'][m][n] is not False and n not in ['fxn','dep_var','format','file']:
 				if cfg['models'][m][n] is True:
-					print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len)))
+					print("      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg['models'][m].keys())],key=len))))
 				else:
-					print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m][n])
+					print("      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg['models'][m].keys())],key=len))) + " " + str(cfg['models'][m][n]))
 	if len(cfg['meta_order']) > 0:
-		print '   meta analysis ...'
+		print('   meta analysis ...')
 		for m in cfg['meta_order']:
 			if cfg['meta_type'][m] == 'stderr':
-				print "      {0:>{1}}".format(str('--meta-stderr'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
+				print("      {0:>{1}}".format(str('--meta-stderr'), len(max(['--' + k for k in list(cfg['meta'].keys())],key=len))) + " " + m + ' ' + str(cfg['meta'][m]))
 			else:
-				print "      {0:>{1}}".format(str('--meta-sample-size'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
+				print("      {0:>{1}}".format(str('--meta-sample-size'), len(max(['--' + k for k in list(cfg['meta'].keys())],key=len))) + " " + m + ' ' + str(cfg['meta'][m]))
 
 def generate_snvgroup_cfg(args):
 	config = {'out': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 'snvgroup_map': None, 
@@ -223,7 +223,7 @@ def generate_snvgroup_cfg(args):
 							'pheno': None, 'dep_var': None, 'covars': None, 'mafrange': None, 'skato_rho': None, 'case_code': 1, 'ctrl_code': 0, 
 							'adjust_kinship': False}
 	if len(tags_idx) > 1:
-		for i in xrange(len(tags_idx[:-1])):
+		for i in range(len(tags_idx[:-1])):
 			config['models'][args[tags_idx[i]][1]] = config_default.copy()
 			for arg in global_args:
 				if arg[0] in ['skat','skato','burden','neff']:
@@ -259,33 +259,33 @@ def generate_snvgroup_cfg(args):
 	return config
 
 def print_snvgroup_options(cfg):
-	print ''
-	print "main options ..."
+	print('')
+	print("main options ...")
 	for k in cfg:
 		if not k in ['models','model_order','meta','meta_order']:
 			if cfg[k] is not None and cfg[k] is not False:
 				if cfg[k] is True:
-					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+					print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))))
 				else:
-					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+					print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))) + " " + str(cfg[k]))
 	for m in cfg['model_order']:
-		print '   model ' + str(m) + ' ...' if len(cfg['models']) > 1 else '   model ...'
-		print "      {0:>{1}}".format(str('--' + cfg['models'][m]['fxn'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m]['dep_var'])
-		print "      {0:>{1}}".format(str('--' + cfg['models'][m]['format'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m]['file'])
+		print('   model ' + str(m) + ' ...' if len(cfg['models']) > 1 else '   model ...')
+		print("      {0:>{1}}".format(str('--' + cfg['models'][m]['fxn'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg['models'][m].keys())],key=len))) + " " + str(cfg['models'][m]['dep_var']))
+		print("      {0:>{1}}".format(str('--' + cfg['models'][m]['format'].replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg['models'][m].keys())],key=len))) + " " + str(cfg['models'][m]['file']))
 		for n in cfg['models'][m]:
 			if cfg['models'][m][n] is not None and cfg['models'][m][n] is not False and n not in ['fxn','dep_var','format','file']:
 				if cfg['models'][m][n] is True:
-					print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len)))
+					print("      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg['models'][m].keys())],key=len))))
 				else:
-					print "      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg['models'][m].keys()],key=len))) + " " + str(cfg['models'][m][n])
+					print("      {0:>{1}}".format(str('--' + n.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg['models'][m].keys())],key=len))) + " " + str(cfg['models'][m][n]))
 	if len(cfg['meta_order']) > 0:
-		print '   meta analysis ...'
+		print('   meta analysis ...')
 		for m in cfg['meta_order']:
-			print "      {0:>{1}}".format(str('--meta'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
+			print("      {0:>{1}}".format(str('--meta'), len(max(['--' + k for k in list(cfg['meta'].keys())],key=len))) + " " + m + ' ' + str(cfg['meta'][m]))
 
 def generate_meta_cfg(args):
 	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
-					'job': 1, 'debug': False, 'files': {}, 'file_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
+					'job': 1, 'debug': False, 'files': {}, 'chrs': {}, 'poss': {}, 'ids': {}, 'a1s': {}, 'a2s': {}, 'file_order': [], 'meta': {}, 'meta_order': [], 'meta_type': {}}
 
 	for arg in args:
 		if arg[0] == 'out':
@@ -321,30 +321,56 @@ def generate_meta_cfg(args):
 		if arg[0] == 'file':
 			config['files'][arg[1][0]] = arg[1][1]
 			config['file_order'].append(arg[1][0])
+		if arg[0] == 'chr':
+			config['chrs'][arg[1][0]] = arg[1][1]
+		if arg[0] == 'pos':
+			config['poss'][arg[1][0]] = arg[1][1]
+		if arg[0] == 'id':
+			config['ids'][arg[1][0]] = arg[1][1]
+		if arg[0] == 'a1':
+			config['a1s'][arg[1][0]] = arg[1][1]
+		if arg[0] == 'a2':
+			config['a2s'][arg[1][0]] = arg[1][1]
 		if arg[0] == 'job':
 			config['job'] = arg[1]
+	for f in config['file_order']:
+		if f not in config['chrs']:
+			config['chrs'][f] = "#chr"
+		if f not in config['poss']:
+			config['poss'][f] = "pos"
+		if f not in config['ids']:
+			config['ids'][f] = "id"
+		if f not in config['a1s']:
+			config['a1s'][f] = "a1"
+		if f not in config['a2s']:
+			config['a2s'][f] = "a2"
 	return config
 
 def print_meta_options(cfg):
-	print ''
-	print "main options ..."
+	print('')
+	print("main options ...")
 	for k in cfg:
-		if not k in ['files','file_order','meta','meta_order','meta_type']:
+		if not k in ['files','chrs','poss','ids','a1s','a2s','file_order','meta','meta_order','meta_type']:
 			if cfg[k] is not None and cfg[k] is not False:
 				if cfg[k] is True:
-					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+					print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))))
 				else:
-					print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+					print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))) + " " + str(cfg[k]))
 	for f in cfg['file_order']:
-		print '   file ' + str(f) + ' ...' if len(cfg['files']) > 1 else '   file ...'
-		print "      {0:>{1}}".format('--file ' + f, len('--file')) + " " + cfg['files'][f]
+		print('   file ' + str(f) + ' ...' if len(cfg['files']) > 1 else '   file ...')
+		print("      {0:>{1}}".format('--file ' + f, len('--file')) + " " + cfg['files'][f])
+		print("      {0:>{1}}".format('--chr ' + f, len('--chr')) + " " + cfg['chrs'][f])
+		print("      {0:>{1}}".format('--pos ' + f, len('--pos')) + " " + cfg['poss'][f])
+		print("      {0:>{1}}".format('--id ' + f, len('--id')) + " " + cfg['ids'][f])
+		print("      {0:>{1}}".format('--a1 ' + f, len('--a1')) + " " + cfg['a1s'][f])
+		print("      {0:>{1}}".format('--a2 ' + f, len('--a2')) + " " + cfg['a2s'][f])
 	if len(cfg['meta_order']) > 0:
-		print '   meta analysis ...'
+		print('   meta analysis ...')
 		for m in cfg['meta_order']:
 			if cfg['meta_type'][m] == 'stderr':
-				print "      {0:>{1}}".format(str('--meta-stderr'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
+				print("      {0:>{1}}".format(str('--meta-stderr'), len(max(['--' + k for k in list(cfg['meta'].keys())],key=len))) + " " + m + ' ' + str(cfg['meta'][m]))
 			else:
-				print "      {0:>{1}}".format(str('--meta-sample-size'), len(max(['--' + k for k in cfg['meta'].keys()],key=len))) + " " + m + ' ' + str(cfg['meta'][m])
+				print("      {0:>{1}}".format(str('--meta-sample-size'), len(max(['--' + k for k in list(cfg['meta'].keys())],key=len))) + " " + m + ' ' + str(cfg['meta'][m]))
 
 def generate_compile_cfg(args):
 	config = {'dir': None, 'replace': False}
@@ -356,17 +382,17 @@ def generate_compile_cfg(args):
 	return config
 
 def print_compile_options(cfg):
-	print ''
-	print "main options ..."
+	print('')
+	print("main options ...")
 	for k in cfg:
 		if cfg[k] is not None and cfg[k] is not False:
 			if cfg[k] is True:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))))
 			else:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))) + " " + str(cfg[k]))
 
 def generate_snvplot_cfg(args):
-	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 
+	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'pdf', 'gc': False, 'color': False, 'qq': False, 
 				'qq_strat_freq': False, 'freq_ticks': '0.005,0.01,0.03,0.05', 'qq_strat_mac': False, 'mac_ticks': '3,10,20,50', 
 				'mht': False, 'crop': 10, 'chrcol': '#chr', 'bpcol': 'pos', 'pcol': 'p', 'freqcol': 'freq', 'maccol': 'mac'}
 	for arg in args:
@@ -415,14 +441,14 @@ def generate_snvplot_cfg(args):
 	return config
 
 def print_snvplot_options(cfg):
-	print ''
-	print "main options ..."
+	print('')
+	print("main options ...")
 	for k in cfg:
 		if cfg[k] is not None and cfg[k] is not False:
 			if cfg[k] is True:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))))
 			else:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))) + " " + str(cfg[k]))
 
 def generate_snvgroupplot_cfg(args):
 	config = {'file': None, 'qsub': None, 'replace': False, 'debug': False, 'out': None, 'ext': 'tiff', 'gc': False, 'color': False, 'qq': False, 'qq_strat': False, 
@@ -459,14 +485,14 @@ def generate_snvgroupplot_cfg(args):
 	return config
 
 def print_snvgroupplot_options(cfg):
-	print ''
-	print "main options ..."
+	print('')
+	print("main options ...")
 	for k in cfg:
 		if cfg[k] is not None and cfg[k] is not False:
 			if cfg[k] is True:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))))
 			else:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))) + " " + str(cfg[k]))
 
 def generate_filter_cfg(args):
 	config = {'file': None, 'tag': 'filtered', 'replace': False, 'qsub': None, 'debug': False, 'gc': False, 
@@ -529,14 +555,14 @@ def generate_filter_cfg(args):
 	return config
 
 def print_filter_options(cfg):
-	print ''
-	print "main options ..."
+	print('')
+	print("main options ...")
 	for k in cfg:
 		if cfg[k] is not None and cfg[k] is not False:
 			if cfg[k] is True:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))))
 			else:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))) + " " + str(cfg[k]))
 
 def generate_merge_cfg(args):
 	config = {'out': None, 'region': None, 'region_file': None, 'buffer': 100, 'cpus': 1, 'mb': 1, 'qsub': None, 'split': False, 'split_n': None, 'replace': False, 
@@ -580,14 +606,14 @@ def generate_merge_cfg(args):
 	return config
 
 def print_merge_options(cfg):
-	print ''
-	print "main options ..."
+	print('')
+	print("main options ...")
 	for k in cfg:
 		if cfg[k] is not None and cfg[k] is not False:
 			if cfg[k] is True:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))))
 			else:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))) + " " + str(cfg[k]))
 
 def generate_tools_cfg(args):
 	config = {'file': None, 'out': None, 'source': None, 'buffer': 100, 'region': None, 'region_file': None, 'cpus': 1, 'mb': 1, 'qsub': None, 
@@ -630,11 +656,11 @@ def generate_tools_cfg(args):
 	return config
 
 def print_tools_options(cfg):
-	print ''
-	print "main options ..."
+	print('')
+	print("main options ...")
 	for k in cfg:
 		if cfg[k] is not None and cfg[k] is not False:
 			if cfg[k] is True:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len)))
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))))
 			else:
-				print "      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in cfg.keys()],key=len))) + " " + str(cfg[k])
+				print("      {0:>{1}}".format(str('--' + k.replace('_','-')), len(max(['--' + key.replace('_','-') for key in list(cfg.keys())],key=len))) + " " + str(cfg[k]))

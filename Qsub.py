@@ -25,7 +25,7 @@ import resource
 import sys
 from time import strftime, localtime, time, gmtime
 
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w')
 
 def main(argv):
 
@@ -41,8 +41,8 @@ def main(argv):
 			job = joblist[int(env_vars['SGE_TASK_ID'])-1]
 			argv[1] = argv[1].replace("UGA_JOB_ID",job)
 			argv[3] = argv[3].replace("UGA_JOB_ID",job)
-			argv[1] = argv[1].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
-			argv[3] = argv[3].replace("UGA_JOB_RANGE",str((100 * ((int(job)-1) / 100) + 1)) + "-" + str((100 * ((int(job)-1) / 100) + 100)))
+			argv[1] = argv[1].replace("UGA_JOB_RANGE",str(int((100 * ((int(job)-1) // 100) + 1))) + "-" + str(int((100 * ((int(job)-1) // 100) + 100))))
+			argv[3] = argv[3].replace("UGA_JOB_RANGE",str(int((100 * ((int(job)-1) // 100) + 1))) + "-" + str(int((100 * ((int(job)-1) // 100) + 100))))
 		try:
 			lf = open(argv[3],'w')
 		except(IOError, OSError):
@@ -50,37 +50,37 @@ def main(argv):
 		sys.stdout = lf
 		sys.stderr = lf
 
-	if not 'REQNAME' in env_vars.keys():
+	if not 'REQNAME' in list(env_vars.keys()):
 		local=True
-		env_vars['REQNAME'] = env_vars['HOSTNAME'] + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time[0]) if 'HOSTNAME' in env_vars.keys() else strftime('%Y_%m_%d_%H_%M_%S', start_time[0])
-	if not 'JOB_ID' in env_vars.keys():
+		env_vars['REQNAME'] = env_vars['HOSTNAME'] + '_' + strftime('%Y_%m_%d_%H_%M_%S', start_time[0]) if 'HOSTNAME' in list(env_vars.keys()) else strftime('%Y_%m_%d_%H_%M_%S', start_time[0])
+	if not 'JOB_ID' in list(env_vars.keys()):
 		env_vars['JOB_ID'] = '1'
-	if not 'SGE_TASK_ID' in env_vars.keys():
+	if not 'SGE_TASK_ID' in list(env_vars.keys()):
 		env_vars['SGE_TASK_ID'] = 'None'
 
 	from uga.__version__ import version
 
-	print "uga v" + version
-	print "start time: " + strftime("%Y-%m-%d %H:%M:%S", start_time[0])
-	if 'SGE_CLUSTER_NAME' in env_vars.keys():
-		print "sge cluster: " + env_vars['SGE_CLUSTER_NAME']
-	if 'HOST' in env_vars.keys():
-		print "host: " + env_vars['HOST']
-	if 'Queue' in env_vars.keys():
-		print "queue: " + env_vars['QUEUE']
-	if 'HOSTNAME' in env_vars.keys():
-		print "compute node: " + env_vars['HOSTNAME']
-	if 'PWD' in env_vars.keys():
-		print "current directory: " + env_vars['PWD']
-	print "user name: " + user_name
-	if 'JOB_ID' in env_vars.keys():
-		print "job id: " + env_vars['JOB_ID']
-	if 'REQNAME' in env_vars.keys():
-		print "job name: " + env_vars['REQNAME']
-	if 'SGE_TASK_ID' in env_vars.keys():
-		print "task index number: " + env_vars['SGE_TASK_ID']
-	if 'SGE_STDOUT_PATH' in env_vars.keys():
-		print "sge log file: " + env_vars['SGE_STDOUT_PATH']
+	print("uga v" + version)
+	print("start time: " + strftime("%Y-%m-%d %H:%M:%S", start_time[0]))
+	if 'SGE_CLUSTER_NAME' in list(env_vars.keys()):
+		print("sge cluster: " + env_vars['SGE_CLUSTER_NAME'])
+	if 'HOST' in list(env_vars.keys()):
+		print("host: " + env_vars['HOST'])
+	if 'Queue' in list(env_vars.keys()):
+		print("queue: " + env_vars['QUEUE'])
+	if 'HOSTNAME' in list(env_vars.keys()):
+		print("compute node: " + env_vars['HOSTNAME'])
+	if 'PWD' in list(env_vars.keys()):
+		print("current directory: " + env_vars['PWD'])
+	print("user name: " + user_name)
+	if 'JOB_ID' in list(env_vars.keys()):
+		print("job id: " + env_vars['JOB_ID'])
+	if 'REQNAME' in list(env_vars.keys()):
+		print("job name: " + env_vars['REQNAME'])
+	if 'SGE_TASK_ID' in list(env_vars.keys()):
+		print("task index number: " + env_vars['SGE_TASK_ID'])
+	if 'SGE_STDOUT_PATH' in list(env_vars.keys()):
+		print("sge log file: " + env_vars['SGE_STDOUT_PATH'])
 
 	if argv[1].split('(')[0] == "RunSnv":
 		from uga.RunSnv import RunSnv
@@ -99,18 +99,18 @@ def main(argv):
 	if argv[1].split('(')[0] == "RunTools":
 		from uga.RunTools import RunTools
 
-	print ""
-	print "command entered: " + argv[1]
-	exec('r=' + argv[1])
+	print("")
+	print("command entered: " + argv[1])
+	r = eval(argv[1])
 	if r == 0:
 		end_time = (localtime(), time())
 		process = psutil.Process(os.getpid())
 		mem=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000.0
 		mem_children=resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss/1000.0
-		print 'finish time: ' + strftime("%Y-%m-%d %H:%M:%S", end_time[0])
-		print 'time elapsed: ' + strftime('%H:%M:%S', gmtime(end_time[1] - start_time[1]))
-		print 'max memory used by main process: ' + str('%.2f' % mem) + ' MB'
-		print 'max memory used by any subprocess: ' + str('%.2f' % mem_children) + ' MB'
+		print('finish time: ' + strftime("%Y-%m-%d %H:%M:%S", end_time[0]))
+		print('time elapsed: ' + strftime('%H:%M:%S', gmtime(end_time[1] - start_time[1])))
+		print('max memory used by main process: ' + str('%.2f' % mem) + ' MB')
+		print('max memory used by any subprocess: ' + str('%.2f' % mem_children) + ' MB')
 
 if __name__ == "__main__":
 	main(sys.argv)

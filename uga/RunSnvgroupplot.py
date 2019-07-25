@@ -16,10 +16,10 @@
 import pandas as pd
 import numpy as np
 import scipy.stats as scipy
-import Parse
+from uga import Parse
 import pysam
 import math
-import Process
+from uga import Process
 import readline
 import rpy2.robjects as ro
 from rpy2.robjects import pandas2ri
@@ -48,23 +48,23 @@ def RunSnvgroupplot(args):
 	if cfg['qq_strat']:
 		if cfg['cmaccol'] not in cols:
 			cols_extract = ['#chr','start','end','id'] + pcols
-			print Process.Error("minor allele count column " + cfg['cmaccol'] + " not found, unable to proceed with minor allele count stratified plots").out
+			print(Process.Error("minor allele count column " + cfg['cmaccol'] + " not found, unable to proceed with minor allele count stratified plots").out)
 			return 1
 		else:
 			cols_extract = ['#chr','start','end','id',cfg['cmaccol']] + pcols
-			print "minor allele count column " + cfg['cmaccol'] + " found"
+			print("minor allele count column " + cfg['cmaccol'] + " found")
 	else:
 		cols_extract = ['#chr','start','end','id'] + pcols
-	print "importing data"
+	print("importing data")
 	r = pd.read_table(cfg['file'],sep='\t',skiprows=skip_rows,usecols=cols_extract,compression='gzip')
-	print str(r.shape[0]) + " total groups found"
+	print(str(r.shape[0]) + " total groups found")
 	for pcol in pcols:
-		print "plotting p-values for column " + pcol + " ..."
+		print("plotting p-values for column " + pcol + " ...")
 		results = r[['#chr','start','end','id',cfg['cmaccol'],pcol]] if cfg['cmaccol'] in cols else r[['#chr','start','end','id',pcol]]
 		results.dropna(inplace=True)
 		results = results[(results[pcol] > 0) & (results[pcol] <= 1)]
 		results.reset_index(drop=True, inplace=True)
-		print "   " + str(results.shape[0]) + " groups with plottable p-values"
+		print("   " + str(results.shape[0]) + " groups with plottable p-values")
 
 		if results.shape[0] > 1:
 			results['logp'] = -1 * np.log10(results[pcol]) + 0.0
@@ -73,19 +73,19 @@ def RunSnvgroupplot(args):
 			ro.globalenv['results'] = results
 			l = np.median(scipy.chi2.ppf([1-x for x in results[pcol].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 			# in R: median(qchisq(results$p, df=1, lower.tail=FALSE))/qchisq(0.5,1)
-			print "   genomic inflation (all groups) = " + str(l)
+			print("   genomic inflation (all groups) = " + str(l))
 
 			if cfg['qq']:
-				print "   generating standard qq plot"
-				print "   minimum p-value: " + str(np.min(results[pcol]))
+				print("   generating standard qq plot")
+				print("   minimum p-value: " + str(np.min(results[pcol])))
 				a = -1 * np.log10(ro.r('ppoints(' + str(len(results.index)) + ')'))
 				a.sort()
 				results.sort_values(by=['logp'], inplace=True)
-				print "   maximum -1*log10(p-value): " + str(np.max(results['logp']))
+				print("   maximum -1*log10(p-value): " + str(np.max(results['logp'])))
 
-				ci_upper = -1 * np.log10(scipy.beta.ppf(0.95, range(1,len(results[pcol]) + 1), range(len(results[pcol]),0,-1)))
+				ci_upper = -1 * np.log10(scipy.beta.ppf(0.95, list(range(1,len(results[pcol]) + 1)), list(range(len(results[pcol]),0,-1))))
 				ci_upper.sort()
-				ci_lower = -1 * np.log10(scipy.beta.ppf(0.05, range(1,len(results[pcol]) + 1), range(len(results[pcol]),0,-1)))
+				ci_lower = -1 * np.log10(scipy.beta.ppf(0.05, list(range(1,len(results[pcol]) + 1)), list(range(len(results[pcol]),0,-1))))
 				ci_lower.sort()
 				
 				ro.globalenv['df'] = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(results['logp']), 'ci_lower': ro.FloatVector(ci_lower), 'ci_upper': ro.FloatVector(ci_upper)})
@@ -116,7 +116,7 @@ def RunSnvgroupplot(args):
 					""" % (ggsave))
 
 				if np.max(results['logp']) > cfg['crop']:
-					print "   generating cropped standard qq plot"
+					print("   generating cropped standard qq plot")
 					ro.r('df$b[df$b > ' + str(cfg['crop']) + ']<-' + str(cfg['crop']))
 					ro.r('df$shape<-0')
 					ro.r('df$shape[df$b == ' + str(cfg['crop']) + ']<-1')
@@ -144,7 +144,7 @@ def RunSnvgroupplot(args):
 						""" % (ggsave))
 
 			if cfg['qq_strat']:
-				print "   generating frequency stratified qq plot"
+				print("   generating frequency stratified qq plot")
 
 				results['CMAC'] = 'E'
 				results.loc[results[cfg['cmaccol']] >= 100,'CMAC'] = 'D'
@@ -171,11 +171,11 @@ def RunSnvgroupplot(args):
 					lB=np.median(scipy.chi2.ppf([1-x for x in results[pcol][(results[cfg['cmaccol']] >= 50) & (results[cfg['cmaccol']] < 100)].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
 				if lA_n > 0:
 					lA=np.median(scipy.chi2.ppf([1-x for x in results[pcol][results[cfg['cmaccol']] >= 100].tolist()], df=1))/scipy.chi2.ppf(0.5,1)
-				print "   genomic inflation (CMAC > 100, n=" + str(lA_n) + ") = " + str(lA)
-				print "   genomic inflation (50 <= CMAC < 100, n=" + str(lB_n) + ") = " + str(lB)
-				print "   genomic inflation (20 <= CMAC < 50, n=" + str(lC_n) + ") = " + str(lC)
-				print "   genomic inflation (10 <= CMAC < 20, n=" + str(lD_n) + ") = " + str(lD)
-				print "   genomic inflation (CMAC < 10, n=" + str(lE_n) + ") = " + str(lE)
+				print("   genomic inflation (CMAC > 100, n=" + str(lA_n) + ") = " + str(lA))
+				print("   genomic inflation (50 <= CMAC < 100, n=" + str(lB_n) + ") = " + str(lB))
+				print("   genomic inflation (20 <= CMAC < 50, n=" + str(lC_n) + ") = " + str(lC))
+				print("   genomic inflation (10 <= CMAC < 20, n=" + str(lD_n) + ") = " + str(lD))
+				print("   genomic inflation (CMAC < 10, n=" + str(lE_n) + ") = " + str(lE))
 
 				a = np.array([])
 				b = np.array([])
@@ -190,8 +190,8 @@ def RunSnvgroupplot(args):
 					a = np.append(a,aa)
 					b = np.append(b,bb)
 					c = np.append(c,cc)
-					print "   minimum p-value (CMAC < 10): " + str(np.min(results[pcol][results['CMAC'] == 'E']))
-					print "   maximum -1*log10(p-value) (CMAC < 10): " + str(np.max(results['logp'][results['CMAC'] == 'E']))
+					print("   minimum p-value (CMAC < 10): " + str(np.min(results[pcol][results['CMAC'] == 'E'])))
+					print("   maximum -1*log10(p-value) (CMAC < 10): " + str(np.max(results['logp'][results['CMAC'] == 'E'])))
 				if len(results[results['CMAC'] == 'D'].index) > 0:
 					aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['CMAC'] == 'D'].index)) + ')'))
 					aa.sort()
@@ -201,8 +201,8 @@ def RunSnvgroupplot(args):
 					a = np.append(a,aa)
 					b = np.append(b,bb)
 					c = np.append(c,cc)
-					print "   minimum p-value (10 <= CMAC < 20): " + str(np.min(results[pcol][results['CMAC'] == 'D']))
-					print "   maximum -1*log10(p-value) (10 <= CMAC < 20): " + str(np.max(results['logp'][results['CMAC'] == 'D']))
+					print("   minimum p-value (10 <= CMAC < 20): " + str(np.min(results[pcol][results['CMAC'] == 'D'])))
+					print("   maximum -1*log10(p-value) (10 <= CMAC < 20): " + str(np.max(results['logp'][results['CMAC'] == 'D'])))
 				if len(results[results['CMAC'] == 'C'].index) > 0:
 					aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['CMAC'] == 'C'].index)) + ')'))
 					aa.sort()
@@ -212,8 +212,8 @@ def RunSnvgroupplot(args):
 					a = np.append(a,aa)
 					b = np.append(b,bb)
 					c = np.append(c,cc)
-					print "   minimum p-value (20 <= CMAC < 50): " + str(np.min(results[pcol][results['CMAC'] == 'C']))
-					print "   maximum -1*log10(p-value) (20 <= CMAC < 50): " + str(np.max(results['logp'][results['CMAC'] == 'C']))
+					print("   minimum p-value (20 <= CMAC < 50): " + str(np.min(results[pcol][results['CMAC'] == 'C'])))
+					print("   maximum -1*log10(p-value) (20 <= CMAC < 50): " + str(np.max(results['logp'][results['CMAC'] == 'C'])))
 				if len(results[results['CMAC'] == 'B'].index) > 0:
 					aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['CMAC'] == 'B'].index)) + ')'))
 					aa.sort()
@@ -223,8 +223,8 @@ def RunSnvgroupplot(args):
 					a = np.append(a,aa)
 					b = np.append(b,bb)
 					c = np.append(c,cc)
-					print "   minimum p-value (50 <= CMAC < 100): " + str(np.min(results[pcol][results['CMAC'] == 'B']))
-					print "   maximum -1*log10(p-value) (50 <= CMAC < 100): " + str(np.max(results['logp'][results['CMAC'] == 'B']))
+					print("   minimum p-value (50 <= CMAC < 100): " + str(np.min(results[pcol][results['CMAC'] == 'B'])))
+					print("   maximum -1*log10(p-value) (50 <= CMAC < 100): " + str(np.max(results['logp'][results['CMAC'] == 'B'])))
 				if len(results[results['CMAC'] == 'A'].index) > 0:
 					aa = -1 * np.log10(ro.r('ppoints(' + str(len(results[results['CMAC'] == 'A'].index)) + ')'))
 					aa.sort()
@@ -234,8 +234,8 @@ def RunSnvgroupplot(args):
 					a = np.append(a,aa)
 					b = np.append(b,bb)
 					c = np.append(c,cc)
-					print "   minimum p-value (CMAC >= 100): " + str(np.min(results[pcol][results['CMAC'] == 'A']))
-					print "   maximum -1*log10(p-value) (CMAC >= 100): " + str(np.max(results['logp'][results['CMAC'] == 'A']))
+					print("   minimum p-value (CMAC >= 100): " + str(np.min(results[pcol][results['CMAC'] == 'A'])))
+					print("   maximum -1*log10(p-value) (CMAC >= 100): " + str(np.max(results['logp'][results['CMAC'] == 'A'])))
 			
 				ro.globalenv['df'] = ro.DataFrame({'a': ro.FloatVector(a), 'b': ro.FloatVector(b), 'CMAC': ro.StrVector(c)})
 			
@@ -261,7 +261,7 @@ def RunSnvgroupplot(args):
 					""" % (ggsave))
 			
 				if np.max(results['logp']) > cfg['crop']:
-					print "   generating cropped frequency stratified qq plot"
+					print("   generating cropped frequency stratified qq plot")
 					ro.r('df$b[df$b > ' + str(cfg['crop']) + ']<-' + str(cfg['crop']))
 					ro.r('df$shape<-0')
 					ro.r('df$shape[df$b == ' + str(cfg['crop']) + ']<-1')
@@ -288,18 +288,18 @@ def RunSnvgroupplot(args):
 						""" % (ggsave))
 
 			if cfg['mht']:
-				print "   generating standard manhattan plot"
-				print "   minimum p-value: " + str(np.min(results[pcol]))
-				print "   maximum -1*log10(p-value): " + str(np.max(results['logp']))
+				print("   generating standard manhattan plot")
+				print("   minimum p-value: " + str(np.min(results[pcol])))
+				print("   maximum -1*log10(p-value): " + str(np.max(results['logp'])))
 				if cfg['gc']:
-					print "   adjusting p-values for genomic inflation for p-value column " + pcol
+					print("   adjusting p-values for genomic inflation for p-value column " + pcol)
 					results[pcol]=2 * scipy.norm.cdf(-1 * np.abs(scipy.norm.ppf(0.5*results[pcol]) / math.sqrt(l)))
-					print "   minimum post-gc adjustment p-value: " + str(np.min(results[pcol]))
-					print "   maximum post-gc adjustment -1*log10(p-value): " + str(np.max(results['logp']))
+					print("   minimum post-gc adjustment p-value: " + str(np.min(results[pcol])))
+					print("   maximum post-gc adjustment -1*log10(p-value): " + str(np.max(results['logp'])))
 				else:
-					print "   skipping genomic inflation correction"
+					print("   skipping genomic inflation correction")
 
-				print "   calculating genomic positions"
+				print("   calculating genomic positions")
 				results.sort_values(by=['#chr','pos'], inplace=True)
 				ticks = []
 				lastbase = 0
@@ -346,7 +346,7 @@ def RunSnvgroupplot(args):
 				else:
 					results['colours'] = "#000000"
 					for i in range(len(chrs)):
-						print "      processed chromosome " + str(int(chrs[i]))
+						print("      processed chromosome " + str(int(chrs[i])))
 						if i == 0:
 							results.loc[results['#chr'] == chrs[i],'gpos'] = results.loc[results['#chr'] == chrs[i],'pos']
 						else:
@@ -366,22 +366,22 @@ def RunSnvgroupplot(args):
 					sig = 5.4e-8
 				else:
 					sig = 0.05 / results.shape[0]
-				print "   significance level set to p-value = " + str(sig) + " (-1*log10(p-value) = " + str(-1 * np.log10(sig)) + ")"
+				print("   significance level set to p-value = " + str(sig) + " (-1*log10(p-value) = " + str(-1 * np.log10(sig)) + ")")
 				chr = results['#chr'][0]
 				maxy=int(max(np.ceil(-1 * np.log10(sig)),np.ceil(results['logp'].max())))
 				if maxy > 20:
-					y_breaks = range(0,maxy,5)
-					y_labels = range(0,maxy,5)
+					y_breaks = list(range(0,maxy,5))
+					y_labels = list(range(0,maxy,5))
 				else:
-					y_breaks = range(0,maxy)
-					y_labels = range(0,maxy)
+					y_breaks = list(range(0,maxy))
+					y_labels = list(range(0,maxy))
 				ro.globalenv['df'] = ro.DataFrame({'gpos': ro.FloatVector(results['gpos']), 'logp': ro.FloatVector(results['logp']), 'colours': ro.FactorVector(results['colours'])})
 				ro.globalenv['ticks'] = ro.FloatVector(ticks)
 				ro.globalenv['labels'] = ro.Vector(["{:,}".format(x/1000) for x in ticks])
 				ro.globalenv['colours'] = ro.StrVector(colours)
 				ro.globalenv['chrs'] = ro.FloatVector(chrs)
 
-				print "   generating manhattan plot"
+				print("   generating manhattan plot")
 				if cfg['ext'] == 'tiff':
 					ggsave = 'ggsave(filename="%s",plot=gp,width=12,height=4,units="in",bg="white",compression="lzw",dpi=300)' % (cfg['out'] + '.' + pcol + '.mht.tiff')
 				elif cfg['ext'] == 'eps':
@@ -423,7 +423,7 @@ def RunSnvgroupplot(args):
 					ro.r('df$logp[df$logp > ' + str(cfg['crop']) + ']<-' + str(cfg['crop']))
 					ro.r('df$shape<-0')
 					ro.r('df$shape[df$logp == ' + str(cfg['crop']) + ']<-1')
-					print "   generating cropped manhattan plot"
+					print("   generating cropped manhattan plot")
 					if cfg['ext'] == 'tiff':
 						ggsave = 'ggsave(filename="%s",plot=gp,width=12,height=4,units="in",bg="white",compression="lzw",dpi=300)' % (cfg['out'] + '.' + pcol + '.mht.cropped.tiff')
 					elif cfg['ext'] == 'eps':
@@ -460,5 +460,5 @@ def RunSnvgroupplot(args):
 							%s
 							""" % (sig, maxy, ggsave))
 
-	print "process complete"
+	print("process complete")
 	return 0

@@ -34,13 +34,14 @@ def qsub(qsub_pre,cmd, jobs_run_file = None, log_file = None):
 	if log_file is not None:
 		cmd_list = cmd_list + [log_file]
 	try:
+		print(cmd_list)
 		p = subprocess.Popen(cmd_list,stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
-		for line in iter(p.stdout.readline, ''):
-			sys.stdout.write(line)
+		for line in p.stdout:
+			sys.stdout.write(line.decode('utf-8'))
 		p.wait()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
-		print "   ... process terminated by user"
+		print("   ... process terminated by user")
 		sys.exit(1)
 
 def interactive(submit, cmd, log_file = None):
@@ -48,16 +49,16 @@ def interactive(submit, cmd, log_file = None):
 		p = subprocess.Popen([submit,cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		if log_file:
 			log = open(log_file, 'w')
-		for line in iter(p.stdout.readline, ''):
-			sys.stdout.write(line)
+		for line in p.stdout:
+			sys.stdout.write(line.decode('utf-8'))
 			if log_file:	
-				log.write(line)
+				log.write(line.decode('utf-8'))
 		p.wait()
 		if log_file:
 			log.close()
 	except KeyboardInterrupt:
 		kill_all(p.pid)
-		print "   ... process terminated by user"
+		print("   ... process terminated by user")
 		sys.exit(1)
 
 def kill_all(pid):

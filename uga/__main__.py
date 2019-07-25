@@ -15,21 +15,20 @@
 ##    You should have received a copy of the GNU General Public License
 ##    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import demandimport; demandimport.enable(); demandimport.ignore('bottleneck'); demandimport.ignore('pathlib')
 import os
 import numpy as np
 import pandas as pd
 from collections import OrderedDict
 import glob
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 from pkg_resources import resource_filename
 import signal
 import subprocess
 import shutil
-import Parse
-import Process
-import Map
-import Fxns
+from uga import Parse
+from uga import Process
+from uga import Map
+from uga import Fxns
 import pickle
 from Bio import bgzf
 
@@ -60,7 +59,7 @@ def main(args=None):
 	##### locate qsub wrapper #####
 	qsub_wrapper = ini.get('main','wrapper')
 	if 'qsub' in args and not os.access(ini.get('main','wrapper'),os.X_OK):
-		print Process.print_error('uga qsub wrapper ' + ini.get('main','wrapper') + ' is not executable')
+		print(Process.print_error('uga qsub wrapper ' + ini.get('main','wrapper') + ' is not executable'))
 		return
 
 	##### distribute jobs #####
@@ -198,71 +197,71 @@ def main(args=None):
 						jobs_df.reset_index(drop=True,inplace=True)
 
 			if jobs_df.empty:
-				print Process.print_error('job list is empty, no variants found in region/s specified')
+				print(Process.print_error('job list is empty, no variants found in region/s specified'))
 				return
 			if run_type == 1:
 				n = int(np.ceil(jobs_df.shape[0] / float(cfg['cpus'])))
 				n_remain = int(jobs_df.shape[0] - (n-1) * cfg['cpus'])
-				jobs_df['cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)).astype(np.int64) + 1
+				jobs_df['cpu'] = np.append(np.repeat(list(range(cfg['cpus']))[:n_remain],n),np.repeat(list(range(cfg['cpus']))[n_remain:],n-1)).astype(np.int64) + 1
 			elif run_type == 10:
 				jobs_df['job'] = jobs_df.index.values + 1
 			elif run_type == 100:
 				n = int(np.ceil(jobs_df.shape[0] / float(cfg['split_n'])))
 				n_remain = int(jobs_df.shape[0] - (n-1) * cfg['split_n'])
-				jobs_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)).astype(np.int64) + 1
+				jobs_df['job'] = np.append(np.repeat(list(range(cfg['split_n']))[:n_remain],n),np.repeat(list(range(cfg['split_n']))[n_remain:],n-1)).astype(np.int64) + 1
 			elif run_type == 11 and args.which != 'snvgroup':
 				cfg['split_n'] = int(np.ceil(jobs_df.shape[0] / float(cfg['cpus'])))
 				n = int(np.ceil(jobs_df.shape[0] / float(cfg['split_n'])))
 				n_remain = int(jobs_df.shape[0] - (n-1) * cfg['split_n'])
-				jobs_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)).astype(np.int64) + 1
+				jobs_df['job'] = np.append(np.repeat(list(range(cfg['split_n']))[:n_remain],n),np.repeat(list(range(cfg['split_n']))[n_remain:],n-1)).astype(np.int64) + 1
 				for i in range(1,int(max(jobs_df['job'])) + 1):
 					n = int(np.ceil(jobs_df[jobs_df['job'] == i].shape[0] / float(cfg['cpus'])))
 					n_remain = int(jobs_df[jobs_df['job'] == i].shape[0] - (n-1) * cfg['cpus'])
-					jobs_df.loc[jobs_df['job'] == i,'cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)).astype(np.int64) + 1
+					jobs_df.loc[jobs_df['job'] == i,'cpu'] = np.append(np.repeat(list(range(cfg['cpus']))[:n_remain],n),np.repeat(list(range(cfg['cpus']))[n_remain:],n-1)).astype(np.int64) + 1
 				cfg['split'] = None
 			elif run_type == 101:
 				n = int(np.ceil(jobs_df.shape[0] / float(cfg['split_n'])))
 				n_remain = int(jobs_df.shape[0] - (n-1) * cfg['split_n'])
-				jobs_df['job'] = np.append(np.repeat(range(cfg['split_n'])[:n_remain],n),np.repeat(range(cfg['split_n'])[n_remain:],n-1)).astype(np.int64) + 1
+				jobs_df['job'] = np.append(np.repeat(list(range(cfg['split_n']))[:n_remain],n),np.repeat(list(range(cfg['split_n']))[n_remain:],n-1)).astype(np.int64) + 1
 				for i in range(1,int(max(jobs_df['job'])) + 1):
 					n = int(np.ceil(jobs_df[jobs_df['job'] == i].shape[0] / float(cfg['cpus'])))
 					n_remain = int(jobs_df[jobs_df['job'] == i].shape[0] - (n-1) * cfg['cpus'])
-					jobs_df.loc[jobs_df['job'] == i,'cpu'] = np.append(np.repeat(range(cfg['cpus'])[:n_remain],n),np.repeat(range(cfg['cpus'])[n_remain:],n-1)).astype(np.int64) + 1
+					jobs_df.loc[jobs_df['job'] == i,'cpu'] = np.append(np.repeat(list(range(cfg['cpus']))[:n_remain],n),np.repeat(list(range(cfg['cpus']))[n_remain:],n-1)).astype(np.int64) + 1
 			if int(max(jobs_df['job'])) + 1 > 100000:
-				print Process.print_error('number of jobs exceeds 100,000, consider using --split-n to reduce the total number of jobs')
+				print(Process.print_error('number of jobs exceeds 100,000, consider using --split-n to reduce the total number of jobs'))
 				return
 			
 
 	if args.which in ['snv','snvgroup','meta','merge','tools']:
-		print 'detected run type ' + str(run_type) + ' ...'
+		print('detected run type ' + str(run_type) + ' ...')
 		if len(rerun) == 0:
 			if int(max(jobs_df['job'])) > 1 and cfg['qsub'] is not None:
 				if 'mb' in cfg:
-					print '   ' + str(jobs_df.shape[0]) + ' regions of size ' + str(cfg['mb']) + 'mb detected'
+					print('   ' + str(jobs_df.shape[0]) + ' regions of size ' + str(cfg['mb']) + 'mb detected')
 				else:
-					print '   ' + str(jobs_df.shape[0]) + ' regions detected'
-				print '   an array containing ' + str(int(max(jobs_df['job']))) + ' tasks will be submitted'
-				print '   <= ' + str(max(np.bincount(jobs_df['job']))) + ' regions per task'
-				print '   <= '  + str(int(max(jobs_df['cpu']))) + ' cpus per task'
-				print '   qsub options: ' + cfg['qsub']
-				print '   output directory: ' + cfg['out']
-				print '   replace: ' + str(cfg['replace'])
+					print('   ' + str(jobs_df.shape[0]) + ' regions detected')
+				print('   an array containing ' + str(int(max(jobs_df['job']))) + ' tasks will be submitted')
+				print('   <= ' + str(max(np.bincount(jobs_df['job']))) + ' regions per task')
+				print('   <= '  + str(int(max(jobs_df['cpu']))) + ' cpus per task')
+				print('   qsub options: ' + cfg['qsub'])
+				print('   output directory: ' + cfg['out'])
+				print('   replace: ' + str(cfg['replace']))
 				input_var = None
 				while input_var not in ['y','n','Y','N']:
-					input_var = raw_input('\nsubmit jobs (yY/nN)? ')
+					input_var = input('\nsubmit jobs (yY/nN)? ')
 				if input_var.lower() == 'n':
-					print 'canceled by user'
+					print('canceled by user')
 					return
 
 			if os.path.exists(cfg['out']):
 				if args.replace:
-					print 'deleting old data'
+					print('deleting old data')
 					try:
 						shutil.rmtree(cfg['out'])
 					except OSError:
-						print Process.print_error('unable to replace results directory' + cfg['out'])
+						print(Process.print_error('unable to replace results directory ' + cfg['out']))
 				else:
-					print Process.print_error('results directory ' + cfg['out'] + ' already exists, use --replace to overwrite existing results')
+					print(Process.print_error('results directory ' + cfg['out'] + ' already exists, use --replace to overwrite existing results'))
 					return
 			try:
 				os.mkdir(cfg['out'])
@@ -273,52 +272,53 @@ def main(args=None):
 				pickle.dump([args, cfg], p)
 
 			if run_type in [10,11,100,101] and jobs_df.shape[0] > 1:
-				print "initializing job array database ..."
+				print("initializing job array database ...")
 				try:
 					os.mkdir(cfg['out'] + '/temp')
 				except OSError:
 					pass
 				for j in range(1, int(max(jobs_df['job'])) + 1):
 					try:
-						os.mkdir(cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100))
+						os.mkdir(cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)))
 					except OSError:
 						pass
 					try:
-						os.mkdir(cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j))
+						os.mkdir(cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j))
 					except OSError:
 						pass
+				print(cfg['out'])
 				with open(cfg['out'] + '/' + cfg['out'] + '.files', 'w') as jlist:
 					for j in range(1, int(max(jobs_df['job'])) + 1):
 						if args.which in ['snv','snvgroup','tools','merge']:
 							if 'model_order' in cfg:
 								for m in cfg['model_order']:
 									if m != '___no_tag___':
-										jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
+										jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
 									else:
-										jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
+										jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
 							else:								
-								jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
+								jlist.write(str(j) + '\t' + cfg['out'] + '.gz' + '\t' + cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.gz\n')
 						if 'meta_order' in cfg:
 							if len(cfg['meta_order']) > 0:
 								for m in cfg['meta_order']:
-									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + cfg['out'] + '/jobs' + str(100 * ((j-1) / 100) + 1) + '-' + str(100 * ((j-1) / 100) + 100) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
+									jlist.write(str(j) + '\t' + cfg['out'] + '.' + m + '.gz' + '\t' + cfg['out'] + '/jobs' + str(int(100 * ((j-1) // 100) + 1)) + '-' + str(int(100 * ((j-1) // 100) + 100)) + '/job' + str(j) + '/' + cfg['out'] + '.job' + str(j) + '.' + m + '.gz\n')
 			jobs_df.to_csv(cfg['out'] + '/' + cfg['out'] + '.jobs',header=True,index=False,sep="\t")
 			with open(cfg['out'] + '/' + cfg['out'] + '.jobs.run','w') as f:
 				f.write("\n".join([str(x) for x in jobs_df['job'].unique()]))
 		else:
 			if len(rerun) > 0 and cfg['qsub'] is not None:
-				print 'detected resubmit ...'
-				print '   an array containing ' + str(len(rerun)) + ' tasks will be submitted'
-				print '   <= ' + str(max(np.bincount(jobs_df['job']))) + ' regions per job'
-				print '   <= '  + str(int(max(jobs_df['cpu']))) + ' cpus per job'
-				print '   qsub options: ' + cfg['qsub']
-				print '   output directory: ' + cfg['out']
-				print '   replace: ' + str(cfg['replace'])
+				print('detected resubmit ...')
+				print('   an array containing ' + str(len(rerun)) + ' tasks will be submitted')
+				print('   <= ' + str(max(np.bincount(jobs_df['job']))) + ' regions per job')
+				print('   <= '  + str(int(max(jobs_df['cpu']))) + ' cpus per job')
+				print('   qsub options: ' + cfg['qsub'])
+				print('   output directory: ' + cfg['out'])
+				print('   replace: ' + str(cfg['replace']))
 				input_var = None
 				while input_var not in ['y','n','Y','N']:
-					input_var = raw_input('\nresubmit jobs (yY/nN)? ')
+					input_var = input('\nresubmit jobs (yY/nN)? ')
 				if input_var.lower() == 'n':
-					print 'canceled by user'
+					print('canceled by user')
 					return
 			with open(cfg['out'] + '/' + cfg['out'] + '.jobs.run','w') as f:
 				f.write("\n".join([str(x) for x in jobs_df['job'][jobs_df['job'].isin(rerun)]]))
@@ -330,16 +330,16 @@ def main(args=None):
 				ini.set('main',k[0],k[1])
 			with open(resource_filename('uga', 'settings.ini'), 'w') as f:
 				ini.write(f)
-		print 'main settings ...'
+		print('main settings ...')
 		for s in ini.sections():
 			for k in ini.options(s):
-				print '   ' + k + ' = ' + ini.get(s,k)
+				print('   ' + k + ' = ' + ini.get(s,k))
 
 	elif args.which in ['snv','snvgroup','meta','merge','resubmit','tools']:
 		if cfg['qsub']:
-			print "submitting jobs\n"
+			print("submitting jobs\n")
 		out = cfg['out']
-		joblist = range(1, int(max(jobs_df['job'])) + 1) if len(rerun) == 0 else rerun
+		joblist = list(range(1, int(max(jobs_df['job'])) + 1)) if len(rerun) == 0 else rerun
 		if int(max(jobs_df['job'])) > 1:
 			cfg['out'] = out + '/jobsUGA_JOB_RANGE/jobUGA_JOB_ID/' + os.path.basename(out) + '.jobUGA_JOB_ID'
 			cfg['job'] = 'UGA_JOB_ID'
@@ -361,7 +361,7 @@ def main(args=None):
 		files = pd.read_table(args.dir + '/' + os.path.basename(args.dir) + '.files', names=['job','out','file'])
 		complete, rerun = Fxns.verify_results(args.dir,files)
 		if len(rerun) > 0:
-			print Process.print_error('detected ' + str(len(rerun)) + ' failed jobs\n       use resubmit module to rerun failed jobs')
+			print(Process.print_error('detected ' + str(len(rerun)) + ' failed jobs\n       use resubmit module to rerun failed jobs'))
 			with open(args.dir + '/' + os.path.basename(args.dir) + '.rerun', 'w') as f:
 				f.write("\n".join([str(x) for x in rerun]))
 		else:
@@ -369,28 +369,28 @@ def main(args=None):
 			if complete:
 				input_var = None
 				while input_var not in ['y','n','Y','N']:
-					input_var = raw_input('delete obselete job subdirectories and files for this project (yY/nN)? ')
+					input_var = input('delete obselete job subdirectories and files for this project (yY/nN)? ')
 				if input_var.lower() == 'n':
-					print 'canceled by user'
+					print('canceled by user')
 				else:
-					print 'deleting subdirectories'
+					print('deleting subdirectories')
 					for d in glob.glob(args.dir + '/jobs*-*'):
 						try:
 							shutil.rmtree(d)
 						except OSError:
-							print Process.print_error('unable to delete job data directory ' + d)
-					print 'deleting temporary directory'
+							print(Process.print_error('unable to delete job data directory ' + d))
+					print('deleting temporary directory')
 					try:
 						shutil.rmtree(args.dir + '/temp')
 					except OSError:
-						print Process.print_error('unable to delete temporary directory ' + args.dir + '/temp')
-					print "deleting last job run list"
+						print(Process.print_error('unable to delete temporary directory ' + args.dir + '/temp'))
+					print("deleting last job run list")
 					try:
 						os.remove(args.dir + '/' + os.path.basename(args.dir) + '.jobs.run')
 					except OSError:
-						print Process.print_error('unable to delete job run list ' + args.dir + '/' + os.path.basename(args.dir) + '.jobs.run')
+						print(Process.print_error('unable to delete job run list ' + args.dir + '/' + os.path.basename(args.dir) + '.jobs.run'))
 			else:
-				print Process.print_error('file compilation incomplete')
+				print(Process.print_error('file compilation incomplete'))
 
 	elif args.which in ['snvgroupplot','snvplot']:
 		cfg['out'] = '.'.join(cfg['file'].split('.')[0:len(cfg['file'].split('.'))-1]) + '.' + args.which
@@ -407,28 +407,28 @@ def main(args=None):
 				try:
 					os.remove(cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'))
 				except OSError:
-					print Process.print_error('unable to remove existing log file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'))
+					print(Process.print_error('unable to remove existing log file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.log')))
 					return
 			else:
-				print Process.print_error('log file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.log') + ' already exists, use --replace to overwrite existing results')
+				print(Process.print_error('log file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.log') + ' already exists, use --replace to overwrite existing results'))
 				return
 		if os.path.exists(cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz')):
 			if args.replace:
 				try:
 					os.remove(cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz'))
 				except OSError:
-					print Process.print_error('unable to remove existing inflation corrected results file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz'))
+					print(Process.print_error('unable to remove existing inflation corrected results file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz')))
 			else:
-				print Process.print_error('results file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz') + ' already exists, use --replace to overwrite existing results')
+				print(Process.print_error('results file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz') + ' already exists, use --replace to overwrite existing results'))
 				return
 		if os.path.exists(cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz.tbi')):
 			if args.replace:
 				try:
 					os.remove(cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz.tbi'))
 				except OSError:
-					print Process.print_error('unable to remove existing inflation corrected results index file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz.tbi'))
+					print(Process.print_error('unable to remove existing inflation corrected results index file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz.tbi')))
 			else:
-				print Process.print_error('results index file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz.tbi') + ' already exists, use --replace to overwrite existing results')
+				print(Process.print_error('results index file ' + cfg['file'].replace('.gz','.' + cfg['tag'] + '.gz.tbi') + ' already exists, use --replace to overwrite existing results'))
 				return
 		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
 		if cfg['qsub'] is not None:
@@ -436,9 +436,9 @@ def main(args=None):
 		else:
 			Process.interactive(qsub_wrapper, cmd, cfg['file'].replace('.gz','.' + cfg['tag'] + '.log'))
 	else:
-		print Process.print_error(args.which + " not a currently available module")
+		print(Process.print_error(args.which + " not a currently available module"))
 
-	print ''
+	print('')
 
 if __name__ == "__main__":
 	main()

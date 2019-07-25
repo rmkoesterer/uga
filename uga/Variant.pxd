@@ -15,8 +15,6 @@
 
 import numpy as np
 import pandas as pd
-import Geno
-cimport Geno
 cimport numpy as np
 cimport cython
 import math

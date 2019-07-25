@@ -100,10 +100,15 @@ For the sake of this tutorial, let's assume the release version is 'X'.
 At this point you may change the name of the environment to anything you'd prefer by modifying the first line of the environment.yml file. For these instructions, we will 
 assume the name is unchanged from 'uga'.
 
-   >>> conda env create -f environment.yml
+   >>> conda env create -f env/environment.yml
    >>> source activate uga
 
-Now that your environment is activated, you are ready to install uga from source.
+With the environment active, you can now install the R packages using the included bash script, or see the comments in the script to install specific versions that have 
+been used for development. Please note that compiling these packages can take a fairly long time (~ 20 minutes on my machine).
+
+   >>> env/install_r_packages.sh
+
+Now that your environment is activated and the necessary R packages have been installed, you are ready to install uga from an official release.
 
    >>> python setup.py install
 
