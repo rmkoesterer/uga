@@ -1,4 +1,4 @@
-name: uga-3.0.0
+name: uga
 channels:
 - conda-forge
 - bioconda
