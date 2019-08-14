@@ -509,8 +509,9 @@ cdef class Score(SnvModel):
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
 			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
 			for col in [x for x in variants_df.columns if x not in [self.iid]]:
@@ -622,8 +623,8 @@ cdef class Gee(SnvModel):
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
-			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
 			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
+			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
 			for col in [x for x in pheno_df.columns if x not in [self.iid, self.fid]]:
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
@@ -716,8 +717,9 @@ cdef class Glm(SnvModel):
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
 			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
 			for col in [x for x in variants_df.columns if x not in [self.iid]]:
@@ -797,8 +799,9 @@ cdef class Lm(SnvModel):
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
 			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
 			for col in [x for x in variants_df.columns if x not in [self.iid]]:
@@ -898,8 +901,9 @@ cdef class Lmer(SnvModel):
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
 			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
 			for col in [x for x in variants_df.columns if x not in [self.iid]]:
@@ -1009,8 +1013,9 @@ cdef class Skat(SnvgroupModel):
 		if len(passed) > 1:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
 			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
 			for col in [x for x in variants_df.columns if x not in [self.iid]]:
@@ -1159,8 +1164,9 @@ cdef class Skato(SnvgroupModel):
 		if len(passed) > 1:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
 			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
 			for col in [x for x in variants_df.columns if x not in [self.iid]]:
@@ -1311,8 +1317,9 @@ cdef class Burden(SnvgroupModel):
 		if len(passed) > 1:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
+			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
 			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.iid]]:
+			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
 			for col in [x for x in variants_df.columns if x not in [self.iid]]:
