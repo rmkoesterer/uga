@@ -165,8 +165,8 @@ cdef class Vcf(Variants):
 					self.snv_chunk[i,:9] = record[:9]
 					self.snv_chunk[i,11:] = extract_vcf_dose(record[9:], field)
 					self.snv_chunk[i,5] = self.group_id
-					self.snv_chunk[i,9] = 'chr' + self.snv_chunk[i,0] + 'bp' + self.snv_chunk[i,1] + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,2][0:60]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,3][0:1000]) + '.'  + re_sub(ILLEGAL_CHARS,'_',self.snv_chunk[i,4][0:1000])
-					self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0],self.snv_chunk[i,1],self.snv_chunk[i,3],self.snv_chunk[i,4],'><')
+					self.snv_chunk[i,9] = b'chr' + self.snv_chunk[i,0] + b'bp' + self.snv_chunk[i,1] + b'.'  + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,2][0:60]) + b'.'  + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,3][0:1000]) + b'.'  + re_sub(ILLEGAL_CHARS,b'_',self.snv_chunk[i,4][0:1000])
+					self.snv_chunk[i,10] = get_universal_variant_id(self.snv_chunk[i,0].decode("utf-8"),self.snv_chunk[i,1].decode("utf-8"),self.snv_chunk[i,3].decode("utf-8"),self.snv_chunk[i,4].decode("utf-8"),'><')
 					i += 1
 				elif 'GT' in fields:
 					gt = fields.index('GT')
