@@ -443,9 +443,9 @@ cdef class Results(Variants):
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'TA' and 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'GC' and 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'CG' and 
-					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a1'][0]) + complement(row['a2'][0]) or	
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a1'][0]) + b'NA' or
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'NA' + complement(row['a2'][0])))):
+					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a1'].decode("utf-8")[0]).encode("utf-8") + complement(row['a2'].decode("utf-8")[0]).encode("utf-8") or	
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a1'].decode("utf-8")[0]).encode("utf-8") + b'NA' or
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'NA' + complement(row['a2'].decode("utf-8")[0]).encode("utf-8")))):
 				self.snv_results['a1'][i-1] = ref.db[row['___uid___']]['a1']
 				self.snv_results['a2'][i-1] = ref.db[row['___uid___']]['a2']
 				self.snv_results['id'][i-1] = ref.db[row['___uid___']]['id']
@@ -453,9 +453,9 @@ cdef class Results(Variants):
 			elif (ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + row['a1'] or 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + b'NA' or
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'NA' + row['a1'] or
-					((ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'][0]) + complement(row['a1'][0]) or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'][0]) + b'NA' or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'NA' + complement(row['a1'][0])) and
+					((ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'].decode("utf-8")[0]).encode("utf-8") + complement(row['a1'].decode("utf-8")[0]).encode("utf-8") or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'].decode("utf-8")[0]).encode("utf-8") + b'NA' or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'NA' + complement(row['a1'].decode("utf-8")[0]).encode("utf-8")) and
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'AT' and 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'TA' and 
 					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'GC' and 
