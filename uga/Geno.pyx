@@ -437,34 +437,34 @@ cdef class Results(Variants):
 		for row in self.snv_results:
 			i += 1
 			if (ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a1'] + row['a2'] or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a1'] + 'NA' or
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + row['a2'] or
-					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "AT" and 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "TA" and 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "GC" and 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "CG" and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a1'] + b'NA' or
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'NA' + row['a2'] or
+					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'AT' and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'TA' and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'GC' and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'CG' and 
 					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a1'][0]) + complement(row['a2'][0]) or	
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a1'][0]) + 'NA' or
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + complement(row['a2'][0])))):
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a1'][0]) + b'NA' or
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'NA' + complement(row['a2'][0])))):
 				self.snv_results['a1'][i-1] = ref.db[row['___uid___']]['a1']
 				self.snv_results['a2'][i-1] = ref.db[row['___uid___']]['a2']
 				self.snv_results['id'][i-1] = ref.db[row['___uid___']]['id']
 				self.snv_results['id_unique'][i-1] = ref.db[row['___uid___']]['id_unique']
 			elif (ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + row['a1'] or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + 'NA' or
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + row['a1'] or
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + b'NA' or
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'NA' + row['a1'] or
 					((ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'][0]) + complement(row['a1'][0]) or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'][0]) + 'NA' or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == 'NA' + complement(row['a1'][0])) and
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "AT" and 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "TA" and 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "GC" and 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != "CG") or
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == complement(row['a2'][0]) + b'NA' or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'NA' + complement(row['a1'][0])) and
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'AT' and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'TA' and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'GC' and 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] != b'CG') or
 					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == row['a2'] + row['a1'] and
-					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "AT" or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "TA" or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "GC" or 
-					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == "CG"))):
+					(ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'AT' or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'TA' or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'GC' or 
+					ref.db[row['___uid___']]['a1'] + ref.db[row['___uid___']]['a2'] == b'CG'))):
 				self.snv_results['a1'][i-1] = ref.db[row['___uid___']]['a1']
 				self.snv_results['a2'][i-1] = ref.db[row['___uid___']]['a2']
 				self.snv_results['id'][i-1] = ref.db[row['___uid___']]['id']
@@ -484,7 +484,7 @@ cdef class Results(Variants):
 				if 't' in self.snv_results.dtype.names:
 					self.snv_results['t'][i-1] = -1.0 * self.snv_results['t'][i-1]
 				if 'dir' in self.snv_results.dtype.names:
-					self.snv_results['dir'][i-1] = self.snv_results['dir'][i-1].replace('+','!').replace('-','+').replace('!','-')
+					self.snv_results['dir'][i-1] = self.snv_results['dir'][i-1].replace(b'+',b'!').replace(b'-',b'+').replace(b'!',b'-')
 
 	def tag_results(self, tag):
 		logger = logging.getLogger("Geno.Results.get_tagged_results")
