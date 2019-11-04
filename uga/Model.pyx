@@ -509,12 +509,12 @@ cdef class Score(SnvModel):
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
-			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
-			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
+			for col in set([self.fid, self.iid]):
+				pheno_df[col] = pheno_df[col].str.decode("utf-8")
+			for col in set([x for x in pheno_df.columns if x not in [self.fid,self.iid]]):
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
-			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+			for col in set([x for x in variants_df.columns if x not in [self.iid]]):
 				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
@@ -558,9 +558,9 @@ cdef class Score(SnvModel):
 				self.results['p'][passed] = np.array(ro.r('result$p'))[:,None]
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True))
 		self.out_dtypes = dict(dict(dict({x:str(y[0]) for x,y in self.variant_stats.dtype.fields.items()}, **{x:str(y[0]) for x,y in self.variants.info.dtype.fields.items()})), **{x:np.dtype(y).name for x,y in self.results_dtypes})
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Gee(SnvModel):
@@ -623,12 +623,12 @@ cdef class Gee(SnvModel):
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
-			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
-			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.iid, self.fid]]:
+			for col in set([self.fid, self.iid]):
+				pheno_df[col] = pheno_df[col].str.decode("utf-8")
+			for col in set([x for x in pheno_df.columns if x not in [self.iid, self.fid]]):
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
-			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+			for col in set([x for x in variants_df.columns if x not in [self.iid]]):
 				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			ro.r('model_df$' + self.fid + '<-as.factor(model_df$' + self.fid + ')')
@@ -658,9 +658,9 @@ cdef class Gee(SnvModel):
 						self.results['err'][v] = 1
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True))
 		self.out_dtypes = dict(dict(dict({x:str(y[0]) for x,y in self.variant_stats.dtype.fields.items()}, **{x:str(y[0]) for x,y in self.variants.info.dtype.fields.items()})), **{x:np.dtype(y).name for x,y in self.results_dtypes})
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Glm(SnvModel):
@@ -717,12 +717,12 @@ cdef class Glm(SnvModel):
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
-			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
-			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
+			for col in set([self.fid, self.iid]):
+				pheno_df[col] = pheno_df[col].str.decode("utf-8")
+			for col in set([x for x in pheno_df.columns if x not in [self.fid,self.iid]]):
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
-			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+			for col in set([x for x in variants_df.columns if x not in [self.iid]]):
 				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			for v in passed:
@@ -748,9 +748,9 @@ cdef class Glm(SnvModel):
 					self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True))
 		self.out_dtypes = dict(dict(dict({x:str(y[0]) for x,y in self.variant_stats.dtype.fields.items()}, **{x:str(y[0]) for x,y in self.variants.info.dtype.fields.items()})), **{x:np.dtype(y).name for x,y in self.results_dtypes})
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Lm(SnvModel):
@@ -799,12 +799,12 @@ cdef class Lm(SnvModel):
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
-			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
-			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
+			for col in set([self.fid, self.iid]):
+				pheno_df[col] = pheno_df[col].str.decode("utf-8")
+			for col in set([x for x in pheno_df.columns if x not in [self.fid,self.iid]]):
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
-			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+			for col in set([x for x in variants_df.columns if x not in [self.iid]]):
 				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			for v in passed:
@@ -829,9 +829,9 @@ cdef class Lm(SnvModel):
 					self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True))
 		self.out_dtypes = dict(dict(dict({x:str(y[0]) for x,y in self.variant_stats.dtype.fields.items()}, **{x:str(y[0]) for x,y in self.variants.info.dtype.fields.items()})), **{x:np.dtype(y).name for x,y in self.results_dtypes})
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Lmer(SnvModel):
@@ -901,12 +901,12 @@ cdef class Lmer(SnvModel):
 		if len(passed) > 0:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
-			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
-			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
+			for col in set([self.fid, self.iid]):
+				pheno_df[col] = pheno_df[col].str.decode("utf-8")
+			for col in set([x for x in pheno_df.columns if x not in [self.fid,self.iid]]):
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
-			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+			for col in set([x for x in variants_df.columns if x not in [self.iid]]):
 				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			ro.r('model_df$' + self.fid + '<-as.factor(model_df$' + self.fid + ')')
@@ -937,9 +937,9 @@ cdef class Lmer(SnvModel):
 
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True))
 		self.out_dtypes = dict(dict(dict({x:str(y[0]) for x,y in self.variant_stats.dtype.fields.items()}, **{x:str(y[0]) for x,y in self.variants.info.dtype.fields.items()})), **{x:np.dtype(y).name for x,y in self.results_dtypes})
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Skat(SnvgroupModel):
@@ -1013,12 +1013,12 @@ cdef class Skat(SnvgroupModel):
 		if len(passed) > 1:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
-			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
-			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
+			for col in set([self.fid, self.iid]):
+				pheno_df[col] = pheno_df[col].str.decode("utf-8")
+			for col in set([x for x in pheno_df.columns if x not in [self.fid,self.iid]]):
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
-			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+			for col in set([x for x in variants_df.columns if x not in [self.iid]]):
 				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			ro.globalenv['variants'] = ro.StrVector([x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])])
@@ -1073,9 +1073,9 @@ cdef class Skat(SnvgroupModel):
 			self.results['err'][0] = 5
 		self.out = pd.DataFrame(self.results.flatten(),index=[0])
 		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 	@cython.boundscheck(False)
@@ -1164,12 +1164,12 @@ cdef class Skato(SnvgroupModel):
 		if len(passed) > 1:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
-			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
-			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
+			for col in set([self.fid, self.iid]):
+				pheno_df[col] = pheno_df[col].str.decode("utf-8")
+			for col in set([x for x in pheno_df.columns if x not in [self.fid,self.iid]]):
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
-			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+			for col in set([x for x in variants_df.columns if x not in [self.iid]]):
 				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			ro.globalenv['variants'] = ro.StrVector([x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])])
@@ -1227,9 +1227,9 @@ cdef class Skato(SnvgroupModel):
 			self.results['err'][0] = 5
 		self.out = pd.DataFrame(self.results.flatten(),index=[0])
 		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 	@cython.boundscheck(False)
@@ -1317,12 +1317,12 @@ cdef class Burden(SnvgroupModel):
 		if len(passed) > 1:
 			variants_df = pd.DataFrame(self.variants.data[:,[0] + passed_data])
 			variants_df.columns = [self.iid] + [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])]
-			pheno_df[self.fid] = pheno_df[self.fid].str.decode("utf-8")
-			pheno_df[self.iid] = pheno_df[self.iid].str.decode("utf-8")
-			for col in [x for x in pheno_df.columns if x not in [self.fid,self.iid]]:
+			for col in set([self.fid, self.iid]):
+				pheno_df[col] = pheno_df[col].str.decode("utf-8")
+			for col in set([x for x in pheno_df.columns if x not in [self.fid,self.iid]]):
 				pheno_df[col] = pheno_df[col].astype(self.pheno_df[col].dtype)
 			variants_df[self.iid] = variants_df[self.iid].str.decode("utf-8")
-			for col in [x for x in variants_df.columns if x not in [self.iid]]:
+			for col in set([x for x in variants_df.columns if x not in [self.iid]]):
 				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
 			ro.globalenv['variants'] = ro.StrVector([x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])])
@@ -1383,9 +1383,9 @@ cdef class Burden(SnvgroupModel):
 			self.results['err'][0] = 5
 		self.out = pd.DataFrame(self.results.flatten(), index=[0])
 		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 	@cython.boundscheck(False)
@@ -1452,9 +1452,9 @@ cdef class Neff(SnvgroupModel):
 			self.results['eff'][0] = 0.0
 		self.out = pd.DataFrame(self.results.flatten(), index=[0])
 		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class Meta(object):
@@ -1565,9 +1565,9 @@ cdef class SnvMeta(Meta):
 		df.columns = [x.replace('meta.','') for x in df.columns]
 		self.out = df[self.results_header].copy()
 		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x] != 'str']:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x] != 'str']):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x] == 'str']:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x] == 'str']):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class SkatMeta(Meta):
@@ -1644,9 +1644,9 @@ cdef class SkatMeta(Meta):
 			results['q'][0] = np.nan
 		self.out = pd.DataFrame(results.flatten(), index=[0])[self.results_header]
 		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("bytes")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("bytes")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("bytes")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("bytes")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class SkatoMeta(Meta):
@@ -1728,9 +1728,9 @@ cdef class SkatoMeta(Meta):
 			results['rho'][0] = np.nan
 		self.out = pd.DataFrame(results.flatten(),index=[0])[self.results_header]
 		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("bytes")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("bytes")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("bytes")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("bytes")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
 
 cdef class BurdenMeta(Meta):
@@ -1820,7 +1820,7 @@ cdef class BurdenMeta(Meta):
 			results['p'][0] = np.nan
 		self.out = pd.DataFrame(results.flatten(), index=[0])[self.results_header]
 		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
-		for col in [x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
-		for col in [x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]:
+		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].str.decode("utf-8")
