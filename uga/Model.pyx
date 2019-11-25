@@ -517,7 +517,7 @@ cdef class Score(SnvModel):
 			for col in set([x for x in variants_df.columns if x not in [self.iid]]):
 				variants_df[col] = pd.to_numeric(variants_df[col])
 			ro.globalenv['model_df'] = pheno_df.merge(variants_df, on=self.iid, how='left')
-			ro.globalenv['variants'] = ro.StrVector(list(self.variants.info['id_unique'][passed]))
+			ro.globalenv['variants'] = ro.StrVector([x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])])
 			ro.globalenv['snp_info'] = pd.DataFrame({'Name': [x.decode("utf-8") for x in list(self.variants.info['id_unique'][passed])], 'gene': 'NA'})
 			ro.r('snp_info$Name<-as.character(snp_info$Name)')
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
