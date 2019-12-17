@@ -34,7 +34,6 @@ def qsub(qsub_pre,cmd, jobs_run_file = None, log_file = None):
 	if log_file is not None:
 		cmd_list = cmd_list + [log_file]
 	try:
-		print(cmd_list)
 		p = subprocess.Popen(cmd_list,stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
 		for line in p.stdout:
 			sys.stdout.write(line.decode('utf-8'))

@@ -523,7 +523,7 @@ cdef class Score(SnvModel):
 			ro.r('snp_info$gene<-as.character(snp_info$gene)')
 			ro.r('z<-data.matrix(model_df[,names(model_df) %in% variants])')
 			if len(passed) == 1:
-				ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0] + '"')
+				ro.r('colnames(z)<-"' + self.variants.info['id_unique'][passed][0].decode("utf-8") + '"')
 			if self.adjust_kinship:
 				ro.globalenv['ped'] = self.pedigree
 				ro.globalenv['kins'] = ro.r("kinship(pedigree(famid=ped$" + self.fid + ",id=ped$" + self.iid + ",dadid=ped$" + self.patid + ",momid=ped$" + self.matid + ",sex=ped$" + self.sex + ",missid='NA'))")

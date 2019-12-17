@@ -336,23 +336,23 @@ def main(args=None):
 				print('   ' + k + ' = ' + ini.get(s,k))
 
 	elif args.which in ['snv','snvgroup','meta','merge','resubmit','tools']:
-		if cfg['qsub']:
+		if cfg['qsub'] is not None:
 			print("submitting jobs\n")
 		out = cfg['out']
 		joblist = list(range(1, int(max(jobs_df['job'])) + 1)) if len(rerun) == 0 else rerun
 		if int(max(jobs_df['job'])) > 1:
 			cfg['out'] = out + '/jobsUGA_JOB_RANGE/jobUGA_JOB_ID/' + os.path.basename(out) + '.jobUGA_JOB_ID'
 			cfg['job'] = 'UGA_JOB_ID'
-			if cfg['qsub']:
+			if cfg['qsub'] is not None:
 				cfg['qsub'] = cfg['qsub'] + ' -t 1-' + str(len(joblist))
 		else:
 			cfg['out'] = out + '/' + os.path.basename(out)
 			cfg['job'] = 1
-			if cfg['qsub']:
+			if cfg['qsub'] is not None:
 				cfg['qsub'] = cfg['qsub'] + ' -t 1'
 		args.ordered_args = [('out',cfg['out']),('region_file',out + '/' + out + '.jobs'),('job',cfg['job']),('cpus',int(max(jobs_df['cpu'])))] + [x for x in args.ordered_args if x[0] not in ['out','region_file','cpus']]
 		cmd = 'Run' + args.which.capitalize() + '(' + str(args.ordered_args) + ')'
-		if cfg['qsub']:
+		if cfg['qsub'] is not None:
 			Process.qsub(['qsub'] + cfg['qsub'].split() + ['-N',out,'-o',out + '/temp',qsub_wrapper],'\"' + cmd + '\"',out + '/' + out + '.jobs.run',cfg['out'] + '.log')
 		else:
 			Process.interactive(qsub_wrapper, cmd, cfg['out'] + '.' + args.which + '.log')
