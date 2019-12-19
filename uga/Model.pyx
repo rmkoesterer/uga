@@ -417,7 +417,7 @@ cdef class SnvModel(Model):
 			except:
 				raise Process.Error("ped file and data file contain no common samples")
 			else:
-				logger.debug("found " + str(self.variants.data.shape[1]) + " variants for " + str(self.variants.data.shape[0]) + " samples")
+				logger.debug("found " + str(self.variants.data.shape[1]-1) + " variants for " + str(self.variants.data.shape[0]) + " samples")
 				self.calc_variant_stats()
 
 cdef class SnvgroupModel(Model):
@@ -699,7 +699,7 @@ cdef class Glm(SnvModel):
 		self.metadata_snv = self.metadata_snv + '\n' + self.metadata_snv_cc if self.family == 'binomial' else self.metadata_snv
 		self.metadata = self.metadata + '\n' + \
 						self.metadata_snv + '\n' + \
-						'## err: error code (0: no error, 1: missing values returned by glm, 2: infinite value or zero p-value detected, 3: glm failed)' + '\n' + \
+						'## err: error code (0: no error, 1: detected variant with zero variance, 2: infinite value or zero p-value detected, 3: glm failed)' + '\n' + \
 						'## effect: effect size' + '\n' + \
 						'## stderr: standard error'
 		self.metadata = self.metadata + '\n' + '## or: odds ratio (included only if binomial family)' if self.family == 'binomial' else self.metadata
@@ -728,24 +728,27 @@ cdef class Glm(SnvModel):
 			for v in passed:
 				vu = self.variants.info['id_unique'][v].decode("utf-8")
 				ro.globalenv['cols'] = list(set([a for a in self.model_cols] + [vu]))
-				cmd = 'glm(' + self.formula.replace('___snv___',vu) + ',data=na.omit(model_df[,names(model_df) %in% cols]),family=' + self.family + ')'
-				try:
-					ro.globalenv['result'] = ro.r(cmd)
-				except RRuntimeError as rerr:
-					self.results['err'][v] = 3
-					print(vu + ": " + rerr.message)
+				var_vu = ro.r('var(na.omit(model_df[,names(model_df) %in% cols])[,"' + vu + '"])')[0]
+				if var_vu != 0:
+					cmd = 'glm(' + self.formula.replace('___snv___',vu) + ',data=model_df<-na.omit(model_df[,names(model_df) %in% cols]),family=' + self.family + ')'
+					try:
+						ro.globalenv['result'] = ro.r(cmd)
+					except RRuntimeError as rerr:
+						self.results['err'][v] = 3
+						print(vu + ": " + rerr.message)
+					else:
+						vu = self.focus.replace('___snv___',vu)
+						ro.r('result<-summary(result)')
+						ro.r('err<-0')
+						ro.r('err[! is.finite(result$coefficients["' + vu + '",1]) | ! is.finite(result$coefficients["' + vu + '",2]) | ! is.finite(result$coefficients["' + vu + '",4]) | result$coefficients["' + vu + '",4] == 0]<-2')
+						self.results['err'][v] = np.array(ro.r('err'))[:,None]
+						self.results['effect'][v] = np.array(ro.r('result$coefficients["' + vu + '",1]'))[:,None]
+						self.results['stderr'][v] = np.array(ro.r('result$coefficients["' + vu + '",2]'))[:,None]
+						self.results['or'][v] = np.array(np.exp(ro.r('result$coefficients["' + vu + '",1]')))[:,None]
+						self.results['z'][v] = np.array(ro.r('result$coefficients["' + vu + '",3]'))[:,None]
+						self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
 				else:
-					vu = self.focus.replace('___snv___',vu)
-					ro.r('result<-summary(result)')
-					ro.r('err<-0')
-					ro.r('err[result$coefficients["' + vu + '",1] == "NA"]<-1')
-					ro.r('err[! is.finite(result$coefficients["' + vu + '",1]) | ! is.finite(result$coefficients["' + vu + '",2]) | ! is.finite(result$coefficients["' + vu + '",4]) | result$coefficients["' + vu + '",4] == 0]<-2')
-					self.results['err'][v] = np.array(ro.r('err'))[:,None]
-					self.results['effect'][v] = np.array(ro.r('result$coefficients["' + vu + '",1]'))[:,None]
-					self.results['stderr'][v] = np.array(ro.r('result$coefficients["' + vu + '",2]'))[:,None]
-					self.results['or'][v] = np.array(np.exp(ro.r('result$coefficients["' + vu + '",1]')))[:,None]
-					self.results['z'][v] = np.array(ro.r('result$coefficients["' + vu + '",3]'))[:,None]
-					self.results['p'][v] = np.array(ro.r('result$coefficients["' + vu + '",4]'))[:,None]
+					self.results['err'][v] = 1
 		self.out = pd.DataFrame(recfxns.merge_arrays((recfxns.merge_arrays((self.variants.info,self.variant_stats),flatten=True),self.results),flatten=True))
 		self.out_dtypes = dict(dict(dict({x:str(y[0]) for x,y in self.variant_stats.dtype.fields.items()}, **{x:str(y[0]) for x,y in self.variants.info.dtype.fields.items()})), **{x:np.dtype(y).name for x,y in self.results_dtypes})
 		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
