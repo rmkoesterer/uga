@@ -241,7 +241,7 @@ cdef class Vcf(Variants):
 				break
 			i = i + 1
 			if self.snvgroup_map is not None:
-				self.snv_chunk = self.snv_chunk[np.where(np.in1d(self.snv_chunk[:,2],snvgroup_snvs))]
+				self.snv_chunk = self.snv_chunk[np.where(np.in1d(self.snv_chunk[:,2],[x.encode("utf-8") for x in snvgroup_snvs]))]
 			self.snvgroup_chunk = np.vstack((self.snvgroup_chunk,self.snv_chunk))
 		if i == 0:
 			raise
