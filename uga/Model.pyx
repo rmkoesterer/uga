@@ -1086,7 +1086,7 @@ cdef class Skat(SnvgroupModel):
 	cpdef tag_results(self, tag):
 		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','cmac','err','nmiss','nsnps','cmaf','p','q']]))
 		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + 'total','uint32'),(tag + 'passed','uint32'),(tag + '.cmac','f8'),(tag + '.err','f8'),(tag + '.nmiss','f8'),(tag + '.nsnps','f8'),(tag + '.cmaf','f8'),(tag + '.p','f8'),(tag + '.q','f8')])
-		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
+		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).apply(pd.to_numeric, errors = 'coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
@@ -1229,7 +1229,7 @@ cdef class Skato(SnvgroupModel):
 		else:
 			self.results['err'][0] = 5
 		self.out = pd.DataFrame(self.results.flatten(),index=[0])
-		self.out_dtypes = {x:np.dtype(y).name for x,y in self.results_dtypes}
+		self.out_dtypes = dict({x:str(y) for x,y in self.results_dtypes if y.startswith("|S")}, **{x:np.dtype(y).name for x,y in self.results_dtypes if not y.startswith("|S")})
 		for col in set([x for x in self.out.columns if x in self.out_dtypes and not self.out_dtypes[x].startswith("|S")]):
 			self.out[col] = self.out[col].astype(self.out_dtypes[col])
 		for col in set([x for x in self.out.columns if x in self.out_dtypes and self.out_dtypes[x].startswith("|S")]):
@@ -1240,7 +1240,7 @@ cdef class Skato(SnvgroupModel):
 	cpdef tag_results(self, tag):
 		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','cmac','err','nmiss','nsnps','cmaf','p','pmin','rho']]))
 		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.total','uint32'),(tag + '.passed','uint32'),(tag + '.cmac','f8'),(tag + '.err','f8'),(tag + '.nmiss','f8'),(tag + '.nsnps','f8'),(tag + '.cmaf','f8'),(tag + '.p','f8'),(tag + '.pmin','f8'),(tag + '.rho','f8')])
-		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
+		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).apply(pd.to_numeric, errors = 'coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
@@ -1396,7 +1396,7 @@ cdef class Burden(SnvgroupModel):
 	cpdef tag_results(self, tag):
 		self.results_header = np.append(np.array(['chr','start','end','id']),np.array([tag + '.' + x for x in ['total','passed','cmac','err','nmiss','nsnpsTotal','nsnpsUsed','cmafTotal','cmafUsed','beta','se','p']]))
 		self.results = self.results.view(dtype=[('chr','uint8'),('start','uint32'),('end','uint32'),('id','|S100'),(tag + '.total','uint32'),(tag + '.passed','uint32'),(tag + '.cmac','f8'),(tag + '.err','f8'),(tag + '.nmiss','f8'),(tag + '.nsnpsTotal','f8'),(tag + '.nsnpsUsed','f8'),(tag + '.cmafTotal','f8'),(tag + '.cmafUsed','f8'),(tag + '.beta','f8'),(tag + '.se','f8'),(tag + '.p','f8')])
-		self.out = pd.to_numeric(pd.DataFrame(self.results.flatten(), dtype='object',index=[0]),errors='coerce')
+		self.out = pd.DataFrame(self.results.flatten(), dtype='object',index=[0]).apply(pd.to_numeric, errors = 'coerce')
 		if not np.isnan(self.results[tag + '.p'][0]):
 			ro.r(tag + '_ps<-ps')
 			ro.r(tag + '_snp_info<-snp_info')
