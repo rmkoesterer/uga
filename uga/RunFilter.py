@@ -114,7 +114,7 @@ def RunFilter(args):
 			print("adjusting wald statistic")
 			r[cfg['waldcol']] = r[cfg['waldcol']] / math.sqrt(l)
 			print("calculating corrected p-value from wald statistic")
-			r[cfg['pcol']] = scipy.chisqprob(r[cfg['waldcol']],1)
+			r[cfg['pcol']] = scipy.chi2.sf(r[cfg['waldcol']],1)
 		elif cfg['zcol'] in r.columns:
 			print("adjusting z statistic")
 			r[cfg['zcol']] = r[cfg['zcol']] / math.sqrt(l)

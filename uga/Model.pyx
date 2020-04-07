@@ -369,6 +369,9 @@ cdef class Model(object):
 				self.variant_stats['filter'][i] += 10
 			if not hwe_thresh is None and not hwe_maf_thresh is None and not np.isnan(self.variant_stats['hwe'][i]) and not np.isnan(self.variant_stats['freq'][i]) and ((self.variant_stats['freq'][i] <= 0.5 and self.variant_stats['freq'][i] > hwe_maf_thresh and self.variant_stats['hwe'][i] < hwe_thresh) or (self.variant_stats['freq'][i] > 0.5 and 1-self.variant_stats['freq'][i] > hwe_maf_thresh and self.variant_stats['hwe'][i] < hwe_thresh)):
 				self.variant_stats['filter'][i] += 1
+			else:
+				if not hwe_thresh is None and not np.isnan(self.variant_stats['hwe'][i]) and self.variant_stats['hwe'][i] < hwe_thresh:
+					self.variant_stats['filter'][i] += 1
 
 cdef class SnvModel(Model):
 	cdef public str metadata_snv, metadata_snv_cc
