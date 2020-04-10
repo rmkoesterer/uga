@@ -1,4 +1,4 @@
-FROM debian:stretch-slim
+FROM ubuntu:16.04
 
 WORKDIR /work
 
@@ -12,9 +12,9 @@ RUN apt-get update && \
 		ca-certificates && \
 	sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
 	locale-gen && \
-	wget --quiet https://repo.anaconda.com/miniconda/Miniconda2-latest-Linux-x86_64.sh && \
-	/bin/bash Miniconda2-latest-Linux-x86_64.sh -b -p /opt/conda && \
-	rm Miniconda2-latest-Linux-x86_64.sh && \
+	wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+	/bin/bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda && \
+	rm Miniconda3-latest-Linux-x86_64.sh && \
 	ln -s /opt/conda/bin/conda /usr/local/bin/conda && \
 	apt-get -y remove --purge \
 		wget \
@@ -23,9 +23,11 @@ RUN apt-get update && \
 	apt-get -y autoremove && \
 	rm -rf /var/lib/apt/lists/*
 
-ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US:en
-ENV LC_ALL=en_US.UTF-8
+# Set the locale
+RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
+ENV LANG=en_US.UTF-8  
+ENV LANGUAGE=en_US:en  
+ENV LC_ALL=en_US.UTF-8     
 
 RUN conda config --set auto_update_conda false && \
 	echo "name: uga" > /work/environment.yml && \
@@ -51,7 +53,7 @@ RUN conda config --set auto_update_conda false && \
 	conda env create -f /work/environment.yml && \
 	conda clean -afy
 
-RUN echo "source activate uga" >> ~/.bashrc
+RUN echo "conda activate uga" >> ~/.bashrc
 ENV PATH /opt/conda/envs/uga/bin:/opt/conda/bin:$PATH
 
 RUN R -e 'install.packages(c("kinship2", "geepack", "lme4", "lmertest", "pbkrtest", "seqMeta", "RColorBrewer", "ggplot2","R.utils"), repos="http://cran.us.r-project.org", dependencies=TRUE)'
@@ -74,4 +76,4 @@ RUN echo "#!/bin/bash" > /work/.uga_init && \
 	echo ". activate uga" >> /work/.uga_init && \
 	chmod 775 /work/.uga_init
 
-CMD ["/work/.uga_init"]
+ENTRYPOINT ["/work/.uga_init"]
