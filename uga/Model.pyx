@@ -1561,7 +1561,7 @@ cdef class SnvMeta(Meta):
 			for tag in self.meta_incl:
 				df['meta.' + tag + '.hetq_pre'] = df.apply(lambda x: x['meta.' + tag + '.wi'] * (x[tag + '.effect'] - x['meta.effect'])**2 if x[filter_idx] == 0 and x[P_idx] <= 1 else float('nan'),axis=1)
 			Hetq_pre_idx_all=[i for i, s in enumerate(list(df.columns.values)) if s.startswith(tuple('meta.' + x for x in self.meta_incl)) and s.endswith('.hetq_pre')]
-			df['meta.hetq'] = df.apply(lambda x: x[Hetq_pre_idx_all].sum() if len(x['meta.dir'].replace('x','')) > 1 else float('nan'),axis=1)
+			df['meta.hetq'] = df.apply(lambda x: x[Hetq_pre_idx_all].sum() if len(x['meta.dir'].replace(b'x',b'')) > 1 else float('nan'),axis=1)
 			df['meta.hetdf'] = df.apply(lambda x: len([a for a in x['meta.dir'] if a != b'x'])-1 if len(x['meta.dir'].replace(b'x',b'')) > 1 else float('nan'),axis=1)
 			df['meta.heti2'] = df.apply(lambda x: ((x['meta.hetq']-x['meta.hetdf'])/x['meta.hetq'])*100 if len(x['meta.dir'].replace(b'x',b'')) > 1 and x['meta.hetq'] != 0 else float('nan'),axis=1)
 			df['meta.hetp'] = df.apply(lambda x: 1-scipy.chi2.cdf(x['meta.hetq'], x['meta.hetdf']) if len(x['meta.dir'].replace(b'x',b'')) > 1 else float('nan'),axis=1)
