@@ -1566,7 +1566,7 @@ cdef class SnvMeta(Meta):
 			df['meta.heti2'] = df.apply(lambda x: ((x['meta.hetq']-x['meta.hetdf'])/x['meta.hetq'])*100 if len(x['meta.dir'].replace(b'x',b'')) > 1 and x['meta.hetq'] != 0 else float('nan'),axis=1)
 			df['meta.hetp'] = df.apply(lambda x: 1-scipy.chi2.cdf(x['meta.hetq'], x['meta.hetdf']) if len(x['meta.dir'].replace(b'x',b'')) > 1 else float('nan'),axis=1)
 		df['meta.p'] = df.apply(lambda x: 2 * scipy.norm.cdf(-1 * abs(float(x['meta.z']))) if len(x['meta.dir'].replace(b'x',b'')) > 0 else float('nan'), axis=1)
-		df['meta.dir'] = df.apply(lambda x: x['meta.dir'] if not math.isnan(x['meta.p']) else float('nan'), axis=1)
+		df['meta.dir'] = df.apply(lambda x: x['meta.dir'] if not math.isnan(x['meta.p']) else b'NA', axis=1)
 		df = df[['chr','pos','id','a1','a2'] + [x for x in df.columns if 'meta.' in x]]
 		df.columns = [x.replace('meta.','') for x in df.columns]
 		self.out = df[self.results_header].copy()
